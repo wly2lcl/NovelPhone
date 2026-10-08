@@ -83,6 +83,13 @@ class SettingsPage extends ConsumerWidget {
             trailing: const Icon(Icons.chevron_right, color: PaperColors.inkSoft),
             onTap: () => restoreBackup(context, ref),
           ),
+          ListTile(
+            leading: const Icon(Icons.cloud_outlined),
+            title: const Text('云备份'),
+            subtitle: const Text('备份到你自己的对象存储（S3 / OSS / COS 等），默认关闭'),
+            trailing: const Icon(Icons.chevron_right, color: PaperColors.inkSoft),
+            onTap: () => context.push('/settings/cloud-backup'),
+          ),
         ],
       ),
     );

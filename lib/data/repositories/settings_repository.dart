@@ -6,6 +6,7 @@ import '../../core/ai/ai_client_factory.dart';
 import '../../core/ai/mcp/mcp_bridge.dart';
 import '../../core/ai/skills/skill.dart';
 import '../../core/writing_stats.dart';
+import '../../models/cloud_backup_config.dart';
 import '../dao/app_setting_dao.dart';
 import '../dao/model_group_dao.dart';
 import '../db.dart';
@@ -445,6 +446,51 @@ class SettingsRepository {
 
   static int _clampPomodoro(int minutes) =>
       minutes < 1 ? 1 : (minutes > 120 ? 120 : minutes);
+
+  // ---------- 云备份（B-08）----------
+
+  /// 云备份非敏感配置的落库键（不含任何凭证）。
+  static const String cloudBackupConfigKey = 'cloud_backup_config';
+
+  /// 云凭证在安全存储中的固定引用键。
+  static const String cloudAccessKeyRef = 'cloud_backup_access_key';
+  static const String cloudSecretKeyRef = 'cloud_backup_secret_key';
+
+  Future<CloudBackupConfig> cloudBackupConfig() async {
+    final raw = await getSetting(cloudBackupConfigKey);
+    if (raw == null || raw.trim().isEmpty) return const CloudBackupConfig();
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map) {
+        return CloudBackupConfig.fromJson(decoded.cast<String, dynamic>());
+      }
+    } catch (_) {
+      // 容忍历史脏数据
+    }
+    return const CloudBackupConfig();
+  }
+
+  Future<void> saveCloudBackupConfig(CloudBackupConfig config) =>
+      setSetting(cloudBackupConfigKey, jsonEncode(config.toJson()));
+
+  Future<String?> readCloudAccessKey() => _keyStore.read(cloudAccessKeyRef);
+
+  Future<String?> readCloudSecretKey() => _keyStore.read(cloudSecretKeyRef);
+
+  /// 保存云凭证：空值表示保持原有（不落库、不进备份、不上传）。
+  Future<void> saveCloudCredentials({String? accessKey, String? secretKey}) async {
+    if (accessKey != null && accessKey.trim().isNotEmpty) {
+      await _keyStore.write(cloudAccessKeyRef, accessKey.trim());
+    }
+    if (secretKey != null && secretKey.trim().isNotEmpty) {
+      await _keyStore.write(cloudSecretKeyRef, secretKey.trim());
+    }
+  }
+
+  Future<void> clearCloudCredentials() async {
+    await _keyStore.delete(cloudAccessKeyRef);
+    await _keyStore.delete(cloudSecretKeyRef);
+  }
 
   // ---------- 通用设置 ----------
 

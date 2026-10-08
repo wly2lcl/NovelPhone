@@ -4,6 +4,8 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 
 import '../../data/repositories/backup_repository.dart';
+import 'share_export.dart';
+import 'text_exporter.dart';
 
 /// 备份 zip 内的数据文件名。
 const String kBackupDataEntry = 'data.json';
@@ -20,6 +22,30 @@ Uint8List buildBackupZip({
     archive.add(ArchiveFile.string(entry.key, entry.value));
   }
   return ZipEncoder().encodeBytes(archive);
+}
+
+/// 从仓储读取整库数据并组装备份 zip（B-08：本地导出与云备份共用同一份内容）。
+Future<Uint8List> exportBackupZipBytes(BackupRepository repository) async {
+  final data = await repository.exportData();
+  final bundles = await repository.loadWorkBundles();
+
+  final markdowns = <String, String>{};
+  final usedNames = <String>{};
+  for (final bundle in bundles) {
+    final chapters = <ExportChapter>[
+      for (final chapter in bundle.chapters)
+        ExportChapter(title: chapter.title, content: chapter.content),
+    ];
+    var path = 'works/${safeExportFileName(bundle.title, 'md')}';
+    var suffix = 2;
+    while (!usedNames.add(path)) {
+      path = 'works/${safeExportFileName('${bundle.title}_$suffix', 'md')}';
+      suffix++;
+    }
+    markdowns[path] = buildWorkMarkdown(chapters);
+  }
+
+  return buildBackupZip(data: data, workMarkdowns: markdowns);
 }
 
 /// 解析备份 zip，返回 data.json 内容（M2-11 数据校验入口之一）。

@@ -25,6 +25,8 @@ dependencies:
   flutter_secure_storage: ^11.2.0
   # 出网请求（SSE 流式解析）
   http: ^1.6.0
+  # 云备份（B-08）：SigV4 签名所需的 SHA256 / HMAC
+  crypto: ^3.0.7
   # 应用私有目录（数据库与导入留档文件）
   path_provider: ^2.1.6
 

@@ -188,7 +188,7 @@ M4 自动化验证记录（2026-09-30）：`flutter analyze` 无问题；`flutte
 
 ## 后置 backlog（不进 MVP 承诺）
 
-进度：B-01、B-02、B-03、B-04、B-05、B-06、B-07、B-09 已完成；B-08 本轮不做（保持 zip 本地备份）。
+进度：B-01、B-02、B-03、B-04、B-05、B-06、B-07、B-08、B-09 全部已完成。
 
 - [x] B-01（P2）Responses 端点适配器：新增 `ResponsesAdapter implements AiClient`（架构 9 章触发条件成熟时）
   - 新增 `lib/core/ai/responses_adapter.dart`（端点 `POST {baseUrl}/v1/responses`，system 提为顶层 `instructions`，`input[]` 支持消息 / `function_call` / `function_call_output`；解析 `response.output_text.delta`、`response.completed` 的 usage 与 status；工具调用经 `response.output_item.*` / `response.function_call_arguments.delta` 累积）；`AiProvider.responses` 登记并在 `buildAiClient` 分发；设置页协议类型增第三段「Responses」。
@@ -241,4 +241,15 @@ M4 自动化验证记录（2026-09-30）：`flutter analyze` 无问题；`flutte
   - 备份：`BackupRepository` 导出/恢复纳入 `settingEntries` 与 `characterRelations`（覆盖恢复先清空；恢复按 `workIdMap` / 角色 `characterIdMap` 重映射外键；旧备份无该键时按空处理，向后兼容）。
   - 验证：`test/features/worldbuilding_test.dart` 新增 7 个用例（类型回落、设定集增删改与筛选、关系改标签与端点、删角色级联删关系、备份跨库重映射、设定集 Tab 渲染与筛选切换、关系图页绘制与列表）；`flutter analyze` 无问题，`flutter test` 204 用例全绿。
   - 文档同步：ARCHITECTURE 3 章目录与模块表、4.1 ER 图与表定义、4.2 表要点、4.3 级联规则、README 当前状态。
-- [ ] B-08（P2）云备份（本轮不做，保持 zip 本地备份）
+- [x] B-08（P2）云备份（已实现）
+  - 决策（2026-10-08 与用户对齐）：用户可开关是否启用；启用后可选服务商 AWS S3 / 阿里云 OSS / 七牛云 Kodo / 腾讯云 COS / 华为云 OBS（统一走 S3 兼容 + SigV4）；远端多份带时间戳并保留最近 N 份；不做客户端加密；手动触发为主、预留自动开关；自写 SigV4 over http、不引新依赖。
+  - 需求：PRD 5.10；技术方案：ARCHITECTURE 9.1。
+  - 实现：
+    - [x] `core/cloud/s3_signer.dart` SigV4 签名纯函数（canonical request → string to sign → signing key → `Authorization`），并导出 `awsUriEncode` 供客户端按同一规则预编码 path/query
+    - [x] `core/cloud/cloud_storage_client.dart`（`putObject` / `getObject` / `deleteObject` / `listObjects` / `checkConnection`，path-style 寻址，OSS 兼容头，分页；错误分类提示）
+    - [x] `models/cloud_backup_config.dart` 服务商枚举（显示名 / endpoint 模板 / region 提示 / OSS 兼容头标记）与配置模型
+    - [x] `core/cloud/cloud_backup_service.dart` 上传/列举/保留 N 份清理/下载编排（复用 `core/exporter` 的 `exportBackupZipBytes`）
+    - [x] 配置持久化：非敏感项走 APP_SETTING（`SettingsRepository`），AK/SK 走 `SecureKeyStore`（不落库、不进备份）
+    - [x] `features/settings/cloud_backup_page.dart` 云备份页（开关、服务商、字段、测试连接、立即备份、远端恢复、自动开关置灰预留）+ 路由 `/settings/cloud-backup` + 设置页入口
+  - 验证：`test/core/cloud_backup_test.dart` 14 个用例（GET 官方向量、`awsUriEncode` 保留字符、配置回落与归一化、path-style+OSS 头、保留字符编码进请求路径、分页解析、403/404 提示、`checkConnection`、备份编排与保留份数、配置持久化与凭证不入库）、`test/features/cloud_backup_page_test.dart` 1 个用例（默认关闭隐藏字段、开启后展示并落库）；`flutter analyze` 无问题，`flutter test` 219 用例全绿。
+  - 文档同步：PRD 5.10 / 1.2 后置说明、ARCHITECTURE 9.1 与演进表、COMPLIANCE §1.2 出网范围、README 当前状态。

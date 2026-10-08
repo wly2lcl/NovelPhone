@@ -2,6 +2,7 @@ import 'package:go_router/go_router.dart';
 
 import '../features/editor/editor_page.dart';
 import '../features/settings/appearance_page.dart';
+import '../features/settings/cloud_backup_page.dart';
 import '../features/settings/mcp_servers_page.dart';
 import '../features/settings/model_group_edit_page.dart';
 import '../features/settings/model_groups_page.dart';
@@ -96,6 +97,11 @@ final GoRouter appRouter = GoRouter(
           path: 'writing-stats',
           name: 'writingStats',
           builder: (context, state) => const WritingStatsPage(),
+        ),
+        GoRoute(
+          path: 'cloud-backup',
+          name: 'cloudBackup',
+          builder: (context, state) => const CloudBackupPage(),
         ),
       ],
     ),

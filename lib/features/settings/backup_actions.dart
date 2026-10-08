@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/exporter/backup_archive.dart';
 import '../../core/exporter/share_export.dart';
-import '../../core/exporter/text_exporter.dart';
 import '../../data/data_providers.dart';
 
 /// 备份文件名前缀（M2-10）。
@@ -15,26 +14,7 @@ Future<void> exportBackup(BuildContext context, WidgetRef ref) async {
   final messenger = ScaffoldMessenger.of(context);
   try {
     final repository = ref.read(backupRepositoryProvider);
-    final data = await repository.exportData();
-    final bundles = await repository.loadWorkBundles();
-
-    final markdowns = <String, String>{};
-    final usedNames = <String>{};
-    for (final bundle in bundles) {
-      final chapters = <ExportChapter>[
-        for (final chapter in bundle.chapters)
-          ExportChapter(title: chapter.title, content: chapter.content),
-      ];
-      var path = 'works/${safeExportFileName(bundle.title, 'md')}';
-      var suffix = 2;
-      while (!usedNames.add(path)) {
-        path = 'works/${safeExportFileName('${bundle.title}_$suffix', 'md')}';
-        suffix++;
-      }
-      markdowns[path] = buildWorkMarkdown(chapters);
-    }
-
-    final bytes = buildBackupZip(data: data, workMarkdowns: markdowns);
+    final bytes = await exportBackupZipBytes(repository);
     final stamp = DateTime.now()
         .toIso8601String()
         .substring(0, 19)
@@ -70,7 +50,7 @@ Future<void> restoreBackup(BuildContext context, WidgetRef ref) async {
   }
 
   if (!context.mounted) return;
-  final overwrite = await _pickRestoreMode(context);
+  final overwrite = await pickRestoreMode(context);
   if (overwrite == null) return;
 
   try {
@@ -88,7 +68,8 @@ Future<void> restoreBackup(BuildContext context, WidgetRef ref) async {
 }
 
 /// 恢复方式二选一（PRD 功能 12）：合并为新增作品 / 覆盖并清空本地。
-Future<bool?> _pickRestoreMode(BuildContext context) {
+/// 本地文件恢复与云端恢复共用。
+Future<bool?> pickRestoreMode(BuildContext context) {
   return showDialog<bool>(
     context: context,
     builder: (dialogContext) => AlertDialog(

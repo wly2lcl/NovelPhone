@@ -155,7 +155,8 @@ lib/
 │   ├── flavor_lexicon.dart       # 套话词库（约 200 条，按权重分级）
 │   ├── word_count.dart           # 中文字数统计
 │   ├── importer/                 # txt/docx 导入与分章
-│   └── exporter/                 # 单章/整作导出（txt/md/docx）、备份 zip 组装与分享
+│   ├── exporter/                 # 单章/整作导出（txt/md/docx）、备份 zip 组装与分享
+│   └── cloud/                    # 云备份（B-08）：S3 兼容客户端（SigV4 签名）与备份编排
 └── features/
     ├── works/                    # 作品列表
     ├── work_detail/              # 作品详情（卷/章/角色卡/设定集/章纲/人物关系图/导入/导出）
@@ -163,7 +164,7 @@ lib/
     ├── ai/                       # 续写/灵感用例编排
     ├── search/                   # 全局搜索（B-06）：跨作品检索章节标题与正文
     ├── stats/                    # 写作统计（B-07）：每日目标、连击与番茄钟
-    └── settings/                 # key 与模型配置、token 统计、备份与恢复
+    └── settings/                 # key 与模型配置、token 统计、本地备份与恢复、云备份（B-08）
 ```
 
 | 模块 | 职责 | 输入 | 输出 | 依赖 | 明确不做 |
@@ -181,7 +182,8 @@ lib/
 | core/ai_flavor_rules | 规则引擎检测 | 章节文本 | 问题列表 | 无 | 不做 LLM 检测 |
 | core/importer | 解析与分章 | 文件 bytes | 分割预览 | 无 | 不写库（确认后交 Repository） |
 | core/exporter | 导出文本生成与备份 zip 组装/解析 | 章节数据、导出数据 Map | txt/md/docx bytes、zip bytes | archive | 不写库、不直接调分享面板（由 features 触发） |
-| features/settings | key/模型配置、token 累计 | 用户输入 | 经 Repository 落库、经安全存储存 key | SettingsRepository、TokenStatsRepository、AiUseCase(testConnection) | 不直接接触数据库、安全存储与网络 |
+| core/cloud | 云备份（B-08）：S3 兼容对象存储读写（SigV4 签名）与备份/恢复编排（上传、列举、清理、下载） | 服务商配置（endpoint/region/bucket/凭证）+ zip bytes / 远端对象列表 | 远端对象列表、下载 bytes、操作结果 | http、core/exporter（zip 组装） | 不直接读写数据库（配置与编排由 features/settings 与 SettingsRepository 协作），不含中心化服务器与账号体系 |
+| features/settings | key/模型配置、token 累计、本地备份与恢复、云备份配置与触发（B-08） | 用户输入 | 经 Repository 落库、经安全存储存 key、经 core/cloud 上传下载 | SettingsRepository、TokenStatsRepository、AiUseCase(testConnection)、CloudBackupService | 不直接接触数据库、安全存储与网络 |
 
 依赖方向：features → repositories / ai 用例 → core/ai → ai_client；无环 `[Expert judgment]`。
 
@@ -557,10 +559,31 @@ Responses（OpenAI Responses 端点，B-01 已实现）：
 | Responses 端点 | 新增 `ResponsesAdapter implements AiClient`，ModelGroup.provider 增加枚举 | 需要 OpenAI 新端点独占能力（如新模型 tool calling）时 —— **B-01 已实现**（`core/ai/responses_adapter.dart`，provider 取值 `responses`，设置页协议类型可选） |
 | MCP 接入 | `AgentCore` 注册远程 Tool：经 mcp_dart 连接 Streamable HTTP server，`tools/list` 结果包装为 `Tool`；设置页 MCP server 配置 | M1-M4 交付后；产品上前置：远程 server 配置界面、工具调用计费透明化 —— **B-02 已实现**（`core/ai/mcp/mcp_bridge.dart`，配置见设置页「MCP 工具服务」；认证方式本轮为 Token / 自定义请求头，**OAuth 2.1 PKCE 为后续项**） |
 | 用户自定义 SKILL | 新增 `Skill` 模型（指令文本 + 工具白名单 + 参数模板），在用例编排层作为可选的 system 指令与工具集注入；数据结构与 Genkit/Anthropic skills 的 markdown 约定保持兼容以便导入 | AI 基础能力稳定后 —— **B-03 已实现**（`core/ai/skills/skill.dart`，续写与灵感均注入附加 system 并在上下文详情列出；工具白名单按并集过滤内置与 MCP 工具；配置见设置页「自定义技能」；markdown front matter 导入为后续项） |
-| 云备份 | 备份模块替换 zip 的 destination；数据层不变 | 用户反馈换机诉求强烈时 |
+| 云备份（B-08） | 备份模块替换 zip 的 destination：新增 `core/cloud` 的 S3 兼容客户端（SigV4）与备份编排，复用 `core/exporter` 的 zip 组装；数据层不变；配置走 APP_SETTING + 安全存储 | 用户反馈换机诉求强烈时 —— **已实现**（`lib/core/cloud/`，需求 PRD 5.10，方案见 9.1） |
 | 桌面端 | 架构无桌面阻塞项；drift 支持桌面 SQLite | 资源允许时 |
 
 以上每一项都只新增模块或新增适配器，不修改既有层接口——这是当前架构划分的核心约束 `[Expert judgment]`。
+
+### 9.1 云备份（B-08）设计
+
+需求见 PRD 5.10。**已实现**（`lib/core/cloud/`、`lib/models/cloud_backup_config.dart`、`lib/features/settings/cloud_backup_page.dart`）。技术方案要点：
+
+- **服务商统一为 S3 兼容**：AWS S3、阿里云 OSS、腾讯云 COS、七牛云 Kodo、华为云 OBS 均支持 S3 兼容 API 与 AWS SigV4，因此只写一套 S3 兼容客户端，按 `endpoint` / `region` 参数化即可覆盖五家；各家差异由配置吸收：
+  - 阿里云 OSS：走 S3 V4 签名时需附加请求头 `x-oss-s3-compat: true`；
+  - 华为云 OBS：endpoint 形如 `obs.<region>.myhuaweicloud.com`（不要把桶名拼进 endpoint，否则 `SignatureDoesNotMatch`）；
+  - 腾讯云 COS / 七牛云 Kodo：直接使用其 S3 兼容 endpoint。
+  - 寻址统一用 path-style（`{endpoint}/{bucket}/{key}`），规避虚拟主机风格在兼容端点上的差异。
+- **模块划分（`lib/core/cloud/`）**：
+  - `s3_signer.dart`：SigV4 签名的纯函数实现（canonical request → string to sign → signing key → `Authorization` 头），无副作用、可单测；
+  - `cloud_storage_client.dart`：`CloudStorageClient` 抽象 + `S3CompatibleClient`（`putObject` / `getObject` / `deleteObject` / `listObjects`），仅依赖 `http`；
+  - `cloud_backup_service.dart`：编排——调用 `core/exporter` 生成备份 zip bytes → 上传带时间戳对象 → 列举同前缀对象 → 按保留份数 N 删除最旧；
+  - `models/cloud_backup_config.dart`：服务商枚举（显示名 + endpoint 模板 / region 提示）与配置模型。
+- **配置存储**：非敏感项（开关、服务商、endpoint、region、bucket、前缀、保留份数、自动备份开关）存 APP_SETTING（走 `SettingsRepository`）；AccessKey / SecretKey 走 `SecureKeyStore`，不落库、不进备份、不上传。
+- **分层归属**：网络调用不下沉到 Repository（与 AI 层一致）——上传 / 下载 / 列举属 `CloudBackupService`（core/cloud）；配置持久化属 `SettingsRepository`；页面在 `features/settings`，仅做编排调用。
+- **对象命名与保留**：`{prefix}{yyyyMMddTHHmmss}.zip`（本地时区），默认前缀 `novelphone/backups/`；列举按 key 内时间戳倒序，保留最近 N 份（默认 10、最小 1），其余删除。
+- **恢复流程**：列举远端 → 用户选一份 → `getObject` 下载 bytes → 复用既有 zip 解析与恢复（合并为新作品 / 覆盖本机，作者选择）。
+- **错误处理**：沿用第 8 章"错误分类 + 明确提示"总策略；区分网络失败、`403` / `SignatureDoesNotMatch`（凭证或 endpoint/region 不匹配）、`404`（桶不存在）、`RequestTimeTooSkewed`（设备时钟偏差），均不阻断本地使用。
+- **本轮范围**：仅手动"立即备份 / 测试连接 / 从云端恢复"；自动备份开关落库但默认关、调度逻辑留待后续版本。
 
 ---
 
