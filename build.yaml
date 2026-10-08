@@ -1,0 +1,9 @@
+# drift 代码生成配置
+# 日期时间以文本（ISO-8601，微秒精度）存储：保证"最后编辑时间倒序"在
+# 同一秒内的多次写入也能正确排序，且不受时区转换影响。
+targets:
+  $default:
+    builders:
+      drift_dev:
+        options:
+          store_date_time_values_as_text: true

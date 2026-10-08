@@ -1,0 +1,179 @@
+import 'package:drift/drift.dart';
+
+import '../dao/ai_usage_dao.dart';
+import '../db.dart';
+
+/// 一次生成的处置结果（AI_USAGE.outcome）。
+class AiOutcome {
+  const AiOutcome._();
+
+  static const String pending = 'pending';
+  static const String adopted = 'adopted';
+  static const String ignored = 'ignored';
+  static const String regenerated = 'regenerated';
+  static const String aborted = 'aborted';
+
+  static String label(String outcome) {
+    switch (outcome) {
+      case adopted:
+        return '已采纳';
+      case ignored:
+        return '已忽略';
+      case regenerated:
+        return '重新生成';
+      case aborted:
+        return '已中止';
+      default:
+        return '待处置';
+    }
+  }
+}
+
+/// 按「模型 + 任务」聚合的一行统计。
+class TokenStatRow {
+  const TokenStatRow({
+    required this.model,
+    required this.task,
+    required this.calls,
+    required this.promptTokens,
+    required this.completionTokens,
+    required this.outputChars,
+    required this.adoptedChars,
+    required this.adopted,
+    required this.ignored,
+  });
+
+  final String model;
+  final String task;
+  final int calls;
+  final int promptTokens;
+  final int completionTokens;
+  final int outputChars;
+  final int adoptedChars;
+  final int adopted;
+  final int ignored;
+}
+
+/// Token 与采纳统计（M3-20，PRD 功能 10）。
+class TokenStats {
+  const TokenStats({required this.rows});
+
+  final List<TokenStatRow> rows;
+
+  int get calls => rows.fold(0, (sum, r) => sum + r.calls);
+
+  int get promptTokens => rows.fold(0, (sum, r) => sum + r.promptTokens);
+
+  int get completionTokens => rows.fold(0, (sum, r) => sum + r.completionTokens);
+
+  int get totalTokens => promptTokens + completionTokens;
+
+  int get outputChars => rows.fold(0, (sum, r) => sum + r.outputChars);
+
+  int get adoptedChars => rows.fold(0, (sum, r) => sum + r.adoptedChars);
+
+  int get adopted => rows.fold(0, (sum, r) => sum + r.adopted);
+
+  int get ignored => rows.fold(0, (sum, r) => sum + r.ignored);
+
+  /// 采纳率：被插入正文字数 / AI 生成总字数（PRD 2.2 字符口径）。
+  double get adoptionRate => outputChars == 0 ? 0 : adoptedChars / outputChars;
+
+  /// 忽略率：忽略次数 / 生成总次数。
+  double get ignoreRate => calls == 0 ? 0 : ignored / calls;
+
+  bool get isEmpty => rows.isEmpty;
+}
+
+/// AI_USAGE 读写与聚合（ARCHITECTURE 4.2：AI_USAGE 是 token 统计的唯一数据源）。
+class TokenStatsRepository {
+  TokenStatsRepository(AppDatabase db) : _dao = AiUsageDao(db);
+
+  final AiUsageDao _dao;
+
+  Future<int> record({
+    required String task,
+    required String model,
+    int? workId,
+    int? chapterId,
+    int promptTokens = 0,
+    int completionTokens = 0,
+    int outputChars = 0,
+    String outcome = AiOutcome.pending,
+  }) {
+    return _dao.insert(AiUsagesCompanion.insert(
+      task: task,
+      model: model,
+      createdAt: DateTime.now(),
+      workId: Value(workId),
+      chapterId: Value(chapterId),
+      promptTokens: Value(promptTokens),
+      completionTokens: Value(completionTokens),
+      outputChars: Value(outputChars),
+      outcome: Value(outcome),
+    ));
+  }
+
+  Future<void> updateOutcome(int id, String outcome) =>
+      _dao.updateOutcome(id, outcome);
+
+  /// 采纳时同时记录实际插入的字数（字符口径采纳率）。
+  Future<void> markAdopted(int id, int adoptedChars) =>
+      _dao.updateAdoptedChars(id, adoptedChars, AiOutcome.adopted);
+
+  Stream<TokenStats> watchStats() => _dao.watchAll().map(_aggregate);
+
+  Future<TokenStats> stats() async => _aggregate(await _dao.findAll());
+
+  Future<void> reset() => _dao.deleteAll();
+
+  TokenStats _aggregate(List<AiUsage> usages) {
+    final map = <String, _MutableRow>{};
+    for (final usage in usages) {
+      final key = '${usage.model}\u0000${usage.task}';
+      final row = map.putIfAbsent(
+        key,
+        () => _MutableRow(model: usage.model, task: usage.task),
+      );
+      row.calls++;
+      row.promptTokens += usage.promptTokens;
+      row.completionTokens += usage.completionTokens;
+      row.outputChars += usage.outputChars;
+      row.adoptedChars += usage.adoptedChars;
+      if (usage.outcome == AiOutcome.adopted) row.adopted++;
+      if (usage.outcome == AiOutcome.ignored) row.ignored++;
+    }
+    final rows = map.values
+        .map((r) => TokenStatRow(
+              model: r.model,
+              task: r.task,
+              calls: r.calls,
+              promptTokens: r.promptTokens,
+              completionTokens: r.completionTokens,
+              outputChars: r.outputChars,
+              adoptedChars: r.adoptedChars,
+              adopted: r.adopted,
+              ignored: r.ignored,
+            ))
+        .toList()
+      ..sort((a, b) {
+        final byTask = a.task.compareTo(b.task);
+        return byTask != 0 ? byTask : a.model.compareTo(b.model);
+      });
+    return TokenStats(rows: rows);
+  }
+}
+
+class _MutableRow {
+  _MutableRow({required this.model, required this.task});
+
+  final String model;
+  final String task;
+  int calls = 0;
+  int promptTokens = 0;
+  int completionTokens = 0;
+  int outputChars = 0;
+  int adoptedChars = 0;
+  int adopted = 0;
+  int ignored = 0;
+}

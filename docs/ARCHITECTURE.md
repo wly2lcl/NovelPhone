@@ -1,0 +1,572 @@
+# NovelPhone 技术架构与开发文档
+
+| 项 | 内容 |
+|---|---|
+| 版本 | v0.1（草案） |
+| 日期 | 2026-09-30 |
+| 状态 | 待评审 |
+| 上游文档 | `docs/PRD.md`（定义做什么） |
+| 下游文档 | `docs/TODO.md`（任务拆分与跟踪） |
+
+---
+
+## 1. 设计概述
+
+### 1.1 范围
+
+本文档覆盖 NovelPhone 的整体技术架构、模块划分、数据模型、AI 客户端设计、非功能性策略与演进路径。
+
+明确不在本文档范围内：UI 视觉规范（另行输出设计规范）、MCP 与 SKILL 的详细设计（架构预留接入点，功能实现后补充）、服务端开发（产品为纯本地 app，无自建服务端）。
+
+### 1.2 设计目标与约束
+
+| 目标/约束 | 说明 | 证据 |
+|---|---|---|
+| 本地优先 | 写作与管理全程离线可用；仅 AI 功能联网，且仅传输 AI 请求所需的最小上下文 | `[Data-backed]` PRD 2.1 产品原则 |
+| 用户自带 API Key | 不内置任何模型服务的凭证；key 仅存设备安全区；支持 OpenAI Chat Completions、Anthropic Messages 两种端点，结构上为 Responses 端点预留 | `[Data-backed]` 已确认的技术决策 |
+| 手机端体验 | 启动快、长章节编辑不卡、误操作可恢复（撤销/自动保存） | `[Data-backed]` PRD 1.2 痛点 |
+| 单代码库跨平台 | 优先交付 iOS/Android，架构不阻塞后续桌面端 | `[Expert judgment]` |
+| 变更量最小的前提下可演进 | MCP、用户 SKILL、云备份等后置功能有明确接入点，不需要重构既有层 | `[Expert judgment]` |
+
+### 1.3 术语表
+
+| 术语 | 含义 |
+|---|---|
+| 端点（endpoint） | 模型服务商的 HTTP API 路径。本产品涉及 Chat Completions（`POST /v1/chat/completions`）、Messages（`POST /v1/messages`），预留 Responses（`POST /v1/responses`） |
+| AiClient | 产品内部统一的模型调用抽象，屏蔽端点差异 |
+| 上下文组装 | 从本地作品数据构造 AI 请求 prompt 的过程 |
+| 规则引擎 | AI 感检查第一层：本地套话词库与句式模式匹配，零成本即时执行 |
+| 待确认面板 | AI 产出进入的底部面板，作者编辑确认后才写入正文 |
+
+---
+
+## 2. 总体架构
+
+### 2.1 架构风格
+
+采用**分层 + 功能模块**混合组织：横向按技术关注点分层（表现层 / 功能层 / 领域层 / 数据层），纵向按功能域切模块（works / work_detail / editor / ai / settings）。分层之间通过接口（Dart abstract interface）通信，功能模块不直接持有数据库句柄与安全存储句柄，业务数据经 Repository 读写，API key 经 SettingsRepository 读写。选此风格的理由：单机 app 无并发写入方，不需要事件驱动；分层保证 AI 端点适配、数据源替换等变化被限制在单层内 `[Expert judgment]`。
+
+### 2.2 架构图
+
+```mermaid
+graph TB
+    subgraph "表现层 lib/features"
+        F1[works 作品列表]
+        F2[work_detail 作品详情]
+        F3[editor 编辑器]
+        F4[settings 设置]
+    end
+
+    subgraph "AI 层 lib/features/ai + lib/core/ai"
+        A1[续写/灵感/AI 感检查]
+        A2[上下文组装 ContextBuilder]
+        A3[Agent Core：Tool 抽象 + ReAct 循环]
+        A4[AiClient 统一接口]
+        A5[ChatCompletionsAdapter]
+        A6[MessagesAdapter]
+        A7[ResponsesAdapter 预留]
+        A8[规则引擎 AI 味词库 core/ai_flavor_rules]
+    end
+
+    subgraph "领域层 lib/data"
+        R1[Repository：作品/章节/角色/章纲/设置/统计]
+    end
+
+    subgraph "数据层"
+        D1[(drift / SQLite 本地库)]
+        D2[(flutter_secure_storage key)]
+    end
+
+    subgraph "外部"
+        E1[OpenAI 兼容服务]
+        E2[Anthropic API]
+        E3[远程 MCP Server 预留]
+    end
+
+    F1 --> R1
+    F2 --> R1
+    F2 --> A1
+    F3 --> A1
+    F4 --> A1
+    F4 --> R1
+    A1 --> A2
+    A1 --> A3
+    A2 --> R1
+    A3 --> A4
+    A1 --> A4
+    A4 --> A5
+    A4 --> A6
+    A4 -.预留.-> A7
+    A5 --> E1
+    A6 --> E2
+    A3 -.预留.-> E3
+    R1 --> D1
+    R1 --> D2
+    A1 --> A8
+```
+
+架构图说明：UI 功能模块只依赖 Repository 与 AI 层的公开接口，不感知端点协议与数据库细节；所有出网请求收敛在 AiClient 的适配器内，便于做统一的错误处理与 token 统计；MCP（B-02）与 Responses（B-01）已由预留接入点落地为新增工具源与新增适配器，上层未改动。key 与 MCP 认证头的读写统一经 Repository 访问 flutter_secure_storage，UI 不直连安全存储。
+
+### 2.3 技术选型
+
+| 选型 | 理由 | 证据 |
+|---|---|---|
+| Flutter + Dart | 单代码库交付 iOS/Android；本地 app 形态（无服务端）与其定位匹配 | `[Expert judgment]` |
+| Riverpod | 状态管理；编译期安全的依赖注入，编辑器与 AI 面板的流式状态用 StreamProvider 自然衔接 | `[Expert judgment]` |
+| drift | SQLite 的类型安全封装；响应式查询让章节列表随编辑自动刷新；schema 迁移机制应对后续加表 | `[Expert judgment]` |
+| go_router | 声明式路由；作品列表 → 作品详情 → 编辑器三层导航与深度链接 | `[Expert judgment]` |
+| flutter_secure_storage | key 存入 keychain / keystore，满足 PRD 5.8 的安全要求 | `[Expert judgment]` |
+| http | 出网请求；SSE 流式用 `StreamedResponse` 逐行解析，不引入更重的客户端 | `[Expert judgment]` |
+| mcp_dart | 实现 MCP 2026-07-28 规范核心 wire surface，支持 Streamable HTTP 与 stdio，与官方 TS/Python SDK 有互操作验证；B-02 引入 2.4.2，不自研协议 | `[Research-backed]` pub.dev 包文档 |
+
+关键取舍记录：
+
+- **不自研模型调用封装，也不引入 flutter_ai_sdk 等统一封装库**：产品只需要流式文本对话，封装库的 vision/embeddings/本地模型等能力用不到，且其 model-agnostic 抽象会与端点适配层重叠；直连 http + 自写适配器总量约 400 行，可控可测 `[Expert judgment]`。
+- **M1/M2 不引入 MCP**：iOS 无法 spawn 子进程，stdio transport 在手机上不可用，用户侧 MCP 只能走远程 HTTP server；产品上前置条件（配置界面、安全模型、计费可见性）未就绪，先用 Tool 抽象占位 `[Research-backed]` MCP transport 的平台限制。
+- **agent 编排自写而非引入 Genkit**：本项目 agent 形态是单 agent + 工具，ReAct 循环约 300 行；Genkit Dart 尚为 preview，且其 model-agnostic 层与端点适配层职责重叠。Tool 抽象按 MCP tool schema 结构设计（name/description/inputSchema），将来若迁移 Genkit 只换编排层 `[Expert judgment]`。
+
+---
+
+## 3. 模块设计
+
+目录结构与模块职责：
+
+```
+lib/
+├── main.dart                     # 入口：初始化 drift、secure storage、ProviderScope
+├── app/                          # 应用壳：主题（暖色纸质 + 写作夜间外观）、go_router 路由表
+├── models/                       # 数据模型（与 drift 表对应的实体）
+├── data/
+│   ├── db.dart                   # drift 数据库定义与迁移
+│   ├── dao/                      # 各表 DAO
+│   └── repositories/             # Repository：领域操作的唯一入口
+├── core/
+│   ├── ai/
+│   │   ├── ai_client.dart        # AiClient 抽象 + 统一请求/响应模型
+│   │   ├── chat_completions_adapter.dart
+│   │   ├── messages_adapter.dart
+│   │   ├── sse.dart              # SSE 行解析（三个端点共用骨架）
+│   │   ├── context_builder.dart  # 上下文组装（PRD 6.2 的实现）
+│   │   ├── agent_core.dart       # Tool 抽象 + ReAct 循环
+│   │   ├── mcp/mcp_bridge.dart   # 远程 MCP 工具源（B-02）
+│   │   ├── skills/skill.dart     # 用户自定义 SKILL：指令 / 白名单 / 参数模板与注入（B-03）
+│   │   └── tools/                # 内置工具：get_chapter、get_character 等
+│   ├── ai_flavor_rules.dart      # AI 味规则引擎（问题模型 + 句式模式 + 指标 + 纯函数检测）
+│   ├── flavor_lexicon.dart       # 套话词库（约 200 条，按权重分级）
+│   ├── word_count.dart           # 中文字数统计
+│   ├── importer/                 # txt/docx 导入与分章
+│   └── exporter/                 # 单章/整作导出（txt/md/docx）、备份 zip 组装与分享
+└── features/
+    ├── works/                    # 作品列表
+    ├── work_detail/              # 作品详情（卷/章/角色卡/设定集/章纲/人物关系图/导入/导出）
+    ├── editor/                   # 编辑器 + AI 待确认面板 + AI 感检查面板
+    ├── ai/                       # 续写/灵感用例编排
+    ├── search/                   # 全局搜索（B-06）：跨作品检索章节标题与正文
+    ├── stats/                    # 写作统计（B-07）：每日目标、连击与番茄钟
+    └── settings/                 # key 与模型配置、token 统计、备份与恢复
+```
+
+| 模块 | 职责 | 输入 | 输出 | 依赖 | 明确不做 |
+|---|---|---|---|---|---|
+| features/* | UI 与交互状态 | 用户操作、Repository 流 | 界面 | Repository、AI 用例接口 | 不直接访问数据库与 http |
+| features/search | 全局搜索（B-06）：关键词检索与命中高亮 | 关键词 | 命中列表（作品/章节/片段） | ChapterRepository.search | 不做索引与分词（本地 LIKE 直查，作品量级不构成瓶颈） |
+| features/stats | 写作统计（B-07）：每日字数目标进度、连续写作天数、番茄钟 | 每日统计流 + 设置 | 统计页 | ChapterRepository(watchDailyWritingStats)、SettingsRepository | 番茄钟为页面内计时，不后台常驻 |
+| features/work_detail（设定集/关系图） | 设定集（B-09）：世界观/地点/道具条目；人物关系图（B-09）：环形绘制角色关系并可增删改 | 设定/角色/关系流 + 用户编辑 | 设定集 Tab、关系图页 | SettingRepository、CharacterRepository(relations) | 关系图为静态环形布局，不做自动布局与拖拽 |
+| data/repositories | 领域读写：作品/卷/章/角色/设定集/关系/章纲/统计 | DAO 结果 | 领域模型、响应式流 | drift | 不含业务编排（如分章策略在 importer） |
+| core/ai/ai_client | 屏蔽端点差异的统一调用 | ChatRequest | `Stream<ChatChunk>` | http | 不做 prompt 组装 |
+| core/ai/context_builder | 上下文组装与预算控制 | 作品 id、任务类型 | ChatRequest.messages | Repository | 不发起网络请求 |
+| core/ai/agent_core | Tool 注册与 ReAct 循环 | 任务描述 + 工具集 | 最终文本 / 工具调用记录 | AiClient、tools | 不感知具体端点 |
+| core/ai/tools | 内置本地工具（读章节、查角色等） | 工具入参 JSON | 工具结果文本 | Repository | 不直接调模型 |
+| core/ai/skills | 用户自定义 SKILL（B-03）：指令拼接与工具白名单过滤 | 启用的 Skill 列表 + 组装结果 / 工具集 | 注入后的 system 与工具集 | 无 | 不做网络与持久化（落库在 SettingsRepository） |
+| core/ai_flavor_rules | 规则引擎检测 | 章节文本 | 问题列表 | 无 | 不做 LLM 检测 |
+| core/importer | 解析与分章 | 文件 bytes | 分割预览 | 无 | 不写库（确认后交 Repository） |
+| core/exporter | 导出文本生成与备份 zip 组装/解析 | 章节数据、导出数据 Map | txt/md/docx bytes、zip bytes | archive | 不写库、不直接调分享面板（由 features 触发） |
+| features/settings | key/模型配置、token 累计 | 用户输入 | 经 Repository 落库、经安全存储存 key | SettingsRepository、TokenStatsRepository、AiUseCase(testConnection) | 不直接接触数据库、安全存储与网络 |
+
+依赖方向：features → repositories / ai 用例 → core/ai → ai_client；无环 `[Expert judgment]`。
+
+### 3.1 导入分章与导出格式规则（M2 实现约定）
+
+分章规则（`core/importer/chapter_splitter.dart`）——按行匹配、整行即标题：
+
+| 类型 | 模式 | 标题取值 |
+|---|---|---|
+| markdown | `#{1,3}\s+(.+?)` | `#` 之后的文本 |
+| 中文网文 | `第\s*[数字/中文数字]+\s*[章节回篇]\s*(.*?)` | 保留整行（保留章序信息） |
+| 英文 | `chapter\s+\d+\s*(.*?)` | 保留整行 |
+
+- 全文无标题行时整篇作为一章，标题留空；第一个标题之前的内容单独成章（卷首语 / 作者的话），标题留空。
+- 标题超过 50 字按 50 字截断（与 `CHAPTER.title` 约束一致）。
+- 空标题章节导出时写作 `未命名章节`，再导入还原为空标题——这是保证「导出 → 再导入」结构一致的往返约定。
+- docx 导入优先按段落样式分章（`Title` / `Heading*` / `标题*`），无标题样式时降级为上述正则。
+
+导出格式（`core/exporter/`）：
+
+- 单章：txt（标题行 + 正文）、markdown（`# 标题` + 正文）。
+- 整作 txt：各章标题单独成行，不写作品标题（避免再导入时多出一段前言）。
+- 整作 markdown：每章一个一级标题，可被分章正则完整还原；不写卷信息（卷结构与更细字段由整库备份 JSON 承载）。
+- 整作 docx：自建最小 zip，标题段落用 `Heading1` 样式，可被 docx 导入按样式分章。
+- 备份 zip：`data.json`（作品/卷/章/角色/章纲/灵感/章节快照/每日统计/设定集/人物关系等业务表 `toJson`，含正文，供恢复）+ `works/*.md`（各作品全文，供人工查阅）；不含 API key（key 仅在 flutter_secure_storage，从不进库）。恢复支持合并（作为新作品导入）与覆盖（清空后按原 id 还原），恢复时按 `workIdMap` / `volumeIdMap` / `chapterIdMap` / `characterIdMap` 重映射外键。
+
+---
+
+## 4. 数据设计
+
+### 4.1 ER 图
+
+```mermaid
+erDiagram
+    WORK ||--o{ VOLUME : "包含"
+    VOLUME ||--o{ CHAPTER : "包含"
+    WORK ||--o{ CHARACTER : "拥有"
+    WORK ||--o{ OUTLINE_ENTRY : "拥有"
+    WORK ||--o{ INSPIRATION : "拥有"
+    WORK ||--o{ SETTING_ENTRY : "设定集（B-09）"
+    WORK ||--o{ CHARACTER_RELATION : "人物关系（B-09）"
+    CHARACTER ||--o{ CHARACTER_RELATION : "关系两端（B-09）"
+    CHAPTER ||--o{ AI_USAGE : "产生"
+    CHAPTER ||--o{ CHAPTER_SNAPSHOT : "版本历史（B-05 已建表）"
+
+    WORK {
+        int id PK
+        string title
+        int coverColor
+        int wordCount
+        int chapterCount
+        datetime lastEditedAt
+        boolean pinned
+        datetime createdAt
+    }
+    VOLUME {
+        int id PK
+        int workId FK
+        string name
+        int sortOrder
+    }
+    CHAPTER {
+        int id PK
+        int volumeId FK
+        string title
+        string content
+        int wordCount
+        string status "draft/revising/final"
+        int sortOrder
+        int cursorOffset "会话恢复：光标位置"
+        int scrollOffset "会话恢复：滚动位置"
+        datetime updatedAt
+    }
+    CHAPTER_SNAPSHOT {
+        int id PK
+        int chapterId FK
+        string title
+        string content
+        int wordCount
+        datetime createdAt
+    }
+    DAILY_WRITING_STAT {
+        string day PK "yyyy-MM-dd 本地时区"
+        int words "当天正文字数净增的正值累加"
+    }
+    CHARACTER {
+        int id PK
+        int workId FK
+        string name
+        string identity
+        string personalityTags
+        string appearance
+        string relations
+        string arc
+    }
+    OUTLINE_ENTRY {
+        int id PK
+        int workId FK
+        int chapterId FK "可空"
+        int volumeId FK
+        string summary
+    }
+    INSPIRATION {
+        int id PK
+        int workId FK
+        string content
+        datetime createdAt
+    }
+    SETTING_ENTRY {
+        int id PK
+        int workId FK
+        string type "worldview/location/item"
+        string name
+        string content
+        datetime createdAt
+    }
+    CHARACTER_RELATION {
+        int id PK
+        int workId FK
+        int fromCharacterId FK "起点角色"
+        int toCharacterId FK "终点角色"
+        string label "如：师徒/宿敌"
+    }
+    AI_USAGE {
+        int id PK
+        int workId FK
+        int chapterId FK "可空"
+        string task "continue/inspire/check"
+        string model
+        int promptTokens
+        int completionTokens
+        int outputChars "AI 生成的总字数"
+        int adoptedChars "最终被插入正文字数"
+        string outcome "adopted/ignored/regenerated/aborted"
+        datetime createdAt
+    }
+    MODEL_GROUP {
+        int id PK
+        string provider "openai_compat/anthropic"
+        string name
+        string baseUrl
+        string apiKeyRef "secure storage 引用，不落库"
+        string models "JSON 数组"
+        double temperature "该模型组默认温度"
+        int maxTokens "该模型组默认输出上限"
+        int contextWindow "上下文窗口，预算取其 50%"
+        boolean enabled
+    }
+    APP_SETTING {
+        string key PK
+        string value
+    }
+```
+
+> MODEL_GROUP.apiKeyRef 说明：key 本体只进 flutter_secure_storage，数据库仅存引用标识；备份 zip 不含 key。APP_SETTING 存全局偏好（默认模型、上次打开的作品等）与任务→模型映射（键如 `task_model_continue` / `task_model_inspire` / `task_model_check`），不含任何凭证。
+
+### 4.2 表设计要点
+
+- CHAPTER.content 存纯文本；单章 10 万字上限（PRD 5.3），SQLite 单行无压力。
+- CHAPTER.cursorOffset / scrollOffset 供会话恢复（PRD 5.3）使用，不参与 AI 上下文组装。
+- 生成参数与任务映射：温度/输出上限存在 MODEL_GROUP（模型级默认值）；"哪个任务用哪个模型组"存在 APP_SETTING 的 `task_model_*` 键（PRD 5.8 的多任务模型配置）。
+- WORK.wordCount/chapterCount 为冗余汇总字段，随章节保存事务内更新，避免列表页聚合查询 `[Expert judgment]`。
+- AI_USAGE 是 token 统计的唯一数据源，设置页按 model/task 双维度聚合。
+- 统计口径落点：AI_USAGE.outcome 记录每次生成的结果（采纳/忽略/重新生成/中止），用于采纳率与忽略率；outputChars/adoptedChars 记录生成总字数与最终插入正文字数，支撑 PRD 2.2 的字符口径采纳率；检查问题处置率由检查会话结束时写入 APP_SETTING 计数器（`check_stat_total` / `check_stat_handled`）（对应 PRD 2.2、6.3、7 的本地指标）。
+- MODEL_GROUP.contextWindow 为该模型组的上下文窗口声明值，ContextBuilder 的 token 预算取其 50%（见 5.3）。
+- 迁移：drift schema 版本号管理，每个版本一个迁移步骤；MVP 内预计 1-2 次迁移（AI_USAGE、MODEL_GROUP、APP_SETTING 表在 M3 引入）`[Expert judgment]`。
+- CHAPTER_SNAPSHOT：章节版本历史（B-05），仅存标题与正文全文、字数与创建时间，随章节级联删除；不参与 AI 上下文组装。快照由作者在编辑器中手动创建（单章最多保留 50 条，超出清理最旧），恢复前会自动为当前内容补一份快照避免误操作丢稿。表随 B-05 落地（schemaVersion 2 → 3），并纳入整库备份。
+- DAILY_WRITING_STAT：每日写作字数（B-07），`day`（yyyy-MM-dd 本地时区）为主键、`words` 为当天正文字数净增的**正值累加**（只加不减，删改正文不回退），在章节保存事务内随正文一并更新，供每日目标进度与连续写作天数统计；每日目标（`daily_word_target`）、番茄钟时长（`pomodoro_minutes`）与按日的完成数（`pomodoro_done_<yyyy-MM-dd>`）落在 APP_SETTING。表随 B-07 落地（schemaVersion 3 → 4），并纳入整库备份。
+- SETTING_ENTRY：设定集（B-09），`type` 区分世界观/地点/道具（对应 `SettingType` 枚举），每条含名称（1-50 字）与设定内容，随作品级联删除；页面按类型筛选展示，不参与 AI 上下文组装（预留后续接入）。
+- CHARACTER_RELATION：人物关系（B-09），一条有向关系 `fromCharacterId → toCharacterId` 附关系标签，两端角色删除时随外键级联删除；`workId` 便于按作品查询。关系图页用 CustomPainter 将角色均布于圆周、按关系连线（线条中点标注标签），下方列表支持增删改；为静态环形布局，不做力导向/拖拽。SETTING_ENTRY 与 CHARACTER_RELATION 随 B-09 落地（schemaVersion 4 → 5），并纳入整库备份。
+
+### 4.3 一致性规则
+
+- 卷/章/角色删除走事务，级联清理（OUTLINE_ENTRY.chapterId 置空而非级联删除）；角色删除时其两端的人物关系随外键级联删除，作品删除时设定集与人物关系随外键级联删除。
+- 恢复备份时，设定集按 `workIdMap`、人物关系按 `workIdMap` 与角色 `characterIdMap` 重映射外键，避免跨库 id 不一致导致的悬空引用。
+- 删除作品为单事务删除其全部关联行；不可恢复，UI 层二次确认（PRD 5.1）。
+- 自动保存与字数汇总在同一事务，杜绝"正文新、字数旧"。
+
+---
+
+## 5. AI 层设计
+
+### 5.1 AiClient 抽象与统一模型
+
+```dart
+// 统一请求（与端点无关的内部表示）
+class ChatRequest {
+  final String model;            // 模型名，取自选定的 ModelGroup
+  final String? system;          // 系统指令
+  final List<ChatMessage> messages; // user/assistant 轮次
+  final double temperature;
+  final int maxTokens;
+}
+
+// 流式增量
+sealed class ChatChunk {
+  // TextDelta(text) | Usage(prompt, completion) | Done(finishReason) | Error(...)
+}
+
+abstract interface class AiClient {
+  Stream<ChatChunk> streamChat(ChatRequest req);
+}
+```
+
+- ChatCompletionsAdapter：构造 `messages[]`（system 作为首条 role=system 消息），解析 SSE 的 `choices[].delta.content`，末帧取 usage。
+- MessagesAdapter：system 提为顶层字段，解析 `content_block_delta` 事件序列，区分 `message_start`（含 input usage）与 `message_delta`（含 output usage）。
+- 两者共享 `core/ai/sse.dart` 的行缓冲与 `data:` 前缀解析骨架，仅事件载荷映射不同 `[Expert judgment]`。
+- 客户端构造：一个 ModelGroup（provider + baseUrl + key + model 列表）构造一个 AiClient 实例；适配器从实例侧取 baseUrl 与 key，从 ChatRequest 侧取 model、温度与输出上限。key 在构造时由 SettingsRepository 注入，不放进请求对象 `[Expert judgment]`。
+- tool calling：Chat Completions 的 `tools` / `tool_calls`、Messages 的 `tool_use` / `tool_result` 的构造与解析同样收敛在适配器内，Agent Core 只见统一表示（见 5.4）`[Expert judgment]`。
+- ResponsesAdapter：system 提为顶层 `instructions`，`input` 为条目数组（消息 / `function_call` / `function_call_output`），解析 `response.output_text.delta` 文本增量，`response.completed` 取 usage 与 status，`function_call` 系列事件的工具调用亦在此收敛（B-01 已实现）。
+
+端点选择逻辑：ModelGroup.provider 字段区分 `openai_compat`（覆盖 OpenAI 官方与 DeepSeek/Kimi/通义等全部 OpenAI 兼容服务，差异仅在 baseUrl 与模型名）、`anthropic` 与 `responses`。用户配置的每个模型组自带 provider 类型，运行时无猜测 `[Data-backed]` 已确认的端点决策。
+
+### 5.2 错误分类与重试
+
+| 错误类 | 判定 | 处理 |
+|---|---|---|
+| 网络错误 / 超时 | SocketException、超时 | 保留已收流，UI 提供重试 |
+| 401/403 | 鉴权失败 | 提示 key 无效，跳设置 |
+| 429 | 限流 | 指数退避自动重试 1 次，再失败提示 |
+| 400 + 内容过滤标识 | 服务商拒绝 | 透出服务商原因文案，提供修改指令重试 |
+| 5xx | 服务端故障 | 提示稍后重试 |
+| 本地 IO | 保存失败 | 正文保留编辑器，状态栏告警 |
+
+所有错误经 `ChatChunk.Error` 汇入同一条流，UI 层单点处理，不在适配器内弹 UI `[Expert judgment]`。
+
+### 5.3 上下文组装（ContextBuilder）
+
+按 PRD 6.2 的优先级装配，实现要点：
+
+1. 预算计算：`budget = min(模型上下文窗口, 配置上限) * 0.5`，按字符数近似 token（中文 1 字 ≈ 1 token，留 20% 余量）`[Expert judgment]`。
+2. 装配顺序：system 指令 → 本章尾部（保留最近 3000 字，超出截断并标注"（前文略）"）→ 本章章纲 → 前 1-2 章摘要（本地按段落抽首句拼接，超预算再截断）→ 相关角色卡（本章正文做姓名匹配，最多 8 张，超出保留匹配最多的 3 张）→ 卷级大纲。
+3. 超预算时从优先级最低项开始丢弃，面板提示"已省略较早前文"。
+4. 全部注入内容在待确认面板的"上下文详情"中可展开查看——作者能看见 AI 看到了什么，这是产品信任的一部分 `[Expert judgment]`。
+
+### 5.4 Agent Core 与 Tool 抽象
+
+```dart
+class Tool {
+  final String name;             // 对齐 MCP tool 命名空间，如 get_chapter
+  final String description;
+  final Map<String, dynamic> inputSchema; // JSON Schema，对齐 MCP 结构
+  final Future<String> Function(Map<String, dynamic> args) execute;
+}
+
+// ReAct 循环：调用模型 → 有 tool_calls 则执行工具、结果回传 → 直到无 tool_calls
+```
+
+- MVP 的内置工具：`get_chapter`（按 id 取正文）、`get_characters`（按作品取角色卡）、`get_outline`（取章纲）。供灵感类任务按需取数，避免一次性塞满上下文 `[Expert judgment]`。
+- Tool 的 schema 结构刻意与 MCP 对齐（name/description/inputSchema），执行签名也一致；MCP 接入时，远程工具经 mcp_dart 的 `callTool` 包一层即成为同构 Tool，编排层零改动 `[Research-backed]` MCP 工具定义结构。
+- **远程 MCP 工具（B-02 已实现）**：`core/ai/mcp/mcp_bridge.dart` 用 `StreamableHttpClientTransport` 连接远程 server（手机端不支持 stdio），`tools/list` 结果按白名单包装为 `Tool` 并加 `mcp_` 前缀；认证走自定义请求头（如 `Authorization: Bearer xxx`），文本只存安全存储。工具在「桥段点子」生成时并入 `AgentCore.run(tools:)`，流结束即关闭会话；单个 server 连接失败不阻断生成。设置页「MCP 工具服务」负责配置与「测试连接」`[Expert judgment]`。OAuth 2.1 PKCE 为后续项。
+- tool calling 的端点差异（Chat Completions 的 `tools`/`tool_calls`、Messages 的 `tool_use`/`tool_result`）收敛在适配器内，Agent Core 只见统一表示 `[Expert judgment]`。
+- 与 ContextBuilder 的职责边界：续写与开篇助手走 ContextBuilder 预注入（内容确定、一次成文）；桥段点子走工具按需取数（需跨章检索、按需展开）。同一任务不同时使用两种方式，避免数据重复注入 `[Expert judgment]`。
+
+### 5.5 AI 感检查流水线
+
+```mermaid
+sequenceDiagram
+    participant U as 作者
+    participant E as 编辑器/检查面板
+    participant R as 规则引擎
+    participant C as ContextBuilder
+    participant A as AiClient
+    participant M as 模型服务
+
+    U->>E: 选择范围，运行检查
+    E->>R: 章节文本
+    R-->>E: 命中清单（即时）
+    U->>E: 点击 LLM 深检
+    E->>C: 按预算分段
+    loop 每个分段
+        C->>A: 检测请求（系统指令+分段+问题类型定义）
+        A->>M: streamChat
+        M-->>A: SSE 流
+        A-->>E: 结构化结果（类型/位置/建议）
+    end
+    E->>E: 合并去重、按严重度排序
+    E-->>U: 问题列表面板
+    U->>E: 定位 / 一键替换 / 忽略
+```
+
+- 规则引擎：词库 + 句式模式（模式化对话标签正则、段尾感悟句特征、连续同结构段落），纯本地计算，MVP 内置约 200 条规则 `[Expert judgment]`。实现落点：词库 `core/flavor_lexicon.dart`（高 3 / 中 2 / 低 1 三级权重，含可直接替换词条的替换文本），检测纯函数 `core/ai_flavor_rules.dart`。
+- 检测参数（`core/ai_flavor_rules.dart` 常量）：套话密度告警 > 12 处/千字、破折号 + 省略号 > 8 处/千字、同一套话单章 ≥ 4 次触发句式重复提示；密度类判断最小样本 300 字，短章不告警避免误报。
+- 回归集（M4-05）落点：`test/core/fixtures/flavor_regression_samples.dart`（段落级样本，标注正/负），`test/core/flavor_regression_test.dart` 每版本跑一次；判定口径 `isFlavorFlagged`（存在可定位的"中"及以上问题，不含全文级密度提示）。v1 基线：40 条样本（20 正 / 20 负），召回 100%、误报 0%。
+- LLM 深检：要求模型返回 JSON（问题类型枚举、原文片段起止、建议文本），适配器层解析失败时按纯文本降级展示。
+- 两层结果按"原文位置 + 类型"去重合并。
+- 严重度来源：规则引擎按词库权重映射为高/中/低，LLM 深检由模型在 JSON 中返回严重度字段；合并后统一为高/中/低三级，同级按原文位置排序（对应 PRD 5.7 的"按严重度排序"）。
+- 检查面板 `features/editor/flavor_check_panel.dart`：范围可选当前章或整作；规则结果即时渲染，LLM 深检按事件流更新进度与实测 token；支持按类型筛选，单次最多渲染 100 条。
+- 定位与处置：面板绑定编辑器时可就地选中高亮（`EditorController.revealRange`）与一键替换（`replaceRange`，走编辑器历史栈可撤销）；跨章节定位经路由参数 `checkStart/checkEnd` 打开对应章节编辑器并高亮；作品详情弹层为只读，仅提供定位（提示"修改请在编辑器中完成"）。替换前校验原文字段未漂移，原文已变化时拒绝执行并提示重新检查；单章范围内替换后同步平移其余问题的偏移。
+- 检查处置率计数：会话结束时把本轮问题总数与已处置数（替换 + 忽略）累加进 `APP_SETTING` 的 `check_stat_total` / `check_stat_handled`（`SettingsRepository.addCheckStats`），统计页据此展示处置率。
+- 首次联网告知（M4-16）：会携带作品内容的联网入口（编辑器 AI 续写/灵感、检查面板的 LLM 深检与重试）在发起请求前统一经 `features/ai/ai_notice.dart` 的 `ensureAiNotice` 门控；未确认时弹窗告知数据传输范围与 key 存储方式，确认后写入 `APP_SETTING` 的 `ai_notice_ack`（`SettingsRepository.hasConfirmedAiNotice` / `confirmAiNotice`），此后不再重复弹窗；用户取消则中止本次 AI 操作。设置页"测试连接"只发最小请求、不含作品内容，不作门控。文案与合规说明见 `docs/COMPLIANCE.md`。
+
+### 5.6 续写与灵感的用例编排
+
+- 续写：ContextBuilder 组装 → AiClient.streamChat → 流式文本进待确认面板 → 作者编辑 → 插入光标处（插入走编辑器历史栈，可撤销）。
+- 灵感（桥段）：ContextBuilder + system 指令要求输出编号列表 → 面板逐条展示 → 存灵感箱或插入。
+- 灵感（开篇）：作者方向指令拼入 user 消息 → 生成单个段落。
+- 全部用例共享同一 AiClient 与错误处理，不各写一套 `[Expert judgment]`。
+
+---
+
+## 6. 接口设计（模块契约）
+
+### 6.1 模块间接口
+
+| 接口 | 方法 | 说明 |
+|---|---|---|
+| WorkRepository | `watchWorks()` / `createWork(...)` / `deleteWork(id)` | 作品列表响应式流；删除为事务 |
+| ChapterRepository | `watchChapters(workId)` / `saveChapter(...)` / `reorder(...)` | 保存内含字数汇总事务 |
+| CharacterRepository | `watchCharacters(workId)` / CRUD | — |
+| OutlineRepository | `watchOutline(workId)` / CRUD | — |
+| AiUseCase.continueWriting | `(workId, chapterId, options: {direction?, length?, style?}) → Stream<AiEvent>` | AiEvent = 文本增量/错误/完成；length 对应 PRD 5.5 面板可调的生成长度；上下文组装在内部 |
+| AiUseCase.inspire | `(workId, mode, anchorChapterId?, direction?) → Stream<AiEvent>` | mode = ideas/opening；anchorChapterId 表示当前进度位置 |
+| AiUseCase.checkFlavor | `(scope: 单章 chapterId 或整作 workId, deep) → Stream<CheckEvent>` | scope 二选一，支持整作检查（PRD 5.7）；deep=false 仅规则引擎 |
+| SettingsRepository | `watchModelGroups()` / `watchTaskModelId(task)` | key 经 secure storage；任务→模型映射存 APP_SETTING 的 `task_model_*` 键，不暴露明文给 UI 之外 |
+| AiUseCase.testConnection | `(group) → Future<TestResult>` | 用该模型组构造 AiClient 发一次最小请求；网络调用不放 Repository 层，设置页直连此用例（图 F4 → A1） |
+| TokenStatsRepository | `watchStats()` | AI_USAGE 聚合流（按 model+task 分组，含采纳率/忽略率） |
+
+### 6.2 外部端点契约（摘要）
+
+Chat Completions（OpenAI 兼容，含国产服务）：
+
+| 项 | 内容 |
+|---|---|
+| 请求 | `POST {baseUrl}/chat/completions`，`Authorization: Bearer {key}`，body: `model`、`messages[{role,content}]`、`stream:true`、`temperature`、`max_tokens`、可选 `tools` |
+| 流式 | SSE，`data: {choices:[{delta:{content}}]}`，`[DONE]` 结束；usage 在末帧（需 `stream_options: {include_usage: true}`） |
+| 错误 | 401 无效 key；429 限流；400 参数或内容策略 |
+
+Messages（Anthropic）：
+
+| 项 | 内容 |
+|---|---|
+| 请求 | `POST {baseUrl}/v1/messages`，`x-api-key` + `anthropic-version` 头，body: `model`、`system`（顶层）、`messages`、`stream:true`、`max_tokens`（必填） |
+| 流式 | SSE，事件序列 `message_start`（含 input usage）→ `content_block_delta`（text_delta）→ `message_delta`（含 output usage）→ `message_stop` |
+| 错误 | 401；429；400（含 overloaded 提示） |
+
+Responses（OpenAI Responses 端点，B-01 已实现）：
+
+| 项 | 内容 |
+|---|---|
+| 请求 | `POST {baseUrl}/v1/responses`，`Authorization: Bearer {key}`，body: `model`、`instructions`（顶层 system）、`input[]`、`stream:true`、`temperature`、`max_output_tokens`、可选 `tools`（扁平 `{type:function,name,description,parameters}`） |
+| 流式 | SSE，`response.output_text.delta`（文本增量）、`response.output_item.added` / `response.function_call_arguments.delta` / `response.output_item.done`（工具调用累积）、`response.completed`（含 usage 与 status） |
+| 错误 | 401 无效 key；429 限流；事件流内 `error` / `response.failed` / `response.incomplete` |
+
+> 具体字段以服务商当时文档为准；适配器内集中处理，契约变更只影响适配器 `[Expert judgment]`。
+
+---
+
+## 7. 非功能设计
+
+| 维度 | 目标 | 设计策略 |
+|---|---|---|
+| 启动性能 | 冷启动到可编辑 ≤ 3s（中端机） | drift 懒加载、列表分页、避免启动时聚合查询 `[Expert judgment]` |
+| 保存可靠性 | 输入停止 1s 内落盘；进程被杀不丢已保存内容 | 防抖 + 事务写入；保存失败可见可重试 |
+| 编辑流畅度 | 10 万字章节输入不掉帧 | TextField 分段渲染、避免每次按键重建全文组件、字数统计防抖 `[Expert judgment]` |
+| 安全 | key 不出设备；备份不含 key；无遥测上传 | flutter_secure_storage；zip 导出过滤；除用户配置的模型服务端点外，无任何出网请求 `[Data-backed]` PRD 原则 |
+| 离线 | 非 AI 功能全离线 | 所有 Repository 本地；AI 失败不影响写作主链路 |
+| 可测试性 | 核心逻辑可单测 | AiClient 可注入 fake 实现；规则引擎纯函数；ContextBuilder 输入为 Repository 接口，可 mock `[Expert judgment]` |
+| 备份 | 整库 zip 可迁移 | 导出全部表数据为 JSON（含正文，供恢复）+ 各作品 markdown 全文（供人工查阅与迁移）；恢复支持合并/覆盖 |
+
+---
+
+## 8. 错误处理总策略
+
+错误分三类处置：**本地错误**（保存失败、IO）在 UI 状态栏提示且不打断写作；**网络类错误**按 5.2 表分级处理，全部保留现场可重试；**数据类错误**（导入解析失败、备份损坏）给出明确原因与修复建议（如"编码识别失败，请转存为 UTF-8"）。任何自动重试不超过 1 次，避免弱网下重复扣费 `[Expert judgment]`。
+
+---
+
+## 9. 演进路径（架构预留）
+
+| 后置功能 | 接入点 | 触发条件 |
+|---|---|---|
+| Responses 端点 | 新增 `ResponsesAdapter implements AiClient`，ModelGroup.provider 增加枚举 | 需要 OpenAI 新端点独占能力（如新模型 tool calling）时 —— **B-01 已实现**（`core/ai/responses_adapter.dart`，provider 取值 `responses`，设置页协议类型可选） |
+| MCP 接入 | `AgentCore` 注册远程 Tool：经 mcp_dart 连接 Streamable HTTP server，`tools/list` 结果包装为 `Tool`；设置页 MCP server 配置 | M1-M4 交付后；产品上前置：远程 server 配置界面、工具调用计费透明化 —— **B-02 已实现**（`core/ai/mcp/mcp_bridge.dart`，配置见设置页「MCP 工具服务」；认证方式本轮为 Token / 自定义请求头，**OAuth 2.1 PKCE 为后续项**） |
+| 用户自定义 SKILL | 新增 `Skill` 模型（指令文本 + 工具白名单 + 参数模板），在用例编排层作为可选的 system 指令与工具集注入；数据结构与 Genkit/Anthropic skills 的 markdown 约定保持兼容以便导入 | AI 基础能力稳定后 —— **B-03 已实现**（`core/ai/skills/skill.dart`，续写与灵感均注入附加 system 并在上下文详情列出；工具白名单按并集过滤内置与 MCP 工具；配置见设置页「自定义技能」；markdown front matter 导入为后续项） |
+| 云备份 | 备份模块替换 zip 的 destination；数据层不变 | 用户反馈换机诉求强烈时 |
+| 桌面端 | 架构无桌面阻塞项；drift 支持桌面 SQLite | 资源允许时 |
+
+以上每一项都只新增模块或新增适配器，不修改既有层接口——这是当前架构划分的核心约束 `[Expert judgment]`。
+
+---
+
+## 10. 开发环境与规范
+
+- Flutter 稳定版、Dart SDK 版本以 `flutter --version` 为准，项目最低版本约束在 `pubspec.yaml` 的 `environment.sdk` 中声明 `[To be confirmed - 建项目时写入]`。
+- 依赖版本策略：锁定 `pubspec.lock`；第三方包优先选发布超 6 个月、维护活跃的；MCP 包（mcp_dart）版本策略单独评估 `[Expert judgment]`。
+- 代码规范：`flutter_lints`；注释与提交信息使用中文；每个里程碑出口标准对应 `docs/TODO.md` 中的验收项。
+- 每次修改保证可运行、变更量最小（项目既定约束）。
