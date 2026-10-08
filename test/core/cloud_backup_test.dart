@@ -12,6 +12,7 @@ import 'package:novelphone/data/repositories/backup_repository.dart';
 import 'package:novelphone/data/repositories/settings_repository.dart';
 import 'package:novelphone/data/repositories/work_repository.dart';
 import 'package:novelphone/data/secure_key_store.dart';
+import 'package:novelphone/features/settings/cloud_backup_auto.dart';
 import 'package:novelphone/models/cloud_backup_config.dart';
 
 /// B-08：云备份（SigV4 签名 / S3 兼容客户端 / 编排 / 配置持久化）。
@@ -83,6 +84,24 @@ void main() {
       expect(config.isConfigured, isTrue);
       expect(config.copyWith(enabled: false).isConfigured, isFalse);
       expect(config.copyWith(bucket: '').isConfigured, isFalse);
+    });
+
+    test('自动备份频率归一化与配置往返', () {
+      expect(CloudAutoInterval.fromHours(12), CloudAutoInterval.every12h);
+      expect(CloudAutoInterval.fromHours(168), CloudAutoInterval.weekly);
+      expect(CloudAutoInterval.fromHours(999), CloudAutoInterval.daily);
+
+      const config = CloudBackupConfig(
+        autoEnabled: true,
+        autoIntervalHours: 168,
+      );
+      expect(config.autoInterval, CloudAutoInterval.weekly);
+      expect(
+        CloudBackupConfig.fromJson(config.toJson()).autoIntervalHours,
+        168,
+      );
+      expect(CloudBackupConfig.fromJson(<String, dynamic>{})
+          .autoInterval, CloudAutoInterval.daily);
     });
   });
 
@@ -308,6 +327,121 @@ void main() {
     });
   });
 
+  group('云备份自动调度', () {
+    late AppDatabase db;
+    late SettingsRepository settings;
+    late _FakeStorageModel storage;
+
+    setUp(() async {
+      db = AppDatabase.memory();
+      await WorkRepository(db).createWork(title: '长夜行');
+      settings = SettingsRepository(db, InMemoryKeyStore());
+    });
+
+    tearDown(() async => db.close());
+
+    CloudBackupScheduler scheduler(
+      DateTime now, {
+      CloudStorageClient Function(CloudBackupConfig, String, String)? factory,
+    }) =>
+        CloudBackupScheduler(
+          settings: settings,
+          backups: BackupRepository(db),
+          clientFactory: factory ?? (c, ak, sk) => storage,
+          clock: () => now,
+        );
+
+    Future<void> enableAuto({int intervalHours = 24}) async {
+      await settings.saveCloudBackupConfig(CloudBackupConfig(
+        enabled: true,
+        endpoint: 's3.example.com',
+        region: 'us-east-1',
+        bucket: 'bk',
+        autoEnabled: true,
+        autoIntervalHours: intervalHours,
+      ));
+      await settings
+          .saveCloudCredentials(accessKey: 'ak', secretKey: 'sk');
+    }
+
+    test('isCloudBackupDue：无记录到期，满足间隔才到期', () {
+      final now = DateTime(2026, 10, 8, 10);
+      expect(isCloudBackupDue(lastAt: null, intervalHours: 24, now: now), isTrue);
+      expect(
+        isCloudBackupDue(
+            lastAt: DateTime(2026, 10, 8, 9), intervalHours: 24, now: now),
+        isFalse,
+      );
+      expect(
+        isCloudBackupDue(
+            lastAt: DateTime(2026, 10, 7, 10), intervalHours: 24, now: now),
+        isTrue,
+      );
+      // 间隔夹紧为最小 1 小时。
+      expect(
+        isCloudBackupDue(
+            lastAt: DateTime(2026, 10, 8, 9), intervalHours: 0, now: now),
+        isTrue,
+      );
+    });
+
+    test('开关未开启 / 未配置 / 缺凭证时不联网', () async {
+      storage = _FakeStorageModel();
+      // 默认关闭
+      await scheduler(DateTime(2026, 10, 8, 10)).checkAndRun();
+      expect(storage.objects, isEmpty);
+
+      // 只开总开关、未开自动
+      await settings.saveCloudBackupConfig(const CloudBackupConfig(
+        enabled: true,
+        endpoint: 's3.example.com',
+        region: 'us-east-1',
+        bucket: 'bk',
+      ));
+      await settings.saveCloudCredentials(accessKey: 'ak', secretKey: 'sk');
+      await scheduler(DateTime(2026, 10, 8, 10)).checkAndRun();
+      expect(storage.objects, isEmpty);
+
+      // 开自动但缺凭证
+      await settings.saveCloudBackupConfig(CloudBackupConfig(
+        enabled: true,
+        endpoint: 's3.example.com',
+        region: 'us-east-1',
+        bucket: 'bk',
+        autoEnabled: true,
+      ));
+      await settings.clearCloudCredentials();
+      await scheduler(DateTime(2026, 10, 8, 10)).checkAndRun();
+      expect(storage.objects, isEmpty);
+    });
+
+    test('到期即备份并记录时间，未到期不重复，满间隔再备份', () async {
+      storage = _FakeStorageModel();
+      await enableAuto();
+
+      await scheduler(DateTime(2026, 10, 8, 10, 0, 0)).checkAndRun();
+      expect(storage.objects, hasLength(1));
+      expect(await settings.cloudLastBackupAt(), DateTime(2026, 10, 8, 10));
+
+      // 11 小时后仍未到期。
+      await scheduler(DateTime(2026, 10, 8, 21, 0, 0)).checkAndRun();
+      expect(storage.objects, hasLength(1));
+
+      // 满 24 小时后再备份。
+      await scheduler(DateTime(2026, 10, 9, 10, 0, 0)).checkAndRun();
+      expect(storage.objects, hasLength(2));
+    });
+
+    test('远端失败静默：不抛出且不记录时间', () async {
+      await enableAuto();
+      await scheduler(
+        DateTime(2026, 10, 8, 10),
+        factory: (c, ak, sk) => _FailingStorage(),
+      ).checkAndRun();
+      expect(await settings.cloudLastBackupAt(), isNull);
+    });
+  });
+
   group('SettingsRepository 云备份持久化', () {
     test('配置落库、凭证只进安全存储', () async {
       final db = AppDatabase.memory();
@@ -380,6 +514,31 @@ class _FakeStorageModel implements CloudStorageClient {
 
   @override
   Future<void> checkConnection() async => connectionChecked = true;
+
+  @override
+  void close() {}
+}
+
+/// 上传即失败的对象存储，用于验证自动备份静默失败。
+class _FailingStorage implements CloudStorageClient {
+  @override
+  Future<void> putObject(String key, Uint8List bytes,
+          {String contentType = 'application/zip'}) async =>
+      throw const CloudStorageException('模拟上传失败');
+
+  @override
+  Future<Uint8List> getObject(String key) async =>
+      throw const CloudStorageException('模拟下载失败');
+
+  @override
+  Future<void> deleteObject(String key) async {}
+
+  @override
+  Future<List<CloudObject>> listObjects(String prefix) async =>
+      <CloudObject>[];
+
+  @override
+  Future<void> checkConnection() async {}
 
   @override
   void close() {}

@@ -492,6 +492,20 @@ class SettingsRepository {
     await _keyStore.delete(cloudSecretKeyRef);
   }
 
+  /// 上次成功云备份（手动或自动）的时间落库键。
+  static const String cloudLastBackupAtKey = 'cloud_backup_last_at';
+
+  /// 读取上次成功云备份时间；无记录返回 null。
+  Future<DateTime?> cloudLastBackupAt() async {
+    final raw = await getSetting(cloudLastBackupAtKey);
+    if (raw == null || raw.trim().isEmpty) return null;
+    return DateTime.tryParse(raw.trim());
+  }
+
+  /// 记录上次成功云备份时间（用于自动备份到期判据）。
+  Future<void> setCloudLastBackupAt(DateTime time) =>
+      setSetting(cloudLastBackupAtKey, time.toIso8601String());
+
   // ---------- 通用设置 ----------
 
   Future<String?> getSetting(String key) => _settings.get(key);

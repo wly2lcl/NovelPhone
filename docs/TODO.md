@@ -250,6 +250,7 @@ M4 自动化验证记录（2026-09-30）：`flutter analyze` 无问题；`flutte
     - [x] `models/cloud_backup_config.dart` 服务商枚举（显示名 / endpoint 模板 / region 提示 / OSS 兼容头标记）与配置模型
     - [x] `core/cloud/cloud_backup_service.dart` 上传/列举/保留 N 份清理/下载编排（复用 `core/exporter` 的 `exportBackupZipBytes`）
     - [x] 配置持久化：非敏感项走 APP_SETTING（`SettingsRepository`），AK/SK 走 `SecureKeyStore`（不落库、不进备份）
-    - [x] `features/settings/cloud_backup_page.dart` 云备份页（开关、服务商、字段、测试连接、立即备份、远端恢复、自动开关置灰预留）+ 路由 `/settings/cloud-backup` + 设置页入口
-  - 验证：`test/core/cloud_backup_test.dart` 14 个用例（GET 官方向量、`awsUriEncode` 保留字符、配置回落与归一化、path-style+OSS 头、保留字符编码进请求路径、分页解析、403/404 提示、`checkConnection`、备份编排与保留份数、配置持久化与凭证不入库）、`test/features/cloud_backup_page_test.dart` 1 个用例（默认关闭隐藏字段、开启后展示并落库）；`flutter analyze` 无问题，`flutter test` 219 用例全绿。
+    - [x] `features/settings/cloud_backup_page.dart` 云备份页（开关、服务商、字段、测试连接、立即备份、远端恢复、自动开关与频率）+ 路由 `/settings/cloud-backup` + 设置页入口
+    - [x] 自动调度：`features/settings/cloud_backup_auto.dart`（`CloudBackupScheduler` + `isCloudBackupDue` 到期判据 + `CloudBackupAutoRunner` 于启动/回到前台检查），频率可选（每 12 小时 / 每天 / 每周），上次成功备份时间落 APP_SETTING（`cloud_backup_last_at`），失败静默
+  - 验证：`test/core/cloud_backup_test.dart` 19 个用例（GET 官方向量、`awsUriEncode` 保留字符、配置回落与归一化、自动备份频率往返、path-style+OSS 头、保留字符编码进请求路径、分页解析、403/404 提示、`checkConnection`、备份编排与保留份数、`isCloudBackupDue`、调度开关/到期/缺凭证/失败静默、配置持久化与凭证不入库）、`test/features/cloud_backup_page_test.dart` 2 个用例（默认关闭隐藏字段、开启后展示并落库；开启自动备份展示频率并落库）；`flutter analyze` 无问题，`flutter test` 225 用例全绿。
   - 文档同步：PRD 5.10 / 1.2 后置说明、ARCHITECTURE 9.1 与演进表、COMPLIANCE §1.2 出网范围、README 当前状态。

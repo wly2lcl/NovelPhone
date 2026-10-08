@@ -75,6 +75,29 @@ const String kDefaultCloudBackupPrefix = 'novelphone/backups/';
 /// 默认保留份数。
 const int kDefaultCloudKeepCount = 10;
 
+/// 自动备份频率（B-08 自动调度）：落库为小时数，UI 用本枚举。
+enum CloudAutoInterval {
+  every12h(12, '每 12 小时'),
+  daily(24, '每天'),
+  weekly(168, '每周');
+
+  const CloudAutoInterval(this.hours, this.label);
+
+  /// 间隔小时数（落库值与到期判据）。
+  final int hours;
+
+  /// 展示名。
+  final String label;
+
+  /// 按落库小时数解析，未知值回落「每天」。
+  static CloudAutoInterval fromHours(int? hours) =>
+      values.firstWhere((i) => i.hours == hours,
+          orElse: () => CloudAutoInterval.daily);
+}
+
+/// 默认自动备份间隔（小时）。
+const int kDefaultCloudAutoIntervalHours = 24;
+
 /// 云备份配置（B-08）：非敏感项落 APP_SETTING，凭证走安全存储，不在此模型中。
 class CloudBackupConfig {
   const CloudBackupConfig({
@@ -86,6 +109,7 @@ class CloudBackupConfig {
     this.prefix = kDefaultCloudBackupPrefix,
     this.keepCount = kDefaultCloudKeepCount,
     this.autoEnabled = false,
+    this.autoIntervalHours = kDefaultCloudAutoIntervalHours,
   });
 
   /// 总开关：关闭时不联网、不产生任何云端请求。
@@ -99,8 +123,15 @@ class CloudBackupConfig {
   /// 远端保留份数（最小 1）。
   final int keepCount;
 
-  /// 自动备份（预留，本轮仅手动触发）。
+  /// 自动备份（B-08 自动调度）：开启后于启动 / 回到前台时按间隔触发。
   final bool autoEnabled;
+
+  /// 自动备份间隔（小时）。
+  final int autoIntervalHours;
+
+  /// 自动备份频率枚举视图。
+  CloudAutoInterval get autoInterval =>
+      CloudAutoInterval.fromHours(autoIntervalHours);
 
   /// 配置是否完整（不含凭证），是发起云端请求的前提。
   bool get isConfigured =>
@@ -128,6 +159,7 @@ class CloudBackupConfig {
     String? prefix,
     int? keepCount,
     bool? autoEnabled,
+    int? autoIntervalHours,
   }) {
     return CloudBackupConfig(
       enabled: enabled ?? this.enabled,
@@ -138,6 +170,7 @@ class CloudBackupConfig {
       prefix: prefix ?? this.prefix,
       keepCount: keepCount ?? this.keepCount,
       autoEnabled: autoEnabled ?? this.autoEnabled,
+      autoIntervalHours: autoIntervalHours ?? this.autoIntervalHours,
     );
   }
 
@@ -150,6 +183,7 @@ class CloudBackupConfig {
         'prefix': prefix,
         'keepCount': keepCount,
         'autoEnabled': autoEnabled,
+        'autoIntervalHours': autoIntervalHours,
       };
 
   /// 容忍脏数据的反序列化。
@@ -163,6 +197,8 @@ class CloudBackupConfig {
       prefix: (json['prefix'] as String?) ?? kDefaultCloudBackupPrefix,
       keepCount: _asInt(json['keepCount']) ?? kDefaultCloudKeepCount,
       autoEnabled: json['autoEnabled'] == true,
+      autoIntervalHours:
+          _asInt(json['autoIntervalHours']) ?? kDefaultCloudAutoIntervalHours,
     );
   }
 

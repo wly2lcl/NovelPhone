@@ -32,6 +32,7 @@ class _CloudBackupPageState extends ConsumerState<CloudBackupPage> {
   bool _loading = true;
   bool _enabled = false;
   bool _autoEnabled = false;
+  CloudAutoInterval _autoInterval = CloudAutoInterval.daily;
   CloudProvider _provider = CloudProvider.awsS3;
   bool _hasSecret = false;
   bool _busy = false;
@@ -66,6 +67,7 @@ class _CloudBackupPageState extends ConsumerState<CloudBackupPage> {
     setState(() {
       _enabled = config.enabled;
       _autoEnabled = config.autoEnabled;
+      _autoInterval = config.autoInterval;
       _provider = config.provider;
       _endpoint.text = config.endpoint;
       _region.text = config.region;
@@ -88,6 +90,7 @@ class _CloudBackupPageState extends ConsumerState<CloudBackupPage> {
         keepCount: int.tryParse(_keepCount.text.trim()) ??
             kDefaultCloudKeepCount,
         autoEnabled: _autoEnabled,
+        autoIntervalHours: _autoInterval.hours,
       );
 
   void _showMessage(String message, {required bool ok}) {
@@ -167,6 +170,8 @@ class _CloudBackupPageState extends ConsumerState<CloudBackupPage> {
     setState(() => _busy = true);
     try {
       final result = await service.backupNow();
+      // 记录成功时间，避免刚手动备份又被自动调度重复触发。
+      await ref.read(settingsRepositoryProvider).setCloudLastBackupAt(DateTime.now());
       _showMessage(
         '备份成功：${result.key}（${_formatSize(result.bytes)}）'
         '${result.pruned > 0 ? '，已清理 ${result.pruned} 份旧备份' : ''}',
@@ -394,11 +399,33 @@ class _CloudBackupPageState extends ConsumerState<CloudBackupPage> {
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
                       title: const Text('自动备份'),
-                      subtitle: const Text('暂未开放：本轮仅支持手动「立即备份」'),
+                      subtitle: const Text('开启后于启动 / 回到前台时，距上次备份满所选间隔则自动备份'),
                       value: _autoEnabled,
                       activeTrackColor: PaperColors.accent,
-                      onChanged: null,
+                      onChanged: (value) async {
+                        setState(() => _autoEnabled = value);
+                        await _save(announce: false);
+                      },
                     ),
+                    if (_autoEnabled) ...<Widget>[
+                      DropdownButtonFormField<CloudAutoInterval>(
+                        initialValue: _autoInterval,
+                        decoration: const InputDecoration(labelText: '备份频率'),
+                        items: <DropdownMenuItem<CloudAutoInterval>>[
+                          for (final interval in CloudAutoInterval.values)
+                            DropdownMenuItem<CloudAutoInterval>(
+                              value: interval,
+                              child: Text(interval.label),
+                            ),
+                        ],
+                        onChanged: (value) async {
+                          if (value == null) return;
+                          setState(() => _autoInterval = value);
+                          await _save(announce: false);
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                    ],
                     const Divider(height: 24),
                     const Text('远端备份', style: TextStyle(color: PaperColors.inkSoft)),
                     const SizedBox(height: 4),
@@ -444,8 +471,9 @@ class _PrivacyHint extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              '云备份默认关闭，仅在你手动开启并触发时联网。备份内容与本地 zip 一致'
-              '（含正文，不含任何 API Key）；AccessKey / SecretKey 只保存在本机安全存储。',
+              '云备份默认关闭，仅在你开启并触发时联网（含开启自动备份后按频率触发）。'
+              '备份内容与本地 zip 一致（含正文，不含任何 API Key）；'
+              'AccessKey / SecretKey 只保存在本机安全存储。',
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ),

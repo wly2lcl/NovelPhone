@@ -583,7 +583,8 @@ Responses（OpenAI Responses 端点，B-01 已实现）：
 - **对象命名与保留**：`{prefix}{yyyyMMddTHHmmss}.zip`（本地时区），默认前缀 `novelphone/backups/`；列举按 key 内时间戳倒序，保留最近 N 份（默认 10、最小 1），其余删除。
 - **恢复流程**：列举远端 → 用户选一份 → `getObject` 下载 bytes → 复用既有 zip 解析与恢复（合并为新作品 / 覆盖本机，作者选择）。
 - **错误处理**：沿用第 8 章"错误分类 + 明确提示"总策略；区分网络失败、`403` / `SignatureDoesNotMatch`（凭证或 endpoint/region 不匹配）、`404`（桶不存在）、`RequestTimeTooSkewed`（设备时钟偏差），均不阻断本地使用。
-- **本轮范围**：仅手动"立即备份 / 测试连接 / 从云端恢复"；自动备份开关落库但默认关、调度逻辑留待后续版本。
+- **自动调度**：`features/settings/cloud_backup_auto.dart` 的 `CloudBackupScheduler`——仅当「总开关 + 自动开关」均开启且配置、凭证齐全时，于应用启动 / 回到前台（`CloudBackupAutoRunner`，`WidgetsBindingObserver`，无常驻定时器）检查是否到期（`isCloudBackupDue`：距上次成功备份满 `autoIntervalHours`，默认每天/可配 12h/24h/168h），到期则复用 `CloudBackupService.backupNow()` 上传；成功后把时间写入 APP_SETTING（`cloud_backup_last_at`），手动备份成功同样记录以避免重复触发。失败静默、不打断使用，下次检查重试。
+- **本轮范围**：手动「立即备份 / 测试连接 / 从云端恢复」+ 自动备份（启动 / 回到前台按间隔触发，频率可选）；更细的调度（后台常驻、系统级定时）不在本轮。
 
 ---
 
