@@ -99,27 +99,31 @@ class ReadingPalette {
   final Color accent;
   final Color divider;
 
-  static const ReadingPalette paper = ReadingPalette(
-    background: PaperColors.background,
-    surface: PaperColors.surface,
-    ink: PaperColors.ink,
-    inkSoft: PaperColors.inkSoft,
-    accent: PaperColors.accent,
-    divider: PaperColors.divider,
+  static final ReadingPalette paper = ReadingPalette(
+    background: PaperPalette.light.background,
+    surface: PaperPalette.light.surface,
+    ink: PaperPalette.light.ink,
+    inkSoft: PaperPalette.light.inkSoft,
+    accent: PaperPalette.light.accent,
+    divider: PaperPalette.light.divider,
   );
 
-  /// 夜间纸张：深墨底 + 暖白字，避免纯黑纯白的高对比刺眼。
-  static const ReadingPalette night = ReadingPalette(
-    background: Color(0xFF1E1B17),
-    surface: Color(0xFF252119),
-    ink: Color(0xFFE8DFD0),
-    inkSoft: Color(0xFF9C9080),
-    accent: Color(0xFFC68A5A),
-    divider: Color(0xFF3A342B),
+  /// 夜间纸张：深墨底 + 暖白字，避免纯黑纯白的高对比刺眼（与全局深色同一套色值）。
+  static final ReadingPalette night = ReadingPalette(
+    background: PaperPalette.dark.background,
+    surface: PaperPalette.dark.surface,
+    ink: PaperPalette.dark.ink,
+    inkSoft: PaperPalette.dark.inkSoft,
+    accent: PaperPalette.dark.accent,
+    divider: PaperPalette.dark.divider,
   );
 
-  static ReadingPalette of(ReadingAppearance appearance) =>
-      appearance.dark ? night : paper;
+  /// 写作区配色：编辑器自身「夜间纸张」开关，或全局深色时自动跟随。
+  static ReadingPalette of(
+    ReadingAppearance appearance, {
+    bool globalDark = false,
+  }) =>
+      (appearance.dark || globalDark) ? night : paper;
 }
 
 /// 当前写作外观（设置页写入后 `ref.invalidate` 使编辑器立即生效）。

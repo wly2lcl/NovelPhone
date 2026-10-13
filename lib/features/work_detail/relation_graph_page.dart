@@ -37,15 +37,16 @@ class RelationGraphPage extends ConsumerWidget {
                     painter: _RelationGraphPainter(
                       characters: characters,
                       relations: relations,
+                      palette: context.paper,
                     ),
                   ),
           ),
           const Divider(),
           Expanded(
             child: relations.isEmpty
-                ? const Center(
+                ? Center(
                     child: Text('还没有关系，点击右下角添加',
-                        style: TextStyle(color: PaperColors.inkSoft)),
+                        style: TextStyle(color: context.paper.inkSoft)),
                   )
                 : ListView.builder(
                     padding: const EdgeInsets.only(bottom: 96),
@@ -60,8 +61,8 @@ class RelationGraphPage extends ConsumerWidget {
                         subtitle: relation.label.isEmpty
                             ? null
                             : Text(relation.label,
-                                style: const TextStyle(
-                                    color: PaperColors.inkSoft)),
+                                style: TextStyle(
+                                    color: context.paper.inkSoft)),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: <Widget>[
@@ -123,13 +124,13 @@ class _EmptyGraphHint extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    return Center(
       child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: 40),
+        padding: const EdgeInsets.symmetric(horizontal: 40),
         child: Text(
           '至少需要两个角色卡才能绘制关系图',
           textAlign: TextAlign.center,
-          style: TextStyle(color: PaperColors.inkSoft),
+          style: TextStyle(color: context.paper.inkSoft),
         ),
       ),
     );
@@ -138,10 +139,15 @@ class _EmptyGraphHint extends StatelessWidget {
 
 /// 环形布局的关系图：节点均布在圆周上，关系以带标签的直线相连。
 class _RelationGraphPainter extends CustomPainter {
-  _RelationGraphPainter({required this.characters, required this.relations});
+  _RelationGraphPainter({
+    required this.characters,
+    required this.relations,
+    required this.palette,
+  });
 
   final List<Character> characters;
   final List<CharacterRelation> relations;
+  final PaperPalette palette;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -156,7 +162,7 @@ class _RelationGraphPainter extends CustomPainter {
     }
 
     final edgePaint = Paint()
-      ..color = PaperColors.divider
+      ..color = palette.divider
       ..strokeWidth = 1.5;
     for (final relation in relations) {
       final from = positions[relation.fromCharacterId];
@@ -167,20 +173,20 @@ class _RelationGraphPainter extends CustomPainter {
         _paintText(canvas, relation.label, Offset(
           (from.dx + to.dx) / 2,
           (from.dy + to.dy) / 2,
-        ), color: PaperColors.inkSoft, fontSize: 10);
+        ), color: palette.inkSoft, fontSize: 10);
       }
     }
 
-    final fillPaint = Paint()..color = PaperColors.surface;
+    final fillPaint = Paint()..color = palette.surface;
     final strokePaint = Paint()
       ..style = PaintingStyle.stroke
-      ..color = PaperColors.accent
+      ..color = palette.accent
       ..strokeWidth = 1.5;
     for (final character in characters) {
       final p = positions[character.id]!;
       canvas.drawCircle(p, 20, fillPaint);
       canvas.drawCircle(p, 20, strokePaint);
-      _paintText(canvas, character.name, p, color: PaperColors.ink, fontSize: 11);
+      _paintText(canvas, character.name, p, color: palette.ink, fontSize: 11);
     }
   }
 
@@ -203,7 +209,8 @@ class _RelationGraphPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _RelationGraphPainter oldDelegate) {
     return oldDelegate.characters != characters ||
-        oldDelegate.relations != relations;
+        oldDelegate.relations != relations ||
+        oldDelegate.palette != palette;
   }
 }
 

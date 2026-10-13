@@ -66,15 +66,15 @@ class _EmptyCharactersHint extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            const Icon(Icons.groups_outlined,
-                size: 64, color: PaperColors.inkSoft),
+            Icon(Icons.groups_outlined,
+                size: 64, color: context.paper.inkSoft),
             const SizedBox(height: 12),
             Text('还没有角色卡', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 6),
-            const Text(
+            Text(
               '为角色建立档案后，AI 续写与灵感会自动带上相关角色设定。',
               textAlign: TextAlign.center,
-              style: TextStyle(color: PaperColors.inkSoft),
+              style: TextStyle(color: context.paper.inkSoft),
             ),
           ],
         ),
@@ -111,11 +111,11 @@ class _CharacterCard extends StatelessWidget {
                   CircleAvatar(
                     radius: 16,
                     backgroundColor:
-                        PaperColors.accent.withValues(alpha: 0.14),
+                        context.paper.accent.withValues(alpha: 0.14),
                     child: Text(
                       character.name.characters.first,
-                      style: const TextStyle(
-                          color: PaperColors.accent,
+                      style: TextStyle(
+                          color: context.paper.accent,
                           fontWeight: FontWeight.w600),
                     ),
                   ),
@@ -135,7 +135,7 @@ class _CharacterCard extends StatelessWidget {
                 character.identity.isEmpty ? '身份未填写' : character.identity,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: PaperColors.inkSoft, fontSize: 13),
+                style: TextStyle(color: context.paper.inkSoft, fontSize: 13),
               ),
               const Spacer(),
               Wrap(
@@ -164,12 +164,12 @@ class _TagChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: PaperColors.accent.withValues(alpha: 0.1),
+        color: context.paper.accent.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
         text,
-        style: const TextStyle(color: PaperColors.accent, fontSize: 12),
+        style: TextStyle(color: context.paper.accent, fontSize: 12),
       ),
     );
   }

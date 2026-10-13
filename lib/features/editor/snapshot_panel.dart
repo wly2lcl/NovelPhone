@@ -51,7 +51,7 @@ class SnapshotPanel extends ConsumerWidget {
                 Text(
                   '${formatRelativeTime(snapshot.createdAt)} · ${snapshot.wordCount} 字',
                   style:
-                      const TextStyle(fontSize: 12, color: PaperColors.inkSoft),
+                      TextStyle(fontSize: 12, color: context.paper.inkSoft),
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -114,7 +114,7 @@ class SnapshotPanel extends ConsumerWidget {
     final snapshots =
         ref.watch(snapshotsProvider(chapterId)).value ?? const <ChapterSnapshot>[];
     return Container(
-      color: PaperColors.surface,
+      color: context.paper.surface,
       padding: const EdgeInsets.fromLTRB(12, 4, 8, 8),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -139,10 +139,10 @@ class SnapshotPanel extends ConsumerWidget {
             ],
           ),
           if (snapshots.isEmpty)
-            const Padding(
+            Padding(
               padding: EdgeInsets.symmetric(vertical: 16),
               child: Text('还没有快照。写作途中点「创建快照」留存一个版本。',
-                  style: TextStyle(fontSize: 13, color: PaperColors.inkSoft)),
+                  style: TextStyle(fontSize: 13, color: context.paper.inkSoft)),
             )
           else
             ConstrainedBox(
@@ -155,8 +155,8 @@ class SnapshotPanel extends ConsumerWidget {
                   return ListTile(
                     dense: true,
                     contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.history,
-                        size: 20, color: PaperColors.inkSoft),
+                    leading: Icon(Icons.history,
+                        size: 20, color: context.paper.inkSoft),
                     title: Text(
                       snapshot.title.isEmpty ? '未命名章节' : snapshot.title,
                       maxLines: 1,
@@ -164,8 +164,8 @@ class SnapshotPanel extends ConsumerWidget {
                     ),
                     subtitle: Text(
                       '${formatRelativeTime(snapshot.createdAt)} · ${snapshot.wordCount} 字',
-                      style: const TextStyle(
-                          fontSize: 12, color: PaperColors.inkSoft),
+                      style: TextStyle(
+                          fontSize: 12, color: context.paper.inkSoft),
                     ),
                     onTap: () => _open(context, ref, snapshot),
                   );

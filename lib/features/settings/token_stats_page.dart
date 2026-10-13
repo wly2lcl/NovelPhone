@@ -54,14 +54,14 @@ class TokenStatsPage extends ConsumerWidget {
         data: (data) {
           final checkStats = ref.watch(checkStatsProvider).value;
           if (data.isEmpty && (checkStats == null || checkStats.total == 0)) {
-            return const Center(
+            return Center(
               child: Padding(
                 padding: EdgeInsets.all(32),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
                     Icon(Icons.insights_outlined,
-                        size: 40, color: PaperColors.inkSoft),
+                        size: 40, color: context.paper.inkSoft),
                     SizedBox(height: 12),
                     Text('还没有生成记录'),
                   ],
@@ -127,11 +127,11 @@ class _Metric extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         Text(label,
-            style: const TextStyle(fontSize: 12, color: PaperColors.inkSoft)),
+            style: TextStyle(fontSize: 12, color: context.paper.inkSoft)),
         const SizedBox(height: 2),
         Text(value,
-            style: const TextStyle(
-                fontSize: 16, fontWeight: FontWeight.w600, color: PaperColors.ink)),
+            style: TextStyle(
+                fontSize: 16, fontWeight: FontWeight.w600, color: context.paper.ink)),
       ],
     );
   }
@@ -151,7 +151,7 @@ class _StatRowCard extends StatelessWidget {
         '输出 ${formatTokenCount(row.completionTokens)}\n'
         '生成 ${row.outputChars} 字 · 采纳 ${row.adoptedChars} 字 · '
         '采纳 ${row.adopted} 次 · 忽略 ${row.ignored} 次',
-        style: const TextStyle(fontSize: 12, color: PaperColors.inkSoft),
+        style: TextStyle(fontSize: 12, color: context.paper.inkSoft),
       ),
       isThreeLine: true,
     );

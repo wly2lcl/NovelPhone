@@ -191,11 +191,19 @@ M4 自动化验证记录（2026-09-30）：`flutter analyze` 无问题；`flutte
 - [x] ENH-02（P1）设定集纳入 AI 上下文：`ContextBuilder` 注入 `SettingRepository`，按世界观/地点/道具分组加入上下文，排在角色卡之后，超预算时优先于角色卡被丢弃；`AiService` / `aiServiceProvider` 注入仓储（可空，未注入则跳过）。
   - 验证：`test/core/context_builder_test.dart` 新增分组渲染与顺序断言。
 
+- [x] ENH-03（P1）全 App 深色模式：把暖色纸质色值从编译期 `const` 改为挂在 `ThemeData` 上的运行时调色板，新增「跟随系统 / 浅色 / 深色」全局开关。
+  - 主题（`lib/app/theme.dart`）：新增 `PaperPalette extends ThemeExtension<PaperPalette>`（`light` / `dark` 两套，色值即原纸质色与 B-04 夜间纸张色）与 `BuildContext.paper` 扩展；`buildPaperTheme([Brightness])` 按亮度取调色板并注册扩展（`Typography.white/black` 随亮度切换，`appBarTheme` / `cardTheme` / `inputDecorationTheme` / `snackBarTheme` 等改为运行时色值，`snackBar` 文字改用 `palette.background` 保证深色对比度）。
+  - 模式开关：`enum AppThemeMode { system / light / dark }`（落 `APP_SETTING.app_theme_mode`，脏数据回落 `system`）+ `appThemeModeProvider`（`FutureProvider`）；`app.dart` 改 `ConsumerWidget` 接入 `theme` / `darkTheme` / `themeMode`（未加载完回落 `ThemeMode.system`）；设置页「写作」段新增「深浅模式」`SegmentedButton`，写入后 `ref.invalidate` 全应用立即生效。
+  - 写作区联动：`ReadingPalette.paper` / `night` 改为引用 `PaperPalette.light/dark` 色值（改为 `static final`）；`ReadingPalette.of(appearance, {globalDark})` 在全局深色时自动跟随（优先级高于写作外观自身开关）；编辑器写作区与外观页预览同步传入 `Theme.of(context).brightness == Brightness.dark`。
+  - 改造面：全项目 `PaperColors.x` 静态引用（27 文件）改为 `context.paper.x`，随之移除相关 `const` 构造（103 处）；`_RelationGraphPainter` 改为构造传入 `PaperPalette` 并在 `shouldRepaint` 比较调色板；`ai_confirm_panel.dart` 局部变量 `BuiltContext` 与原 `BuildContext` 同名，重命名为 `built` 避免遮蔽。
+  - 验证：`test/features/reading_appearance_test.dart` 新增 3 个用例（亮/暗主题挂载对应调色板与 `scaffoldBackgroundColor`、`AppThemeMode.decode` 解析与脏数据回落、`themeMode` 映射）；`flutter analyze` 无问题，`flutter test` 234 用例全绿。
+  - 文档同步：ARCHITECTURE 3 章 app/ 说明、README 当前状态。
+
 ---
 
 ## 后置 backlog（不进 MVP 承诺）
 
-进度：B-01、B-02、B-03、B-04、B-05、B-06、B-07、B-08、B-09 全部已完成。
+进度：B-01、B-02、B-03、B-04、B-05、B-06、B-07、B-08、B-09 全部已完成；MVP 收口后的增强 ENH-01（429/5xx 自动退避重试）、ENH-02（设定集纳入 AI 上下文）、ENH-03（全 App 深色模式）已完成。
 
 - [x] B-01（P2）Responses 端点适配器：新增 `ResponsesAdapter implements AiClient`（架构 9 章触发条件成熟时）
   - 新增 `lib/core/ai/responses_adapter.dart`（端点 `POST {baseUrl}/v1/responses`，system 提为顶层 `instructions`，`input[]` 支持消息 / `function_call` / `function_call_output`；解析 `response.output_text.delta`、`response.completed` 的 usage 与 status；工具调用经 `response.output_item.*` / `response.function_call_arguments.delta` 累积）；`AiProvider.responses` 登记并在 `buildAiClient` 分发；设置页协议类型增第三段「Responses」。
@@ -216,7 +224,7 @@ M4 自动化验证记录（2026-09-30）：`flutter analyze` 无问题；`flutte
   - 验证：`test/core/skill_test.dart` 新增 12 个用例（JSON 往返与脏数据、参数替换、指令拼接、白名单过滤、`withSystem` 估算同步、仓储 CRUD 与脏数据容错、续写注入生效与停用不注入）；`flutter analyze` 无问题，`flutter test` 169 用例全绿。
   - 文档同步：ARCHITECTURE 3 章目录与模块表、9 章 B-03 标注已实现、README 当前状态。
 - [x] B-04（P2）护眼深色模式、字体调节
-  - 范围：本轮只作用于**写作/阅读外观**（对齐 PRD「深夜沉浸」），不做全 App 深色（全站暖色纸质色值为编译期 `const` 硬编码，改为运行时解析改动面过大，不符合最小变更）。
+  - 范围：写作/阅读外观（对齐 PRD「深夜沉浸」）；全 App 深色模式已由 ENH-03 补齐（纸质色值改为运行时调色板 + 全局深浅开关）。
   - 模型与配色（`lib/app/reading_appearance.dart`）：`ReadingAppearance`（`dark` / `fontSize` 14~24 / `lineHeight` 1.4~2.4，JSON 落 `APP_SETTING.reader_appearance`，脏数据回落默认并夹紧区间）；`ReadingPalette`（`paper` 复用既有纸质色值 / `night` 深色纸张配色）与 `ReadingPalette.of()`；`readingAppearanceProvider`（`FutureProvider`，写库后 `ref.invalidate` 生效）。
   - 设置页：新增「写作外观」页（夜间纸张开关、正文字号与行距滑杆、示例正文实时预览），路由 `/settings/appearance`，设置页新增「写作」段入口。
   - 编辑器落地：`editor_page.dart` 注入 `palette`（背景 / 文字 / 分隔）并把 `fontSize`、`lineHeight` 应用到正文 `TextField`，工具栏与状态栏同步走 palette。

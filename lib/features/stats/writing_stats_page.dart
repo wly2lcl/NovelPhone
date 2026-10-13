@@ -249,7 +249,7 @@ class _TodayCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: PaperColors.accent.withValues(alpha: 0.08),
+        color: context.paper.accent.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Column(
@@ -257,7 +257,7 @@ class _TodayCard extends StatelessWidget {
         children: <Widget>[
           Row(
             children: <Widget>[
-              const Text('今日写作', style: TextStyle(color: PaperColors.inkSoft)),
+              Text('今日写作', style: TextStyle(color: context.paper.inkSoft)),
               const Spacer(),
               TextButton(
                 onPressed: onEditTarget,
@@ -272,21 +272,21 @@ class _TodayCard extends StatelessWidget {
               children: <InlineSpan>[
                 TextSpan(
                   text: '$words',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.w600,
-                    color: PaperColors.ink,
+                    color: context.paper.ink,
                   ),
                 ),
                 if (hasGoal)
                   TextSpan(
                     text: ' / $goal 字',
-                    style: const TextStyle(color: PaperColors.inkSoft),
+                    style: TextStyle(color: context.paper.inkSoft),
                   )
                 else
-                  const TextSpan(
+                  TextSpan(
                     text: ' 字',
-                    style: TextStyle(color: PaperColors.inkSoft),
+                    style: TextStyle(color: context.paper.inkSoft),
                   ),
               ],
             ),
@@ -298,13 +298,13 @@ class _TodayCard extends StatelessWidget {
               child: LinearProgressIndicator(
                 value: progress,
                 minHeight: 8,
-                backgroundColor: PaperColors.accent.withValues(alpha: 0.15),
+                backgroundColor: context.paper.accent.withValues(alpha: 0.15),
               ),
             ),
             const SizedBox(height: 6),
             Text(
               progress >= 1.0 ? '已达成今日目标' : '距离目标还差 ${goal - words} 字',
-              style: const TextStyle(fontSize: 12, color: PaperColors.inkSoft),
+              style: TextStyle(fontSize: 12, color: context.paper.inkSoft),
             ),
           ],
         ],
@@ -348,7 +348,7 @@ class _PomodoroCard extends StatelessWidget {
       children: <Widget>[
         Row(
           children: <Widget>[
-            const Icon(Icons.timer_outlined, color: PaperColors.inkSoft),
+            Icon(Icons.timer_outlined, color: context.paper.inkSoft),
             const SizedBox(width: 8),
             const Text('番茄钟', style: TextStyle(fontWeight: FontWeight.w600)),
             const Spacer(),
@@ -362,11 +362,11 @@ class _PomodoroCard extends StatelessWidget {
         Center(
           child: Text(
             _display,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 48,
               fontWeight: FontWeight.w600,
               fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
-              color: PaperColors.ink,
+              color: context.paper.ink,
             ),
           ),
         ),
@@ -391,7 +391,7 @@ class _PomodoroCard extends StatelessWidget {
         Center(
           child: Text(
             '今日已完成 $done 个番茄钟',
-            style: const TextStyle(fontSize: 13, color: PaperColors.inkSoft),
+            style: TextStyle(fontSize: 13, color: context.paper.inkSoft),
           ),
         ),
       ],
@@ -416,15 +416,15 @@ class _StatTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       contentPadding: EdgeInsets.zero,
-      leading: Icon(icon, color: PaperColors.accent),
+      leading: Icon(icon, color: context.paper.accent),
       title: Text(title),
       subtitle: Text(subtitle),
       trailing: Text(
         value,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 20,
           fontWeight: FontWeight.w600,
-          color: PaperColors.ink,
+          color: context.paper.ink,
         ),
       ),
       onTap: null,

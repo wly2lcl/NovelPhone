@@ -100,15 +100,15 @@ class _EmptySettingsHint extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            const Icon(Icons.auto_stories_outlined,
-                size: 64, color: PaperColors.inkSoft),
+            Icon(Icons.auto_stories_outlined,
+                size: 64, color: context.paper.inkSoft),
             const SizedBox(height: 12),
             Text('还没有${type.label}', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 6),
             Text(
               '记录作品的${type.label}设定，方便写作时随时查阅。',
               textAlign: TextAlign.center,
-              style: const TextStyle(color: PaperColors.inkSoft),
+              style: TextStyle(color: context.paper.inkSoft),
             ),
           ],
         ),
@@ -147,8 +147,8 @@ class _SettingCard extends StatelessWidget {
                   ),
                   Text(
                     SettingType.fromValue(entry.type).label,
-                    style: const TextStyle(
-                        color: PaperColors.accent, fontSize: 12),
+                    style: TextStyle(
+                        color: context.paper.accent, fontSize: 12),
                   ),
                 ],
               ),
@@ -158,8 +158,8 @@ class _SettingCard extends StatelessWidget {
                   entry.content,
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                      color: PaperColors.inkSoft, fontSize: 13),
+                  style: TextStyle(
+                      color: context.paper.inkSoft, fontSize: 13),
                 ),
               ],
             ],

@@ -100,17 +100,17 @@ class _McpServersPageState extends ConsumerState<McpServersPage> {
                             ? Icons.vpn_key
                             : Icons.vpn_key_off_outlined,
                         color: _withAuth.contains(server.id)
-                            ? PaperColors.accent
-                            : PaperColors.inkSoft,
+                            ? context.paper.accent
+                            : context.paper.inkSoft,
                       ),
                       title: Text(server.name),
                       subtitle: Text(
                         '${server.url}\n'
                         '${server.allowedTools.isEmpty ? '全部工具可用' : '白名单：${server.allowedTools.join('、')}'}',
                         maxLines: 3,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
-                          color: PaperColors.inkSoft,
+                          color: context.paper.inkSoft,
                         ),
                       ),
                       isThreeLine: true,
@@ -119,7 +119,7 @@ class _McpServersPageState extends ConsumerState<McpServersPage> {
                         children: <Widget>[
                           Switch(
                             value: server.enabled,
-                            activeTrackColor: PaperColors.accent,
+                            activeTrackColor: context.paper.accent,
                             onChanged: (value) => _toggle(server, value),
                           ),
                           PopupMenuButton<String>(
@@ -164,7 +164,7 @@ class _EmptyHint extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            const Icon(Icons.hub_outlined, size: 40, color: PaperColors.inkSoft),
+            Icon(Icons.hub_outlined, size: 40, color: context.paper.inkSoft),
             const SizedBox(height: 12),
             const Text('还没有 MCP 服务'),
             const SizedBox(height: 4),
@@ -421,7 +421,7 @@ class _McpServerEditPageState extends ConsumerState<McpServerEditPage> {
                     title: const Text('启用'),
                     subtitle: const Text('停用后其工具不会暴露给 AI'),
                     value: _enabled,
-                    activeTrackColor: PaperColors.accent,
+                    activeTrackColor: context.paper.accent,
                     onChanged: (v) => setState(() => _enabled = v),
                   ),
                   const Divider(height: 24),

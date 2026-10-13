@@ -87,17 +87,17 @@ class _SkillsPageState extends ConsumerState<SkillsPage> {
                             ? Icons.auto_awesome
                             : Icons.auto_awesome_outlined,
                         color: skill.enabled
-                            ? PaperColors.accent
-                            : PaperColors.inkSoft,
+                            ? context.paper.accent
+                            : context.paper.inkSoft,
                       ),
                       title: Text(skill.name),
                       subtitle: Text(
                         '${skill.instruction.trim()}\n'
                         '${skill.allowedTools.isEmpty ? '工具：不限制' : '工具白名单：${skill.allowedTools.join('、')}'}',
                         maxLines: 3,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
-                          color: PaperColors.inkSoft,
+                          color: context.paper.inkSoft,
                         ),
                       ),
                       isThreeLine: true,
@@ -106,7 +106,7 @@ class _SkillsPageState extends ConsumerState<SkillsPage> {
                         children: <Widget>[
                           Switch(
                             value: skill.enabled,
-                            activeTrackColor: PaperColors.accent,
+                            activeTrackColor: context.paper.accent,
                             onChanged: (value) => _toggle(skill, value),
                           ),
                           PopupMenuButton<String>(
@@ -151,10 +151,10 @@ class _EmptyHint extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            const Icon(
+            Icon(
               Icons.auto_awesome_outlined,
               size: 40,
-              color: PaperColors.inkSoft,
+              color: context.paper.inkSoft,
             ),
             const SizedBox(height: 12),
             const Text('还没有自定义技能'),
@@ -367,7 +367,7 @@ class _SkillEditPageState extends ConsumerState<SkillEditPage> {
                     title: const Text('启用'),
                     subtitle: const Text('停用后不注入，也不参与工具白名单'),
                     value: _enabled,
-                    activeTrackColor: PaperColors.accent,
+                    activeTrackColor: context.paper.accent,
                     onChanged: (v) => setState(() => _enabled = v),
                   ),
                 ],

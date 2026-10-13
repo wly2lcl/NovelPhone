@@ -65,7 +65,7 @@ class _FindReplacePanelState extends State<FindReplacePanel> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: PaperColors.surface,
+      color: context.paper.surface,
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -87,14 +87,14 @@ class _FindReplacePanelState extends State<FindReplacePanel> {
                 tooltip: '区分大小写',
                 isSelected: _caseSensitive,
                 icon: const Icon(Icons.text_fields),
-                selectedIcon: const Icon(Icons.text_fields,
-                    color: PaperColors.accent),
+                selectedIcon: Icon(Icons.text_fields,
+                    color: context.paper.accent),
                 onPressed: () {
                   setState(() => _caseSensitive = !_caseSensitive);
                   _refreshCount();
                 },
               ),
-              Text('$_count 处', style: const TextStyle(color: PaperColors.inkSoft)),
+              Text('$_count 处', style: TextStyle(color: context.paper.inkSoft)),
               IconButton(
                 tooltip: '关闭',
                 icon: const Icon(Icons.close),

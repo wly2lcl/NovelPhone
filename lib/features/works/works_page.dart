@@ -65,13 +65,13 @@ class _EmptyWorks extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          const Icon(Icons.menu_book_outlined,
-              size: 72, color: PaperColors.inkSoft),
+          Icon(Icons.menu_book_outlined,
+              size: 72, color: context.paper.inkSoft),
           const SizedBox(height: 16),
           Text('还没有作品', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 8),
-          const Text('把脑中的故事写下来，从第一部作品开始。',
-              style: TextStyle(color: PaperColors.inkSoft)),
+          Text('把脑中的故事写下来，从第一部作品开始。',
+              style: TextStyle(color: context.paper.inkSoft)),
           const SizedBox(height: 24),
           FilledButton.icon(
             onPressed: () => context.push('/new-work'),
@@ -94,7 +94,7 @@ class _WorkCard extends ConsumerWidget {
     return Card(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
-        side: const BorderSide(color: PaperColors.divider),
+        side: BorderSide(color: context.paper.divider),
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -114,8 +114,8 @@ class _WorkCard extends ConsumerWidget {
                     Row(
                       children: <Widget>[
                         if (work.pinned) ...<Widget>[
-                          const Icon(Icons.push_pin,
-                              size: 15, color: PaperColors.accent),
+                          Icon(Icons.push_pin,
+                              size: 15, color: context.paper.accent),
                           const SizedBox(width: 6),
                         ],
                         Expanded(
@@ -131,14 +131,14 @@ class _WorkCard extends ConsumerWidget {
                     const SizedBox(height: 8),
                     Text(
                       '${formatWordCount(work.wordCount)} · ${work.chapterCount} 章',
-                      style: const TextStyle(
-                          fontSize: 13, color: PaperColors.inkSoft),
+                      style: TextStyle(
+                          fontSize: 13, color: context.paper.inkSoft),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       '最后编辑 ${formatRelativeTime(work.lastEditedAt)}',
-                      style: const TextStyle(
-                          fontSize: 12, color: PaperColors.inkSoft),
+                      style: TextStyle(
+                          fontSize: 12, color: context.paper.inkSoft),
                     ),
                   ],
                 ),

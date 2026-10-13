@@ -202,16 +202,16 @@ class _PickHint extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 32),
       child: Column(
         children: <Widget>[
-          const Icon(Icons.upload_file_outlined,
-              size: 64, color: PaperColors.inkSoft),
+          Icon(Icons.upload_file_outlined,
+              size: 64, color: context.paper.inkSoft),
           const SizedBox(height: 12),
           Text('导入旧稿', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 6),
-          const Text(
+          Text(
             '支持 txt（UTF-8 / GBK）与 docx。导入后按「第 X 章」等标题自动分章，'
             '可在下一步预览并调整。',
             textAlign: TextAlign.center,
-            style: TextStyle(color: PaperColors.inkSoft),
+            style: TextStyle(color: context.paper.inkSoft),
           ),
         ],
       ),
@@ -264,12 +264,12 @@ class _FileSummary extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: ListTile(
-        leading: const Icon(Icons.description_outlined,
-            color: PaperColors.accent),
+        leading: Icon(Icons.description_outlined,
+            color: context.paper.accent),
         title: Text(fileName, maxLines: 1, overflow: TextOverflow.ellipsis),
         subtitle: Text(
           '编码 $encoding · $chapterCount 章 · 共 $totalWords 字',
-          style: const TextStyle(color: PaperColors.inkSoft, fontSize: 13),
+          style: TextStyle(color: context.paper.inkSoft, fontSize: 13),
         ),
       ),
     );
@@ -292,14 +292,14 @@ class _DraftTile extends StatelessWidget {
     return ListTile(
       contentPadding: EdgeInsets.zero,
       leading: Text('${index + 1}',
-          style: const TextStyle(color: PaperColors.inkSoft)),
+          style: TextStyle(color: context.paper.inkSoft)),
       title: Text(
         draft.title.isEmpty ? '未命名章节' : draft.title,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
       subtitle: Text('${draft.wordCount} 字',
-          style: const TextStyle(color: PaperColors.inkSoft, fontSize: 12)),
+          style: TextStyle(color: context.paper.inkSoft, fontSize: 12)),
       trailing: onMerge == null
           ? null
           : TextButton(

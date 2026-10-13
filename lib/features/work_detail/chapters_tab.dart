@@ -121,13 +121,13 @@ class _EmptyChaptersHint extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 40),
       child: Column(
         children: <Widget>[
-          const Icon(Icons.edit_note_outlined,
-              size: 64, color: PaperColors.inkSoft),
+          Icon(Icons.edit_note_outlined,
+              size: 64, color: context.paper.inkSoft),
           const SizedBox(height: 12),
           Text('还没有章节', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 6),
-          const Text('在下方「新建卷」后即可开始写第一章。',
-              style: TextStyle(color: PaperColors.inkSoft)),
+          Text('在下方「新建卷」后即可开始写第一章。',
+              style: TextStyle(color: context.paper.inkSoft)),
         ],
       ),
     );
@@ -356,8 +356,8 @@ class _ChapterTile extends ConsumerWidget {
       background: Container(
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
-        color: PaperColors.accent.withValues(alpha: 0.12),
-        child: const Text('更多', style: TextStyle(color: PaperColors.accent)),
+        color: context.paper.accent.withValues(alpha: 0.12),
+        child: Text('更多', style: TextStyle(color: context.paper.accent)),
       ),
       child: ListTile(
         contentPadding: EdgeInsets.zero,
@@ -367,7 +367,7 @@ class _ChapterTile extends ConsumerWidget {
           overflow: TextOverflow.ellipsis,
         ),
         subtitle: Text('${formatWordCount(chapter.wordCount)} · ${status.label}'),
-        trailing: const Icon(Icons.chevron_right, color: PaperColors.inkSoft),
+        trailing: Icon(Icons.chevron_right, color: context.paper.inkSoft),
         onTap: () => context.push('/work/$workId/chapter/${chapter.id}'),
         onLongPress: () => _showChapterActions(context, ref),
       ),
@@ -424,7 +424,7 @@ class _ChapterTile extends ConsumerWidget {
                   status == ChapterStatus.fromValue(chapter.status)
                       ? Icons.radio_button_checked
                       : Icons.radio_button_unchecked,
-                  color: PaperColors.accent,
+                  color: context.paper.accent,
                 ),
                 title: Text('标记为${status.label}'),
                 onTap: () {

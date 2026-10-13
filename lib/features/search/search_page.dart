@@ -58,13 +58,13 @@ class _SearchPageState extends ConsumerState<SearchPage> {
 
   Widget _buildBody(AsyncValue<List<ChapterSearchHit>> resultsAsync) {
     if (_query.isEmpty) {
-      return const Center(
+      return Center(
         child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 32),
+          padding: const EdgeInsets.symmetric(horizontal: 32),
           child: Text(
             '输入关键词，搜索全部作品的章节标题与正文。',
             textAlign: TextAlign.center,
-            style: TextStyle(color: PaperColors.inkSoft),
+            style: TextStyle(color: context.paper.inkSoft),
           ),
         ),
       );
@@ -76,7 +76,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         if (hits.isEmpty) {
           return Center(
             child: Text('没有找到包含「$_query」的章节',
-                style: const TextStyle(color: PaperColors.inkSoft)),
+                style: TextStyle(color: context.paper.inkSoft)),
           );
         }
         return ListView.separated(
@@ -101,6 +101,7 @@ class _HitTile extends StatelessWidget {
     return ListTile(
       isThreeLine: true,
       title: _highlight(
+        context,
         hit.chapterTitle.isEmpty ? '未命名章节' : hit.chapterTitle,
         Theme.of(context).textTheme.titleSmall,
       ),
@@ -110,12 +111,13 @@ class _HitTile extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Text(hit.workTitle,
-                style: const TextStyle(fontSize: 12, color: PaperColors.accent)),
+                style: TextStyle(fontSize: 12, color: context.paper.accent)),
             const SizedBox(height: 2),
             _highlight(
+              context,
               hit.snippet,
-              const TextStyle(
-                  fontSize: 13, color: PaperColors.inkSoft, height: 1.4),
+              TextStyle(
+                  fontSize: 13, color: context.paper.inkSoft, height: 1.4),
             ),
           ],
         ),
@@ -131,7 +133,7 @@ class _HitTile extends StatelessWidget {
   }
 
   /// 命中关键词高亮（忽略大小写，与检索口径一致）。
-  Widget _highlight(String text, TextStyle? base) {
+  Widget _highlight(BuildContext context, String text, TextStyle? base) {
     if (keyword.isEmpty || text.isEmpty) return Text(text, style: base);
     final lowerText = text.toLowerCase();
     final lowerKeyword = keyword.toLowerCase();
@@ -148,8 +150,8 @@ class _HitTile extends StatelessWidget {
       }
       spans.add(TextSpan(
         text: text.substring(index, index + keyword.length),
-        style: const TextStyle(
-            color: PaperColors.accent, fontWeight: FontWeight.w600),
+        style: TextStyle(
+            color: context.paper.accent, fontWeight: FontWeight.w600),
       ));
       start = index + keyword.length;
     }

@@ -30,11 +30,11 @@ class TaskMappingPage extends ConsumerWidget {
           }
           return ListView(
             children: <Widget>[
-              const Padding(
+              Padding(
                 padding: EdgeInsets.fromLTRB(16, 16, 16, 4),
                 child: Text(
                   '为每类 AI 任务指定使用的模型组；未指定则对应功能不可用。',
-                  style: TextStyle(fontSize: 12, color: PaperColors.inkSoft),
+                  style: TextStyle(fontSize: 12, color: context.paper.inkSoft),
                 ),
               ),
               for (final task in AiTask.all)

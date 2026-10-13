@@ -92,7 +92,9 @@ class _EditorPageState extends ConsumerState<EditorPage> {
     // B-04：写作外观（夜间纸张 / 字号 / 行距），未加载完先用默认纸质外观。
     final appearance =
         ref.watch(readingAppearanceProvider).value ?? const ReadingAppearance();
-    final palette = ReadingPalette.of(appearance);
+    // 全局深色时写作区自动跟随（优先级高于写作外观自身开关）。
+    final globalDark = Theme.of(context).brightness == Brightness.dark;
+    final palette = ReadingPalette.of(appearance, globalDark: globalDark);
     return Scaffold(
       backgroundColor: palette.background,
       appBar: AppBar(
@@ -202,7 +204,8 @@ class _EditorPageState extends ConsumerState<EditorPage> {
     if (!_controller.loaded) {
       return const Center(child: CircularProgressIndicator());
     }
-    final palette = ReadingPalette.of(appearance);
+    final globalDark = Theme.of(context).brightness == Brightness.dark;
+    final palette = ReadingPalette.of(appearance, globalDark: globalDark);
     return Container(
       color: palette.surface,
       child: TextField(
@@ -333,7 +336,7 @@ class _SaveIndicator extends StatelessWidget {
   Widget build(BuildContext context) {
     switch (status) {
       case SaveStatus.saving:
-        return const Padding(
+        return Padding(
           padding: EdgeInsets.symmetric(horizontal: 16),
           child: Row(
             children: <Widget>[
@@ -343,18 +346,18 @@ class _SaveIndicator extends StatelessWidget {
                 child: CircularProgressIndicator(strokeWidth: 1.6),
               ),
               SizedBox(width: 8),
-              Text('保存中', style: TextStyle(fontSize: 13, color: PaperColors.inkSoft)),
+              Text('保存中', style: TextStyle(fontSize: 13, color: context.paper.inkSoft)),
             ],
           ),
         );
       case SaveStatus.saved:
-        return const Padding(
+        return Padding(
           padding: EdgeInsets.symmetric(horizontal: 16),
           child: Row(
             children: <Widget>[
-              Icon(Icons.cloud_done_outlined, size: 15, color: PaperColors.inkSoft),
+              Icon(Icons.cloud_done_outlined, size: 15, color: context.paper.inkSoft),
               SizedBox(width: 6),
-              Text('已保存', style: TextStyle(fontSize: 13, color: PaperColors.inkSoft)),
+              Text('已保存', style: TextStyle(fontSize: 13, color: context.paper.inkSoft)),
             ],
           ),
         );

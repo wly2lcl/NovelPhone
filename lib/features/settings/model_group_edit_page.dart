@@ -279,7 +279,7 @@ class _ModelGroupEditPageState extends ConsumerState<ModelGroupEditPage> {
                           max: 2,
                           divisions: 20,
                           label: _temperature.toStringAsFixed(1),
-                          activeColor: PaperColors.accent,
+                          activeColor: context.paper.accent,
                           onChanged: (v) => setState(() => _temperature = v),
                         ),
                       ),
@@ -315,7 +315,7 @@ class _ModelGroupEditPageState extends ConsumerState<ModelGroupEditPage> {
                     title: const Text('启用'),
                     subtitle: const Text('停用后不会被任务映射使用'),
                     value: _enabled,
-                    activeTrackColor: PaperColors.accent,
+                    activeTrackColor: context.paper.accent,
                     onChanged: (v) => setState(() => _enabled = v),
                   ),
                   const Divider(height: 24),
@@ -363,7 +363,7 @@ class _FieldLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(right: 8),
-      child: Text(text, style: const TextStyle(color: PaperColors.inkSoft)),
+      child: Text(text, style: TextStyle(color: context.paper.inkSoft)),
     );
   }
 }

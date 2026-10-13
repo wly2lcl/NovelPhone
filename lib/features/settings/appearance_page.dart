@@ -156,7 +156,9 @@ class _Preview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final palette = ReadingPalette.of(appearance);
+    // 全局深色时预览同步跟随，保证「所见即所得」。
+    final globalDark = Theme.of(context).brightness == Brightness.dark;
+    final palette = ReadingPalette.of(appearance, globalDark: globalDark);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(

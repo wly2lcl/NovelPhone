@@ -51,7 +51,7 @@ class _EmptyHint extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            const Icon(Icons.key_outlined, size: 40, color: PaperColors.inkSoft),
+            Icon(Icons.key_outlined, size: 40, color: context.paper.inkSoft),
             const SizedBox(height: 12),
             const Text('还没有模型组'),
             const SizedBox(height: 4),
@@ -102,7 +102,7 @@ class _ModelGroupTileState extends ConsumerState<_ModelGroupTile> {
     return ListTile(
       leading: Icon(
         _hasKey ? Icons.key : Icons.key_off_outlined,
-        color: _hasKey ? PaperColors.accent : PaperColors.inkSoft,
+        color: _hasKey ? context.paper.accent : context.paper.inkSoft,
       ),
       title: Text(group.name),
       subtitle: Text(
@@ -110,7 +110,7 @@ class _ModelGroupTileState extends ConsumerState<_ModelGroupTile> {
         '${models.isEmpty ? '未填写模型' : models.join('、')}'
         '${_hasKey ? '' : ' · 未填 Key'}',
         maxLines: 3,
-        style: const TextStyle(fontSize: 12, color: PaperColors.inkSoft),
+        style: TextStyle(fontSize: 12, color: context.paper.inkSoft),
       ),
       isThreeLine: true,
       trailing: Row(
@@ -118,7 +118,7 @@ class _ModelGroupTileState extends ConsumerState<_ModelGroupTile> {
         children: <Widget>[
           Switch(
             value: group.enabled,
-            activeTrackColor: PaperColors.accent,
+            activeTrackColor: context.paper.accent,
             onChanged: (value) => ref
                 .read(settingsRepositoryProvider)
                 .setModelGroupEnabled(group.id, value),

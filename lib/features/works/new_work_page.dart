@@ -72,7 +72,7 @@ class _NewWorkPageState extends ConsumerState<NewWorkPage> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: <Widget>[
-          const Text('作品标题', style: TextStyle(color: PaperColors.inkSoft)),
+          Text('作品标题', style: TextStyle(color: context.paper.inkSoft)),
           const SizedBox(height: 8),
           TextField(
             controller: _titleController,
@@ -85,7 +85,7 @@ class _NewWorkPageState extends ConsumerState<NewWorkPage> {
             onSubmitted: (_) => _submit(),
           ),
           const SizedBox(height: 8),
-          const Text('封面色块', style: TextStyle(color: PaperColors.inkSoft)),
+          Text('封面色块', style: TextStyle(color: context.paper.inkSoft)),
           const SizedBox(height: 12),
           Wrap(
             spacing: 14,
@@ -101,7 +101,7 @@ class _NewWorkPageState extends ConsumerState<NewWorkPage> {
                     color: color,
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: selected ? PaperColors.ink : Colors.transparent,
+                      color: selected ? context.paper.ink : Colors.transparent,
                       width: 2.5,
                     ),
                   ),

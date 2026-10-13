@@ -266,7 +266,7 @@ class _CloudBackupPageState extends ConsumerState<CloudBackupPage> {
                     title: const Text('启用云备份'),
                     subtitle: const Text('关闭时不联网、不产生任何云端请求'),
                     value: _enabled,
-                    activeTrackColor: PaperColors.accent,
+                    activeTrackColor: context.paper.accent,
                     onChanged: (value) async {
                       setState(() => _enabled = value);
                       await _save(announce: false);
@@ -401,7 +401,7 @@ class _CloudBackupPageState extends ConsumerState<CloudBackupPage> {
                       title: const Text('自动备份'),
                       subtitle: const Text('开启后于启动 / 回到前台时，距上次备份满所选间隔则自动备份'),
                       value: _autoEnabled,
-                      activeTrackColor: PaperColors.accent,
+                      activeTrackColor: context.paper.accent,
                       onChanged: (value) async {
                         setState(() => _autoEnabled = value);
                         await _save(announce: false);
@@ -427,7 +427,7 @@ class _CloudBackupPageState extends ConsumerState<CloudBackupPage> {
                       const SizedBox(height: 8),
                     ],
                     const Divider(height: 24),
-                    const Text('远端备份', style: TextStyle(color: PaperColors.inkSoft)),
+                    Text('远端备份', style: TextStyle(color: context.paper.inkSoft)),
                     const SizedBox(height: 4),
                     _BackupList(
                       backups: _backups,
@@ -461,13 +461,13 @@ class _PrivacyHint extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: PaperColors.accent.withValues(alpha: 0.08),
+        color: context.paper.accent.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          const Icon(Icons.info_outline, size: 18, color: PaperColors.accent),
+          Icon(Icons.info_outline, size: 18, color: context.paper.accent),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -498,20 +498,20 @@ class _BackupList extends StatelessWidget {
   Widget build(BuildContext context) {
     final list = backups;
     if (list == null) {
-      return const Padding(
+      return Padding(
         padding: EdgeInsets.symmetric(vertical: 12),
         child: Text(
           '点击「刷新远端备份」查看已有备份',
-          style: TextStyle(fontSize: 12, color: PaperColors.inkSoft),
+          style: TextStyle(fontSize: 12, color: context.paper.inkSoft),
         ),
       );
     }
     if (list.isEmpty) {
-      return const Padding(
+      return Padding(
         padding: EdgeInsets.symmetric(vertical: 12),
         child: Text(
           '远端暂无备份',
-          style: TextStyle(fontSize: 12, color: PaperColors.inkSoft),
+          style: TextStyle(fontSize: 12, color: context.paper.inkSoft),
         ),
       );
     }
@@ -520,14 +520,14 @@ class _BackupList extends StatelessWidget {
         for (final object in list)
           ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.archive_outlined, color: PaperColors.accent),
+            leading: Icon(Icons.archive_outlined, color: context.paper.accent),
             title: Text(_displayName(object.key)),
             subtitle: Text(
               '${_formatSize(object.size)}'
               '${object.lastModified == null ? '' : ' · ${object.lastModified}'}',
-              style: const TextStyle(fontSize: 12, color: PaperColors.inkSoft),
+              style: TextStyle(fontSize: 12, color: context.paper.inkSoft),
             ),
-            trailing: const Icon(Icons.download_outlined, color: PaperColors.inkSoft),
+            trailing: Icon(Icons.download_outlined, color: context.paper.inkSoft),
             enabled: !busy,
             onTap: () => onRestore(object),
           ),

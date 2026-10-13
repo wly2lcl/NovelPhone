@@ -52,15 +52,15 @@ class _EmptyHint extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            const Icon(Icons.lightbulb_outline,
-                size: 64, color: PaperColors.inkSoft),
+            Icon(Icons.lightbulb_outline,
+                size: 64, color: context.paper.inkSoft),
             const SizedBox(height: 12),
             Text('灵感箱是空的', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 6),
-            const Text(
+            Text(
               '随手记下桥段、设定或一句对白，AI 灵感产出的点子也会存到这里。',
               textAlign: TextAlign.center,
-              style: TextStyle(color: PaperColors.inkSoft),
+              style: TextStyle(color: context.paper.inkSoft),
             ),
           ],
         ),
@@ -95,16 +95,16 @@ class _InspirationCard extends ConsumerWidget {
                     const SizedBox(height: 6),
                     Text(
                       formatRelativeTime(inspiration.createdAt),
-                      style: const TextStyle(
-                          color: PaperColors.inkSoft, fontSize: 12),
+                      style: TextStyle(
+                          color: context.paper.inkSoft, fontSize: 12),
                     ),
                   ],
                 ),
               ),
               IconButton(
                 tooltip: '删除',
-                icon: const Icon(Icons.delete_outline,
-                    color: PaperColors.inkSoft),
+                icon: Icon(Icons.delete_outline,
+                    color: context.paper.inkSoft),
                 onPressed: () => confirmDeleteInspiration(
                     context, ref, inspiration.id, inspiration.content),
               ),

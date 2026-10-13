@@ -134,7 +134,7 @@ graph TB
 ```
 lib/
 ├── main.dart                     # 入口：初始化 drift、secure storage、ProviderScope
-├── app/                          # 应用壳：主题（暖色纸质 + 写作夜间外观）、go_router 路由表
+├── app/                          # 应用壳：主题（PaperPalette 亮/暗调色板 + 全局深浅模式）、go_router 路由表
 ├── models/                       # 数据模型（与 drift 表对应的实体）
 ├── data/
 │   ├── db.dart                   # drift 数据库定义与迁移

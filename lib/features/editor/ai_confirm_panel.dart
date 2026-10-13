@@ -237,9 +237,9 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
         maxHeight: MediaQuery.sizeOf(context).height * 0.55,
       ),
       child: Container(
-        decoration: const BoxDecoration(
-          color: PaperColors.surface,
-          border: Border(top: BorderSide(color: PaperColors.divider, width: 2)),
+        decoration: BoxDecoration(
+          color: context.paper.surface,
+          border: Border(top: BorderSide(color: context.paper.divider, width: 2)),
         ),
         child: SafeArea(
           top: false,
@@ -272,7 +272,7 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
   Widget _buildHeader() {
     return Row(
       children: <Widget>[
-        const Icon(Icons.auto_awesome, size: 18, color: PaperColors.accent),
+        Icon(Icons.auto_awesome, size: 18, color: context.paper.accent),
         const SizedBox(width: 6),
         Text(_title, style: const TextStyle(fontWeight: FontWeight.w600)),
         const SizedBox(width: 8),
@@ -320,14 +320,14 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
     return Row(
       children: <Widget>[
         Text('篇幅 ${_length.round()} 字',
-            style: const TextStyle(fontSize: 12, color: PaperColors.inkSoft)),
+            style: TextStyle(fontSize: 12, color: context.paper.inkSoft)),
         Expanded(
           child: Slider(
             value: _length,
             min: 300,
             max: 800,
             divisions: 10,
-            activeColor: PaperColors.accent,
+            activeColor: context.paper.accent,
             onChanged: _streaming
                 ? null
                 : (value) => setState(() => _length = (value / 50).round() * 50.0),
@@ -337,11 +337,11 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
     );
   }
 
-  Widget _buildContextDetails(BuiltContext context) {
+  Widget _buildContextDetails(BuiltContext built) {
     return Container(
       margin: const EdgeInsets.only(bottom: 6),
       decoration: BoxDecoration(
-        color: PaperColors.background,
+        color: context.paper.background,
         borderRadius: BorderRadius.circular(8),
       ),
       child: ExpansionTile(
@@ -350,14 +350,14 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
         tilePadding: const EdgeInsets.symmetric(horizontal: 12),
         childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
         title: Text(
-          'AI 看到的上下文（估算 ${context.estimatedTokens} / 预算 ${context.budgetTokens} token）',
-          style: const TextStyle(fontSize: 12, color: PaperColors.inkSoft),
+          'AI 看到的上下文（估算 ${built.estimatedTokens} / 预算 ${built.budgetTokens} token）',
+          style: TextStyle(fontSize: 12, color: context.paper.inkSoft),
         ),
-        subtitle: context.truncated
-            ? const Text('已省略较早前文',
-                style: TextStyle(fontSize: 11, color: PaperColors.accent))
+        subtitle: built.truncated
+            ? Text('已省略较早前文',
+                style: TextStyle(fontSize: 11, color: context.paper.accent))
             : null,
-        children: context.sections
+        children: built.sections
             .map((section) => Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: Column(
@@ -368,8 +368,8 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
                               fontSize: 12, fontWeight: FontWeight.w600)),
                       const SizedBox(height: 2),
                       Text(section.content,
-                          style: const TextStyle(
-                              fontSize: 12, color: PaperColors.inkSoft)),
+                          style: TextStyle(
+                              fontSize: 12, color: context.paper.inkSoft)),
                     ],
                   ),
                 ))
@@ -383,11 +383,11 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
       controller: _result,
       minLines: 4,
       maxLines: 10,
-      style: const TextStyle(fontSize: 15, height: 1.6, color: PaperColors.ink),
-      decoration: const InputDecoration(
+      style: TextStyle(fontSize: 15, height: 1.6, color: context.paper.ink),
+      decoration: InputDecoration(
         hintText: 'AI 产出将在这里流式显示，可直接编辑后再插入正文',
-        fillColor: PaperColors.background,
-        contentPadding: EdgeInsets.all(12),
+        fillColor: context.paper.background,
+        contentPadding: const EdgeInsets.all(12),
       ),
     );
   }
@@ -421,9 +421,9 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
     if (_needsConfig) {
       return Row(
         children: <Widget>[
-          const Expanded(
+          Expanded(
             child: Text('尚未配置可用的模型与 API Key',
-                style: TextStyle(fontSize: 13, color: PaperColors.inkSoft)),
+                style: TextStyle(fontSize: 13, color: context.paper.inkSoft)),
           ),
           FilledButton(onPressed: _goSettings, child: const Text('去设置')),
         ],

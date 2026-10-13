@@ -49,13 +49,42 @@ void main() {
     test('夜间与纸质配色解析', () {
       expect(
         ReadingPalette.of(const ReadingAppearance()).surface,
-        PaperColors.surface,
+        PaperPalette.light.surface,
       );
       expect(
         ReadingPalette.of(const ReadingAppearance(dark: true)).surface,
         ReadingPalette.night.surface,
       );
-      expect(ReadingPalette.night.ink, isNot(PaperColors.ink));
+      expect(ReadingPalette.night.ink, isNot(PaperPalette.light.ink));
+    });
+  });
+
+  group('全局深浅模式', () {
+    test('buildPaperTheme 亮/暗各挂载对应调色板', () {
+      final light = buildPaperTheme();
+      expect(light.brightness, Brightness.light);
+      expect(light.extension<PaperPalette>(), PaperPalette.light);
+      expect(light.scaffoldBackgroundColor, PaperPalette.light.background);
+
+      final dark = buildPaperTheme(Brightness.dark);
+      expect(dark.brightness, Brightness.dark);
+      expect(dark.extension<PaperPalette>(), PaperPalette.dark);
+      expect(dark.scaffoldBackgroundColor, PaperPalette.dark.background);
+    });
+
+    test('AppThemeMode.decode 解析与脏数据回落', () {
+      expect(AppThemeMode.decode('dark'), AppThemeMode.dark);
+      expect(AppThemeMode.decode('light'), AppThemeMode.light);
+      expect(AppThemeMode.decode('system'), AppThemeMode.system);
+      expect(AppThemeMode.decode(null), AppThemeMode.system);
+      expect(AppThemeMode.decode(''), AppThemeMode.system);
+      expect(AppThemeMode.decode('乱码'), AppThemeMode.system);
+    });
+
+    test('AppThemeMode 映射到 ThemeMode', () {
+      expect(AppThemeMode.dark.themeMode, ThemeMode.dark);
+      expect(AppThemeMode.light.themeMode, ThemeMode.light);
+      expect(AppThemeMode.system.themeMode, ThemeMode.system);
     });
   });
 
