@@ -59,6 +59,22 @@ extension CloudProviderMeta on CloudProvider {
     }
   }
 
+  /// endpoint 填写提示（不带桶名，示例随服务商变化）。
+  String get endpointHint {
+    switch (this) {
+      case CloudProvider.awsS3:
+        return '不带桶名，例如 s3.us-east-1.amazonaws.com';
+      case CloudProvider.aliyunOss:
+        return '不带桶名，例如 oss-cn-hangzhou.aliyuncs.com';
+      case CloudProvider.qiniuKodo:
+        return '不带桶名，例如 s3-cn-east-1.qiniucs.com';
+      case CloudProvider.tencentCos:
+        return '不带桶名，例如 cos.ap-guangzhou.myqcloud.com';
+      case CloudProvider.huaweiObs:
+        return '不带桶名，例如 obs.cn-north-4.myhuaweicloud.com';
+    }
+  }
+
   /// 阿里云 OSS 走 S3 V4 签名需附加请求头 `x-oss-s3-compat: true`。
   bool get needsOssCompatHeader => this == CloudProvider.aliyunOss;
 }

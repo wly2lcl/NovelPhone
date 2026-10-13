@@ -304,9 +304,9 @@ class _CloudBackupPageState extends ConsumerState<CloudBackupPage> {
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _endpoint,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Endpoint',
-                        helperText: '不带桶名，例如 obs.cn-north-4.myhuaweicloud.com',
+                        helperText: _provider.endpointHint,
                       ),
                       validator: _required('Endpoint'),
                     ),

@@ -593,4 +593,5 @@ Responses（OpenAI Responses 端点，B-01 已实现）：
 - Flutter 稳定版、Dart SDK 版本以 `flutter --version` 为准，项目最低版本约束在 `pubspec.yaml` 的 `environment.sdk` 中声明 `[To be confirmed - 建项目时写入]`。
 - 依赖版本策略：锁定 `pubspec.lock`；第三方包优先选发布超 6 个月、维护活跃的；MCP 包（mcp_dart）版本策略单独评估 `[Expert judgment]`。
 - 代码规范：`flutter_lints`；注释与提交信息使用中文；每个里程碑出口标准对应 `docs/TODO.md` 中的验收项。
+- Android 权限：`android/app/src/main/AndroidManifest.xml` 必须显式声明 `android.permission.INTERNET`（Flutter 模板默认只在 `debug/`、`profile/` 清单声明）；漏声明会导致 release 构建下所有联网功能（AI、云备份）被系统阻断且仅表现为 `SocketException: Operation not permitted`。
 - 每次修改保证可运行、变更量最小（项目既定约束）。

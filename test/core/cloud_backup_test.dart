@@ -103,6 +103,15 @@ void main() {
       expect(CloudBackupConfig.fromJson(<String, dynamic>{})
           .autoInterval, CloudAutoInterval.daily);
     });
+
+    test('endpointHint 示例随服务商变化', () {
+      expect(CloudProvider.awsS3.endpointHint, contains('s3.us-east-1.amazonaws.com'));
+      expect(CloudProvider.aliyunOss.endpointHint, contains('aliyuncs.com'));
+      expect(CloudProvider.qiniuKodo.endpointHint, contains('qiniucs.com'));
+      expect(CloudProvider.tencentCos.endpointHint, contains('myqcloud.com'));
+      expect(
+          CloudProvider.huaweiObs.endpointHint, contains('myhuaweicloud.com'));
+    });
   });
 
   group('S3CompatibleClient', () {
