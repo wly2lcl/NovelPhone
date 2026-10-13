@@ -7,6 +7,7 @@ import 'package:novelphone/core/ai/ai_client.dart';
 import 'package:novelphone/core/ai/chat_completions_adapter.dart';
 import 'package:novelphone/core/ai/messages_adapter.dart';
 import 'package:novelphone/core/ai/responses_adapter.dart';
+import 'package:novelphone/core/ai/retrying_ai_client.dart';
 
 /// M3-05：用录制的 SSE 响应分别驱动两个适配器（流式文本 / usage / 错误路径）。
 void main() {
@@ -338,4 +339,94 @@ void main() {
       expect((input[2] as Map)['call_id'], 'call_1');
     });
   });
+
+  group('RetryingAiClient（429 / 5xx 自动退避重试，ARCHITECTURE 5.2）', () {
+    test('首个响应 429 时自动重试并最终成功，usage 正常透出', () async {
+      var calls = 0;
+      final adapter = ChatCompletionsAdapter(
+        baseUrl: 'https://api.example.com/v1',
+        apiKey: 'sk-test',
+        client: MockClient((_) async {
+          calls++;
+          if (calls == 1) return http.Response('{"error":"slow down"}', 429);
+          return http.Response.bytes(
+            utf8.encode('data: {"choices":[{"delta":{"content":"好"}}]}\n\n'
+                'data: {"choices":[{"delta":{},"finish_reason":"stop"}],'
+                '"usage":{"prompt_tokens":3,"completion_tokens":1}}\n\n'
+                'data: [DONE]\n\n'),
+            200,
+          );
+        }),
+      );
+      final client = RetryingAiClient(adapter, baseDelay: Duration.zero);
+
+      final chunks = await run(client, request());
+      expect(calls, 2);
+      expect(chunks.whereType<ChatError>(), isEmpty);
+      expect(chunks.whereType<ChatTextDelta>().map((c) => c.text).join(), '好');
+      expect(chunks.whereType<ChatUsage>().single.completionTokens, 1);
+    });
+
+    test('5xx 同样自动重试（最多 maxRetries 次后透出错误）', () async {
+      final adapter = ChatCompletionsAdapter(
+        baseUrl: 'https://api.example.com/v1',
+        apiKey: 'sk-test',
+        client: MockClient((_) async => http.Response('boom', 503)),
+      );
+      final client = RetryingAiClient(adapter, baseDelay: Duration.zero);
+
+      final chunks = await run(client, request());
+      // 1 次原始请求 + 1 次重试，仍失败则透出 server 错误
+      expect(chunks.whereType<ChatError>().single.kind, AiErrorKind.server);
+    });
+
+    test('已产出文本增量后的错误不再重试（避免重复内容）', () async {
+      final fake = _ScriptedClient(<List<ChatChunk>>[
+        <ChatChunk>[
+          const ChatTextDelta('雨'),
+          const ChatError(kind: AiErrorKind.rateLimit, message: '429'),
+        ],
+      ]);
+      final client = RetryingAiClient(fake, baseDelay: Duration.zero);
+
+      final chunks = await run(client, request());
+      expect(fake.calls, 1);
+      expect(chunks.whereType<ChatTextDelta>().map((c) => c.text).join(), '雨');
+      expect(chunks.whereType<ChatError>().single.kind, AiErrorKind.rateLimit);
+    });
+
+    test('非可重试错误（401）直接透出，不重试', () async {
+      var calls = 0;
+      final adapter = ChatCompletionsAdapter(
+        baseUrl: 'https://api.example.com/v1',
+        apiKey: 'sk-bad',
+        client: MockClient((_) async {
+          calls++;
+          return http.Response('{"error":"bad key"}', 401);
+        }),
+      );
+      final client = RetryingAiClient(adapter, baseDelay: Duration.zero);
+
+      final chunks = await run(client, request());
+      expect(calls, 1);
+      expect(chunks.whereType<ChatError>().single.kind, AiErrorKind.auth);
+    });
+  });
+}
+
+/// 按脚本回放 chunk 的假客户端（用于精确控制文本增量与错误的先后）。
+class _ScriptedClient implements AiClient {
+  _ScriptedClient(this._scripts);
+
+  final List<List<ChatChunk>> _scripts;
+  int calls = 0;
+
+  @override
+  Stream<ChatChunk> streamChat(ChatRequest req) async* {
+    final script = _scripts[calls < _scripts.length ? calls : _scripts.length - 1];
+    calls++;
+    for (final chunk in script) {
+      yield chunk;
+    }
+  }
 }

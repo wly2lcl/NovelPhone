@@ -13,6 +13,7 @@ import '../../data/db.dart';
 import '../../data/repositories/chapter_repository.dart';
 import '../../data/repositories/character_repository.dart';
 import '../../data/repositories/outline_repository.dart';
+import '../../data/repositories/setting_repository.dart';
 import '../../data/repositories/settings_repository.dart';
 import '../../data/repositories/token_stats_repository.dart';
 import '../../data/repositories/work_repository.dart';
@@ -152,6 +153,7 @@ class AiService {
     required this.characters,
     required this.outline,
     required this.stats,
+    this.settingRepository,
     this.httpClient,
     this.mcpOpener,
   }) {
@@ -160,6 +162,7 @@ class AiService {
       chapters: chapters,
       characters: characters,
       outline: outline,
+      settings: settingRepository,
     );
   }
 
@@ -169,6 +172,10 @@ class AiService {
   final CharacterRepository characters;
   final OutlineRepository outline;
   final TokenStatsRepository stats;
+
+  /// 设定集（B-09）：供上下文组装使用（可空，未注入则不参与）。
+  final SettingRepository? settingRepository;
+
   final http.Client? httpClient;
 
   /// MCP 会话打开方式（默认 [openMcpTools]；测试可注入假实现避免真实联网）。

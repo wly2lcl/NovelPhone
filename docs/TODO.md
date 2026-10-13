@@ -184,6 +184,13 @@ M4 自动化验证记录（2026-09-30）：`flutter analyze` 无问题；`flutte
   - 验收：M4 出口标准中「规则引擎对回归集达标」由自动化用例证明（召回 100%、误报 0%）；「全流程无阻断性 bug」经自动化回归 + 真机主链路与三项异常流走通后收口（真机记录见进度总览）。
 - [x] M4-16（P0）合规与隐私：隐私政策、数据安全说明、AI 功能首次联网前的告知文案；应用商店上架资料（对应 PRD 8 风险表）（交付 `docs/COMPLIANCE.md`；告知门控见 `lib/features/ai/ai_notice.dart`）
 
+## MVP 收口后的增强（2026-10-13）
+
+- [x] ENH-01（P1）429 / 5xx 自动退避重试：新增 `lib/core/ai/retrying_ai_client.dart` 的 `RetryingAiClient` 装饰器，`buildAiClient` 出口统一包装，仅对**首个文本增量之前**的 429 / 5xx 指数退避重试（`maxRetries` 默认 1 次），已产出文本增量后不再重试以免重复内容与重复扣费；首个文本增量之前收到的 usage / 工具调用先缓冲、重试时丢弃。
+  - 验证：`test/core/ai_client_test.dart` 新增 4 个用例（429 重试后成功、5xx 重试用尽透出错误、文本增量后不重试、401 不重试）。
+- [x] ENH-02（P1）设定集纳入 AI 上下文：`ContextBuilder` 注入 `SettingRepository`，按世界观/地点/道具分组加入上下文，排在角色卡之后，超预算时优先于角色卡被丢弃；`AiService` / `aiServiceProvider` 注入仓储（可空，未注入则跳过）。
+  - 验证：`test/core/context_builder_test.dart` 新增分组渲染与顺序断言。
+
 ---
 
 ## 后置 backlog（不进 MVP 承诺）

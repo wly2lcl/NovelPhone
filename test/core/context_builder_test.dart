@@ -4,7 +4,9 @@ import 'package:novelphone/data/db.dart';
 import 'package:novelphone/data/repositories/chapter_repository.dart';
 import 'package:novelphone/data/repositories/character_repository.dart';
 import 'package:novelphone/data/repositories/outline_repository.dart';
+import 'package:novelphone/data/repositories/setting_repository.dart';
 import 'package:novelphone/data/repositories/work_repository.dart';
+import 'package:novelphone/models/setting_type.dart';
 
 /// M3-13：不同作品规模下的上下文装配结果与预算遵守。
 void main() {
@@ -13,6 +15,7 @@ void main() {
   late ChapterRepository chapters;
   late CharacterRepository characters;
   late OutlineRepository outline;
+  late SettingRepository settings;
   late ContextBuilder builder;
 
   setUp(() {
@@ -21,11 +24,13 @@ void main() {
     chapters = ChapterRepository(db);
     characters = CharacterRepository(db);
     outline = OutlineRepository(db);
+    settings = SettingRepository(db);
     builder = ContextBuilder(
       works: works,
       chapters: chapters,
       characters: characters,
       outline: outline,
+      settings: settings,
     );
   });
 
@@ -165,6 +170,48 @@ void main() {
     expect(tail.truncated, isTrue);
     expect(tail.content, startsWith('（前文略）'));
     expect(tail.content, endsWith('尾部标记'));
+  });
+
+  test('设定集纳入上下文并排在角色卡之后', () async {
+    final workId = await seedWork();
+    final third = await chapters.createChapter(workId: workId, title: '第三章');
+    await chapters.saveChapter(
+      chapterId: third,
+      title: '第三章',
+      content: '沈砚握紧了刀。',
+      cursorOffset: 0,
+      scrollOffset: 0,
+    );
+    await characters.createCharacter(workId: workId, name: '沈砚', identity: '游侠');
+    await settings.createEntry(
+      workId: workId,
+      type: SettingType.worldview,
+      name: '玄洲',
+      content: '灵气复苏的东方大陆。',
+    );
+    await settings.createEntry(
+      workId: workId,
+      type: SettingType.item,
+      name: '断魂刀',
+      content: '沈砚家传兵器。',
+    );
+
+    final context = await builder.buildContinue(
+      workId: workId,
+      chapterId: third,
+      contextWindow: 32000,
+    );
+
+    final labels = context.sections.map((s) => s.label).toList();
+    expect(labels, contains('设定集'));
+    // 设定集排在相关角色卡之后（优先级更低）
+    expect(labels.indexOf('设定集'), greaterThan(labels.indexOf('相关角色卡')));
+
+    final section = context.sections.firstWhere((s) => s.label == '设定集');
+    expect(section.content, contains('世界观：'));
+    expect(section.content, contains('玄洲'));
+    expect(section.content, contains('道具：'));
+    expect(section.content, contains('断魂刀'));
   });
 
   test('角色卡匹配按出现次数排序', () {

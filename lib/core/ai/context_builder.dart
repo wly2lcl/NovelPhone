@@ -2,7 +2,9 @@ import '../../data/db.dart';
 import '../../data/repositories/chapter_repository.dart';
 import '../../data/repositories/character_repository.dart';
 import '../../data/repositories/outline_repository.dart';
+import '../../data/repositories/setting_repository.dart';
 import '../../data/repositories/work_repository.dart';
+import '../../models/setting_type.dart';
 import 'ai_client.dart';
 
 /// 组装后的一段上下文，供待确认面板"上下文详情"展开查看
@@ -126,6 +128,7 @@ class ContextBuilder {
     required this.chapters,
     required this.characters,
     required this.outline,
+    this.settings,
   });
 
   /// 本章尾部保留字数（ARCHITECTURE 5.3）。
@@ -141,6 +144,9 @@ class ContextBuilder {
   final ChapterRepository chapters;
   final CharacterRepository characters;
   final OutlineRepository outline;
+
+  /// 设定集（B-09）：世界观 / 地点 / 道具，纳入 AI 上下文（可空，未注入则跳过）。
+  final SettingRepository? settings;
 
   /// 续写上下文：system → 本章尾部 → 本章章纲 → 前文摘要 → 相关角色卡 → 卷级大纲。
   /// [contextWindow] 为模型上下文窗口，预算 = 其 50%（ARCHITECTURE 5.3）。
@@ -178,6 +184,9 @@ class ContextBuilder {
     // 卷级大纲：同卷其他章节梗概
     final volumeOutline = _volumeOutline(outlineEntries, volume?.id, chapterId);
 
+    // 设定集（世界观 / 地点 / 道具）：排在角色卡之后
+    final settingsText = await _settingsText(workId);
+
     return _assemble(
       workTitle: work?.title ?? '',
       budget: budget,
@@ -185,6 +194,7 @@ class ContextBuilder {
       chapterOutline: chapterOutline,
       previousSummary: previousSummary,
       matchedCharacters: matched,
+      settingsText: settingsText,
       volumeOutline: volumeOutline,
       task: _continueTask(direction: direction, length: length),
     );
@@ -225,6 +235,7 @@ class ContextBuilder {
       chapterOutline: '',
       previousSummary: '',
       matchedCharacters: const <Character>[],
+      settingsText: await _settingsText(workId),
       volumeOutline: buffer.toString().trim(),
       task: _openingTask(direction),
     );
@@ -237,6 +248,7 @@ class ContextBuilder {
     required String chapterOutline,
     required String previousSummary,
     required List<Character> matchedCharacters,
+    required String settingsText,
     required String volumeOutline,
     required String task,
   }) {
@@ -245,6 +257,7 @@ class ContextBuilder {
     var volumeText = volumeOutline;
     var charactersText =
         matchedCharacters.map(formatCharacter).join('\n');
+    var settingsBlock = settingsText;
     var summaryText = previousSummary;
     var tailText = tail;
     final outlineText = chapterOutline;
@@ -257,11 +270,16 @@ class ContextBuilder {
         estimateTokens(tailText) +
         estimateTokens(volumeText) +
         estimateTokens(summaryText) +
+        estimateTokens(settingsBlock) +
         estimateTokens(charactersText);
 
     // 超预算时从优先级最低项开始丢弃（ARCHITECTURE 5.3 / PRD 6.2）。
     if (total() > budget && volumeText.isNotEmpty) {
       volumeText = '';
+      truncated = true;
+    }
+    if (total() > budget && settingsBlock.isNotEmpty) {
+      settingsBlock = '';
       truncated = true;
     }
     if (total() > budget &&
@@ -280,6 +298,7 @@ class ContextBuilder {
           estimateTokens(outlineText) +
           estimateTokens(volumeText) +
           estimateTokens(summaryText) +
+          estimateTokens(settingsBlock) +
           estimateTokens(charactersText);
       final room = budget - others;
       if (room <= 0) {
@@ -299,6 +318,8 @@ class ContextBuilder {
         ContextSection(label: '前文摘要', content: summaryText),
       if (charactersText.isNotEmpty)
         ContextSection(label: '相关角色卡', content: charactersText, truncated: matchedCharacters.length > minCharacters && truncated),
+      if (settingsBlock.isNotEmpty)
+        ContextSection(label: '设定集', content: settingsBlock),
       if (outlineText.isNotEmpty)
         ContextSection(label: '本章章纲', content: outlineText),
       if (tailText.isNotEmpty)
@@ -390,6 +411,28 @@ class ContextBuilder {
       if (volume.id == volumeId) return volume;
     }
     return null;
+  }
+
+  /// 设定集格式化为一段文本（按世界观 / 地点 / 道具分组），未注入 repository 时返回空。
+  Future<String> _settingsText(int workId) async {
+    final repository = settings;
+    if (repository == null) return '';
+    final entries = await repository.listEntries(workId);
+    final buffer = StringBuffer();
+    for (final type in SettingType.values) {
+      final group = entries.where((e) =>
+          e.type == type.value &&
+          (e.name.trim().isNotEmpty || e.content.trim().isNotEmpty));
+      if (group.isEmpty) continue;
+      if (buffer.isNotEmpty) buffer.writeln();
+      buffer.writeln('${type.label}：');
+      for (final entry in group) {
+        final name = entry.name.trim();
+        final content = entry.content.trim();
+        buffer.writeln(content.isEmpty ? '- $name' : '- $name：$content');
+      }
+    }
+    return buffer.toString().trim();
   }
 }
 
