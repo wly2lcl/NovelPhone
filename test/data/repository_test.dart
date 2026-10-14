@@ -139,6 +139,18 @@ void main() {
     expect(work!.wordCount, 7);
   });
 
+  test('保存本卷前情回顾只改卷摘要字段（ENH-06）', () async {
+    final workId = await works.createWork(title: '长夜行');
+    final volumeId = (await chapters.listVolumes(workId)).single.id;
+
+    await chapters.saveVolumeSummary(volumeId, '本卷：沈砚离乡。');
+
+    final volumes = await chapters.listVolumes(workId);
+    expect(volumes.single.summary, '本卷：沈砚离乡。');
+    // 只改摘要，卷名等字段不变。
+    expect(volumes.single.name, WorkRepository.defaultVolumeName);
+  });
+
   test('删除章节后作品汇总更新且章纲引用置空', () async {
     final workId = await works.createWork(title: '长夜行');
     final chapterId = await chapters.createChapter(workId: workId, title: '第一章');

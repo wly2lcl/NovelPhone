@@ -567,8 +567,20 @@ class $VolumesTable extends Volumes with TableInfo<$VolumesTable, Volume> {
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _summaryMeta = const VerificationMeta(
+    'summary',
+  );
   @override
-  List<GeneratedColumn> get $columns => [id, workId, name, sortOrder];
+  late final GeneratedColumn<String> summary = GeneratedColumn<String>(
+    'summary',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, workId, name, sortOrder, summary];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -608,6 +620,12 @@ class $VolumesTable extends Volumes with TableInfo<$VolumesTable, Volume> {
     } else if (isInserting) {
       context.missing(_sortOrderMeta);
     }
+    if (data.containsKey('summary')) {
+      context.handle(
+        _summaryMeta,
+        summary.isAcceptableOrUnknown(data['summary']!, _summaryMeta),
+      );
+    }
     return context;
   }
 
@@ -633,6 +651,10 @@ class $VolumesTable extends Volumes with TableInfo<$VolumesTable, Volume> {
         DriftSqlType.int,
         data['${effectivePrefix}sort_order'],
       )!,
+      summary: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}summary'],
+      )!,
     );
   }
 
@@ -647,11 +669,15 @@ class Volume extends DataClass implements Insertable<Volume> {
   final int workId;
   final String name;
   final int sortOrder;
+
+  /// 本卷前情回顾摘要（ENH-06）：由卷内章节摘要归并生成，供后续章节续写 / 改写注入。
+  final String summary;
   const Volume({
     required this.id,
     required this.workId,
     required this.name,
     required this.sortOrder,
+    required this.summary,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -660,6 +686,7 @@ class Volume extends DataClass implements Insertable<Volume> {
     map['work_id'] = Variable<int>(workId);
     map['name'] = Variable<String>(name);
     map['sort_order'] = Variable<int>(sortOrder);
+    map['summary'] = Variable<String>(summary);
     return map;
   }
 
@@ -669,6 +696,7 @@ class Volume extends DataClass implements Insertable<Volume> {
       workId: Value(workId),
       name: Value(name),
       sortOrder: Value(sortOrder),
+      summary: Value(summary),
     );
   }
 
@@ -682,6 +710,7 @@ class Volume extends DataClass implements Insertable<Volume> {
       workId: serializer.fromJson<int>(json['workId']),
       name: serializer.fromJson<String>(json['name']),
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
+      summary: serializer.fromJson<String>(json['summary']),
     );
   }
   @override
@@ -692,22 +721,30 @@ class Volume extends DataClass implements Insertable<Volume> {
       'workId': serializer.toJson<int>(workId),
       'name': serializer.toJson<String>(name),
       'sortOrder': serializer.toJson<int>(sortOrder),
+      'summary': serializer.toJson<String>(summary),
     };
   }
 
-  Volume copyWith({int? id, int? workId, String? name, int? sortOrder}) =>
-      Volume(
-        id: id ?? this.id,
-        workId: workId ?? this.workId,
-        name: name ?? this.name,
-        sortOrder: sortOrder ?? this.sortOrder,
-      );
+  Volume copyWith({
+    int? id,
+    int? workId,
+    String? name,
+    int? sortOrder,
+    String? summary,
+  }) => Volume(
+    id: id ?? this.id,
+    workId: workId ?? this.workId,
+    name: name ?? this.name,
+    sortOrder: sortOrder ?? this.sortOrder,
+    summary: summary ?? this.summary,
+  );
   Volume copyWithCompanion(VolumesCompanion data) {
     return Volume(
       id: data.id.present ? data.id.value : this.id,
       workId: data.workId.present ? data.workId.value : this.workId,
       name: data.name.present ? data.name.value : this.name,
       sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+      summary: data.summary.present ? data.summary.value : this.summary,
     );
   }
 
@@ -717,13 +754,14 @@ class Volume extends DataClass implements Insertable<Volume> {
           ..write('id: $id, ')
           ..write('workId: $workId, ')
           ..write('name: $name, ')
-          ..write('sortOrder: $sortOrder')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('summary: $summary')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, workId, name, sortOrder);
+  int get hashCode => Object.hash(id, workId, name, sortOrder, summary);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -731,7 +769,8 @@ class Volume extends DataClass implements Insertable<Volume> {
           other.id == this.id &&
           other.workId == this.workId &&
           other.name == this.name &&
-          other.sortOrder == this.sortOrder);
+          other.sortOrder == this.sortOrder &&
+          other.summary == this.summary);
 }
 
 class VolumesCompanion extends UpdateCompanion<Volume> {
@@ -739,17 +778,20 @@ class VolumesCompanion extends UpdateCompanion<Volume> {
   final Value<int> workId;
   final Value<String> name;
   final Value<int> sortOrder;
+  final Value<String> summary;
   const VolumesCompanion({
     this.id = const Value.absent(),
     this.workId = const Value.absent(),
     this.name = const Value.absent(),
     this.sortOrder = const Value.absent(),
+    this.summary = const Value.absent(),
   });
   VolumesCompanion.insert({
     this.id = const Value.absent(),
     required int workId,
     required String name,
     required int sortOrder,
+    this.summary = const Value.absent(),
   }) : workId = Value(workId),
        name = Value(name),
        sortOrder = Value(sortOrder);
@@ -758,12 +800,14 @@ class VolumesCompanion extends UpdateCompanion<Volume> {
     Expression<int>? workId,
     Expression<String>? name,
     Expression<int>? sortOrder,
+    Expression<String>? summary,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (workId != null) 'work_id': workId,
       if (name != null) 'name': name,
       if (sortOrder != null) 'sort_order': sortOrder,
+      if (summary != null) 'summary': summary,
     });
   }
 
@@ -772,12 +816,14 @@ class VolumesCompanion extends UpdateCompanion<Volume> {
     Value<int>? workId,
     Value<String>? name,
     Value<int>? sortOrder,
+    Value<String>? summary,
   }) {
     return VolumesCompanion(
       id: id ?? this.id,
       workId: workId ?? this.workId,
       name: name ?? this.name,
       sortOrder: sortOrder ?? this.sortOrder,
+      summary: summary ?? this.summary,
     );
   }
 
@@ -796,6 +842,9 @@ class VolumesCompanion extends UpdateCompanion<Volume> {
     if (sortOrder.present) {
       map['sort_order'] = Variable<int>(sortOrder.value);
     }
+    if (summary.present) {
+      map['summary'] = Variable<String>(summary.value);
+    }
     return map;
   }
 
@@ -805,7 +854,8 @@ class VolumesCompanion extends UpdateCompanion<Volume> {
           ..write('id: $id, ')
           ..write('workId: $workId, ')
           ..write('name: $name, ')
-          ..write('sortOrder: $sortOrder')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('summary: $summary')
           ..write(')'))
         .toString();
   }
@@ -6516,6 +6566,7 @@ typedef $$VolumesTableCreateCompanionBuilder =
       required int workId,
       required String name,
       required int sortOrder,
+      Value<String> summary,
     });
 typedef $$VolumesTableUpdateCompanionBuilder =
     VolumesCompanion Function({
@@ -6523,6 +6574,7 @@ typedef $$VolumesTableUpdateCompanionBuilder =
       Value<int> workId,
       Value<String> name,
       Value<int> sortOrder,
+      Value<String> summary,
     });
 
 final class $$VolumesTableReferences
@@ -6605,6 +6657,11 @@ class $$VolumesTableFilterComposer
 
   ColumnFilters<int> get sortOrder => $composableBuilder(
     column: $table.sortOrder,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get summary => $composableBuilder(
+    column: $table.summary,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6706,6 +6763,11 @@ class $$VolumesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get summary => $composableBuilder(
+    column: $table.summary,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$WorksTableOrderingComposer get workId {
     final $$WorksTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -6747,6 +6809,9 @@ class $$VolumesTableAnnotationComposer
 
   GeneratedColumn<int> get sortOrder =>
       $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+
+  GeneratedColumn<String> get summary =>
+      $composableBuilder(column: $table.summary, builder: (column) => column);
 
   $$WorksTableAnnotationComposer get workId {
     final $$WorksTableAnnotationComposer composer = $composerBuilder(
@@ -6858,11 +6923,13 @@ class $$VolumesTableTableManager
                 Value<int> workId = const Value.absent(),
                 Value<String> name = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
+                Value<String> summary = const Value.absent(),
               }) => VolumesCompanion(
                 id: id,
                 workId: workId,
                 name: name,
                 sortOrder: sortOrder,
+                summary: summary,
               ),
           createCompanionCallback:
               ({
@@ -6870,11 +6937,13 @@ class $$VolumesTableTableManager
                 required int workId,
                 required String name,
                 required int sortOrder,
+                Value<String> summary = const Value.absent(),
               }) => VolumesCompanion.insert(
                 id: id,
                 workId: workId,
                 name: name,
                 sortOrder: sortOrder,
+                summary: summary,
               ),
           withReferenceMapper: (p0) => p0
               .map(

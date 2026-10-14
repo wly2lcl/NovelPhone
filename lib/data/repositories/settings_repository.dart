@@ -25,6 +25,9 @@ class AiTask {
   static const String summary = 'summary';
   static const String outlineExpand = 'outline';
 
+  /// ENH-06：本卷前情回顾（滚动摘要）。
+  static const String volumeSummary = 'volume';
+
   static const List<String> all = <String>[
     continueWriting,
     inspire,
@@ -32,6 +35,7 @@ class AiTask {
     check,
     summary,
     outlineExpand,
+    volumeSummary,
   ];
 
   static String label(String task) {
@@ -48,6 +52,8 @@ class AiTask {
         return 'AI 逐章摘要';
       case outlineExpand:
         return 'AI 章纲扩写';
+      case volumeSummary:
+        return 'AI 本卷前情回顾';
       default:
         return task;
     }

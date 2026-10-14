@@ -369,4 +369,44 @@ void main() {
       expect(temperatures[1], greaterThan(temperatures[0]));
     });
   });
+
+  group('本卷前情回顾用例（ENH-06）', () {
+    test('未配置任何模型时引导至设置页且不联网', () async {
+      final service = serviceWith(
+        MockClient((req) async => throw StateError('不应发起网络请求')),
+      );
+
+      final events = await service
+          .summarizeVolume(workId: workId, chapterId: chapterId)
+          .toList();
+
+      expect(events.single, isA<AiNeedsConfig>());
+      expect(await service.isReady(AiTask.volumeSummary), isFalse);
+    });
+
+    test('回退续写模型组、上下文含本卷各章摘要、落 volume 统计', () async {
+      await configureContinueModel();
+      // 为第一章写入 AI 摘要：卷回顾素材应直接采用缓存内容。
+      await chapters.saveChapterSummary(chapterId, '第一章摘要：她笑了。');
+      final second = await chapters.createChapter(workId: workId, title: '第二章');
+      await chapters.saveChapter(chapterId: second, title: '第二章', content: '他缓缓开口。');
+
+      final service =
+          serviceWith(MockClient((req) async => sseResponse('本卷：她笑了。')));
+      // 零配置回退：卷回顾任务未配置，但续写组可用。
+      expect(await service.isReady(AiTask.volumeSummary), isTrue);
+
+      final events = await service
+          .summarizeVolume(workId: workId, chapterId: second)
+          .toList();
+
+      final built = events.whereType<AiContextBuilt>().single;
+      expect(built.context.messages.single.content, contains('第一章摘要：她笑了。'));
+      expect(events.whereType<AiFinished>().single.text, '本卷：她笑了。');
+
+      final recorded = await stats.stats();
+      expect(recorded.calls, 1);
+      expect(recorded.rows.single.task, AiTask.volumeSummary);
+    });
+  });
 }

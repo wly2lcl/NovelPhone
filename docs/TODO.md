@@ -218,11 +218,19 @@ M4 自动化验证记录（2026-09-30）：`flutter analyze` 无问题；`flutte
   - 文档同步：PRD 4.1 / 5.4 / 5.5 / 5.9 / 6.1 / 6.2；ARCHITECTURE 4.2 / 5.3 / 5.6 / 6.1；README 当前状态。
   - 真机验收（2026-10-14，SM_G998B / Android 13，release APK）：编辑器顶栏「AI 章节工具」菜单正常弹出「生成本章摘要 / AI 扩写本章纲」；「生成本章摘要」流式产出中文摘要并「保存摘要」，随后进入第二章续写展开「AI 看到的上下文」，其「前文摘要」段已含第一章的 AI 摘要（缓存落库 + 注入生效，A 贯通）；续写面板出现「3 个候选 / 版本 1/2/3」，三个候选文本各不相同（B 贯通）；无梗概时点「AI 扩写本章纲」弹出「请先用顶栏「本章梗概」写一句话梗概」提示，填梗概后生成 5 段分场大纲并「保存到章纲」，作品详情「章纲」Tab 显示已覆盖写入（C 贯通）；「编辑本章梗概」上限显示 0/1000。旧备份缺 `summary` 键的兼容由 `backup_repository_test` 用例覆盖。
 
+- [x] ENH-06（P1）滚动摘要（本卷前情回顾）+ 摘要查看编辑：
+  - 滚动摘要（A）：`VOLUME` 新增 `summary` 列（schemaVersion 6 → 7，`m.addColumn`），新增 `ChapterRepository.saveVolumeSummary` 只改卷摘要字段；`ContextBuilder._previousSummary` 新增 `volumeSummary` 参数，非空时把「【本卷前情】…」前置到前文摘要、随后接最近 1-2 章摘要（卷摘要为空时输出与旧版逐字一致，零回归）；`buildVolumeSummary` 以本卷「当前章及之前」各章摘要为主材料直构上下文（`_volumeSummarySystem`，超预算按 `budget - system - header` 截断并标记，不做增量滚动）。
+  - 摘要查看编辑（B）：编辑器顶栏「AI 章节工具」改用私有枚举 `_ChapterTool`（容纳非面板动作），新增「查看/编辑本章摘要」弹窗，可查看并手动修改 `CHAPTER.summary`（上限 1000 字，沿用 `TextFormField(initialValue:)` 写法避免 dispose 崩溃）。
+  - 用例与面板接入：`AiTask.volumeSummary`（键 `task_model_volume`，未配置回退续写组）+ `AiService.summarizeVolume`；面板 `AiPanelMode.volumeSummary`「保存前情回顾」经 `onSaveVolumeSummary` 写回卷摘要；`_openAi` 增加「本卷当前章之前无已写章节」前置校验。
+  - 备份兼容：`BackupRepository.restore` 对旧备份卷行缺 `summary` 键 `putIfAbsent('summary', '')`；卷摘要随备份导出/恢复。
+  - 验证：`test/core/context_builder_test.dart` 新增 3 个用例（卷摘要注入与空卷零回归、`buildVolumeSummary` 归并与超预算截断、首章仅含本章）；`test/data/repository_test.dart` 新增 1 个用例（`saveVolumeSummary` 只改卷摘要字段）；`test/data/backup_repository_test.dart` 新增 1 个用例（旧备份卷缺 summary 键仍可恢复）；`test/features/ai_check_test.dart` 新增 2 个用例（卷回顾零配置引导、回退续写组与统计）；`test/features/editor_page_test.dart` 新增 1 个用例（菜单四项可见 + 查看/编辑本章摘要弹窗落库）。`flutter analyze` 无问题，`flutter test` 265 用例全绿。
+  - 文档同步：PRD 5.5.1 / 5.8 / 6.1 / 6.2；ARCHITECTURE 4.2 / 5.3 / 5.6 / 6.1；README 当前状态。
+
 ---
 
 ## 后置 backlog（不进 MVP 承诺）
 
-进度：B-01、B-02、B-03、B-04、B-05、B-06、B-07、B-08、B-09 全部已完成；MVP 收口后的增强 ENH-01（429/5xx 自动退避重试）、ENH-02（设定集纳入 AI 上下文）、ENH-03（全 App 深色模式）、ENH-04（专注模式 + 选中段落 AI 改写 + 导出 EPUB）、ENH-05（AI 逐章摘要 + 多候选续写 + AI 章纲扩写）已完成。
+进度：B-01、B-02、B-03、B-04、B-05、B-06、B-07、B-08、B-09 全部已完成；MVP 收口后的增强 ENH-01（429/5xx 自动退避重试）、ENH-02（设定集纳入 AI 上下文）、ENH-03（全 App 深色模式）、ENH-04（专注模式 + 选中段落 AI 改写 + 导出 EPUB）、ENH-05（AI 逐章摘要 + 多候选续写 + AI 章纲扩写）、ENH-06（滚动摘要（本卷前情回顾）+ 摘要查看编辑）已完成。
 
 - [x] B-01（P2）Responses 端点适配器：新增 `ResponsesAdapter implements AiClient`（架构 9 章触发条件成熟时）
   - 新增 `lib/core/ai/responses_adapter.dart`（端点 `POST {baseUrl}/v1/responses`，system 提为顶层 `instructions`，`input[]` 支持消息 / `function_call` / `function_call_output`；解析 `response.output_text.delta`、`response.completed` 的 usage 与 status；工具调用经 `response.output_item.*` / `response.function_call_arguments.delta` 累积）；`AiProvider.responses` 登记并在 `buildAiClient` 分发；设置页协议类型增第三段「Responses」。

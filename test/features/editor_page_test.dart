@@ -298,4 +298,45 @@ void main() {
 
     await closePage(tester);
   });
+
+  // ---------- ENH-06：AI 章节工具菜单 / 查看编辑本章摘要 ----------
+
+  testWidgets('AI 章节工具菜单四项可见，可查看/编辑本章摘要', (tester) async {
+    await seed('她不禁笑了。');
+    await tester.pumpWidget(wrap());
+    await settle(tester, find.byType(TextField));
+
+    await tester.tap(find.byTooltip('AI 章节工具'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+
+    for (final label in <String>[
+      '生成本章摘要',
+      '生成本卷前情回顾',
+      'AI 扩写本章纲',
+      '查看/编辑本章摘要',
+    ]) {
+      expect(find.text(label), findsOneWidget, reason: label);
+    }
+
+    await tester.tap(find.text('查看/编辑本章摘要'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+    expect(find.text('本章 AI 摘要'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextFormField).last, '手动摘要：她笑了。');
+    await tester.tap(find.text('保存'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+
+    expect(tester.takeException(), isNull);
+    final chapter = await chapters.getChapter(chapterId);
+    expect(chapter!.summary, '手动摘要：她笑了。');
+
+    await closePage(tester);
+  });
 }

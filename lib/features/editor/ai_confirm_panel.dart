@@ -23,6 +23,9 @@ enum AiPanelMode {
 
   /// ENH-05：AI 章纲扩写（一句话梗概 → 分场大纲）。
   outlineExpand,
+
+  /// ENH-06：本卷前情回顾（滚动摘要）。
+  volumeSummary,
 }
 
 /// AI 待确认面板（PRD 5.5 / 5.6，M3-15）：流式产出、可编辑后插入、可重跑可放弃，
@@ -40,6 +43,7 @@ class AiConfirmPanel extends ConsumerStatefulWidget {
     this.outlineSeed,
     this.onSaveSummary,
     this.onSaveOutline,
+    this.onSaveVolumeSummary,
   });
 
   final int workId;
@@ -61,6 +65,9 @@ class AiConfirmPanel extends ConsumerStatefulWidget {
 
   /// 章纲扩写（ENH-05）：保存大纲回调（写回本章章纲）。
   final void Function(String text)? onSaveOutline;
+
+  /// 本卷前情回顾（ENH-06）：保存回调（写回 VOLUME.summary）。
+  final void Function(String text)? onSaveVolumeSummary;
 
   final VoidCallback onClose;
 
@@ -146,6 +153,8 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
         return 'AI 逐章摘要';
       case AiPanelMode.outlineExpand:
         return 'AI 章纲扩写';
+      case AiPanelMode.volumeSummary:
+        return 'AI 本卷前情回顾';
     }
   }
 
@@ -220,6 +229,11 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
           workId: widget.workId,
           chapterId: widget.chapterId,
           seed: widget.outlineSeed ?? '',
+        );
+      case AiPanelMode.volumeSummary:
+        return service.summarizeVolume(
+          workId: widget.workId,
+          chapterId: widget.chapterId,
         );
     }
   }
@@ -360,6 +374,17 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
     final text = _activeResult.text.trim();
     if (text.isEmpty) return;
     final save = widget.onSaveOutline;
+    if (save == null) return;
+    save(text);
+    await _markAdoption(text.length);
+    widget.onClose();
+  }
+
+  /// 本卷前情回顾（ENH-06）：把回顾写回 VOLUME.summary。
+  Future<void> _saveVolumeSummary() async {
+    final text = _activeResult.text.trim();
+    if (text.isEmpty) return;
+    final save = widget.onSaveVolumeSummary;
     if (save == null) return;
     save(text);
     await _markAdoption(text.length);
@@ -690,14 +715,17 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
     final isRewrite = _mode == AiPanelMode.rewrite;
     final isSummarize = _mode == AiPanelMode.summarize;
     final isOutlineExpand = _mode == AiPanelMode.outlineExpand;
-    // 主操作按钮：摘要 / 章纲扩写写回对应字段，改写替换原文，其余插入光标处。
+    final isVolumeSummary = _mode == AiPanelMode.volumeSummary;
+    // 主操作按钮：摘要 / 章纲扩写 / 卷回顾写回对应字段，改写替换原文，其余插入光标处。
     final String primaryLabel = isRewrite
         ? '替换原文'
         : isSummarize
             ? '保存摘要'
             : isOutlineExpand
                 ? '保存到章纲'
-                : '插入光标处';
+                : isVolumeSummary
+                    ? '保存前情回顾'
+                    : '插入光标处';
     final VoidCallback? onPrimary = hasText && !_streaming
         ? (isRewrite
             ? _replace
@@ -705,7 +733,9 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
                 ? _saveSummary
                 : isOutlineExpand
                     ? _saveOutline
-                    : _insert)
+                    : isVolumeSummary
+                        ? _saveVolumeSummary
+                        : _insert)
         : null;
     return Row(
       children: <Widget>[
@@ -725,8 +755,8 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
             child: const Text('重新生成'),
           ),
           // 改写用「补充指令」输入框替代方向弹窗（ENH-04）；
-          // 摘要 / 章纲扩写目标明确，无需「换个方向」（ENH-05）。
-          if (!isRewrite && !isSummarize && !isOutlineExpand)
+          // 摘要 / 章纲扩写 / 卷回顾目标明确，无需「换个方向」（ENH-05 / ENH-06）。
+          if (!isRewrite && !isSummarize && !isOutlineExpand && !isVolumeSummary)
             TextButton(
               onPressed: _retryWithDirection,
               child: const Text('换个方向'),

@@ -100,6 +100,12 @@ class ChapterRepository {
     return _volumes.updateVolume(volumeId, VolumesCompanion(name: Value(name)));
   }
 
+  /// 仅保存 AI 生成的本卷前情回顾（ENH-06）：不触碰章节 / 字数 / 作品汇总。
+  Future<void> saveVolumeSummary(int volumeId, String summary) {
+    return _volumes.updateVolume(
+        volumeId, VolumesCompanion(summary: Value(summary)));
+  }
+
   /// 卷上移/下移（PRD 5.2：手机端不用拖拽交互）。
   Future<void> moveVolume(int volumeId, {required bool up}) {
     return _db.transaction(() async {

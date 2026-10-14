@@ -19,6 +19,9 @@ import 'find_replace_panel.dart';
 import 'flavor_check_panel.dart';
 import 'snapshot_panel.dart';
 
+/// AI 章节工具菜单项（ENH-06）：面板模式 + 非面板动作（查看/编辑摘要）。
+enum _ChapterTool { summarize, volumeSummary, outlineExpand, editSummary }
+
 /// 编辑器（PRD 5.3）：正文编辑区 + 顶栏（标题 / 保存状态）+ 底部工具栏 + 状态栏。
 class EditorPage extends ConsumerStatefulWidget {
   const EditorPage({
@@ -197,19 +200,27 @@ class _EditorPageState extends ConsumerState<EditorPage> {
             icon: const Icon(Icons.list_alt),
             onPressed: _editChapterSummary,
           ),
-          // AI 章节工具（ENH-05）：逐章摘要（前情回顾）与章纲扩写共用此入口。
-          PopupMenuButton<AiPanelMode>(
+          // AI 章节工具（ENH-05 / ENH-06）：逐章摘要、卷前情回顾、章纲扩写、查看/编辑摘要。
+          PopupMenuButton<_ChapterTool>(
             tooltip: 'AI 章节工具',
             icon: const Icon(Icons.auto_awesome),
-            onSelected: _openAi,
-            itemBuilder: (context) => const <PopupMenuEntry<AiPanelMode>>[
-              PopupMenuItem<AiPanelMode>(
-                value: AiPanelMode.summarize,
+            onSelected: _onChapterTool,
+            itemBuilder: (context) => const <PopupMenuEntry<_ChapterTool>>[
+              PopupMenuItem<_ChapterTool>(
+                value: _ChapterTool.summarize,
                 child: Text('生成本章摘要'),
               ),
-              PopupMenuItem<AiPanelMode>(
-                value: AiPanelMode.outlineExpand,
+              PopupMenuItem<_ChapterTool>(
+                value: _ChapterTool.volumeSummary,
+                child: Text('生成本卷前情回顾'),
+              ),
+              PopupMenuItem<_ChapterTool>(
+                value: _ChapterTool.outlineExpand,
                 child: Text('AI 扩写本章纲'),
+              ),
+              PopupMenuItem<_ChapterTool>(
+                value: _ChapterTool.editSummary,
+                child: Text('查看/编辑本章摘要'),
               ),
             ],
           ),
@@ -249,6 +260,7 @@ class _EditorPageState extends ConsumerState<EditorPage> {
               outlineSeed: _outlineSeed,
               onSaveSummary: _saveSummary,
               onSaveOutline: _saveOutline,
+              onSaveVolumeSummary: _saveVolumeSummary,
               onClose: () => setState(() {
                 _aiMode = null;
                 _rewriteStart = null;
@@ -372,6 +384,20 @@ class _EditorPageState extends ConsumerState<EditorPage> {
     await _controller.renameChapter(title);
   }
 
+  /// AI 章节工具菜单分发（ENH-06）：前三项开面板，末项直接编辑本章摘要。
+  Future<void> _onChapterTool(_ChapterTool tool) async {
+    switch (tool) {
+      case _ChapterTool.summarize:
+        await _openAi(AiPanelMode.summarize);
+      case _ChapterTool.volumeSummary:
+        await _openAi(AiPanelMode.volumeSummary);
+      case _ChapterTool.outlineExpand:
+        await _openAi(AiPanelMode.outlineExpand);
+      case _ChapterTool.editSummary:
+        await _editAiSummary();
+    }
+  }
+
   /// 打开 AI 待确认面板（PRD 5.5）：未配置可用模型组时先引导至设置页。
   Future<void> _openAi(AiPanelMode mode) async {
     // 改写需在点击那一刻同步快照选区（任何 await 之前，否则 selection 会被改写）。
@@ -397,12 +423,35 @@ class _EditorPageState extends ConsumerState<EditorPage> {
       }
       _outlineSeed = seed;
     }
+    // 本卷前情回顾（ENH-06）：本卷当前章之前需有已写章节，否则无以归并。
+    if (mode == AiPanelMode.volumeSummary) {
+      final chapter = await ref
+          .read(chapterRepositoryProvider)
+          .getChapter(widget.chapterId);
+      final all = await ref
+          .read(chapterRepositoryProvider)
+          .watchChapters(widget.workId)
+          .first;
+      if (!mounted) return;
+      final index = all.indexWhere((c) => c.id == widget.chapterId);
+      final hasEarlier = index > 0 &&
+          all.take(index).any((c) =>
+              c.volumeId == chapter?.volumeId &&
+              (c.content.trim().isNotEmpty || c.summary.trim().isNotEmpty));
+      if (!hasEarlier) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('本卷还没有更早的章节内容，暂无法生成本卷前情回顾')),
+        );
+        return;
+      }
+    }
     final task = switch (mode) {
       AiPanelMode.continueWriting => AiTask.continueWriting,
       AiPanelMode.inspireIdeas || AiPanelMode.inspireOpening => AiTask.inspire,
       AiPanelMode.rewrite => AiTask.rewrite,
       AiPanelMode.summarize => AiTask.summary,
       AiPanelMode.outlineExpand => AiTask.outlineExpand,
+      AiPanelMode.volumeSummary => AiTask.volumeSummary,
     };
     final ready = await ref.read(aiServiceProvider).isReady(task);
     if (!mounted) return;
@@ -482,6 +531,16 @@ class _EditorPageState extends ConsumerState<EditorPage> {
         .saveChapterSummary(widget.chapterId, text);
   }
 
+  /// 本卷前情回顾（ENH-06）：把 AI 回顾写回 VOLUME.summary，供后续章节续写注入。
+  Future<void> _saveVolumeSummary(String text) async {
+    final chapter =
+        await ref.read(chapterRepositoryProvider).getChapter(widget.chapterId);
+    if (chapter == null) return;
+    await ref
+        .read(chapterRepositoryProvider)
+        .saveVolumeSummary(chapter.volumeId, text);
+  }
+
   /// 章纲扩写（ENH-05）：把 AI 分场大纲覆盖写入本章章纲。
   Future<void> _saveOutline(String text) async {
     final chapter =
@@ -492,6 +551,46 @@ class _EditorPageState extends ConsumerState<EditorPage> {
           volumeId: chapter?.volumeId,
           summary: text,
         );
+  }
+
+  /// 查看 / 编辑本章 AI 摘要（ENH-06）：弹窗读写 CHAPTER.summary。
+  Future<void> _editAiSummary() async {
+    final chapter =
+        await ref.read(chapterRepositoryProvider).getChapter(widget.chapterId);
+    if (!mounted) return;
+    // 不使用外部 TextEditingController：弹窗退场动画期间 builder 会再次执行，
+    // 过早 dispose 会导致「controller used after being disposed」。
+    var text = chapter?.summary ?? '';
+    final result = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('本章 AI 摘要'),
+        content: TextFormField(
+          initialValue: text,
+          autofocus: true,
+          maxLines: 8,
+          maxLength: 1000,
+          onChanged: (value) => text = value,
+          decoration: const InputDecoration(
+            hintText: 'AI 生成的前情摘要，可手动修改；用于后续章节的剧情衔接',
+          ),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(text.trim()),
+            child: const Text('保存'),
+          ),
+        ],
+      ),
+    );
+    if (result == null || result.length > 1000) return;
+    await ref
+        .read(chapterRepositoryProvider)
+        .saveChapterSummary(widget.chapterId, result);
   }
 
   /// 编辑器侧栏入口：直接编辑本章梗概（PRD 5.4 双入口之一）。

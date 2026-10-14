@@ -27,6 +27,9 @@ class Volumes extends Table {
       integer().references(Works, #id, onDelete: KeyAction.cascade)();
   TextColumn get name => text().withLength(min: 1, max: 30)();
   IntColumn get sortOrder => integer()();
+
+  /// 本卷前情回顾摘要（ENH-06）：由卷内章节摘要归并生成，供后续章节续写 / 改写注入。
+  TextColumn get summary => text().withDefault(const Constant(''))();
 }
 
 /// 章节。cursorOffset / scrollOffset 供会话恢复，不参与 AI 上下文组装。
@@ -196,7 +199,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -223,6 +226,10 @@ class AppDatabase extends _$AppDatabase {
           // v6（ENH-05）：CHAPTER 追加 AI 摘要列（前情回顾）。
           if (from < 6) {
             await m.addColumn(chapters, chapters.summary);
+          }
+          // v7（ENH-06）：VOLUME 追加本卷前情回顾摘要列。
+          if (from < 7) {
+            await m.addColumn(volumes, volumes.summary);
           }
         },
         beforeOpen: (details) async {

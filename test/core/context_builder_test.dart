@@ -386,4 +386,79 @@ void main() {
     expect(context.messages.single.content, contains('沈砚与苏晚在雨中摊牌'));
     expect(context.truncated, isFalse);
   });
+
+  test('本卷前情回顾并入前文摘要，卷摘要为空时零回归（ENH-06）', () async {
+    final workId = await seedWork();
+    final ordered = await chapters.watchChapters(workId).first;
+    final third = await chapters.createChapter(workId: workId, title: '第三章');
+    await chapters.saveChapter(
+      chapterId: third,
+      title: '第三章',
+      content: '沈砚握紧了刀。',
+      cursorOffset: 0,
+      scrollOffset: 0,
+    );
+
+    // 未生成本卷前情回顾：输出与旧版逐字一致，无【本卷前情】前缀。
+    final plain = await builder.buildContinue(
+        workId: workId, chapterId: third, contextWindow: 32000);
+    final plainSummary =
+        plain.sections.firstWhere((s) => s.label == '前文摘要');
+    expect(plainSummary.content, startsWith('《第一章》'));
+    expect(plainSummary.content, isNot(contains('【本卷前情】')));
+
+    // 生成后：本卷前情回顾前置，最近章摘要随后。
+    await chapters.saveVolumeSummary(
+        ordered.first.volumeId, '本卷：沈砚离乡，苏晚登场。');
+    final withRecap = await builder.buildContinue(
+        workId: workId, chapterId: third, contextWindow: 32000);
+    final recapSummary =
+        withRecap.sections.firstWhere((s) => s.label == '前文摘要');
+    expect(recapSummary.content, startsWith('【本卷前情】本卷：沈砚离乡，苏晚登场。'));
+    expect(recapSummary.content, contains('《第一章》'));
+  });
+
+  test('buildVolumeSummary 归并本卷当前章及之前的章节摘要（ENH-06）', () async {
+    final workId = await seedWork();
+    final ordered = await chapters.watchChapters(workId).first;
+    await chapters.saveChapterSummary(ordered[0].id, '第一章摘要：沈砚离乡。');
+    await chapters.saveChapterSummary(ordered[1].id, '第二章摘要：苏晚登场。');
+    final third = await chapters.createChapter(workId: workId, title: '第三章');
+    await chapters.saveChapter(
+      chapterId: third,
+      title: '第三章',
+      content: '沈砚握紧了刀。',
+      cursorOffset: 0,
+      scrollOffset: 0,
+    );
+
+    final context = await builder.buildVolumeSummary(
+        workId: workId, chapterId: third, contextWindow: 32000);
+
+    expect(context.sections.map((s) => s.label), contains('本卷各章摘要'));
+    final material = context.sections.firstWhere((s) => s.label == '本卷各章摘要');
+    expect(material.content, contains('第一章摘要：沈砚离乡。'));
+    expect(material.content, contains('第二章摘要：苏晚登场。'));
+    // 当前章也在素材内。
+    expect(material.content, contains('《第三章》'));
+    expect(context.truncated, isFalse);
+
+    // 极小预算：素材按预算截断并标记。
+    final tight = await builder.buildVolumeSummary(
+        workId: workId, chapterId: third, contextWindow: 40);
+    expect(tight.truncated, isTrue);
+    expect(tight.messages.single.content, isNot(contains('第二章摘要：苏晚登场。')));
+  });
+
+  test('buildVolumeSummary 首章时素材仅含本章（ENH-06）', () async {
+    final workId = await seedWork();
+    final ordered = await chapters.watchChapters(workId).first;
+
+    final context = await builder.buildVolumeSummary(
+        workId: workId, chapterId: ordered.first.id, contextWindow: 32000);
+
+    final material = context.sections.firstWhere((s) => s.label == '本卷各章摘要');
+    expect(material.content, contains('《第一章》'));
+    expect(material.content, isNot(contains('《第二章》')));
+  });
 }

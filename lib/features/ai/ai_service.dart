@@ -215,6 +215,9 @@ class AiService {
     if (task == AiTask.outlineExpand) {
       return await _resolveOutlineModel() != null;
     }
+    if (task == AiTask.volumeSummary) {
+      return await _resolveVolumeSummaryModel() != null;
+    }
     return await settings.resolveTaskModelWithKey(task) != null;
   }
 
@@ -570,6 +573,60 @@ class AiService {
   /// 章纲扩写模型组解析：未单独配置时回退续写组（零配置也可用）。
   Future<ResolvedModel?> _resolveOutlineModel() async =>
       await settings.resolveTaskModelWithKey(AiTask.outlineExpand) ??
+      await settings.resolveTaskModelWithKey(AiTask.continueWriting);
+
+  // ---------- 本卷前情回顾（ENH-06）----------
+
+  /// 以本卷「当前章及之前」的章节摘要归并生成本卷前情回顾，结果由 UI 写回 VOLUME.summary。
+  Stream<AiEvent> summarizeVolume({
+    required int workId,
+    required int chapterId,
+  }) async* {
+    final resolved = await _resolveVolumeSummaryModel();
+    if (resolved == null) {
+      yield const AiNeedsConfig();
+      return;
+    }
+    final group = resolved.group;
+    final model = _firstModel(group);
+    if (model == null) {
+      yield _missingModelFailure(group);
+      return;
+    }
+
+    final built = await contexts.buildVolumeSummary(
+      workId: workId,
+      chapterId: chapterId,
+      contextWindow: group.contextWindow,
+    );
+    final injected = _withSkills(built, await settings.listEnabledSkills());
+    yield AiContextBuilt(injected);
+
+    final client = buildAiClient(
+      provider: group.provider,
+      baseUrl: group.baseUrl,
+      apiKey: resolved.apiKey,
+      httpClient: httpClient,
+    );
+    final request = injected.toRequest(
+      model: model,
+      temperature: group.temperature,
+      maxTokens: group.maxTokens,
+    );
+
+    yield* _run(
+      client: client,
+      request: request,
+      task: AiTask.volumeSummary,
+      model: model,
+      workId: workId,
+      chapterId: chapterId,
+    );
+  }
+
+  /// 卷回顾模型组解析：未单独配置时回退续写组（零配置也可用）。
+  Future<ResolvedModel?> _resolveVolumeSummaryModel() async =>
+      await settings.resolveTaskModelWithKey(AiTask.volumeSummary) ??
       await settings.resolveTaskModelWithKey(AiTask.continueWriting);
 
   // ---------- AI 感检查（M4-06）----------

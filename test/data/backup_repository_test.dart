@@ -150,4 +150,20 @@ void main() {
     expect(restored.single.summary, '');
     expect(restored.single.content, '雨下了一整夜，街道上没有人。');
   });
+
+  test('旧备份卷缺少 summary 字段仍可恢复（ENH-06）', () async {
+    final workId = await seedWork();
+    final data = await backup.exportData();
+    // 模拟 v7 之前的备份：卷行里没有 summary 键。
+    for (final row in (data['tables'] as Map)['volumes'] as List) {
+      (row as Map).remove('summary');
+    }
+    await works.deleteWork(workId);
+
+    final report = await backup.restore(data, overwrite: true);
+
+    expect(report.works, 1);
+    final volumes = await chapters.listVolumes(workId);
+    expect(volumes.single.summary, '');
+  });
 }

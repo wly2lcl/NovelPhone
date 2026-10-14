@@ -134,7 +134,11 @@ class BackupRepository {
       }
 
       for (final raw in _asList(tables['volumes'])) {
-        final volume = Volume.fromJson(raw);
+        // ENH-06：v7 之前导出的备份不含 summary 键，drift 生成的 fromJson 对
+        // 非空列要求键存在，这里补默认空串以保证旧备份仍可恢复。
+        final json = Map<String, dynamic>.from(raw as Map);
+        json.putIfAbsent('summary', () => '');
+        final volume = Volume.fromJson(json);
         final workId = workIdMap[volume.workId];
         if (workId == null) continue;
         final newId = await _db.into(_db.volumes).insert(VolumesCompanion.insert(
@@ -142,6 +146,7 @@ class BackupRepository {
               name: volume.name,
               sortOrder: volume.sortOrder,
               id: overwrite ? Value(volume.id) : const Value.absent(),
+              summary: Value(volume.summary),
             ));
         volumeIdMap[volume.id] = newId;
       }
