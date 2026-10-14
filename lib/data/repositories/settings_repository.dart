@@ -18,9 +18,10 @@ class AiTask {
 
   static const String continueWriting = 'continue';
   static const String inspire = 'inspire';
+  static const String rewrite = 'rewrite';
   static const String check = 'check';
 
-  static const List<String> all = <String>[continueWriting, inspire, check];
+  static const List<String> all = <String>[continueWriting, inspire, rewrite, check];
 
   static String label(String task) {
     switch (task) {
@@ -28,6 +29,8 @@ class AiTask {
         return 'AI 续写';
       case inspire:
         return 'AI 灵感';
+      case rewrite:
+        return 'AI 改写';
       case check:
         return 'AI 感检查';
       default:

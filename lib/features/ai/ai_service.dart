@@ -28,6 +28,32 @@ class InspireMode {
   static String label(String mode) => mode == opening ? '开篇助手' : '桥段点子';
 }
 
+/// 改写意图（ENH-04）：润色 / 扩写 / 缩写 / 改语气。
+class RewriteIntent {
+  const RewriteIntent._();
+
+  static const String polish = 'polish';
+  static const String expand = 'expand';
+  static const String condense = 'condense';
+  static const String tone = 'tone';
+
+  static const List<String> all = <String>[polish, expand, condense, tone];
+
+  static String label(String intent) {
+    switch (intent) {
+      case expand:
+        return '扩写';
+      case condense:
+        return '缩写';
+      case tone:
+        return '改语气';
+      case polish:
+      default:
+        return '润色';
+    }
+  }
+}
+
 /// 用例产出的统一事件（ARCHITECTURE 6.1：全部用例共享同一套事件与错误处理）。
 sealed class AiEvent {
   const AiEvent();
@@ -183,8 +209,10 @@ class AiService {
   late final ContextBuilder contexts;
 
   /// 该任务是否已具备可用配置。
-  Future<bool> isReady(String task) async =>
-      await settings.resolveTaskModelWithKey(task) != null;
+  Future<bool> isReady(String task) async {
+    if (task == AiTask.rewrite) return await _resolveRewriteModel() != null;
+    return await settings.resolveTaskModelWithKey(task) != null;
+  }
 
   // ---------- 续写（M3-14）----------
 
@@ -360,6 +388,67 @@ class AiService {
       }
     }
   }
+
+  // ---------- 改写（ENH-04）----------
+
+  /// 改写选中段落：润色 / 扩写 / 缩写 / 改语气。未单独配置改写模型组时回退续写组。
+  Stream<AiEvent> rewrite({
+    required int workId,
+    required int chapterId,
+    required String selectedText,
+    String intent = RewriteIntent.polish,
+    String? instruction,
+  }) async* {
+    final resolved = await _resolveRewriteModel();
+    if (resolved == null) {
+      yield const AiNeedsConfig();
+      return;
+    }
+    final group = resolved.group;
+    final model = _firstModel(group);
+    if (model == null) {
+      yield _missingModelFailure(group);
+      return;
+    }
+
+    final built = await contexts.buildRewrite(
+      workId: workId,
+      chapterId: chapterId,
+      selectedText: selectedText,
+      intent: intent,
+      instruction: instruction,
+      contextWindow: group.contextWindow,
+    );
+    // B-03：把启用技能作为附加 system 指令注入。
+    final injected = _withSkills(built, await settings.listEnabledSkills());
+    yield AiContextBuilt(injected);
+
+    final client = buildAiClient(
+      provider: group.provider,
+      baseUrl: group.baseUrl,
+      apiKey: resolved.apiKey,
+      httpClient: httpClient,
+    );
+    final request = injected.toRequest(
+      model: model,
+      temperature: group.temperature,
+      maxTokens: group.maxTokens,
+    );
+
+    yield* _run(
+      client: client,
+      request: request,
+      task: AiTask.rewrite,
+      model: model,
+      workId: workId,
+      chapterId: chapterId,
+    );
+  }
+
+  /// 改写模型组解析：优先改写专用配置，其次回退续写组（零配置也可用）。
+  Future<ResolvedModel?> _resolveRewriteModel() async =>
+      await settings.resolveTaskModelWithKey(AiTask.rewrite) ??
+      await settings.resolveTaskModelWithKey(AiTask.continueWriting);
 
   // ---------- AI 感检查（M4-06）----------
 

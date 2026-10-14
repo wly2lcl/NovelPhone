@@ -184,7 +184,7 @@ M4 自动化验证记录（2026-09-30）：`flutter analyze` 无问题；`flutte
   - 验收：M4 出口标准中「规则引擎对回归集达标」由自动化用例证明（召回 100%、误报 0%）；「全流程无阻断性 bug」经自动化回归 + 真机主链路与三项异常流走通后收口（真机记录见进度总览）。
 - [x] M4-16（P0）合规与隐私：隐私政策、数据安全说明、AI 功能首次联网前的告知文案；应用商店上架资料（对应 PRD 8 风险表）（交付 `docs/COMPLIANCE.md`；告知门控见 `lib/features/ai/ai_notice.dart`）
 
-## MVP 收口后的增强（2026-10-13）
+## MVP 收口后的增强（2026-10-13 ~ 2026-10-14）
 
 - [x] ENH-01（P1）429 / 5xx 自动退避重试：新增 `lib/core/ai/retrying_ai_client.dart` 的 `RetryingAiClient` 装饰器，`buildAiClient` 出口统一包装，仅对**首个文本增量之前**的 429 / 5xx 指数退避重试（`maxRetries` 默认 1 次），已产出文本增量后不再重试以免重复内容与重复扣费；首个文本增量之前收到的 usage / 工具调用先缓冲、重试时丢弃。
   - 验证：`test/core/ai_client_test.dart` 新增 4 个用例（429 重试后成功、5xx 重试用尽透出错误、文本增量后不重试、401 不重试）。
@@ -199,11 +199,20 @@ M4 自动化验证记录（2026-09-30）：`flutter analyze` 无问题；`flutte
   - 验证：`test/features/reading_appearance_test.dart` 新增 3 个用例（亮/暗主题挂载对应调色板与 `scaffoldBackgroundColor`、`AppThemeMode.decode` 解析与脏数据回落、`themeMode` 映射）；`flutter analyze` 无问题，`flutter test` 234 用例全绿。
   - 文档同步：ARCHITECTURE 3 章 app/ 说明、README 当前状态。
 
+- [x] ENH-04（P1）专注模式 + 选中段落 AI 改写 + 导出 EPUB：
+  - 专注模式（`editor_page.dart`）：顶栏常驻「专注模式」开关，开启后隐藏底部工具栏与状态栏；正文 `TextField` 底部留白取编辑区一半高度，光标行（含章末）经 `RenderEditable.getLocalRectForCaret` + `scrollController.jumpTo` 固定到编辑区竖直中线（`getLocalRectForCaret` 返回的已是视口局部坐标，公式为 `offset + rect.bottom - re.size.height`）。
+  - 选中段落 AI 改写：工具栏新增「AI 改写」，点击那一刻同步快照选区（`_snapshotRewriteSelection`），未选中给 SnackBar 提示且不开面板；面板（`AiConfirmPanel` 新增 `AiPanelMode.rewrite`）提供润色/扩写/缩写/改语气四种意图 + 作者补充指令输入框，产出可编辑，点「替换原文」经 `EditorController.replaceSelection` 走撤销栈（原文漂移则拒绝并提示）。
+  - 改写上下文（`ContextBuilder.buildRewrite`）：不注入本章尾部正文，改用【待改写原文】payload 作为末尾消息，system 走「改稿助手」；模型组解析优先 `AiTask.rewrite`，未配置时回退续写组（零配置可用）；payload 不参与超预算截断。
+  - 导出 EPUB（`text_exporter.dart` 新增 `buildWorkEpub`）：EPUB 3 最小结构（`mimetype` 首条目且 STORE 存储、`META-INF/container.xml`、`OEBPS/` 的 `content.opf` / `nav.xhtml`(properties="nav") / `style.css` / 逐章 `chapter_N.xhtml`）；`ExportFormat` 新增 `epub`，单章导出仍为 txt / markdown。
+  - 验证：`test/features/editor_page_test.dart` 新增 4 个用例（专注模式隐藏/恢复、窄屏 8 按钮不溢出、未选中改写给提示且不开面板、4 意图 + 替换原文生效）；`test/core/text_exporter_test.dart` 新增 4 个用例（mimetype 首条目与 STORE、container/opf/nav 结构、章节 xhtml、epub mime）；`test/core/context_builder_test.dart` 新增 2 个用例（改写装配与超预算截断）；`test/features/ai_check_test.dart` 新增 2 个用例（改写零配置回退与统计）；`test/features/editor_controller_test.dart` 新增 2 个用例（`replaceSelection` 命中/拒绝）。`flutter analyze` 无问题，`flutter test` 248 用例全绿。
+  - 顺带修复：`AiConfirmPanel` 上下文详情由 `Container(decoration:)` 改为 `Material`，消除 `ExpansionTile`→`ListTile` 在 debug 下的「背景/水波纹不可见」断言；`EditorController` 新增 `_disposed` 守卫，避免离开编辑器时 `flush()` 的保存晚于 dispose 触发「used after being disposed」。
+  - 文档同步：PRD 4.1 / 5.3 / 5.5 / 5.9 / 6.1；ARCHITECTURE 3 / 5.3 / 5.6 / 6.1；README 当前状态。
+
 ---
 
 ## 后置 backlog（不进 MVP 承诺）
 
-进度：B-01、B-02、B-03、B-04、B-05、B-06、B-07、B-08、B-09 全部已完成；MVP 收口后的增强 ENH-01（429/5xx 自动退避重试）、ENH-02（设定集纳入 AI 上下文）、ENH-03（全 App 深色模式）已完成。
+进度：B-01、B-02、B-03、B-04、B-05、B-06、B-07、B-08、B-09 全部已完成；MVP 收口后的增强 ENH-01（429/5xx 自动退避重试）、ENH-02（设定集纳入 AI 上下文）、ENH-03（全 App 深色模式）、ENH-04（专注模式 + 选中段落 AI 改写 + 导出 EPUB）已完成。
 
 - [x] B-01（P2）Responses 端点适配器：新增 `ResponsesAdapter implements AiClient`（架构 9 章触发条件成熟时）
   - 新增 `lib/core/ai/responses_adapter.dart`（端点 `POST {baseUrl}/v1/responses`，system 提为顶层 `instructions`，`input[]` 支持消息 / `function_call` / `function_call_output`；解析 `response.output_text.delta`、`response.completed` 的 usage 与 status；工具调用经 `response.output_item.*` / `response.function_call_arguments.delta` 累积）；`AiProvider.responses` 登记并在 `buildAiClient` 分发；设置页协议类型增第三段「Responses」。

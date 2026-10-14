@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -46,6 +47,18 @@ class _EditorPageState extends ConsumerState<EditorPage> {
   bool _checkVisible = false;
   bool _snapshotsVisible = false;
 
+  /// 专注模式（ENH-04）：隐藏工具栏与状态栏，并把光标行固定在编辑区竖直中线。
+  bool _focusMode = false;
+
+  /// 改写快照（ENH-04）：点击「AI 改写」那一刻的选区。
+  /// 面板打开或弹窗都会令正文失焦、改写 selection，唯一可信来源是当场快照。
+  int? _rewriteStart;
+  int? _rewriteEnd;
+  String _rewriteText = '';
+
+  /// 用于从正文 TextField 取出唯一 RenderEditable，做光标居中滚动。
+  final GlobalKey _textFieldKey = GlobalKey();
+
   @override
   void initState() {
     super.initState();
@@ -67,14 +80,59 @@ class _EditorPageState extends ConsumerState<EditorPage> {
         }
       });
     });
+    // 光标居中滚动只在专注模式下生效（监听时刻可能早于 load 完成）。
+    _controller.textController.addListener(_onCaretChanged);
   }
 
   @override
   void dispose() {
     // 离开编辑器的最后一次落库（含光标与滚动位置，供会话恢复）。
+    _controller.textController.removeListener(_onCaretChanged);
     _controller.flush();
     _controller.dispose();
     super.dispose();
+  }
+
+  /// 光标（或选区）变化时，专注模式下把光标行滚到编辑区竖直中线。
+  void _onCaretChanged() {
+    if (!_focusMode || !_controller.loaded) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _pinCaretToCenter());
+  }
+
+  /// 让光标行底边对齐编辑区（TextField 视口）底边；章末也能居中。
+  void _pinCaretToCenter() {
+    if (!mounted || !_focusMode) return;
+    final scrollController = _controller.scrollController;
+    if (!scrollController.hasClients) return;
+    final renderEditable = _findRenderEditable();
+    if (renderEditable == null) return;
+    final offset = _controller.textController.selection.baseOffset;
+    if (offset < 0) return;
+    // getLocalRectForCaret 返回的已是视口局部坐标（已扣除当前滚动量）。
+    final rect =
+        renderEditable.getLocalRectForCaret(TextPosition(offset: offset));
+    final position = scrollController.position;
+    final target = (scrollController.offset + rect.bottom - renderEditable.size.height)
+        .clamp(0.0, position.maxScrollExtent);
+    if ((target - scrollController.offset).abs() <= 0.5) return;
+    scrollController.jumpTo(target);
+  }
+
+  RenderEditable? _findRenderEditable() {
+    final renderObject = _textFieldKey.currentContext?.findRenderObject();
+    if (renderObject == null) return null;
+    RenderEditable? found;
+    void visit(RenderObject child) {
+      if (found != null) return;
+      if (child is RenderEditable) {
+        found = child;
+        return;
+      }
+      child.visitChildren(visit);
+    }
+
+    visit(renderObject);
+    return found;
   }
 
   void _restoreScroll() {
@@ -136,6 +194,14 @@ class _EditorPageState extends ConsumerState<EditorPage> {
             icon: const Icon(Icons.list_alt),
             onPressed: _editChapterSummary,
           ),
+          // 专注模式唯一开关（ENH-04）：专注下工具栏与状态栏隐藏，必须常驻可退出。
+          IconButton(
+            tooltip: _focusMode ? '退出专注模式' : '专注模式',
+            icon: Icon(
+              _focusMode ? Icons.fullscreen_exit : Icons.center_focus_strong,
+            ),
+            onPressed: () => setState(() => _focusMode = !_focusMode),
+          ),
           ListenableBuilder(
             listenable: _controller,
             builder: (context, _) => _SaveIndicator(
@@ -159,7 +225,14 @@ class _EditorPageState extends ConsumerState<EditorPage> {
               chapterId: widget.chapterId,
               initialMode: _aiMode!,
               onInsert: _controller.insertAtCursor,
-              onClose: () => setState(() => _aiMode = null),
+              rewriteText: _rewriteText,
+              onReplace: _applyRewrite,
+              onClose: () => setState(() {
+                _aiMode = null;
+                _rewriteStart = null;
+                _rewriteEnd = null;
+                _rewriteText = '';
+              }),
             ),
           if (_checkVisible)
             FlavorCheckPanel(
@@ -174,27 +247,29 @@ class _EditorPageState extends ConsumerState<EditorPage> {
               chapterId: widget.chapterId,
               onClose: () => setState(() => _snapshotsVisible = false),
             ),
-          _Toolbar(
-            controller: _controller,
-            palette: palette,
-            onFind: () => setState(() {
-              _checkVisible = false;
-              _snapshotsVisible = false;
-              _findVisible = !_findVisible;
-            }),
-            onAiFeature: _openAi,
-            onCheck: () => setState(() {
-              _findVisible = false;
-              _aiMode = null;
-              _snapshotsVisible = false;
-              _checkVisible = !_checkVisible;
-            }),
-          ),
-          _StatusBar(
-            controller: _controller,
-            workId: widget.workId,
-            palette: palette,
-          ),
+          if (!_focusMode)
+            _Toolbar(
+              controller: _controller,
+              palette: palette,
+              onFind: () => setState(() {
+                _checkVisible = false;
+                _snapshotsVisible = false;
+                _findVisible = !_findVisible;
+              }),
+              onAiFeature: _openAi,
+              onCheck: () => setState(() {
+                _findVisible = false;
+                _aiMode = null;
+                _snapshotsVisible = false;
+                _checkVisible = !_checkVisible;
+              }),
+            ),
+          if (!_focusMode)
+            _StatusBar(
+              controller: _controller,
+              workId: widget.workId,
+              palette: palette,
+            ),
         ],
       ),
     );
@@ -208,30 +283,38 @@ class _EditorPageState extends ConsumerState<EditorPage> {
     final palette = ReadingPalette.of(appearance, globalDark: globalDark);
     return Container(
       color: palette.surface,
-      child: TextField(
-        controller: _controller.textController,
-        scrollController: _controller.scrollController,
-        focusNode: _controller.focusNode,
-        maxLines: null,
-        expands: true,
-        autofocus: false,
-        keyboardType: TextInputType.multiline,
-        textAlignVertical: TextAlignVertical.top,
-        style: TextStyle(
-          fontFamily: kSerifFontFamily,
-          fontFamilyFallback: kSerifFontFallback,
-          fontSize: appearance.fontSize,
-          height: appearance.lineHeight,
-          color: palette.ink,
-        ),
-        decoration: const InputDecoration(
-          hintText: '在这里写下正文…',
-          filled: false,
-          border: InputBorder.none,
-          enabledBorder: InputBorder.none,
-          focusedBorder: InputBorder.none,
-          contentPadding: EdgeInsets.fromLTRB(16, 16, 16, 24),
-        ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // 专注模式（ENH-04）：底部留白取编辑区一半高度，
+          // 扩大可滚动量，使光标行（含章末）能滚到编辑区竖直中线。
+          final bottomPadding = _focusMode ? constraints.maxHeight / 2 : 24.0;
+          return TextField(
+            key: _textFieldKey,
+            controller: _controller.textController,
+            scrollController: _controller.scrollController,
+            focusNode: _controller.focusNode,
+            maxLines: null,
+            expands: true,
+            autofocus: false,
+            keyboardType: TextInputType.multiline,
+            textAlignVertical: TextAlignVertical.top,
+            style: TextStyle(
+              fontFamily: kSerifFontFamily,
+              fontFamilyFallback: kSerifFontFallback,
+              fontSize: appearance.fontSize,
+              height: appearance.lineHeight,
+              color: palette.ink,
+            ),
+            decoration: InputDecoration(
+              hintText: '在这里写下正文…',
+              filled: false,
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              contentPadding: EdgeInsets.fromLTRB(16, 16, 16, bottomPadding),
+            ),
+          );
+        },
       ),
     );
   }
@@ -268,9 +351,18 @@ class _EditorPageState extends ConsumerState<EditorPage> {
 
   /// 打开 AI 待确认面板（PRD 5.5）：未配置可用模型组时先引导至设置页。
   Future<void> _openAi(AiPanelMode mode) async {
-    final task = mode == AiPanelMode.continueWriting
-        ? AiTask.continueWriting
-        : AiTask.inspire;
+    // 改写需在点击那一刻同步快照选区（任何 await 之前，否则 selection 会被改写）。
+    if (mode == AiPanelMode.rewrite && !_snapshotRewriteSelection()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('请先在正文中选中要改写的段落')),
+      );
+      return;
+    }
+    final task = switch (mode) {
+      AiPanelMode.continueWriting => AiTask.continueWriting,
+      AiPanelMode.inspireIdeas || AiPanelMode.inspireOpening => AiTask.inspire,
+      AiPanelMode.rewrite => AiTask.rewrite,
+    };
     final ready = await ref.read(aiServiceProvider).isReady(task);
     if (!mounted) return;
     if (!ready) {
@@ -302,6 +394,43 @@ class _EditorPageState extends ConsumerState<EditorPage> {
       _checkVisible = false;
       _snapshotsVisible = false;
       _aiMode = mode;
+    });
+  }
+
+  /// 同步快照当前选区（ENH-04）：返回是否选中了非空白文本。
+  bool _snapshotRewriteSelection() {
+    final selection = _controller.textController.selection;
+    final start = selection.start;
+    final end = selection.end;
+    final text = _controller.textController.text;
+    if (start < 0 || end <= start || end > text.length) return false;
+    final selected = text.substring(start, end);
+    if (selected.trim().isEmpty) return false;
+    _rewriteStart = start;
+    _rewriteEnd = end;
+    _rewriteText = selected;
+    return true;
+  }
+
+  /// 把改写结果替换回原文区间（ENH-04）：原文漂移则拒绝；仅成功才抢回焦点。
+  void _applyRewrite(String text) {
+    final start = _rewriteStart;
+    final end = _rewriteEnd;
+    if (start == null || end == null) return;
+    final ok = _controller.replaceSelection(
+      start: start,
+      end: end,
+      original: _rewriteText,
+      replacement: text,
+    );
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('原文已变化，请重新选中后再改写')),
+      );
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _controller.focusNode.requestFocus();
     });
   }
 
@@ -413,14 +542,20 @@ class _Toolbar extends StatelessWidget {
                 onPressed: () => onAiFeature(AiPanelMode.inspireIdeas),
               ),
               _ToolButton(
+                icon: Icons.auto_fix_high,
+                label: 'AI 改写',
+                palette: palette,
+                onPressed: () => onAiFeature(AiPanelMode.rewrite),
+              ),
+              _ToolButton(
                 icon: Icons.search,
-                label: '查找替换',
+                label: '查找',
                 palette: palette,
                 onPressed: onFind,
               ),
               _ToolButton(
                 icon: Icons.spellcheck,
-                label: 'AI 感检查',
+                label: 'AI 感',
                 palette: palette,
                 onPressed: onCheck,
               ),

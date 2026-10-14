@@ -11,8 +11,8 @@ import '../../data/data_providers.dart';
 import '../ai/ai_providers.dart';
 import '../ai/ai_service.dart';
 
-/// 面板模式：续写 / 桥段点子 / 开篇助手。
-enum AiPanelMode { continueWriting, inspireIdeas, inspireOpening }
+/// 面板模式：续写 / 桥段点子 / 开篇助手 / 改写。
+enum AiPanelMode { continueWriting, inspireIdeas, inspireOpening, rewrite }
 
 /// AI 待确认面板（PRD 5.5 / 5.6，M3-15）：流式产出、可编辑后插入、可重跑可放弃，
 /// 上下文详情可展开（作者能看见 AI 看到了什么）。
@@ -24,6 +24,8 @@ class AiConfirmPanel extends ConsumerStatefulWidget {
     required this.initialMode,
     required this.onInsert,
     required this.onClose,
+    this.rewriteText,
+    this.onReplace,
   });
 
   final int workId;
@@ -32,6 +34,11 @@ class AiConfirmPanel extends ConsumerStatefulWidget {
 
   /// 插入到编辑器光标处（走编辑器撤销栈）。
   final void Function(String text) onInsert;
+
+  /// 改写模式（ENH-04）：待改写原文与「替换原文」回调（走编辑器撤销栈）。
+  final String? rewriteText;
+  final void Function(String text)? onReplace;
+
   final VoidCallback onClose;
 
   @override
@@ -55,6 +62,10 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
   double _length = 500;
   String _lastDirection = '';
 
+  /// 改写模式（ENH-04）：意图与作者补充指令。
+  String _intent = RewriteIntent.polish;
+  String _instruction = '';
+
   @override
   void initState() {
     super.initState();
@@ -76,6 +87,8 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
         return 'AI 灵感 · 桥段点子';
       case AiPanelMode.inspireOpening:
         return 'AI 灵感 · 开篇助手';
+      case AiPanelMode.rewrite:
+        return 'AI 改写';
     }
   }
 
@@ -112,6 +125,14 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
               : InspireMode.ideas,
           anchorChapterId: widget.chapterId,
           direction: _lastDirection.isEmpty ? null : _lastDirection,
+        );
+      case AiPanelMode.rewrite:
+        stream = service.rewrite(
+          workId: widget.workId,
+          chapterId: widget.chapterId,
+          selectedText: widget.rewriteText ?? '',
+          intent: _intent,
+          instruction: _instruction.isEmpty ? null : _instruction,
         );
     }
 
@@ -205,6 +226,21 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
     widget.onClose();
   }
 
+  /// 改写模式（ENH-04）：把 AI 改写结果替换回原文选中区间（走编辑器撤销栈）。
+  Future<void> _replace() async {
+    final text = _result.text.trim();
+    if (text.isEmpty) return;
+    final replace = widget.onReplace;
+    if (replace == null) return;
+    replace(text);
+    if (_usageId != null) {
+      await ref
+          .read(aiServiceProvider)
+          .markOutcome(_usageId!, 'adopted', adoptedChars: text.length);
+    }
+    widget.onClose();
+  }
+
   Future<void> _saveToInspiration() async {
     final text = _result.text.trim();
     if (text.isEmpty) return;
@@ -230,11 +266,14 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
 
   @override
   Widget build(BuildContext context) {
-    final isInspire = _mode != AiPanelMode.continueWriting;
+    final isInspire =
+        _mode == AiPanelMode.inspireIdeas ||
+        _mode == AiPanelMode.inspireOpening;
+    final isRewrite = _mode == AiPanelMode.rewrite;
     // 面板内容较长：限高并内部滚动，避免键盘弹出时挤压编辑器造成溢出。
     return ConstrainedBox(
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.sizeOf(context).height * 0.55,
+        maxHeight: MediaQuery.sizeOf(context).height * 0.6,
       ),
       child: Container(
         decoration: BoxDecoration(
@@ -252,8 +291,10 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
                 children: <Widget>[
                   _buildHeader(),
                   if (isInspire) _buildModeSwitch(),
+                  if (isRewrite) _buildIntentRow(),
                   if (isInspire || _mode == AiPanelMode.continueWriting)
                     _buildLengthRow(),
+                  if (isRewrite) _buildInstructionField(),
                   if (_context != null) _buildContextDetails(_context!),
                   const SizedBox(height: 6),
                   _buildResult(),
@@ -315,6 +356,51 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
     );
   }
 
+  /// 改写意图选择（ENH-04）：切换即重新生成。
+  Widget _buildIntentRow() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: SegmentedButton<String>(
+          segments: <ButtonSegment<String>>[
+            for (final intent in RewriteIntent.all)
+              ButtonSegment<String>(
+                value: intent,
+                label: Text(RewriteIntent.label(intent)),
+              ),
+          ],
+          selected: <String>{_intent},
+          onSelectionChanged: _streaming
+              ? null
+              : (selection) {
+                  setState(() => _intent = selection.first);
+                  _start();
+                },
+        ),
+      ),
+    );
+  }
+
+  /// 作者补充指令（ENH-04）：替代「换个方向」弹窗，点「重新生成」时生效。
+  Widget _buildInstructionField() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: TextFormField(
+        initialValue: _instruction,
+        maxLines: 2,
+        minLines: 1,
+        onChanged: (value) => _instruction = value,
+        style: const TextStyle(fontSize: 13),
+        decoration: const InputDecoration(
+          hintText: '补充指令（可选），例如：让她的话更冷淡',
+          isDense: true,
+          border: OutlineInputBorder(),
+        ),
+      ),
+    );
+  }
+
   Widget _buildLengthRow() {
     if (_mode != AiPanelMode.continueWriting) return const SizedBox.shrink();
     return Row(
@@ -338,42 +424,45 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
   }
 
   Widget _buildContextDetails(BuiltContext built) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 6),
-      decoration: BoxDecoration(
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      // 用 Material 承载底色：ExpansionTile 内部是 ListTile，若直接放在带底色的
+      // DecoratedBox 里，debug 下会触发「ListTile 背景/水波纹不可见」断言。
+      child: Material(
         color: context.paper.background,
         borderRadius: BorderRadius.circular(8),
-      ),
-      child: ExpansionTile(
-        initiallyExpanded: _contextExpanded,
-        onExpansionChanged: (v) => _contextExpanded = v,
-        tilePadding: const EdgeInsets.symmetric(horizontal: 12),
-        childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-        title: Text(
-          'AI 看到的上下文（估算 ${built.estimatedTokens} / 预算 ${built.budgetTokens} token）',
-          style: TextStyle(fontSize: 12, color: context.paper.inkSoft),
+        clipBehavior: Clip.antiAlias,
+        child: ExpansionTile(
+          initiallyExpanded: _contextExpanded,
+          onExpansionChanged: (v) => _contextExpanded = v,
+          tilePadding: const EdgeInsets.symmetric(horizontal: 12),
+          childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+          title: Text(
+            'AI 看到的上下文（估算 ${built.estimatedTokens} / 预算 ${built.budgetTokens} token）',
+            style: TextStyle(fontSize: 12, color: context.paper.inkSoft),
+          ),
+          subtitle: built.truncated
+              ? Text('已省略较早前文',
+                  style: TextStyle(fontSize: 11, color: context.paper.accent))
+              : null,
+          children: built.sections
+              .map((section) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(section.label,
+                            style: const TextStyle(
+                                fontSize: 12, fontWeight: FontWeight.w600)),
+                        const SizedBox(height: 2),
+                        Text(section.content,
+                            style: TextStyle(
+                                fontSize: 12, color: context.paper.inkSoft)),
+                      ],
+                    ),
+                  ))
+              .toList(),
         ),
-        subtitle: built.truncated
-            ? Text('已省略较早前文',
-                style: TextStyle(fontSize: 11, color: context.paper.accent))
-            : null,
-        children: built.sections
-            .map((section) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(section.label,
-                          style: const TextStyle(
-                              fontSize: 12, fontWeight: FontWeight.w600)),
-                      const SizedBox(height: 2),
-                      Text(section.content,
-                          style: TextStyle(
-                              fontSize: 12, color: context.paper.inkSoft)),
-                    ],
-                  ),
-                ))
-            .toList(),
       ),
     );
   }
@@ -431,7 +520,9 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
     }
 
     final hasText = _result.text.trim().isNotEmpty;
-    final isInspire = _mode != AiPanelMode.continueWriting;
+    final isInspire = _mode == AiPanelMode.inspireIdeas ||
+        _mode == AiPanelMode.inspireOpening;
+    final isRewrite = _mode == AiPanelMode.rewrite;
     return Row(
       children: <Widget>[
         if (_streaming)
@@ -447,10 +538,12 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
             onPressed: () => _start(),
             child: const Text('重新生成'),
           ),
-          TextButton(
-            onPressed: _retryWithDirection,
-            child: const Text('换个方向'),
-          ),
+          // 改写用「补充指令」输入框替代方向弹窗（ENH-04）。
+          if (!isRewrite)
+            TextButton(
+              onPressed: _retryWithDirection,
+              child: const Text('换个方向'),
+            ),
         ],
         const Spacer(),
         if (isInspire)
@@ -464,8 +557,10 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
         ),
         const SizedBox(width: 4),
         FilledButton(
-          onPressed: hasText && !_streaming ? _insert : null,
-          child: const Text('插入光标处'),
+          onPressed: hasText && !_streaming
+              ? (isRewrite ? _replace : _insert)
+              : null,
+          child: Text(isRewrite ? '替换原文' : '插入光标处'),
         ),
       ],
     );

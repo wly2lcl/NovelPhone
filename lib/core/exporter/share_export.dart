@@ -21,6 +21,8 @@ String mimeTypeForFileName(String fileName) {
       return 'text/markdown';
     case '.docx':
       return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    case '.epub':
+      return 'application/epub+zip';
     case '.zip':
       return 'application/zip';
     default:

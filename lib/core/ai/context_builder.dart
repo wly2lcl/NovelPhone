@@ -241,6 +241,50 @@ class ContextBuilder {
     );
   }
 
+  /// 改写上下文（ENH-04）：选中原文即主材料，不注入本章尾部，避免与原文重复。
+  Future<BuiltContext> buildRewrite({
+    required int workId,
+    required int chapterId,
+    required String selectedText,
+    required String intent,
+    String? instruction,
+    int contextWindow = 32000,
+  }) async {
+    final budget = (contextWindow * 0.5).round();
+    final work = await works.getWork(workId);
+    final chapter = await chapters.getChapter(chapterId);
+    final allChapters = await chapters.watchChapters(workId).first;
+    final volume = chapter == null
+        ? null
+        : await _volumeOf(workId, chapter.volumeId);
+
+    final outlineEntries = await outline.listOutline(workId);
+    final allCharacters = await characters.listCharacters(workId);
+
+    // 本章章纲
+    final chapterOutline = outlineEntries
+        .where((e) => e.chapterId == chapterId && e.summary.trim().isNotEmpty)
+        .map((e) => e.summary.trim())
+        .join('\n');
+
+    // 角色卡按「选中原文」匹配（而非整章），更贴近改写语境。
+    final matched = matchCharacters(allCharacters, selectedText);
+
+    return _assemble(
+      workTitle: work?.title ?? '',
+      budget: budget,
+      tail: '',
+      chapterOutline: chapterOutline,
+      previousSummary: _previousSummary(allChapters, chapterId),
+      matchedCharacters: matched,
+      settingsText: await _settingsText(workId),
+      volumeOutline: _volumeOutline(outlineEntries, volume?.id, chapterId),
+      task: _rewriteTask(intent, instruction),
+      payload: '【待改写原文】\n$selectedText',
+      systemOverride: _rewriteSystem(),
+    );
+  }
+
   BuiltContext _assemble({
     required String workTitle,
     required int budget,
@@ -251,8 +295,12 @@ class ContextBuilder {
     required String settingsText,
     required String volumeOutline,
     required String task,
+    // ENH-04：改写时追加在 messages 末尾的主材料（不参与丢弃/截断），默认空 → 对续写零影响。
+    String payload = '',
+    // ENH-04：改写时替换 system（默认 null → 沿用续写 system）。
+    String? systemOverride,
   }) {
-    final system = _systemPrompt(workTitle);
+    final system = systemOverride ?? _systemPrompt(workTitle);
 
     var volumeText = volumeOutline;
     var charactersText =
@@ -271,7 +319,8 @@ class ContextBuilder {
         estimateTokens(volumeText) +
         estimateTokens(summaryText) +
         estimateTokens(settingsBlock) +
-        estimateTokens(charactersText);
+        estimateTokens(charactersText) +
+        estimateTokens(payload);
 
     // 超预算时从优先级最低项开始丢弃（ARCHITECTURE 5.3 / PRD 6.2）。
     if (total() > budget && volumeText.isNotEmpty) {
@@ -333,6 +382,7 @@ class ContextBuilder {
     final userContent = <String>[
       for (final section in sections) '【${section.label}】\n${section.content}',
       task,
+      if (payload.isNotEmpty) payload,
     ].join('\n\n');
 
     return BuiltContext(
@@ -369,6 +419,37 @@ class ContextBuilder {
     final buffer = StringBuffer('【任务】\n为这部作品写一个开头段落（100-300 字），输出纯正文。');
     final trimmed = direction?.trim() ?? '';
     if (trimmed.isNotEmpty) buffer.writeln('作者给定的方向：$trimmed');
+    return buffer.toString();
+  }
+
+  /// 改写 system（ENH-04）：只输出改写后正文，保持人称视角与既有事实，不增删情节。
+  String _rewriteSystem() {
+    final buffer = StringBuffer()
+      ..writeln('你是一位中文网络小说改稿助手，正在协助作者修改作品正文。')
+      ..writeln('改写要求：')
+      ..writeln('1. 只输出改写后的正文，不写解释、不加标题、不使用 markdown 标记。')
+      ..writeln('2. 保持原有的人物设定、称谓、叙事人称与视角，沿用既有事实。')
+      ..writeln('3. 不增删情节，不改变剧情走向与事件结果。')
+      ..writeln('4. 避免陈词滥调与套路化表达，句式多变，语言自然。');
+    return buffer.toString().trim();
+  }
+
+  /// 改写任务说明（ENH-04）：[intent] 取值与 RewriteIntent 对齐（polish/expand/condense/tone）。
+  String _rewriteTask(String intent, String? instruction) {
+    final buffer = StringBuffer('【改写要求】\n改写"待改写原文"，输出纯正文。');
+    switch (intent) {
+      case 'expand':
+        buffer.writeln('扩写：篇幅约为原文的 1.5~2 倍，补充细节与描写，不新增情节事实。');
+      case 'condense':
+        buffer.writeln('缩写：篇幅约为原文的 1/2，保留关键信息与情绪，删减冗余。');
+      case 'tone':
+        buffer.writeln('调整语气：按作者补充指令调整叙述语气与用词风格。');
+      case 'polish':
+      default:
+        buffer.writeln('润色：字数与原文基本相当，只提升表达，不改变内容。');
+    }
+    final trimmed = instruction?.trim() ?? '';
+    if (trimmed.isNotEmpty) buffer.writeln('作者补充指令：$trimmed');
     return buffer.toString();
   }
 

@@ -155,7 +155,7 @@ lib/
 │   ├── flavor_lexicon.dart       # 套话词库（约 200 条，按权重分级）
 │   ├── word_count.dart           # 中文字数统计
 │   ├── importer/                 # txt/docx 导入与分章
-│   ├── exporter/                 # 单章/整作导出（txt/md/docx）、备份 zip 组装与分享
+│   ├── exporter/                 # 单章/整作导出（txt/md/docx/epub）、备份 zip 组装与分享
 │   └── cloud/                    # 云备份（B-08）：S3 兼容客户端（SigV4 签名）与备份编排
 └── features/
     ├── works/                    # 作品列表
@@ -208,6 +208,7 @@ lib/
 - 整作 txt：各章标题单独成行，不写作品标题（避免再导入时多出一段前言）。
 - 整作 markdown：每章一个一级标题，可被分章正则完整还原；不写卷信息（卷结构与更细字段由整库备份 JSON 承载）。
 - 整作 docx：自建最小 zip，标题段落用 `Heading1` 样式，可被 docx 导入按样式分章。
+- 整作 epub：EPUB 3 最小结构（`mimetype` 首条目且 STORE 存储、`META-INF/container.xml`、`OEBPS/` 的 `content.opf` + `nav.xhtml`(properties="nav") + `style.css` + 逐章 `chapter_N.xhtml`），可被主流阅读器打开；`dc:identifier` 取 `urn:novelphone:<作品名>` 保证确定性。
 - 备份 zip：`data.json`（作品/卷/章/角色/章纲/灵感/章节快照/每日统计/设定集/人物关系等业务表 `toJson`，含正文，供恢复）+ `works/*.md`（各作品全文，供人工查阅）；不含 API key（key 仅在 flutter_secure_storage，从不进库）。恢复支持合并（作为新作品导入）与覆盖（清空后按原 id 还原），恢复时按 `workIdMap` / `volumeIdMap` / `chapterIdMap` / `characterIdMap` 重映射外键。
 
 ---
@@ -420,6 +421,7 @@ abstract interface class AiClient {
 2. 装配顺序：system 指令 → 本章尾部（保留最近 3000 字，超出截断并标注"（前文略）"）→ 本章章纲 → 前 1-2 章摘要（本地按段落抽首句拼接，超预算再截断）→ 相关角色卡（本章正文做姓名匹配，最多 8 张，超出保留匹配最多的 3 张）→ 设定集（世界观/地点/道具，按类型分组）→ 卷级大纲。
 3. 超预算时从优先级最低项开始丢弃（先卷级大纲，再设定集，再角色卡减张、前文摘要压缩、尾部截断/整段丢弃），面板提示"已省略较早前文"。
 4. 全部注入内容在待确认面板的"上下文详情"中可展开查看——作者能看见 AI 看到了什么，这是产品信任的一部分 `[Expert judgment]`。
+5. 改写任务（ENH-04，`buildRewrite`）：不注入本章尾部正文，改为把「【待改写原文】」作为末尾 user 消息 payload；该 payload 不参与超预算截断（始终完整保留），system 走「改稿助手」角色指令（只输出正文、保持人称视角与既有事实、不增删情节）。
 
 ### 5.4 Agent Core 与 Tool 抽象
 
@@ -478,11 +480,12 @@ sequenceDiagram
 - 检查处置率计数：会话结束时把本轮问题总数与已处置数（替换 + 忽略）累加进 `APP_SETTING` 的 `check_stat_total` / `check_stat_handled`（`SettingsRepository.addCheckStats`），统计页据此展示处置率。
 - 首次联网告知（M4-16）：会携带作品内容的联网入口（编辑器 AI 续写/灵感、检查面板的 LLM 深检与重试）在发起请求前统一经 `features/ai/ai_notice.dart` 的 `ensureAiNotice` 门控；未确认时弹窗告知数据传输范围与 key 存储方式，确认后写入 `APP_SETTING` 的 `ai_notice_ack`（`SettingsRepository.hasConfirmedAiNotice` / `confirmAiNotice`），此后不再重复弹窗；用户取消则中止本次 AI 操作。设置页"测试连接"只发最小请求、不含作品内容，不作门控。文案与合规说明见 `docs/COMPLIANCE.md`。
 
-### 5.6 续写与灵感的用例编排
+### 5.6 续写、灵感与改写的用例编排
 
 - 续写：ContextBuilder 组装 → AiClient.streamChat → 流式文本进待确认面板 → 作者编辑 → 插入光标处（插入走编辑器历史栈，可撤销）。
 - 灵感（桥段）：ContextBuilder + system 指令要求输出编号列表 → 面板逐条展示 → 存灵感箱或插入。
 - 灵感（开篇）：作者方向指令拼入 user 消息 → 生成单个段落。
+- 改写（ENH-04）：`buildRewrite` 组装（不含本章尾部，末尾为【待改写原文】）→ 面板选意图（润色/扩写/缩写/改语气，切换即重跑）+ 作者补充指令 → 产出可编辑 → 「替换原文」按点击时快照的选区经 `EditorController.replaceSelection` 回写（走撤销栈，原文漂移则拒绝）。
 - 全部用例共享同一 AiClient 与错误处理，不各写一套 `[Expert judgment]`。
 
 ---
@@ -499,6 +502,7 @@ sequenceDiagram
 | OutlineRepository | `watchOutline(workId)` / CRUD | — |
 | AiUseCase.continueWriting | `(workId, chapterId, options: {direction?, length?, style?}) → Stream<AiEvent>` | AiEvent = 文本增量/错误/完成；length 对应 PRD 5.5 面板可调的生成长度；上下文组装在内部 |
 | AiUseCase.inspire | `(workId, mode, anchorChapterId?, direction?) → Stream<AiEvent>` | mode = ideas/opening；anchorChapterId 表示当前进度位置 |
+| AiUseCase.rewrite | `(workId, chapterId, selectedText, intent, instruction?) → Stream<AiEvent>` | intent = polish/expand/condense/tone（ENH-04）；模型组优先 `task_model_rewrite`，未配置回退续写组；上下文走 `buildRewrite`（末尾为【待改写原文】） |
 | AiUseCase.checkFlavor | `(scope: 单章 chapterId 或整作 workId, deep) → Stream<CheckEvent>` | scope 二选一，支持整作检查（PRD 5.7）；deep=false 仅规则引擎 |
 | SettingsRepository | `watchModelGroups()` / `watchTaskModelId(task)` | key 经 secure storage；任务→模型映射存 APP_SETTING 的 `task_model_*` 键，不暴露明文给 UI 之外 |
 | AiUseCase.testConnection | `(group) → Future<TestResult>` | 用该模型组构造 AiClient 发一次最小请求；网络调用不放 Repository 层，设置页直连此用例（图 F4 → A1） |

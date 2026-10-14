@@ -9,13 +9,14 @@ import '../../data/data_providers.dart';
 import '../../data/db.dart';
 
 /// 导出格式（PRD 功能 12）。
-enum ExportFormat { txt, markdown, docx }
+enum ExportFormat { txt, markdown, docx, epub }
 
 extension on ExportFormat {
   String get label => switch (this) {
         ExportFormat.txt => '纯文本（.txt）',
         ExportFormat.markdown => 'Markdown（.md）',
         ExportFormat.docx => 'Word 文档（.docx）',
+        ExportFormat.epub => 'EPUB 电子书（.epub）',
       };
 }
 
@@ -70,11 +71,13 @@ Future<void> exportWork(
     ExportFormat.txt => textToBytes(buildWorkText(drafts)),
     ExportFormat.markdown => textToBytes(buildWorkMarkdown(drafts)),
     ExportFormat.docx => buildWorkDocx(drafts),
+    ExportFormat.epub => buildWorkEpub(drafts, title: title),
   };
   final extension = switch (format) {
     ExportFormat.txt => 'txt',
     ExportFormat.markdown => 'md',
     ExportFormat.docx => 'docx',
+    ExportFormat.epub => 'epub',
   };
   if (!context.mounted) return;
   await _share(

@@ -62,6 +62,9 @@ class EditorController extends ChangeNotifier {
   bool _dirty = false;
   bool _applyingHistory = false;
 
+  /// dispose 后不再向监听者发通知：离开编辑器时 `flush()` 的保存会晚于 dispose 完成。
+  bool _disposed = false;
+
   final List<_Snapshot> _history = <_Snapshot>[];
   int _historyIndex = -1;
 
@@ -118,7 +121,7 @@ class EditorController extends ChangeNotifier {
     } catch (_) {
       _saveStatus = SaveStatus.failed;
     }
-    notifyListeners();
+    if (!_disposed) notifyListeners();
   }
 
   /// 保存失败后的手动重试。
@@ -330,6 +333,20 @@ class EditorController extends ChangeNotifier {
     return true;
   }
 
+  /// 替换选中区间（ENH-04）：原文漂移（区间内文本与 AI 所见不一致）时拒绝，
+  /// 命中则转调 [replaceRange]，自动走撤销栈。
+  bool replaceSelection({
+    required int start,
+    required int end,
+    required String original,
+    required String replacement,
+  }) {
+    final text = textController.text;
+    if (start < 0 || start > end || end > text.length) return false;
+    if (text.substring(start, end) != original) return false;
+    return replaceRange(start, end, replacement);
+  }
+
   // ---------- AI 产出插入 ----------
 
   /// 在光标处插入文本（M3-14）：走编辑器历史栈，与手工输入一样可撤销。
@@ -367,6 +384,7 @@ class EditorController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     _saveTimer?.cancel();
     _historyTimer?.cancel();
     textController.dispose();

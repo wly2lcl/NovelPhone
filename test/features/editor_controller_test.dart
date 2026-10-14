@@ -261,4 +261,52 @@ void main() {
     expect(controller.replaceRange(0, 99, 'x'), isFalse);
     expect(controller.textController.text, '正文');
   });
+
+  test('改写替换命中时替换原文且可撤销（ENH-04）', () async {
+    await controller.load();
+    controller.textController.text = '她不禁笑了。';
+
+    final ok = controller.replaceSelection(
+      start: 1,
+      end: 3,
+      original: '不禁',
+      replacement: '轻轻',
+    );
+
+    expect(ok, isTrue);
+    expect(controller.textController.text, '她轻轻笑了。');
+
+    controller.undo();
+
+    expect(controller.textController.text, '她不禁笑了。');
+  });
+
+  test('原文漂移或区间越界时拒绝改写替换（ENH-04）', () async {
+    await controller.load();
+    controller.textController.text = '她不禁笑了。';
+
+    // 区间内文本与 AI 所见不一致 → 拒绝，正文不变。
+    expect(
+      controller.replaceSelection(
+        start: 1,
+        end: 3,
+        original: '已经变了',
+        replacement: '轻轻',
+      ),
+      isFalse,
+    );
+    expect(controller.textController.text, '她不禁笑了。');
+
+    // 越界区间同样拒绝。
+    expect(
+      controller.replaceSelection(
+        start: 0,
+        end: 99,
+        original: '她不禁笑了。',
+        replacement: 'x',
+      ),
+      isFalse,
+    );
+    expect(controller.textController.text, '她不禁笑了。');
+  });
 }

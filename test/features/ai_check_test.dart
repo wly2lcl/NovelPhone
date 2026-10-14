@@ -258,4 +258,48 @@ void main() {
       expect(recorded.rows.single.outputChars, '她点头，'.length);
     });
   });
+
+  group('AI 改写用例（ENH-04）', () {
+    test('未配置任何模型时引导至设置页且不联网', () async {
+      final service = serviceWith(
+        MockClient((req) async => throw StateError('不应发起网络请求')),
+      );
+
+      final events = await service
+          .rewrite(workId: workId, chapterId: chapterId, selectedText: chapterText)
+          .toList();
+
+      expect(events.single, isA<AiNeedsConfig>());
+      expect(await service.isReady(AiTask.rewrite), isFalse);
+    });
+
+    test('未单独配置改写模型时回退续写模型组并流式生成、落 rewrite 统计', () async {
+      await configureContinueModel();
+      final service =
+          serviceWith(MockClient((req) async => sseResponse('她轻轻笑了。')));
+
+      // 零配置回退：改写任务未配置，但续写组可用。
+      expect(await service.isReady(AiTask.rewrite), isTrue);
+
+      final events = await service
+          .rewrite(
+            workId: workId,
+            chapterId: chapterId,
+            selectedText: chapterText,
+            intent: RewriteIntent.polish,
+          )
+          .toList();
+
+      final built = events.whereType<AiContextBuilt>().single;
+      expect(built.context.messages.single.content,
+          contains('【待改写原文】\n$chapterText'));
+      expect(events.whereType<AiFinished>().single.text, '她轻轻笑了。');
+      expect(events.whereType<AiFailed>(), isEmpty);
+
+      final recorded = await stats.stats();
+      expect(recorded.calls, 1);
+      expect(recorded.rows.single.task, AiTask.rewrite);
+      expect(recorded.rows.single.outputChars, '她轻轻笑了。'.length);
+    });
+  });
 }

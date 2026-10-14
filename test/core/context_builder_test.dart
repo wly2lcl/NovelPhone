@@ -214,6 +214,74 @@ void main() {
     expect(section.content, contains('断魂刀'));
   });
 
+  test('改写上下文把选中原文放在 messages 末尾且不注入本章尾部（ENH-04）', () async {
+    final workId = await seedWork();
+    final third = await chapters.createChapter(workId: workId, title: '第三章');
+    await chapters.saveChapter(
+      chapterId: third,
+      title: '第三章',
+      content: '沈砚握紧了刀。苏晚站在他身后，没有说话。',
+      cursorOffset: 0,
+      scrollOffset: 0,
+    );
+    await characters.createCharacter(workId: workId, name: '沈砚', identity: '游侠');
+
+    final context = await builder.buildRewrite(
+      workId: workId,
+      chapterId: third,
+      selectedText: '沈砚握紧了刀。',
+      intent: 'polish',
+      contextWindow: 32000,
+    );
+
+    // 选中原文是主材料，追加在 messages 末尾。
+    expect(context.messages.single.content,
+        endsWith('【待改写原文】\n沈砚握紧了刀。'));
+    // 不注入本章尾部，避免与原文重复。
+    expect(context.sections.map((s) => s.label),
+        isNot(contains('本章已写内容（尾部）')));
+    // 改写专用 system，不再是续写 system。
+    expect(context.system, contains('改稿助手'));
+    expect(context.system, isNot(contains('续写')));
+    // 角色卡按选中原文匹配。
+    final charactersSection =
+        context.sections.firstWhere((s) => s.label == '相关角色卡');
+    expect(charactersSection.content, contains('沈砚'));
+  });
+
+  test('改写超预算时选中原文不被截断（ENH-04）', () async {
+    final workId = await seedWork();
+    final third = await chapters.createChapter(workId: workId, title: '第三章');
+    final selected = '沈砚' * 300;
+    await chapters.saveChapter(
+      chapterId: third,
+      title: '第三章',
+      content: selected,
+      cursorOffset: 0,
+      scrollOffset: 0,
+    );
+    await settings.createEntry(
+      workId: workId,
+      type: SettingType.worldview,
+      name: '玄洲',
+      content: '灵气复苏的东方大陆。',
+    );
+
+    final context = await builder.buildRewrite(
+      workId: workId,
+      chapterId: third,
+      selectedText: selected,
+      intent: 'polish',
+      contextWindow: 400, // 预算 200 token，必然超限
+    );
+
+    expect(context.truncated, isTrue);
+    // 低优先级的设定集先被丢弃。
+    expect(context.sections.map((s) => s.label), isNot(contains('设定集')));
+    // 选中原文完整保留（不参与丢弃/截断）。
+    expect(context.messages.single.content, contains('【待改写原文】\n$selected'));
+  });
+
   test('角色卡匹配按出现次数排序', () {
     final matched = matchCharacters(
       <Character>[
