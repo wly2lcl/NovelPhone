@@ -136,8 +136,10 @@ class BackupRepository {
       for (final raw in _asList(tables['volumes'])) {
         // ENH-06：v7 之前导出的备份不含 summary 键，drift 生成的 fromJson 对
         // 非空列要求键存在，这里补默认空串以保证旧备份仍可恢复。
+        // ENH-07 O6：summaryChapterId 同样补默认 0（全量归并）。
         final json = Map<String, dynamic>.from(raw as Map);
         json.putIfAbsent('summary', () => '');
+        json.putIfAbsent('summaryChapterId', () => 0);
         final volume = Volume.fromJson(json);
         final workId = workIdMap[volume.workId];
         if (workId == null) continue;
@@ -147,6 +149,7 @@ class BackupRepository {
               sortOrder: volume.sortOrder,
               id: overwrite ? Value(volume.id) : const Value.absent(),
               summary: Value(volume.summary),
+              summaryChapterId: Value(volume.summaryChapterId),
             ));
         volumeIdMap[volume.id] = newId;
       }
@@ -156,8 +159,10 @@ class BackupRepository {
       for (final raw in _asList(tables['chapters'])) {
         // ENH-05：v6 之前导出的备份不含 summary 键，drift 生成的 fromJson 对
         // 非空列要求键存在，这里补默认空串以保证旧备份仍可恢复。
+        // ENH-07 O4：summaryUpdatedAt 为可空列，旧备份补 null。
         final json = Map<String, dynamic>.from(raw as Map);
         json.putIfAbsent('summary', () => '');
+        json.putIfAbsent('summaryUpdatedAt', () => null);
         final chapter = Chapter.fromJson(json);
         final volumeId = volumeIdMap[chapter.volumeId];
         if (volumeId == null) continue;
@@ -173,6 +178,7 @@ class BackupRepository {
               cursorOffset: Value(chapter.cursorOffset),
               scrollOffset: Value(chapter.scrollOffset),
               summary: Value(chapter.summary),
+              summaryUpdatedAt: Value(chapter.summaryUpdatedAt),
             ));
         chapterIdMap[chapter.id] = newId;
         chapterCount++;

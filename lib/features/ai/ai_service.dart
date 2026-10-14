@@ -337,13 +337,28 @@ class AiService {
     }
 
     // 桥段点子：走工具按需取数（ARCHITECTURE 5.4）。
-    final prompt = await _ideasPrompt(workId, anchorChapterId, direction);
+    // ENH-07 O7：额外补「前文摘要」与「本章章纲」，让点子贴合剧情。
+    final extra = await contexts.buildInspireContext(
+      workId: workId,
+      chapterId: anchorChapterId,
+    );
+    final prompt = await _ideasPrompt(
+      workId,
+      anchorChapterId,
+      direction,
+      previousSummary: extra.previousSummary,
+      chapterOutline: extra.chapterOutline,
+    );
     final system = composeSkillSystem(_ideasSystem, skills);
     yield AiContextBuilt(BuiltContext(
       system: system,
       messages: <ChatMessage>[ChatMessage.user(prompt)],
       sections: <ContextSection>[
         ContextSection(label: '任务模式', content: '桥段点子（AI 可按需调用工具取数）'),
+        if (extra.previousSummary.isNotEmpty)
+          ContextSection(label: '前文摘要', content: extra.previousSummary),
+        if (extra.chapterOutline.isNotEmpty)
+          ContextSection(label: '本章章纲', content: extra.chapterOutline),
         ContextSection(label: '生成要求', content: prompt),
         if (skills.isNotEmpty)
           ContextSection(
@@ -896,7 +911,13 @@ class AiService {
 要求：点子之间方向差异明显，不与已有情节矛盾；可使用工具查询作品的角色卡、章纲与具体章节。
 只输出编号列表，不写多余解释。''';
 
-  Future<String> _ideasPrompt(int workId, int? anchorChapterId, String? direction) async {
+  Future<String> _ideasPrompt(
+    int workId,
+    int? anchorChapterId,
+    String? direction, {
+    String previousSummary = '',
+    String chapterOutline = '',
+  }) async {
     final work = await works.getWork(workId);
     final buffer = StringBuffer();
     if (work != null) buffer.writeln('作品：《${work.title}》（作品 id=$workId）');
@@ -905,6 +926,11 @@ class AiService {
       if (chapter != null) {
         buffer.writeln('当前进度所在章节：${chapter.title.isEmpty ? '未命名章节' : chapter.title}（章节 id=$anchorChapterId）');
       }
+    }
+    // ENH-07 O7：把前文摘要与本章章纲直接写进 prompt，点子更贴合剧情。
+    if (chapterOutline.isNotEmpty) buffer.writeln('【本章章纲】\n$chapterOutline');
+    if (previousSummary.isNotEmpty) {
+      buffer.writeln('【前文摘要】\n$previousSummary');
     }
     final trimmed = direction?.trim() ?? '';
     if (trimmed.isNotEmpty) buffer.writeln('作者希望的方向：$trimmed');

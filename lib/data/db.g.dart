@@ -579,8 +579,27 @@ class $VolumesTable extends Volumes with TableInfo<$VolumesTable, Volume> {
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
+  static const VerificationMeta _summaryChapterIdMeta = const VerificationMeta(
+    'summaryChapterId',
+  );
   @override
-  List<GeneratedColumn> get $columns => [id, workId, name, sortOrder, summary];
+  late final GeneratedColumn<int> summaryChapterId = GeneratedColumn<int>(
+    'summary_chapter_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    workId,
+    name,
+    sortOrder,
+    summary,
+    summaryChapterId,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -626,6 +645,15 @@ class $VolumesTable extends Volumes with TableInfo<$VolumesTable, Volume> {
         summary.isAcceptableOrUnknown(data['summary']!, _summaryMeta),
       );
     }
+    if (data.containsKey('summary_chapter_id')) {
+      context.handle(
+        _summaryChapterIdMeta,
+        summaryChapterId.isAcceptableOrUnknown(
+          data['summary_chapter_id']!,
+          _summaryChapterIdMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -655,6 +683,10 @@ class $VolumesTable extends Volumes with TableInfo<$VolumesTable, Volume> {
         DriftSqlType.string,
         data['${effectivePrefix}summary'],
       )!,
+      summaryChapterId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}summary_chapter_id'],
+      )!,
     );
   }
 
@@ -672,12 +704,16 @@ class Volume extends DataClass implements Insertable<Volume> {
 
   /// 本卷前情回顾摘要（ENH-06）：由卷内章节摘要归并生成，供后续章节续写 / 改写注入。
   final String summary;
+
+  /// 上次归并覆盖到的章节 id（ENH-07 O6）：支持卷回顾增量滚动归并，0 表示全量。
+  final int summaryChapterId;
   const Volume({
     required this.id,
     required this.workId,
     required this.name,
     required this.sortOrder,
     required this.summary,
+    required this.summaryChapterId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -687,6 +723,7 @@ class Volume extends DataClass implements Insertable<Volume> {
     map['name'] = Variable<String>(name);
     map['sort_order'] = Variable<int>(sortOrder);
     map['summary'] = Variable<String>(summary);
+    map['summary_chapter_id'] = Variable<int>(summaryChapterId);
     return map;
   }
 
@@ -697,6 +734,7 @@ class Volume extends DataClass implements Insertable<Volume> {
       name: Value(name),
       sortOrder: Value(sortOrder),
       summary: Value(summary),
+      summaryChapterId: Value(summaryChapterId),
     );
   }
 
@@ -711,6 +749,7 @@ class Volume extends DataClass implements Insertable<Volume> {
       name: serializer.fromJson<String>(json['name']),
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
       summary: serializer.fromJson<String>(json['summary']),
+      summaryChapterId: serializer.fromJson<int>(json['summaryChapterId']),
     );
   }
   @override
@@ -722,6 +761,7 @@ class Volume extends DataClass implements Insertable<Volume> {
       'name': serializer.toJson<String>(name),
       'sortOrder': serializer.toJson<int>(sortOrder),
       'summary': serializer.toJson<String>(summary),
+      'summaryChapterId': serializer.toJson<int>(summaryChapterId),
     };
   }
 
@@ -731,12 +771,14 @@ class Volume extends DataClass implements Insertable<Volume> {
     String? name,
     int? sortOrder,
     String? summary,
+    int? summaryChapterId,
   }) => Volume(
     id: id ?? this.id,
     workId: workId ?? this.workId,
     name: name ?? this.name,
     sortOrder: sortOrder ?? this.sortOrder,
     summary: summary ?? this.summary,
+    summaryChapterId: summaryChapterId ?? this.summaryChapterId,
   );
   Volume copyWithCompanion(VolumesCompanion data) {
     return Volume(
@@ -745,6 +787,9 @@ class Volume extends DataClass implements Insertable<Volume> {
       name: data.name.present ? data.name.value : this.name,
       sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
       summary: data.summary.present ? data.summary.value : this.summary,
+      summaryChapterId: data.summaryChapterId.present
+          ? data.summaryChapterId.value
+          : this.summaryChapterId,
     );
   }
 
@@ -755,13 +800,15 @@ class Volume extends DataClass implements Insertable<Volume> {
           ..write('workId: $workId, ')
           ..write('name: $name, ')
           ..write('sortOrder: $sortOrder, ')
-          ..write('summary: $summary')
+          ..write('summary: $summary, ')
+          ..write('summaryChapterId: $summaryChapterId')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, workId, name, sortOrder, summary);
+  int get hashCode =>
+      Object.hash(id, workId, name, sortOrder, summary, summaryChapterId);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -770,7 +817,8 @@ class Volume extends DataClass implements Insertable<Volume> {
           other.workId == this.workId &&
           other.name == this.name &&
           other.sortOrder == this.sortOrder &&
-          other.summary == this.summary);
+          other.summary == this.summary &&
+          other.summaryChapterId == this.summaryChapterId);
 }
 
 class VolumesCompanion extends UpdateCompanion<Volume> {
@@ -779,12 +827,14 @@ class VolumesCompanion extends UpdateCompanion<Volume> {
   final Value<String> name;
   final Value<int> sortOrder;
   final Value<String> summary;
+  final Value<int> summaryChapterId;
   const VolumesCompanion({
     this.id = const Value.absent(),
     this.workId = const Value.absent(),
     this.name = const Value.absent(),
     this.sortOrder = const Value.absent(),
     this.summary = const Value.absent(),
+    this.summaryChapterId = const Value.absent(),
   });
   VolumesCompanion.insert({
     this.id = const Value.absent(),
@@ -792,6 +842,7 @@ class VolumesCompanion extends UpdateCompanion<Volume> {
     required String name,
     required int sortOrder,
     this.summary = const Value.absent(),
+    this.summaryChapterId = const Value.absent(),
   }) : workId = Value(workId),
        name = Value(name),
        sortOrder = Value(sortOrder);
@@ -801,6 +852,7 @@ class VolumesCompanion extends UpdateCompanion<Volume> {
     Expression<String>? name,
     Expression<int>? sortOrder,
     Expression<String>? summary,
+    Expression<int>? summaryChapterId,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -808,6 +860,7 @@ class VolumesCompanion extends UpdateCompanion<Volume> {
       if (name != null) 'name': name,
       if (sortOrder != null) 'sort_order': sortOrder,
       if (summary != null) 'summary': summary,
+      if (summaryChapterId != null) 'summary_chapter_id': summaryChapterId,
     });
   }
 
@@ -817,6 +870,7 @@ class VolumesCompanion extends UpdateCompanion<Volume> {
     Value<String>? name,
     Value<int>? sortOrder,
     Value<String>? summary,
+    Value<int>? summaryChapterId,
   }) {
     return VolumesCompanion(
       id: id ?? this.id,
@@ -824,6 +878,7 @@ class VolumesCompanion extends UpdateCompanion<Volume> {
       name: name ?? this.name,
       sortOrder: sortOrder ?? this.sortOrder,
       summary: summary ?? this.summary,
+      summaryChapterId: summaryChapterId ?? this.summaryChapterId,
     );
   }
 
@@ -845,6 +900,9 @@ class VolumesCompanion extends UpdateCompanion<Volume> {
     if (summary.present) {
       map['summary'] = Variable<String>(summary.value);
     }
+    if (summaryChapterId.present) {
+      map['summary_chapter_id'] = Variable<int>(summaryChapterId.value);
+    }
     return map;
   }
 
@@ -855,7 +913,8 @@ class VolumesCompanion extends UpdateCompanion<Volume> {
           ..write('workId: $workId, ')
           ..write('name: $name, ')
           ..write('sortOrder: $sortOrder, ')
-          ..write('summary: $summary')
+          ..write('summary: $summary, ')
+          ..write('summaryChapterId: $summaryChapterId')
           ..write(')'))
         .toString();
   }
@@ -998,6 +1057,18 @@ class $ChaptersTable extends Chapters with TableInfo<$ChaptersTable, Chapter> {
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
+  static const VerificationMeta _summaryUpdatedAtMeta = const VerificationMeta(
+    'summaryUpdatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> summaryUpdatedAt =
+      GeneratedColumn<DateTime>(
+        'summary_updated_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1011,6 +1082,7 @@ class $ChaptersTable extends Chapters with TableInfo<$ChaptersTable, Chapter> {
     scrollOffset,
     updatedAt,
     summary,
+    summaryUpdatedAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1101,6 +1173,15 @@ class $ChaptersTable extends Chapters with TableInfo<$ChaptersTable, Chapter> {
         summary.isAcceptableOrUnknown(data['summary']!, _summaryMeta),
       );
     }
+    if (data.containsKey('summary_updated_at')) {
+      context.handle(
+        _summaryUpdatedAtMeta,
+        summaryUpdatedAt.isAcceptableOrUnknown(
+          data['summary_updated_at']!,
+          _summaryUpdatedAtMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -1154,6 +1235,10 @@ class $ChaptersTable extends Chapters with TableInfo<$ChaptersTable, Chapter> {
         DriftSqlType.string,
         data['${effectivePrefix}summary'],
       )!,
+      summaryUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}summary_updated_at'],
+      ),
     );
   }
 
@@ -1178,6 +1263,9 @@ class Chapter extends DataClass implements Insertable<Chapter> {
   /// AI 生成的本章摘要（ENH-05）：供后续章节续写 / 改写时注入「前情回顾」，
   /// 区别于作者在 OUTLINE_ENTRY 手写的章纲梗概。
   final String summary;
+
+  /// 摘要生成 / 更新时间（ENH-07 O4）：正文在此之后有改动时提示摘要可能过期。
+  final DateTime? summaryUpdatedAt;
   const Chapter({
     required this.id,
     required this.volumeId,
@@ -1190,6 +1278,7 @@ class Chapter extends DataClass implements Insertable<Chapter> {
     required this.scrollOffset,
     required this.updatedAt,
     required this.summary,
+    this.summaryUpdatedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1205,6 +1294,9 @@ class Chapter extends DataClass implements Insertable<Chapter> {
     map['scroll_offset'] = Variable<int>(scrollOffset);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     map['summary'] = Variable<String>(summary);
+    if (!nullToAbsent || summaryUpdatedAt != null) {
+      map['summary_updated_at'] = Variable<DateTime>(summaryUpdatedAt);
+    }
     return map;
   }
 
@@ -1221,6 +1313,9 @@ class Chapter extends DataClass implements Insertable<Chapter> {
       scrollOffset: Value(scrollOffset),
       updatedAt: Value(updatedAt),
       summary: Value(summary),
+      summaryUpdatedAt: summaryUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(summaryUpdatedAt),
     );
   }
 
@@ -1241,6 +1336,9 @@ class Chapter extends DataClass implements Insertable<Chapter> {
       scrollOffset: serializer.fromJson<int>(json['scrollOffset']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
       summary: serializer.fromJson<String>(json['summary']),
+      summaryUpdatedAt: serializer.fromJson<DateTime?>(
+        json['summaryUpdatedAt'],
+      ),
     );
   }
   @override
@@ -1258,6 +1356,7 @@ class Chapter extends DataClass implements Insertable<Chapter> {
       'scrollOffset': serializer.toJson<int>(scrollOffset),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
       'summary': serializer.toJson<String>(summary),
+      'summaryUpdatedAt': serializer.toJson<DateTime?>(summaryUpdatedAt),
     };
   }
 
@@ -1273,6 +1372,7 @@ class Chapter extends DataClass implements Insertable<Chapter> {
     int? scrollOffset,
     DateTime? updatedAt,
     String? summary,
+    Value<DateTime?> summaryUpdatedAt = const Value.absent(),
   }) => Chapter(
     id: id ?? this.id,
     volumeId: volumeId ?? this.volumeId,
@@ -1285,6 +1385,9 @@ class Chapter extends DataClass implements Insertable<Chapter> {
     scrollOffset: scrollOffset ?? this.scrollOffset,
     updatedAt: updatedAt ?? this.updatedAt,
     summary: summary ?? this.summary,
+    summaryUpdatedAt: summaryUpdatedAt.present
+        ? summaryUpdatedAt.value
+        : this.summaryUpdatedAt,
   );
   Chapter copyWithCompanion(ChaptersCompanion data) {
     return Chapter(
@@ -1303,6 +1406,9 @@ class Chapter extends DataClass implements Insertable<Chapter> {
           : this.scrollOffset,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       summary: data.summary.present ? data.summary.value : this.summary,
+      summaryUpdatedAt: data.summaryUpdatedAt.present
+          ? data.summaryUpdatedAt.value
+          : this.summaryUpdatedAt,
     );
   }
 
@@ -1319,7 +1425,8 @@ class Chapter extends DataClass implements Insertable<Chapter> {
           ..write('cursorOffset: $cursorOffset, ')
           ..write('scrollOffset: $scrollOffset, ')
           ..write('updatedAt: $updatedAt, ')
-          ..write('summary: $summary')
+          ..write('summary: $summary, ')
+          ..write('summaryUpdatedAt: $summaryUpdatedAt')
           ..write(')'))
         .toString();
   }
@@ -1337,6 +1444,7 @@ class Chapter extends DataClass implements Insertable<Chapter> {
     scrollOffset,
     updatedAt,
     summary,
+    summaryUpdatedAt,
   );
   @override
   bool operator ==(Object other) =>
@@ -1352,7 +1460,8 @@ class Chapter extends DataClass implements Insertable<Chapter> {
           other.cursorOffset == this.cursorOffset &&
           other.scrollOffset == this.scrollOffset &&
           other.updatedAt == this.updatedAt &&
-          other.summary == this.summary);
+          other.summary == this.summary &&
+          other.summaryUpdatedAt == this.summaryUpdatedAt);
 }
 
 class ChaptersCompanion extends UpdateCompanion<Chapter> {
@@ -1367,6 +1476,7 @@ class ChaptersCompanion extends UpdateCompanion<Chapter> {
   final Value<int> scrollOffset;
   final Value<DateTime> updatedAt;
   final Value<String> summary;
+  final Value<DateTime?> summaryUpdatedAt;
   const ChaptersCompanion({
     this.id = const Value.absent(),
     this.volumeId = const Value.absent(),
@@ -1379,6 +1489,7 @@ class ChaptersCompanion extends UpdateCompanion<Chapter> {
     this.scrollOffset = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.summary = const Value.absent(),
+    this.summaryUpdatedAt = const Value.absent(),
   });
   ChaptersCompanion.insert({
     this.id = const Value.absent(),
@@ -1392,6 +1503,7 @@ class ChaptersCompanion extends UpdateCompanion<Chapter> {
     this.scrollOffset = const Value.absent(),
     required DateTime updatedAt,
     this.summary = const Value.absent(),
+    this.summaryUpdatedAt = const Value.absent(),
   }) : volumeId = Value(volumeId),
        title = Value(title),
        sortOrder = Value(sortOrder),
@@ -1408,6 +1520,7 @@ class ChaptersCompanion extends UpdateCompanion<Chapter> {
     Expression<int>? scrollOffset,
     Expression<DateTime>? updatedAt,
     Expression<String>? summary,
+    Expression<DateTime>? summaryUpdatedAt,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -1421,6 +1534,7 @@ class ChaptersCompanion extends UpdateCompanion<Chapter> {
       if (scrollOffset != null) 'scroll_offset': scrollOffset,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (summary != null) 'summary': summary,
+      if (summaryUpdatedAt != null) 'summary_updated_at': summaryUpdatedAt,
     });
   }
 
@@ -1436,6 +1550,7 @@ class ChaptersCompanion extends UpdateCompanion<Chapter> {
     Value<int>? scrollOffset,
     Value<DateTime>? updatedAt,
     Value<String>? summary,
+    Value<DateTime?>? summaryUpdatedAt,
   }) {
     return ChaptersCompanion(
       id: id ?? this.id,
@@ -1449,6 +1564,7 @@ class ChaptersCompanion extends UpdateCompanion<Chapter> {
       scrollOffset: scrollOffset ?? this.scrollOffset,
       updatedAt: updatedAt ?? this.updatedAt,
       summary: summary ?? this.summary,
+      summaryUpdatedAt: summaryUpdatedAt ?? this.summaryUpdatedAt,
     );
   }
 
@@ -1488,6 +1604,9 @@ class ChaptersCompanion extends UpdateCompanion<Chapter> {
     if (summary.present) {
       map['summary'] = Variable<String>(summary.value);
     }
+    if (summaryUpdatedAt.present) {
+      map['summary_updated_at'] = Variable<DateTime>(summaryUpdatedAt.value);
+    }
     return map;
   }
 
@@ -1504,7 +1623,8 @@ class ChaptersCompanion extends UpdateCompanion<Chapter> {
           ..write('cursorOffset: $cursorOffset, ')
           ..write('scrollOffset: $scrollOffset, ')
           ..write('updatedAt: $updatedAt, ')
-          ..write('summary: $summary')
+          ..write('summary: $summary, ')
+          ..write('summaryUpdatedAt: $summaryUpdatedAt')
           ..write(')'))
         .toString();
   }
@@ -6567,6 +6687,7 @@ typedef $$VolumesTableCreateCompanionBuilder =
       required String name,
       required int sortOrder,
       Value<String> summary,
+      Value<int> summaryChapterId,
     });
 typedef $$VolumesTableUpdateCompanionBuilder =
     VolumesCompanion Function({
@@ -6575,6 +6696,7 @@ typedef $$VolumesTableUpdateCompanionBuilder =
       Value<String> name,
       Value<int> sortOrder,
       Value<String> summary,
+      Value<int> summaryChapterId,
     });
 
 final class $$VolumesTableReferences
@@ -6662,6 +6784,11 @@ class $$VolumesTableFilterComposer
 
   ColumnFilters<String> get summary => $composableBuilder(
     column: $table.summary,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get summaryChapterId => $composableBuilder(
+    column: $table.summaryChapterId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6768,6 +6895,11 @@ class $$VolumesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get summaryChapterId => $composableBuilder(
+    column: $table.summaryChapterId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$WorksTableOrderingComposer get workId {
     final $$WorksTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -6812,6 +6944,11 @@ class $$VolumesTableAnnotationComposer
 
   GeneratedColumn<String> get summary =>
       $composableBuilder(column: $table.summary, builder: (column) => column);
+
+  GeneratedColumn<int> get summaryChapterId => $composableBuilder(
+    column: $table.summaryChapterId,
+    builder: (column) => column,
+  );
 
   $$WorksTableAnnotationComposer get workId {
     final $$WorksTableAnnotationComposer composer = $composerBuilder(
@@ -6924,12 +7061,14 @@ class $$VolumesTableTableManager
                 Value<String> name = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
                 Value<String> summary = const Value.absent(),
+                Value<int> summaryChapterId = const Value.absent(),
               }) => VolumesCompanion(
                 id: id,
                 workId: workId,
                 name: name,
                 sortOrder: sortOrder,
                 summary: summary,
+                summaryChapterId: summaryChapterId,
               ),
           createCompanionCallback:
               ({
@@ -6938,12 +7077,14 @@ class $$VolumesTableTableManager
                 required String name,
                 required int sortOrder,
                 Value<String> summary = const Value.absent(),
+                Value<int> summaryChapterId = const Value.absent(),
               }) => VolumesCompanion.insert(
                 id: id,
                 workId: workId,
                 name: name,
                 sortOrder: sortOrder,
                 summary: summary,
+                summaryChapterId: summaryChapterId,
               ),
           withReferenceMapper: (p0) => p0
               .map(
@@ -7080,6 +7221,7 @@ typedef $$ChaptersTableCreateCompanionBuilder =
       Value<int> scrollOffset,
       required DateTime updatedAt,
       Value<String> summary,
+      Value<DateTime?> summaryUpdatedAt,
     });
 typedef $$ChaptersTableUpdateCompanionBuilder =
     ChaptersCompanion Function({
@@ -7094,6 +7236,7 @@ typedef $$ChaptersTableUpdateCompanionBuilder =
       Value<int> scrollOffset,
       Value<DateTime> updatedAt,
       Value<String> summary,
+      Value<DateTime?> summaryUpdatedAt,
     });
 
 final class $$ChaptersTableReferences
@@ -7231,6 +7374,11 @@ class $$ChaptersTableFilterComposer
 
   ColumnFilters<String> get summary => $composableBuilder(
     column: $table.summary,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get summaryUpdatedAt => $composableBuilder(
+    column: $table.summaryUpdatedAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -7392,6 +7540,11 @@ class $$ChaptersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get summaryUpdatedAt => $composableBuilder(
+    column: $table.summaryUpdatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$VolumesTableOrderingComposer get volumeId {
     final $$VolumesTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -7458,6 +7611,11 @@ class $$ChaptersTableAnnotationComposer
 
   GeneratedColumn<String> get summary =>
       $composableBuilder(column: $table.summary, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get summaryUpdatedAt => $composableBuilder(
+    column: $table.summaryUpdatedAt,
+    builder: (column) => column,
+  );
 
   $$VolumesTableAnnotationComposer get volumeId {
     final $$VolumesTableAnnotationComposer composer = $composerBuilder(
@@ -7602,6 +7760,7 @@ class $$ChaptersTableTableManager
                 Value<int> scrollOffset = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<String> summary = const Value.absent(),
+                Value<DateTime?> summaryUpdatedAt = const Value.absent(),
               }) => ChaptersCompanion(
                 id: id,
                 volumeId: volumeId,
@@ -7614,6 +7773,7 @@ class $$ChaptersTableTableManager
                 scrollOffset: scrollOffset,
                 updatedAt: updatedAt,
                 summary: summary,
+                summaryUpdatedAt: summaryUpdatedAt,
               ),
           createCompanionCallback:
               ({
@@ -7628,6 +7788,7 @@ class $$ChaptersTableTableManager
                 Value<int> scrollOffset = const Value.absent(),
                 required DateTime updatedAt,
                 Value<String> summary = const Value.absent(),
+                Value<DateTime?> summaryUpdatedAt = const Value.absent(),
               }) => ChaptersCompanion.insert(
                 id: id,
                 volumeId: volumeId,
@@ -7640,6 +7801,7 @@ class $$ChaptersTableTableManager
                 scrollOffset: scrollOffset,
                 updatedAt: updatedAt,
                 summary: summary,
+                summaryUpdatedAt: summaryUpdatedAt,
               ),
           withReferenceMapper: (p0) => p0
               .map(

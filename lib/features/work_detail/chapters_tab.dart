@@ -220,6 +220,15 @@ class _VolumeHeader extends ConsumerWidget {
                 await _renameVolume(context, ref);
               },
             ),
+            // ENH-07 O3：查看 / 编辑本卷前情回顾（AI 生成的 VOLUME.summary）。
+            ListTile(
+              leading: const Icon(Icons.auto_stories_outlined),
+              title: const Text('查看/编辑本卷前情回顾'),
+              onTap: () async {
+                Navigator.of(sheetContext).pop();
+                await _editVolumeSummary(context, ref);
+              },
+            ),
             ListTile(
               leading: const Icon(Icons.arrow_upward),
               title: const Text('上移'),
@@ -277,6 +286,43 @@ class _VolumeHeader extends ConsumerWidget {
     );
     if (name == null || name.isEmpty || name.length > 30) return;
     await ref.read(chapterRepositoryProvider).renameVolume(volume.id, name);
+  }
+
+  /// 查看 / 编辑本卷前情回顾（ENH-07 O3）：读写 VOLUME.summary。
+  Future<void> _editVolumeSummary(BuildContext context, WidgetRef ref) async {
+    // 不使用外部 TextEditingController：弹窗退场动画期间 builder 会再次执行，
+    // 过早 dispose 会导致「controller used after being disposed」。
+    var text = volume.summary;
+    final result = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('本卷前情回顾'),
+        content: TextFormField(
+          initialValue: volume.summary,
+          autofocus: true,
+          maxLines: 10,
+          maxLength: 1000,
+          onChanged: (value) => text = value,
+          decoration: const InputDecoration(
+            hintText: 'AI 生成或手写的本卷前情回顾，用于后续章节的剧情衔接',
+          ),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(text.trim()),
+            child: const Text('保存'),
+          ),
+        ],
+      ),
+    );
+    if (result == null || result.length > 1000) return;
+    await ref
+        .read(chapterRepositoryProvider)
+        .saveVolumeSummary(volume.id, result);
   }
 
   Future<void> _confirmDeleteVolume(BuildContext context, WidgetRef ref) async {

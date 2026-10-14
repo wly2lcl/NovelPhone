@@ -175,9 +175,16 @@ class ContextBuilder {
         .map((e) => e.summary.trim())
         .join('\n');
 
-    // 前情摘要：本卷前情回顾（ENH-06）+ 前 1-2 章摘要（按作品内章节顺序）
+    // 前情摘要：本卷前情回顾（ENH-06）+ 前 1-2 章摘要（按作品内章节顺序），
+    // 跨卷首章额外注入上一卷回顾（ENH-07 O5）。
     final previousSummary = _previousSummary(
-        allChapters, chapterId, volume?.summary.trim() ?? '');
+      allChapters,
+      chapterId,
+      volume?.summary.trim() ?? '',
+      previousVolumeSummary: _isVolumeHead(allChapters, chapterId)
+          ? await _previousVolumeSummary(workId, volume)
+          : '',
+    );
 
     // 相关角色卡
     final matched = matchCharacters(allCharacters, chapterText);
@@ -271,13 +278,22 @@ class ContextBuilder {
     // 角色卡按「选中原文」匹配（而非整章），更贴近改写语境。
     final matched = matchCharacters(allCharacters, selectedText);
 
+    // 前情摘要（含跨卷首章的上一卷回顾，ENH-07 O5）。
+    final previousSummary = _previousSummary(
+      allChapters,
+      chapterId,
+      volume?.summary.trim() ?? '',
+      previousVolumeSummary: _isVolumeHead(allChapters, chapterId)
+          ? await _previousVolumeSummary(workId, volume)
+          : '',
+    );
+
     return _assemble(
       workTitle: work?.title ?? '',
       budget: budget,
       tail: '',
       chapterOutline: chapterOutline,
-      previousSummary: _previousSummary(
-          allChapters, chapterId, volume?.summary.trim() ?? ''),
+      previousSummary: previousSummary,
       matchedCharacters: matched,
       settingsText: await _settingsText(workId),
       volumeOutline: _volumeOutline(outlineEntries, volume?.id, chapterId),
@@ -377,21 +393,44 @@ class ContextBuilder {
         .where((c) => c.volumeId == chapter?.volumeId)
         .toList(growable: false);
 
-    final material = scoped
+    String digestOf(Chapter c) {
+      final title = c.title.isEmpty ? '未命名章节' : c.title;
+      final cached = c.summary.trim();
+      final digest = cached.isEmpty ? summarizeText(c.content) : cached;
+      return '《$title》$digest';
+    }
+
+    // 增量归并（ENH-07 O6）：素材 = 上一版卷回顾 + 上次归并之后的新增章节摘要；
+    // 无上一版（summaryChapterId=0 或未命中覆盖章）时退化为全量，行为与旧版一致。
+    final prevRecap = volume?.summary.trim() ?? '';
+    final coveredId = volume?.summaryChapterId ?? 0;
+    var freshStart = 0;
+    if (coveredId != 0) {
+      final coveredIndex = scoped.indexWhere((c) => c.id == coveredId);
+      if (coveredIndex >= 0) freshStart = coveredIndex + 1;
+    }
+    final freshMaterial = scoped
+        .sublist(freshStart)
         .where((c) =>
             c.content.trim().isNotEmpty || c.summary.trim().isNotEmpty)
-        .map((c) {
-          final title = c.title.isEmpty ? '未命名章节' : c.title;
-          final cached = c.summary.trim();
-          final digest = cached.isEmpty ? summarizeText(c.content) : cached;
-          return '《$title》$digest';
-        })
+        .map(digestOf)
         .join('\n');
+
+    final blocks = <String>[];
+    if (prevRecap.isEmpty) {
+      if (freshMaterial.isNotEmpty) blocks.add(freshMaterial);
+    } else {
+      blocks.add('【上一版本卷回顾】\n$prevRecap');
+      if (freshMaterial.isNotEmpty) {
+        blocks.add('【新增章节摘要】\n$freshMaterial');
+      }
+    }
+    final material = blocks.join('\n\n');
 
     final system = _volumeSummarySystem();
     final header = '作品：《${work?.title ?? ''}》\n'
         '本卷：${volume?.name ?? ''}\n\n'
-        '【本卷各章摘要】\n';
+        '【本卷素材】\n';
     final room = (budget - estimateTokens(system) - estimateTokens(header))
         .clamp(0, budget);
     final body = material.length > room ? material.substring(0, room) : material;
@@ -402,7 +441,7 @@ class ContextBuilder {
       messages: <ChatMessage>[ChatMessage.user(payload)],
       sections: <ContextSection>[
         ContextSection(
-          label: '本卷各章摘要',
+          label: '本卷素材（上一版回顾 + 新增章节）',
           content: body,
           truncated: truncated,
         ),
@@ -412,6 +451,37 @@ class ContextBuilder {
       estimatedTokens: estimateTokens(system) + estimateTokens(payload),
       budgetTokens: budget,
     );
+  }
+
+  /// 灵感上下文补丁（ENH-07 O7）：桥段点子为工具模式（不经过 _assemble），
+  /// 这里额外提供「前文摘要（含卷 / 前卷前情）」与「本章章纲」，让点子贴合剧情。
+  Future<({String previousSummary, String chapterOutline})> buildInspireContext({
+    required int workId,
+    int? chapterId,
+  }) async {
+    if (chapterId == null) {
+      return (previousSummary: '', chapterOutline: '');
+    }
+    final chapter = await chapters.getChapter(chapterId);
+    if (chapter == null) {
+      return (previousSummary: '', chapterOutline: '');
+    }
+    final allChapters = await chapters.watchChapters(workId).first;
+    final outlineEntries = await outline.listOutline(workId);
+    final volume = await _volumeOf(workId, chapter.volumeId);
+    final previousSummary = _previousSummary(
+      allChapters,
+      chapterId,
+      volume?.summary.trim() ?? '',
+      previousVolumeSummary: _isVolumeHead(allChapters, chapterId)
+          ? await _previousVolumeSummary(workId, volume)
+          : '',
+    );
+    final chapterOutline = outlineEntries
+        .where((e) => e.chapterId == chapterId && e.summary.trim().isNotEmpty)
+        .map((e) => e.summary.trim())
+        .join('\n');
+    return (previousSummary: previousSummary, chapterOutline: chapterOutline);
   }
 
   BuiltContext _assemble({
@@ -467,7 +537,7 @@ class ContextBuilder {
       truncated = true;
     }
     if (total() > budget && summaryText.length > 120) {
-      summaryText = summarizeText(summaryText, maxChars: 120);
+      summaryText = _compressPreviousSummary(summaryText);
       truncated = true;
     }
     if (total() > budget) {
@@ -620,14 +690,52 @@ class ContextBuilder {
     return '（前文略）${content.substring(content.length - tailChars)}';
   }
 
-  /// 前情摘要（ENH-06）：本卷前情回顾 + 最近 1-2 章摘要，供后续章节衔接。
+  /// 压缩前情摘要（ENH-07 O2）：保留【本卷前情】/【前卷前情】等回顾行（截到 ~160 字），
+  /// 只对随后的章节摘要做抽句压缩；无回顾行时退回原逻辑（零回归）。
+  String _compressPreviousSummary(String summary) {
+    final heads = <String>[];
+    final rest = <String>[];
+    for (final line in summary.split('\n')) {
+      if (line.startsWith('【本卷前情】') || line.startsWith('【前卷前情】')) {
+        heads.add(line.length > 161 ? '${line.substring(0, 160)}…' : line);
+      } else {
+        rest.add(line);
+      }
+    }
+    if (heads.isEmpty) return summarizeText(summary, maxChars: 120);
+    final body = rest.join('\n').trim();
+    if (body.isEmpty) return heads.join('\n');
+    return <String>[...heads, summarizeText(body, maxChars: 120)].join('\n');
+  }
+
+  /// 是否为所在卷的首章（ENH-07 O5）：上一个章节属于不同卷时为真；全书首章无前卷。
+  bool _isVolumeHead(List<Chapter> ordered, int chapterId) {
+    final index = ordered.indexWhere((c) => c.id == chapterId);
+    if (index <= 0) return false;
+    return ordered[index - 1].volumeId != ordered[index].volumeId;
+  }
+
+  /// 上一卷的本卷前情回顾（ENH-07 O5）：无上一卷或未生成时返回空串。
+  Future<String> _previousVolumeSummary(int workId, Volume? volume) async {
+    if (volume == null) return '';
+    final volumes = await chapters.listVolumes(workId);
+    final index = volumes.indexWhere((v) => v.id == volume.id);
+    if (index <= 0) return '';
+    return volumes[index - 1].summary.trim();
+  }
+
+  /// 前情摘要（ENH-06 / ENH-07 O5）：上一卷前情 + 本卷前情回顾 + 最近 1-2 章摘要。
   /// [volumeSummary] 为空时输出与旧版逐字一致（零回归）。
   String _previousSummary(
     List<Chapter> ordered,
     int chapterId,
-    String volumeSummary,
-  ) {
+    String volumeSummary, {
+    String previousVolumeSummary = '',
+  }) {
     final parts = <String>[];
+    final lastVolume = previousVolumeSummary.trim();
+    if (lastVolume.isNotEmpty) parts.add('【前卷前情】$lastVolume');
+
     final recap = volumeSummary.trim();
     if (recap.isNotEmpty) parts.add('【本卷前情】$recap');
 

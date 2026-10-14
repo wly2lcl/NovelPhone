@@ -102,6 +102,10 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
   BuiltContext? _context;
   bool _contextExpanded = false;
 
+  /// 生成耗时反馈（ENH-07 O9）：流式期间每秒刷新已用秒数。
+  Timer? _elapsedTimer;
+  int _elapsedSeconds = 0;
+
   double _length = 500;
   String _lastDirection = '';
 
@@ -130,6 +134,7 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
 
   @override
   void dispose() {
+    _elapsedTimer?.cancel();
     for (final sub in _subs) {
       sub.cancel();
     }
@@ -137,6 +142,21 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
       controller.dispose();
     }
     super.dispose();
+  }
+
+  /// 启动生成耗时计时（ENH-07 O9）。
+  void _startElapsed() {
+    _elapsedTimer?.cancel();
+    _elapsedSeconds = 0;
+    _elapsedTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() => _elapsedSeconds++);
+    });
+  }
+
+  /// 停止生成耗时计时（保留最后一次秒数供作者参考）。
+  void _stopElapsed() {
+    _elapsedTimer?.cancel();
+    _elapsedTimer = null;
   }
 
   String get _title {
@@ -187,6 +207,7 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
       for (var i = 0; i < count; i++)
         _buildStream(i).listen((event) => _onEvent(event, i)),
     ];
+    _startElapsed();
   }
 
   /// 按模式构造某一路生成流（索引仅用于多候选续写）。
@@ -254,6 +275,7 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
         _errorKind = event.kind;
         _finishOne();
       case AiNeedsConfig():
+        _stopElapsed();
         setState(() {
           _streaming = false;
           _pending = 0;
@@ -266,6 +288,7 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
   void _finishOne() {
     if (_pending > 0) _pending--;
     if (_pending == 0 && mounted) {
+      _stopElapsed();
       setState(() => _streaming = false);
     }
   }
@@ -471,6 +494,12 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
             height: 12,
             child: CircularProgressIndicator(strokeWidth: 1.6),
           ),
+        // ENH-07 O9：生成耗时反馈（流式期间每秒刷新，结束后保留最后一次秒数）。
+        if (_elapsedSeconds > 0) ...<Widget>[
+          const SizedBox(width: 6),
+          Text('$_elapsedSeconds 秒',
+              style: TextStyle(fontSize: 12, color: context.paper.inkSoft)),
+        ],
         const Spacer(),
         IconButton(
           tooltip: '收起',
@@ -634,23 +663,38 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
               ? Text('已省略较早前文',
                   style: TextStyle(fontSize: 11, color: context.paper.accent))
               : null,
-          children: built.sections
-              .map((section) => Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Text(section.label,
-                            style: const TextStyle(
-                                fontSize: 12, fontWeight: FontWeight.w600)),
-                        const SizedBox(height: 2),
-                        Text(section.content,
-                            style: TextStyle(
-                                fontSize: 12, color: context.paper.inkSoft)),
-                      ],
-                    ),
-                  ))
-              .toList(),
+          // ENH-07 O1：详情区限高并内部滚动，展开后无需与外层 / 输出框抢滚动手势。
+          children: <Widget>[
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.sizeOf(context).height * 0.26,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: built.sections
+                      .map((section) => Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Text(section.label,
+                                    style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600)),
+                                const SizedBox(height: 2),
+                                Text(section.content,
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        color: context.paper.inkSoft)),
+                              ],
+                            ),
+                          ))
+                      .toList(),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -661,7 +705,8 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
       key: ValueKey<int>(_activeIndex),
       controller: _activeResult,
       minLines: 4,
-      maxLines: 10,
+      // ENH-07 O1：输出框限高，避免过长正文吞掉垂直滚动手势、挤占上下文详情区。
+      maxLines: 6,
       style: TextStyle(fontSize: 15, height: 1.6, color: context.paper.ink),
       decoration: InputDecoration(
         hintText: 'AI 产出将在这里流式显示，可直接编辑后再插入正文',
@@ -745,6 +790,7 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
               for (final sub in _subs) {
                 sub.cancel();
               }
+              _stopElapsed();
               setState(() => _streaming = false);
             },
             child: const Text('停止'),
@@ -780,4 +826,29 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
       ],
     );
   }
+}
+
+/// 清洗 AI 输出（ENH-07 O8）：去除行首 markdown 标记（# 标题 / - * + 列表 /
+/// 数字编号）、行尾空白与多余空行。仅在落库前调用，不改动面板中的 AI 原文。
+String sanitizeAiText(String text) {
+  final cleaned = <String>[];
+  for (final raw in text.split('\n')) {
+    var line = raw.trimRight();
+    line = line.replaceFirst(RegExp(r'^\s*#{1,6}\s*'), '');
+    line = line.replaceFirst(RegExp(r'^\s*[-*+]\s+'), '');
+    line = line.replaceFirst(RegExp(r'^\s*\d+[.、)）]\s*'), '');
+    cleaned.add(line);
+  }
+  final buffer = StringBuffer();
+  var blank = false;
+  for (final line in cleaned) {
+    if (line.trim().isEmpty) {
+      if (buffer.isEmpty || blank) continue;
+      blank = true;
+    } else {
+      blank = false;
+    }
+    buffer.writeln(line);
+  }
+  return buffer.toString().trim();
 }

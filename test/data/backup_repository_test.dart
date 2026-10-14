@@ -166,4 +166,25 @@ void main() {
     final volumes = await chapters.listVolumes(workId);
     expect(volumes.single.summary, '');
   });
+
+  test('旧备份缺摘要更新时间与归并覆盖章仍可恢复（ENH-07 O4/O6）', () async {
+    final workId = await seedWork();
+    final data = await backup.exportData();
+    // 模拟 v8 之前的备份：章节无 summaryUpdatedAt、卷无 summaryChapterId。
+    for (final row in (data['tables'] as Map)['chapters'] as List) {
+      (row as Map).remove('summaryUpdatedAt');
+    }
+    for (final row in (data['tables'] as Map)['volumes'] as List) {
+      (row as Map).remove('summaryChapterId');
+    }
+    await works.deleteWork(workId);
+
+    final report = await backup.restore(data, overwrite: true);
+
+    expect(report.chapters, 1);
+    final restored = await chapters.watchChapters(workId).first;
+    expect(restored.single.summaryUpdatedAt, isNull);
+    final volumes = await chapters.listVolumes(workId);
+    expect(volumes.single.summaryChapterId, 0);
+  });
 }

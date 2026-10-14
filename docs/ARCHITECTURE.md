@@ -246,6 +246,7 @@ erDiagram
         string name
         int sortOrder
         string summary "ENH-06：AI 本卷前情回顾，供续写/改写注入"
+        int summaryChapterId "ENH-07：卷回顾增量归并已覆盖到的章节 id（0=全量）"
     }
     CHAPTER {
         int id PK
@@ -259,6 +260,7 @@ erDiagram
         int scrollOffset "会话恢复：滚动位置"
         datetime updatedAt
         string summary "ENH-05：AI 逐章摘要（前情回顾），供续写/改写注入"
+        datetime summaryUpdatedAt "ENH-07：摘要生成时间，用于过期提示（可空）"
     }
     CHAPTER_SNAPSHOT {
         int id PK
@@ -359,6 +361,8 @@ erDiagram
 - CHARACTER_RELATION：人物关系（B-09），一条有向关系 `fromCharacterId → toCharacterId` 附关系标签，两端角色删除时随外键级联删除；`workId` 便于按作品查询。关系图页用 CustomPainter 将角色均布于圆周、按关系连线（线条中点标注标签），下方列表支持增删改；为静态环形布局，不做力导向/拖拽。SETTING_ENTRY 与 CHARACTER_RELATION 随 B-09 落地（schemaVersion 4 → 5），并纳入整库备份。
 - CHAPTER.summary：AI 逐章摘要（ENH-05），默认空串，由「AI 章节工具 → 生成本章摘要」写入，供后续章节续写/改写注入「前文摘要」（见 5.3），区别于 OUTLINE_ENTRY 手写章纲；随章节级联删除、纳入整库备份。列随 ENH-05 落地（schemaVersion 5 → 6，`m.addColumn`）；恢复旧备份（无该键）时 `putIfAbsent('summary', '')` 兜底，避免 drift `fromJson` 对非空列缺键抛异常。
 - VOLUME.summary：AI 本卷前情回顾（ENH-06），默认空串，由「AI 章节工具 → 生成本卷前情回顾」写入，续写/改写时与最近 1-2 章摘要一并注入「前文摘要」（见 5.3）；卷摘要为空时输出与旧版逐字一致（零回归）。列随 ENH-06 落地（schemaVersion 6 → 7，`m.addColumn`）；恢复旧备份（无该键）时 `putIfAbsent('summary', '')` 兜底。
+- CHAPTER.summaryUpdatedAt（ENH-07）：可空，`saveChapterSummary` 写入时记录当前时间；「查看/编辑本章摘要」弹窗在摘要非空且正文 `updatedAt` 晚于它（或缺值）时提示「摘要可能过期」（见 PRD 5.5.1）。列随 ENH-07 落地（schemaVersion 7 → 8，`m.addColumn`）；恢复旧备份（无该键）时 `putIfAbsent('summaryUpdatedAt', null)` 兜底。
+- VOLUME.summaryChapterId（ENH-07）：默认 0，`saveVolumeSummary` 传入 `coveredChapterId` 时记录本次归并覆盖到的章节，供 `buildVolumeSummary` 增量归并（上一版回顾 + 新增章节摘要）；0 表示尚未归并过、按全量处理（零回归）。列随 ENH-07 落地（schemaVersion 7 → 8，`m.addColumn`）；恢复旧备份（无该键）时 `putIfAbsent('summaryChapterId', 0)` 兜底。
 
 ### 4.3 一致性规则
 
@@ -422,13 +426,14 @@ abstract interface class AiClient {
 按 PRD 6.2 的优先级装配，实现要点：
 
 1. 预算计算：`budget = min(模型上下文窗口, 配置上限) * 0.5`，按字符数近似 token（中文 1 字 ≈ 1 token，留 20% 余量）`[Expert judgment]`。
-2. 装配顺序：system 指令 → 本章尾部（保留最近 3000 字，超出截断并标注"（前文略）"）→ 本章章纲 → 前文摘要（ENH-06 起**本卷前情回顾 `VOLUME.summary` 前置为「【本卷前情】…」，随后是最近 1-2 章摘要**；ENH-05 起**优先使用 AI 已生成的 `CHAPTER.summary`**，未生成的章节回退本地按段落抽首句拼接，超预算再截断）→ 相关角色卡（本章正文做姓名匹配，最多 8 张，超出保留匹配最多的 3 张）→ 设定集（世界观/地点/道具，按类型分组）→ 卷级大纲。
+2. 装配顺序：system 指令 → 本章尾部（保留最近 3000 字，超出截断并标注"（前文略）"）→ 本章章纲 → 前文摘要（ENH-06 起**本卷前情回顾 `VOLUME.summary` 前置为「【本卷前情】…」，随后是最近 1-2 章摘要**；ENH-05 起**优先使用 AI 已生成的 `CHAPTER.summary`**，未生成的章节回退本地按段落抽首句拼接，超预算再截断；ENH-07 起**当前章为其所属卷首章时再前置「【前卷前情】…」（上一卷 `VOLUME.summary`）**，且超预算压缩前文摘要时**保留以「【本卷前情】/【前卷前情】」开头的回顾行**，避免卷级前情被压没）→ 相关角色卡（本章正文做姓名匹配，最多 8 张，超出保留匹配最多的 3 张）→ 设定集（世界观/地点/道具，按类型分组）→ 卷级大纲。
 3. 超预算时从优先级最低项开始丢弃（先卷级大纲，再设定集，再角色卡减张、前文摘要压缩、尾部截断/整段丢弃），面板提示"已省略较早前文"。
 4. 全部注入内容在待确认面板的"上下文详情"中可展开查看——作者能看见 AI 看到了什么，这是产品信任的一部分 `[Expert judgment]`。
 5. 改写任务（ENH-04，`buildRewrite`）：不注入本章尾部正文，改为把「【待改写原文】」作为末尾 user 消息 payload；该 payload 不参与超预算截断（始终完整保留），system 走「改稿助手」角色指令（只输出正文、保持人称视角与既有事实、不增删情节）。
 6. 逐章摘要（ENH-05，`buildSummary`）：以本章正文为主材料直构上下文（system + 作品/章节头 + 正文），正文按 `budget - system - header` 截断并标记 `truncated`；走「摘要」system 指令（只产出摘要正文，非对话）；不做分段 map-reduce。
 7. 章纲扩写（ENH-05，`buildOutlineExpand`）：以作者一句话梗概为种子直构上下文（system + 作品/章节头 + 梗概），走「章纲扩写」system 指令产出分场/分段大纲；上下文详情展示「本章梗概」段落。摘要与章纲扩写均不参与 `_assemble` 的优先级丢弃（内容确定、一次成文）。
-8. 本卷前情回顾（ENH-06，`buildVolumeSummary`）：以本卷「当前章及之前」各章摘要为主材料直构上下文（system + 作品/卷头 + 各章摘要），按 `budget - system - header` 截断并标记 `truncated`；走「本卷前情回顾」system 指令（只产出回顾正文，非对话）；不做增量滚动，每次全量归并；同样不参与 `_assemble` 的优先级丢弃。
+8. 本卷前情回顾（ENH-06，`buildVolumeSummary`）：以本卷「当前章及之前」各章摘要为主材料直构上下文（system + 作品/卷头 + 各章摘要），按 `budget - system - header` 截断并标记 `truncated`；走「本卷前情回顾」system 指令（只产出回顾正文，非对话）；同样不参与 `_assemble` 的优先级丢弃。ENH-07 起改为**增量滚动归并**：卷已归并过（`VOLUME.summaryChapterId != 0`）时，素材为「【上一版本卷回顾】（上一版 `VOLUME.summary`） + 【新增章节摘要】（`summaryChapterId` 之后的各章摘要）」；未归并过（0）时仍按全量归并（零回归）。
+9. AI 灵感（ENH-07，`buildInspireContext`）：桥段点子模式补注入「前文摘要」（复用续写的前文摘要逻辑，含卷级/跨卷前情）与「本章章纲」两段；上下文详情同步展示「前文摘要」「本章章纲」条目。
 
 ### 5.4 Agent Core 与 Tool 抽象
 
@@ -495,7 +500,7 @@ sequenceDiagram
 - 改写（ENH-04）：`buildRewrite` 组装（不含本章尾部，末尾为【待改写原文】）→ 面板选意图（润色/扩写/缩写/改语气，切换即重跑）+ 作者补充指令 → 产出可编辑 → 「替换原文」按点击时快照的选区经 `EditorController.replaceSelection` 回写（走撤销栈，原文漂移则拒绝）。
 - 逐章摘要（ENH-05）：`buildSummary` 组装 → 流式产出 → 面板「保存摘要」经 `ChapterRepository.saveChapterSummary` 写回 `CHAPTER.summary`；模型组优先 `task_model_summary`，未配置回退续写组。
 - 章纲扩写（ENH-05）：`buildOutlineExpand`（种子为作者一句话梗概）→ 流式产出 → 面板「保存到章纲」经 `OutlineRepository.saveChapterSummary` 覆盖写入本章章纲；模型组优先 `task_model_outline`，未配置回退续写组。
-- 本卷前情回顾（ENH-06）：`buildVolumeSummary`（素材为本卷当前章及之前各章摘要）→ 流式产出 → 面板「保存前情回顾」经 `ChapterRepository.saveVolumeSummary` 写回 `VOLUME.summary`；模型组优先 `task_model_volume`，未配置回退续写组；作者亦可用「查看/编辑本章摘要」弹窗手动查看/修改 `CHAPTER.summary`（上限 1000 字）。
+- 本卷前情回顾（ENH-06）：`buildVolumeSummary`（素材为本卷当前章及之前各章摘要）→ 流式产出 → 面板「保存前情回顾」经 `ChapterRepository.saveVolumeSummary` 写回 `VOLUME.summary`；模型组优先 `task_model_volume`，未配置回退续写组；作者亦可用「查看/编辑本章摘要」弹窗手动查看/修改 `CHAPTER.summary`（上限 1000 字）。ENH-07：`buildVolumeSummary` 改为增量归并（保存时记录 `summaryChapterId`）、面板 header 显示实时生成耗时秒数；作者亦可在作品详情「章节」Tab 卷头「…」菜单「查看/编辑本卷前情回顾」手改 `VOLUME.summary`；AI 产出（摘要 / 卷回顾 / 章纲）落库前统一经 `sanitizeAiText` 清洗 Markdown 标记与多余空行。
 - 全部用例共享同一 AiClient 与错误处理，不各写一套 `[Expert judgment]`。
 
 ---
@@ -515,7 +520,7 @@ sequenceDiagram
 | AiUseCase.rewrite | `(workId, chapterId, selectedText, intent, instruction?) → Stream<AiEvent>` | intent = polish/expand/condense/tone（ENH-04）；模型组优先 `task_model_rewrite`，未配置回退续写组；上下文走 `buildRewrite`（末尾为【待改写原文】） |
 | AiUseCase.summarizeChapter | `(workId, chapterId) → Stream<AiEvent>` | ENH-05：模型组优先 `task_model_summary`，未配置回退续写组；上下文走 `buildSummary`（本章正文为主材料，超预算截断） |
 | AiUseCase.expandOutline | `(workId, chapterId, seed) → Stream<AiEvent>` | ENH-05：种子为作者一句话梗概；模型组优先 `task_model_outline`，未配置回退续写组；上下文走 `buildOutlineExpand` |
-| AiUseCase.summarizeVolume | `(workId, chapterId) → Stream<AiEvent>` | ENH-06：模型组优先 `task_model_volume`，未配置回退续写组；上下文走 `buildVolumeSummary`（本卷当前章及之前各章摘要，超预算截断） |
+| AiUseCase.summarizeVolume | `(workId, chapterId) → Stream<AiEvent>` | ENH-06：模型组优先 `task_model_volume`，未配置回退续写组；上下文走 `buildVolumeSummary`（本卷当前章及之前各章摘要，超预算截断；ENH-07 起增量归并「上一版回顾 + 新增章节摘要」） |
 | AiUseCase.checkFlavor | `(scope: 单章 chapterId 或整作 workId, deep) → Stream<CheckEvent>` | scope 二选一，支持整作检查（PRD 5.7）；deep=false 仅规则引擎 |
 | SettingsRepository | `watchModelGroups()` / `watchTaskModelId(task)` | key 经 secure storage；任务→模型映射存 APP_SETTING 的 `task_model_*` 键，不暴露明文给 UI 之外 |
 | AiUseCase.testConnection | `(group) → Future<TestResult>` | 用该模型组构造 AiClient 发一次最小请求；网络调用不放 Repository 层，设置页直连此用例（图 F4 → A1） |

@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -17,6 +18,7 @@ import 'package:novelphone/data/repositories/work_repository.dart';
 import 'package:novelphone/data/secure_key_store.dart';
 import 'package:novelphone/features/ai/ai_providers.dart';
 import 'package:novelphone/features/ai/ai_service.dart';
+import 'package:novelphone/features/editor/ai_confirm_panel.dart';
 import 'package:novelphone/features/editor/editor_page.dart';
 
 /// 编辑器页面级回归（M1-22 真机验收暴露的缺陷）：
@@ -338,5 +340,41 @@ void main() {
     expect(chapter!.summary, '手动摘要：她笑了。');
 
     await closePage(tester);
+  });
+
+  // ---------- ENH-07：摘要过期提示（O4）/ AI 输出清洗（O8）----------
+
+  testWidgets('正文改动后查看摘要提示可能过期（ENH-07 O4）', (tester) async {
+    await seed('她不禁笑了。');
+    await chapters.saveChapterSummary(chapterId, '摘要：她笑了。');
+    // 让正文更新时间晚于摘要更新时间（drift 时间戳秒级精度，直接写未来时间避免等待）。
+    await (db.update(db.chapters)..where((t) => t.id.equals(chapterId)))
+        .write(ChaptersCompanion(
+      updatedAt: Value(DateTime.now().add(const Duration(days: 1))),
+    ));
+
+    await tester.pumpWidget(wrap());
+    await settle(tester, find.byType(TextField));
+
+    await tester.tap(find.byTooltip('AI 章节工具'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.tap(find.text('查看/编辑本章摘要'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+
+    expect(find.text('正文已改动，摘要可能过期，建议重新生成'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await closePage(tester);
+  });
+
+  test('清洗 AI 输出的 Markdown 标记与多余空行（ENH-07 O8）', () async {
+    await seed('她不禁笑了。');
+
+    expect(
+      sanitizeAiText('# 本章摘要\n- 第一件事\n- 第二件事\n\n\n1. 第三件事\n'),
+      '本章摘要\n第一件事\n第二件事\n\n第三件事',
+    );
   });
 }

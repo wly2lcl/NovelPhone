@@ -528,17 +528,20 @@ class _EditorPageState extends ConsumerState<EditorPage> {
   Future<void> _saveSummary(String text) async {
     await ref
         .read(chapterRepositoryProvider)
-        .saveChapterSummary(widget.chapterId, text);
+        .saveChapterSummary(widget.chapterId, sanitizeAiText(text).trim());
   }
 
   /// 本卷前情回顾（ENH-06）：把 AI 回顾写回 VOLUME.summary，供后续章节续写注入。
+  /// 同时记录本次归并覆盖到的章节（ENH-07 O6 增量归并）。
   Future<void> _saveVolumeSummary(String text) async {
     final chapter =
         await ref.read(chapterRepositoryProvider).getChapter(widget.chapterId);
     if (chapter == null) return;
-    await ref
-        .read(chapterRepositoryProvider)
-        .saveVolumeSummary(chapter.volumeId, text);
+    await ref.read(chapterRepositoryProvider).saveVolumeSummary(
+          chapter.volumeId,
+          sanitizeAiText(text).trim(),
+          coveredChapterId: widget.chapterId,
+        );
   }
 
   /// 章纲扩写（ENH-05）：把 AI 分场大纲覆盖写入本章章纲。
@@ -549,7 +552,7 @@ class _EditorPageState extends ConsumerState<EditorPage> {
           workId: widget.workId,
           chapterId: widget.chapterId,
           volumeId: chapter?.volumeId,
-          summary: text,
+          summary: sanitizeAiText(text).trim(),
         );
   }
 
@@ -561,19 +564,36 @@ class _EditorPageState extends ConsumerState<EditorPage> {
     // 不使用外部 TextEditingController：弹窗退场动画期间 builder 会再次执行，
     // 过早 dispose 会导致「controller used after being disposed」。
     var text = chapter?.summary ?? '';
+    // ENH-07 O4：摘要生成后正文又有改动时，提示摘要可能过期。
+    final summaryUpdatedAt = chapter?.summaryUpdatedAt;
+    final stale = text.trim().isNotEmpty &&
+        (summaryUpdatedAt == null ||
+            (chapter?.updatedAt.isAfter(summaryUpdatedAt) ?? false));
     final result = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('本章 AI 摘要'),
-        content: TextFormField(
-          initialValue: text,
-          autofocus: true,
-          maxLines: 8,
-          maxLength: 1000,
-          onChanged: (value) => text = value,
-          decoration: const InputDecoration(
-            hintText: 'AI 生成的前情摘要，可手动修改；用于后续章节的剧情衔接',
-          ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            if (stale) ...<Widget>[
+              Text('正文已改动，摘要可能过期，建议重新生成',
+                  style:
+                      TextStyle(fontSize: 12, color: context.paper.accent)),
+              const SizedBox(height: 8),
+            ],
+            TextFormField(
+              initialValue: text,
+              autofocus: true,
+              maxLines: 8,
+              maxLength: 1000,
+              onChanged: (value) => text = value,
+              decoration: const InputDecoration(
+                hintText: 'AI 生成的前情摘要，可手动修改；用于后续章节的剧情衔接',
+              ),
+            ),
+          ],
         ),
         actions: <Widget>[
           TextButton(

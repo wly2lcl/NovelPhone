@@ -226,11 +226,26 @@ M4 自动化验证记录（2026-09-30）：`flutter analyze` 无问题；`flutte
   - 验证：`test/core/context_builder_test.dart` 新增 3 个用例（卷摘要注入与空卷零回归、`buildVolumeSummary` 归并与超预算截断、首章仅含本章）；`test/data/repository_test.dart` 新增 1 个用例（`saveVolumeSummary` 只改卷摘要字段）；`test/data/backup_repository_test.dart` 新增 1 个用例（旧备份卷缺 summary 键仍可恢复）；`test/features/ai_check_test.dart` 新增 2 个用例（卷回顾零配置引导、回退续写组与统计）；`test/features/editor_page_test.dart` 新增 1 个用例（菜单四项可见 + 查看/编辑本章摘要弹窗落库）。`flutter analyze` 无问题，`flutter test` 265 用例全绿。
   - 文档同步：PRD 5.5.1 / 5.8 / 6.1 / 6.2；ARCHITECTURE 4.2 / 5.3 / 5.6 / 6.1；README 当前状态。
 
+- [x] ENH-07（P1）体验与上下文优化（O1-O9）：
+  - O1 面板上下文详情滚动解耦：`AiConfirmPanel` 上下文详情区改为「限高（屏高 26%）+ 内部滚动」，避免展开后把下方按钮挤出屏幕；输出框 `maxLines` 10 → 6 同理。
+  - O2 压缩保留【本卷前情】：`ContextBuilder._compressPreviousSummary` 在超预算压缩前文摘要时，保留以「【本卷前情】/【前卷前情】」开头的回顾行（截到 160 字），其余行才走 `summarizeText`，避免卷级前情被压没。
+  - O3 卷摘要查看/编辑入口：作品详情「章节」Tab 卷头「…」菜单新增「查看/编辑本卷前情回顾」，弹窗可查看/手改 `VOLUME.summary`（上限 1000 字，沿用 `TextFormField(initialValue:)` 写法）；保存不记录归并覆盖章（纯手改）。
+  - O4 摘要过期提示：`CHAPTER` 新增 `summaryUpdatedAt` 列（schemaVersion 7 → 8），`saveChapterSummary` 记录更新时间；「查看/编辑本章摘要」弹窗在正文更新时间晚于摘要时间（或缺摘要时间）且摘要非空时提示「正文已改动，摘要可能过期，建议重新生成」。
+  - O5 跨卷前情注入：`ContextBuilder._previousSummary` 新增 `previousVolumeSummary`，当当前章为其所属卷的**首章**（`_isVolumeHead`）时把「【前卷前情】…」前置；同卷章不注入。
+  - O6 卷回顾增量归并：`VOLUME` 新增 `summaryChapterId` 列（schemaVersion 7 → 8），`saveVolumeSummary` 记录本次归并覆盖到的章节；`buildVolumeSummary` 改为「上一版卷回顾（`【上一版本卷回顾】`） + 新增章节摘要（`【新增章节摘要】`）」增量归并，未覆盖过（`summaryChapterId == 0`）时仍全量归并（零回归）。
+  - O7 灵感上下文补全：新增 `ContextBuilder.buildInspireContext`，`AiService` 桥段点子分支调用它以补注入「前文摘要」与「本章章纲」两段，上下文详情同步展示。
+  - O8 AI 输出格式清洗：新增顶层函数 `sanitizeAiText`，落库前统一去除行首 markdown 标记（`#` 标题 / `- * +` 列表 / 数字编号）、行尾空白与多余空行；摘要 / 前情回顾 / 章纲要写入正文或字段的产出均先清洗。
+  - O9 生成耗时反馈：`AiConfirmPanel` header 在生成期间显示「N 秒」实时计时（首个事件起、`_pending` 归零或发生错误 / 停止时停表）。
+  - 备份兼容：`BackupRepository.restore` 对旧备份章节缺 `summaryUpdatedAt`、卷缺 `summaryChapterId` 分别 `putIfAbsent` 兜底（null / 0）。
+  - 验证：`test/core/context_builder_test.dart` 新增 3 个用例（O2 压缩保留卷前情、O5 跨卷首章注入前卷前情 / 同卷不注入、O6 增量归并）；`test/data/repository_test.dart` 新增 2 个用例（`saveChapterSummary` 记录摘要更新时间、`saveVolumeSummary` 记录归并覆盖章）；`test/data/backup_repository_test.dart` 新增 1 个用例（旧备份缺两列仍可恢复）；`test/features/editor_page_test.dart` 新增 2 个用例（O4 摘要过期提示、O8 `sanitizeAiText`）。`flutter analyze` 无问题，`flutter test` 273 用例全绿。
+  - 文档同步：PRD 5.5 / 5.5.1 / 5.8 / 6.1 / 6.2；ARCHITECTURE 4.2 / 5.3 / 5.6 / 6.1；README 当前状态。
+  - 真机验收（2026-10-14，SM_G998B / Android 13，release APK）：编辑器「AI 续写」面板 header 显示生成耗时（如「2 秒」）并在产出完成后停表；展开「AI 看到的上下文」后该区域限高且可内部滚动、下方按钮仍在视口内（O1 / O9 贯通）；作品详情「章节」Tab 卷头「…」→「查看/编辑本卷前情回顾」正常弹出「本卷前情回顾」查看/编辑弹窗（O3 贯通）；「AI 章节工具 → 生成本章摘要」保存后再改动正文，「查看/编辑本章摘要」弹窗顶部出现「正文已改动，摘要可能过期，建议重新生成」提示（O4 贯通）。
+
 ---
 
 ## 后置 backlog（不进 MVP 承诺）
 
-进度：B-01、B-02、B-03、B-04、B-05、B-06、B-07、B-08、B-09 全部已完成；MVP 收口后的增强 ENH-01（429/5xx 自动退避重试）、ENH-02（设定集纳入 AI 上下文）、ENH-03（全 App 深色模式）、ENH-04（专注模式 + 选中段落 AI 改写 + 导出 EPUB）、ENH-05（AI 逐章摘要 + 多候选续写 + AI 章纲扩写）、ENH-06（滚动摘要（本卷前情回顾）+ 摘要查看编辑）已完成。
+进度：B-01、B-02、B-03、B-04、B-05、B-06、B-07、B-08、B-09 全部已完成；MVP 收口后的增强 ENH-01（429/5xx 自动退避重试）、ENH-02（设定集纳入 AI 上下文）、ENH-03（全 App 深色模式）、ENH-04（专注模式 + 选中段落 AI 改写 + 导出 EPUB）、ENH-05（AI 逐章摘要 + 多候选续写 + AI 章纲扩写）、ENH-06（滚动摘要（本卷前情回顾）+ 摘要查看编辑）、ENH-07（体验与上下文优化 O1-O9）已完成。
 
 - [x] B-01（P2）Responses 端点适配器：新增 `ResponsesAdapter implements AiClient`（架构 9 章触发条件成熟时）
   - 新增 `lib/core/ai/responses_adapter.dart`（端点 `POST {baseUrl}/v1/responses`，system 提为顶层 `instructions`，`input[]` 支持消息 / `function_call` / `function_call_output`；解析 `response.output_text.delta`、`response.completed` 的 usage 与 status；工具调用经 `response.output_item.*` / `response.function_call_arguments.delta` 累积）；`AiProvider.responses` 登记并在 `buildAiClient` 分发；设置页协议类型增第三段「Responses」。

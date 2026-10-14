@@ -435,8 +435,10 @@ void main() {
     final context = await builder.buildVolumeSummary(
         workId: workId, chapterId: third, contextWindow: 32000);
 
-    expect(context.sections.map((s) => s.label), contains('本卷各章摘要'));
-    final material = context.sections.firstWhere((s) => s.label == '本卷各章摘要');
+    expect(context.sections.map((s) => s.label),
+        contains('本卷素材（上一版回顾 + 新增章节）'));
+    final material = context.sections
+        .firstWhere((s) => s.label == '本卷素材（上一版回顾 + 新增章节）');
     expect(material.content, contains('第一章摘要：沈砚离乡。'));
     expect(material.content, contains('第二章摘要：苏晚登场。'));
     // 当前章也在素材内。
@@ -457,8 +459,95 @@ void main() {
     final context = await builder.buildVolumeSummary(
         workId: workId, chapterId: ordered.first.id, contextWindow: 32000);
 
-    final material = context.sections.firstWhere((s) => s.label == '本卷各章摘要');
+    final material = context.sections
+        .firstWhere((s) => s.label == '本卷素材（上一版回顾 + 新增章节）');
     expect(material.content, contains('《第一章》'));
     expect(material.content, isNot(contains('《第二章》')));
+  });
+
+  test('超预算压缩前情摘要时保留【本卷前情】（ENH-07 O2）', () async {
+    final workId = await seedWork();
+    final ordered = await chapters.watchChapters(workId).first;
+    final third = await chapters.createChapter(workId: workId, title: '第三章');
+    await chapters.saveChapter(
+      chapterId: third,
+      title: '第三章',
+      content: '沈砚握紧了刀。',
+      cursorOffset: 0,
+      scrollOffset: 0,
+    );
+    // 长本卷前情（> 120 字），确保触发压缩分支。
+    await chapters.saveVolumeSummary(
+        ordered.first.volumeId, '本卷：${'沈砚离乡，苏晚同行。' * 20}');
+
+    final context = await builder.buildContinue(
+        workId: workId, chapterId: third, contextWindow: 400);
+
+    expect(context.truncated, isTrue);
+    final summary = context.sections.firstWhere((s) => s.label == '前文摘要');
+    expect(summary.content, contains('【本卷前情】'));
+  });
+
+  test('跨卷首章注入【前卷前情】、同卷章不注入（ENH-07 O5）', () async {
+    final workId = await seedWork();
+    final ordered = await chapters.watchChapters(workId).first;
+    final firstVolume = (await chapters.listVolumes(workId)).first;
+    await chapters.saveVolumeSummary(firstVolume.id, '第一卷：沈砚离乡。');
+    final secondVolume = await chapters.createVolume(workId, '第二卷 风起');
+    final head = await chapters.createChapter(
+        workId: workId, volumeId: secondVolume, title: '第二卷 第一章');
+    await chapters.saveChapter(
+      chapterId: head,
+      title: '第二卷 第一章',
+      content: '沈砚回到了长安。',
+      cursorOffset: 0,
+      scrollOffset: 0,
+    );
+
+    // 跨卷首章：注入上一卷回顾。
+    final cross = await builder.buildContinue(
+        workId: workId, chapterId: head, contextWindow: 32000);
+    final crossSummary = cross.sections.firstWhere((s) => s.label == '前文摘要');
+    expect(crossSummary.content, contains('【前卷前情】第一卷：沈砚离乡。'));
+
+    // 同卷非首章：只有本卷前情，没有前卷前情。
+    final same = await builder.buildContinue(
+        workId: workId, chapterId: ordered[1].id, contextWindow: 32000);
+    final sameSummary = same.sections.firstWhere((s) => s.label == '前文摘要');
+    expect(sameSummary.content, contains('【本卷前情】第一卷：沈砚离乡。'));
+    expect(sameSummary.content, isNot(contains('【前卷前情】')));
+  });
+
+  test('卷回顾增量归并：上一版回顾 + 新增章节摘要（ENH-07 O6）', () async {
+    final workId = await seedWork();
+    final ordered = await chapters.watchChapters(workId).first;
+    final volumeId = ordered.first.volumeId;
+    await chapters.saveChapterSummary(ordered[0].id, '第一章摘要：沈砚离乡。');
+    await chapters.saveChapterSummary(ordered[1].id, '第二章摘要：苏晚登场。');
+
+    // 首次全量归并：无上一版回顾，素材为全部章节摘要。
+    final full = await builder.buildVolumeSummary(
+        workId: workId, chapterId: ordered[1].id, contextWindow: 32000);
+    final fullMaterial = full.sections
+        .firstWhere((s) => s.label == '本卷素材（上一版回顾 + 新增章节）');
+    expect(fullMaterial.content, isNot(contains('【上一版本卷回顾】')));
+    expect(fullMaterial.content, contains('第一章摘要：沈砚离乡。'));
+
+    // 记录覆盖到第二章后，新增第三章 → 增量素材 = 上一版回顾 + 新增第三章。
+    await chapters.saveVolumeSummary(volumeId, '本卷：沈砚离乡，苏晚登场。',
+        coveredChapterId: ordered[1].id);
+    final third = await chapters.createChapter(workId: workId, title: '第三章');
+    await chapters.saveChapterSummary(third, '第三章摘要：刀光乍起。');
+
+    final inc = await builder.buildVolumeSummary(
+        workId: workId, chapterId: third, contextWindow: 32000);
+    final incMaterial = inc.sections
+        .firstWhere((s) => s.label == '本卷素材（上一版回顾 + 新增章节）');
+    expect(incMaterial.content, contains('【上一版本卷回顾】'));
+    expect(incMaterial.content, contains('本卷：沈砚离乡，苏晚登场。'));
+    expect(incMaterial.content, contains('【新增章节摘要】'));
+    expect(incMaterial.content, contains('第三章摘要：刀光乍起。'));
+    // 已归并过的第一、二章摘要不再重复注入。
+    expect(incMaterial.content, isNot(contains('第一章摘要：沈砚离乡。')));
   });
 }

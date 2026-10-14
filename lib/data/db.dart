@@ -30,6 +30,9 @@ class Volumes extends Table {
 
   /// 本卷前情回顾摘要（ENH-06）：由卷内章节摘要归并生成，供后续章节续写 / 改写注入。
   TextColumn get summary => text().withDefault(const Constant(''))();
+
+  /// 上次归并覆盖到的章节 id（ENH-07 O6）：支持卷回顾增量滚动归并，0 表示全量。
+  IntColumn get summaryChapterId => integer().withDefault(const Constant(0))();
 }
 
 /// 章节。cursorOffset / scrollOffset 供会话恢复，不参与 AI 上下文组装。
@@ -49,6 +52,9 @@ class Chapters extends Table {
   /// AI 生成的本章摘要（ENH-05）：供后续章节续写 / 改写时注入「前情回顾」，
   /// 区别于作者在 OUTLINE_ENTRY 手写的章纲梗概。
   TextColumn get summary => text().withDefault(const Constant(''))();
+
+  /// 摘要生成 / 更新时间（ENH-07 O4）：正文在此之后有改动时提示摘要可能过期。
+  DateTimeColumn get summaryUpdatedAt => dateTime().nullable()();
 }
 
 /// 章节快照（B-05）：手动创建的版本历史，仅存标题与正文全文，随章节级联删除。
@@ -199,7 +205,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -230,6 +236,12 @@ class AppDatabase extends _$AppDatabase {
           // v7（ENH-06）：VOLUME 追加本卷前情回顾摘要列。
           if (from < 7) {
             await m.addColumn(volumes, volumes.summary);
+          }
+          // v8（ENH-07）：CHAPTER 追加摘要更新时间列；VOLUME 追加归并覆盖章节 id 列
+          // （支撑摘要过期提示与卷回顾滚动增量归并）。
+          if (from < 8) {
+            await m.addColumn(chapters, chapters.summaryUpdatedAt);
+            await m.addColumn(volumes, volumes.summaryChapterId);
           }
         },
         beforeOpen: (details) async {

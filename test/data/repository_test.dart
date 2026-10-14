@@ -151,6 +151,27 @@ void main() {
     expect(volumes.single.name, WorkRepository.defaultVolumeName);
   });
 
+  test('保存章节摘要记录摘要更新时间（ENH-07 O4）', () async {
+    final workId = await works.createWork(title: '长夜行');
+    final chapterId = await chapters.createChapter(workId: workId, title: '第一章');
+
+    await chapters.saveChapterSummary(chapterId, '第一章摘要。');
+
+    final chapter = await chapters.getChapter(chapterId);
+    expect(chapter!.summary, '第一章摘要。');
+    expect(chapter.summaryUpdatedAt, isNotNull);
+  });
+
+  test('保存本卷前情回顾可记录归并覆盖章节（ENH-07 O6）', () async {
+    final workId = await works.createWork(title: '长夜行');
+    final volumeId = (await chapters.listVolumes(workId)).single.id;
+
+    await chapters.saveVolumeSummary(volumeId, '本卷：沈砚离乡。',
+        coveredChapterId: 3);
+
+    expect((await chapters.listVolumes(workId)).single.summaryChapterId, 3);
+  });
+
   test('删除章节后作品汇总更新且章纲引用置空', () async {
     final workId = await works.createWork(title: '长夜行');
     final chapterId = await chapters.createChapter(workId: workId, title: '第一章');

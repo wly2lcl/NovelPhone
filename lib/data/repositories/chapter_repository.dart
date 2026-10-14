@@ -101,9 +101,21 @@ class ChapterRepository {
   }
 
   /// 仅保存 AI 生成的本卷前情回顾（ENH-06）：不触碰章节 / 字数 / 作品汇总。
-  Future<void> saveVolumeSummary(int volumeId, String summary) {
+  /// [coveredChapterId] 非空时同步记录本次归并覆盖到的章节（ENH-07 O6 增量归并）。
+  Future<void> saveVolumeSummary(
+    int volumeId,
+    String summary, {
+    int? coveredChapterId,
+  }) {
     return _volumes.updateVolume(
-        volumeId, VolumesCompanion(summary: Value(summary)));
+      volumeId,
+      VolumesCompanion(
+        summary: Value(summary),
+        summaryChapterId: coveredChapterId == null
+            ? const Value.absent()
+            : Value(coveredChapterId),
+      ),
+    );
   }
 
   /// 卷上移/下移（PRD 5.2：手机端不用拖拽交互）。
@@ -205,11 +217,14 @@ class ChapterRepository {
   }
 
   /// 仅保存 AI 生成的本章摘要（ENH-05）：不触碰正文 / 字数 / 汇总，
-  /// 因此不会误触整洁写作统计与作品字数。
+  /// 因此不会误触整洁写作统计与作品字数。同时记录摘要更新时间（ENH-07 O4）。
   Future<void> saveChapterSummary(int chapterId, String summary) {
     return _chapters.updateChapter(
       chapterId,
-      ChaptersCompanion(summary: Value(summary)),
+      ChaptersCompanion(
+        summary: Value(summary),
+        summaryUpdatedAt: Value(DateTime.now()),
+      ),
     );
   }
 
