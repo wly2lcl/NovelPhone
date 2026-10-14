@@ -183,11 +183,11 @@ Future<void> showSummaryEditor(
       content: TextFormField(
         initialValue: initial,
         autofocus: true,
-        maxLines: 4,
-        maxLength: 200,
+        maxLines: 8,
+        maxLength: 1000,
         onChanged: (value) => text = value,
         decoration: const InputDecoration(
-          hintText: '一句话说明本章要发生什么（0-200 字）',
+          hintText: '说明本章要发生什么（0-1000 字）；AI 章纲扩写也以此为一句话梗概',
         ),
       ),
       actions: <Widget>[
@@ -202,6 +202,6 @@ Future<void> showSummaryEditor(
       ],
     ),
   );
-  if (result == null || result.length > 200) return;
+  if (result == null || result.length > 1000) return;
   await onSave(result);
 }

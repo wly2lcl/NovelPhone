@@ -302,4 +302,71 @@ void main() {
       expect(recorded.rows.single.outputChars, '她轻轻笑了。'.length);
     });
   });
+
+  group('AI 逐章摘要 / 章纲扩写 / 多候选（ENH-05）', () {
+    test('未配置任何模型时引导至设置页且不联网', () async {
+      final service = serviceWith(
+        MockClient((req) async => throw StateError('不应发起网络请求')),
+      );
+
+      final summary = await service
+          .summarizeChapter(workId: workId, chapterId: chapterId)
+          .toList();
+      final outline = await service
+          .expandOutline(workId: workId, chapterId: chapterId, seed: '雨中摊牌')
+          .toList();
+
+      expect(summary.single, isA<AiNeedsConfig>());
+      expect(outline.single, isA<AiNeedsConfig>());
+      expect(await service.isReady(AiTask.summary), isFalse);
+    });
+
+    test('摘要回退续写模型组、上下文含本章正文、落 summary 统计', () async {
+      await configureContinueModel();
+      final events = await serviceWith(MockClient((req) async => sseResponse('沈砚离乡。')))
+          .summarizeChapter(workId: workId, chapterId: chapterId)
+          .toList();
+
+      final built = events.whereType<AiContextBuilt>().single;
+      expect(built.context.messages.single.content, contains(chapterText));
+      expect(events.whereType<AiFinished>().single.text, '沈砚离乡。');
+
+      final recorded = await stats.stats();
+      expect(recorded.rows.single.task, AiTask.summary);
+    });
+
+    test('章纲扩写回退续写模型组、种子进入上下文、落 outline 统计', () async {
+      await configureContinueModel();
+      final events = await serviceWith(
+        MockClient((req) async => sseResponse('分场一：雨夜相遇。')),
+      ).expandOutline(workId: workId, chapterId: chapterId, seed: '雨中摊牌').toList();
+
+      final built = events.whereType<AiContextBuilt>().single;
+      expect(built.context.messages.single.content, contains('雨中摊牌'));
+      expect(events.whereType<AiFinished>().single.text, '分场一：雨夜相遇。');
+
+      final recorded = await stats.stats();
+      expect(recorded.rows.single.task, AiTask.outlineExpand);
+    });
+
+    test('多候选按 variant 调整温度（版本越靠后越高）', () async {
+      await configureContinueModel();
+      final temperatures = <double>[];
+      final service = serviceWith(MockClient((req) async {
+        final body = jsonDecode(req.body) as Map<String, dynamic>;
+        temperatures.add((body['temperature'] as num).toDouble());
+        return sseResponse('她点头。');
+      }));
+
+      await service
+          .continueWriting(workId: workId, chapterId: chapterId, variant: 0)
+          .toList();
+      await service
+          .continueWriting(workId: workId, chapterId: chapterId, variant: 2)
+          .toList();
+
+      expect(temperatures, hasLength(2));
+      expect(temperatures[1], greaterThan(temperatures[0]));
+    });
+  });
 }

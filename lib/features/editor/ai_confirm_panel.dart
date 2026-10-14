@@ -11,8 +11,19 @@ import '../../data/data_providers.dart';
 import '../ai/ai_providers.dart';
 import '../ai/ai_service.dart';
 
-/// 面板模式：续写 / 桥段点子 / 开篇助手 / 改写。
-enum AiPanelMode { continueWriting, inspireIdeas, inspireOpening, rewrite }
+/// 面板模式：续写 / 桥段点子 / 开篇助手 / 改写 / 逐章摘要 / 章纲扩写。
+enum AiPanelMode {
+  continueWriting,
+  inspireIdeas,
+  inspireOpening,
+  rewrite,
+
+  /// ENH-05：AI 逐章摘要（前情回顾）。
+  summarize,
+
+  /// ENH-05：AI 章纲扩写（一句话梗概 → 分场大纲）。
+  outlineExpand,
+}
 
 /// AI 待确认面板（PRD 5.5 / 5.6，M3-15）：流式产出、可编辑后插入、可重跑可放弃，
 /// 上下文详情可展开（作者能看见 AI 看到了什么）。
@@ -26,6 +37,9 @@ class AiConfirmPanel extends ConsumerStatefulWidget {
     required this.onClose,
     this.rewriteText,
     this.onReplace,
+    this.outlineSeed,
+    this.onSaveSummary,
+    this.onSaveOutline,
   });
 
   final int workId;
@@ -39,6 +53,15 @@ class AiConfirmPanel extends ConsumerStatefulWidget {
   final String? rewriteText;
   final void Function(String text)? onReplace;
 
+  /// 章纲扩写（ENH-05）：作者的一句话梗概种子。
+  final String? outlineSeed;
+
+  /// 逐章摘要（ENH-05）：保存摘要回调（写回 CHAPTER.summary）。
+  final void Function(String text)? onSaveSummary;
+
+  /// 章纲扩写（ENH-05）：保存大纲回调（写回本章章纲）。
+  final void Function(String text)? onSaveOutline;
+
   final VoidCallback onClose;
 
   @override
@@ -46,18 +69,31 @@ class AiConfirmPanel extends ConsumerStatefulWidget {
 }
 
 class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
-  final TextEditingController _result = TextEditingController();
-
   late AiPanelMode _mode = widget.initialMode;
-  StreamSubscription<AiEvent>? _subscription;
+
+  /// 结果缓冲（ENH-05）：多候选续写 3 个（各自可编辑），其余模式只用第 0 个。
+  final List<TextEditingController> _results =
+      List<TextEditingController>.generate(3, (_) => TextEditingController());
+
+  /// 多候选续写（ENH-05）：仅对续写生效，默认开。
+  bool _multiCandidate = true;
+
+  /// 当前展示 / 采纳的候选下标（非多候选时恒为 0）。
+  int _selected = 0;
+
+  List<StreamSubscription<AiEvent>> _subs = const <StreamSubscription<AiEvent>>[];
 
   bool _streaming = false;
-  String? _error;
+
+  /// 每个候选的失败信息与 usageId（索引与 [_results] 对齐）。
+  final List<String?> _errors = <String?>[null, null, null];
+  final List<int?> _usageIds = <int?>[null, null, null];
   AiErrorKind? _errorKind;
+  int _pending = 0;
+
   bool _needsConfig = false;
   BuiltContext? _context;
   bool _contextExpanded = false;
-  int? _usageId;
 
   double _length = 500;
   String _lastDirection = '';
@@ -65,6 +101,19 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
   /// 改写模式（ENH-04）：意图与作者补充指令。
   String _intent = RewriteIntent.polish;
   String _instruction = '';
+
+  /// 是否处于多候选状态（仅续写生效）。
+  bool get _multiMode =>
+      _mode == AiPanelMode.continueWriting && _multiCandidate;
+
+  /// 当前候选下标。
+  int get _activeIndex => _multiMode ? _selected : 0;
+
+  /// 当前候选的文本控制器。
+  TextEditingController get _activeResult => _results[_activeIndex];
+
+  /// 当前候选的失败信息（错误横幅只展示当前候选）。
+  String? get _activeError => _errors[_activeIndex];
 
   @override
   void initState() {
@@ -74,8 +123,12 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
 
   @override
   void dispose() {
-    _subscription?.cancel();
-    _result.dispose();
+    for (final sub in _subs) {
+      sub.cancel();
+    }
+    for (final controller in _results) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
@@ -89,36 +142,59 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
         return 'AI 灵感 · 开篇助手';
       case AiPanelMode.rewrite:
         return 'AI 改写';
+      case AiPanelMode.summarize:
+        return 'AI 逐章摘要';
+      case AiPanelMode.outlineExpand:
+        return 'AI 章纲扩写';
     }
   }
 
   Future<void> _start({String? direction}) async {
-    await _subscription?.cancel();
+    for (final sub in _subs) {
+      await sub.cancel();
+    }
+    _subs = const <StreamSubscription<AiEvent>>[];
     if (!mounted) return;
     setState(() {
       _streaming = true;
-      _error = null;
       _errorKind = null;
       _needsConfig = false;
       _context = null;
-      _usageId = null;
-      _result.text = '';
+      _selected = 0;
+      for (var i = 0; i < _errors.length; i++) {
+        _errors[i] = null;
+        _usageIds[i] = null;
+      }
+      for (final controller in _results) {
+        controller.text = '';
+      }
       if (direction != null) _lastDirection = direction;
     });
 
+    // 多候选仅对续写生效（ENH-05）。
+    final count = _multiMode ? 3 : 1;
+    _pending = count;
+    _subs = <StreamSubscription<AiEvent>>[
+      for (var i = 0; i < count; i++)
+        _buildStream(i).listen((event) => _onEvent(event, i)),
+    ];
+  }
+
+  /// 按模式构造某一路生成流（索引仅用于多候选续写）。
+  Stream<AiEvent> _buildStream(int index) {
     final service = ref.read(aiServiceProvider);
-    final Stream<AiEvent> stream;
     switch (_mode) {
       case AiPanelMode.continueWriting:
-        stream = service.continueWriting(
+        return service.continueWriting(
           workId: widget.workId,
           chapterId: widget.chapterId,
           direction: _lastDirection.isEmpty ? null : _lastDirection,
           length: _length.round(),
+          variant: _multiMode ? index : null,
         );
       case AiPanelMode.inspireIdeas:
       case AiPanelMode.inspireOpening:
-        stream = service.inspire(
+        return service.inspire(
           workId: widget.workId,
           mode: _mode == AiPanelMode.inspireOpening
               ? InspireMode.opening
@@ -127,41 +203,56 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
           direction: _lastDirection.isEmpty ? null : _lastDirection,
         );
       case AiPanelMode.rewrite:
-        stream = service.rewrite(
+        return service.rewrite(
           workId: widget.workId,
           chapterId: widget.chapterId,
           selectedText: widget.rewriteText ?? '',
           intent: _intent,
           instruction: _instruction.isEmpty ? null : _instruction,
         );
+      case AiPanelMode.summarize:
+        return service.summarizeChapter(
+          workId: widget.workId,
+          chapterId: widget.chapterId,
+        );
+      case AiPanelMode.outlineExpand:
+        return service.expandOutline(
+          workId: widget.workId,
+          chapterId: widget.chapterId,
+          seed: widget.outlineSeed ?? '',
+        );
     }
-
-    _subscription = stream.listen(_onEvent);
   }
 
-  void _onEvent(AiEvent event) {
+  void _onEvent(AiEvent event, int index) {
     if (!mounted) return;
     switch (event) {
       case AiContextBuilt():
-        setState(() => _context = event.context);
+        // 多候选共享同一上下文，取首个即可。
+        if (_context == null) setState(() => _context = event.context);
       case AiTextChunk():
-        setState(() => _result.text = _result.text + event.text);
+        setState(() => _results[index].text = _results[index].text + event.text);
       case AiFinished():
-        setState(() {
-          _streaming = false;
-          _usageId = event.usageId < 0 ? null : event.usageId;
-        });
+        _usageIds[index] = event.usageId < 0 ? null : event.usageId;
+        _finishOne();
       case AiFailed():
-        setState(() {
-          _streaming = false;
-          _error = event.message;
-          _errorKind = event.kind;
-        });
+        _errors[index] = event.message;
+        _errorKind = event.kind;
+        _finishOne();
       case AiNeedsConfig():
         setState(() {
           _streaming = false;
+          _pending = 0;
           _needsConfig = true;
         });
+    }
+  }
+
+  /// 一路候选结束（成功或失败）：全部结束后解除流式态。
+  void _finishOne() {
+    if (_pending > 0) _pending--;
+    if (_pending == 0 && mounted) {
+      setState(() => _streaming = false);
     }
   }
 
@@ -201,57 +292,87 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
       ),
     );
     if (direction == null) return;
-    if (_usageId != null) {
-      await ref.read(aiServiceProvider).markOutcome(_usageId!, 'regenerated');
-    }
+    await _markOutcomeForAll('regenerated');
     await _start(direction: direction);
   }
 
-  Future<void> _abandon() async {
-    if (_usageId != null) {
-      await ref.read(aiServiceProvider).markOutcome(_usageId!, 'ignored');
+  /// 把全部候选（含多候选）按 [outcome] 回写统计（ENH-05）。
+  Future<void> _markOutcomeForAll(String outcome) async {
+    final service = ref.read(aiServiceProvider);
+    for (var i = 0; i < _usageIds.length; i++) {
+      final id = _usageIds[i];
+      if (id == null) continue;
+      await service.markOutcome(id, outcome);
     }
+  }
+
+  /// 采纳当前候选：选中记 adopted，其余候选（仅续写多候选）记 ignored。
+  Future<void> _markAdoption(int chars) async {
+    final service = ref.read(aiServiceProvider);
+    for (var i = 0; i < _usageIds.length; i++) {
+      final id = _usageIds[i];
+      if (id == null) continue;
+      if (i == _activeIndex) {
+        await service.markOutcome(id, 'adopted', adoptedChars: chars);
+      } else if (_mode == AiPanelMode.continueWriting) {
+        await service.markOutcome(id, 'ignored');
+      }
+    }
+  }
+
+  Future<void> _abandon() async {
+    await _markOutcomeForAll('ignored');
     widget.onClose();
   }
 
   Future<void> _insert() async {
-    final text = _result.text.trim();
+    final text = _activeResult.text.trim();
     if (text.isEmpty) return;
     widget.onInsert(text);
-    if (_usageId != null) {
-      await ref
-          .read(aiServiceProvider)
-          .markOutcome(_usageId!, 'adopted', adoptedChars: text.length);
-    }
+    await _markAdoption(text.length);
     widget.onClose();
   }
 
   /// 改写模式（ENH-04）：把 AI 改写结果替换回原文选中区间（走编辑器撤销栈）。
   Future<void> _replace() async {
-    final text = _result.text.trim();
+    final text = _activeResult.text.trim();
     if (text.isEmpty) return;
     final replace = widget.onReplace;
     if (replace == null) return;
     replace(text);
-    if (_usageId != null) {
-      await ref
-          .read(aiServiceProvider)
-          .markOutcome(_usageId!, 'adopted', adoptedChars: text.length);
-    }
+    await _markAdoption(text.length);
+    widget.onClose();
+  }
+
+  /// 逐章摘要（ENH-05）：把摘要写回 CHAPTER.summary。
+  Future<void> _saveSummary() async {
+    final text = _activeResult.text.trim();
+    if (text.isEmpty) return;
+    final save = widget.onSaveSummary;
+    if (save == null) return;
+    save(text);
+    await _markAdoption(text.length);
+    widget.onClose();
+  }
+
+  /// 章纲扩写（ENH-05）：把分场大纲写回本章章纲。
+  Future<void> _saveOutline() async {
+    final text = _activeResult.text.trim();
+    if (text.isEmpty) return;
+    final save = widget.onSaveOutline;
+    if (save == null) return;
+    save(text);
+    await _markAdoption(text.length);
     widget.onClose();
   }
 
   Future<void> _saveToInspiration() async {
-    final text = _result.text.trim();
+    final text = _activeResult.text.trim();
     if (text.isEmpty) return;
     await ref
         .read(inspirationRepositoryProvider)
         .createInspiration(widget.workId, text);
-    if (_usageId != null) {
-      await ref
-          .read(aiServiceProvider)
-          .markOutcome(_usageId!, 'adopted', adoptedChars: text.length);
-    }
+    await _markAdoption(text.length);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('已存入灵感箱')),
@@ -294,11 +415,13 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
                   if (isRewrite) _buildIntentRow(),
                   if (isInspire || _mode == AiPanelMode.continueWriting)
                     _buildLengthRow(),
+                  if (_mode == AiPanelMode.continueWriting)
+                    _buildCandidateControls(),
                   if (isRewrite) _buildInstructionField(),
                   if (_context != null) _buildContextDetails(_context!),
                   const SizedBox(height: 6),
                   _buildResult(),
-                  if (_error != null) _buildError(),
+                  if (_activeError != null) _buildError(),
                   const SizedBox(height: 8),
                   _buildActions(),
                 ],
@@ -328,7 +451,9 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
           tooltip: '收起',
           icon: const Icon(Icons.close, size: 20),
           onPressed: () {
-            _subscription?.cancel();
+            for (final sub in _subs) {
+              sub.cancel();
+            }
             widget.onClose();
           },
         ),
@@ -423,6 +548,45 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
     );
   }
 
+  /// 多候选续写（ENH-05）：开关「3 个候选」，开启后可切换查看 / 采纳某一路。
+  Widget _buildCandidateControls() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        children: <Widget>[
+          FilterChip(
+            label: const Text('3 个候选'),
+            selected: _multiCandidate,
+            onSelected: _streaming
+                ? null
+                : (value) {
+                    setState(() => _multiCandidate = value);
+                    _start();
+                  },
+          ),
+          if (_multiMode) ...<Widget>[
+            const SizedBox(width: 8),
+            Expanded(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: SegmentedButton<int>(
+                  segments: const <ButtonSegment<int>>[
+                    ButtonSegment<int>(value: 0, label: Text('版本 1')),
+                    ButtonSegment<int>(value: 1, label: Text('版本 2')),
+                    ButtonSegment<int>(value: 2, label: Text('版本 3')),
+                  ],
+                  selected: <int>{_selected},
+                  onSelectionChanged: (selection) =>
+                      setState(() => _selected = selection.first),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _buildContextDetails(BuiltContext built) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
@@ -469,7 +633,8 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
 
   Widget _buildResult() {
     return TextField(
-      controller: _result,
+      key: ValueKey<int>(_activeIndex),
+      controller: _activeResult,
       minLines: 4,
       maxLines: 10,
       style: TextStyle(fontSize: 15, height: 1.6, color: context.paper.ink),
@@ -496,7 +661,7 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
           const Icon(Icons.error_outline, size: 18, color: Color(0xFFB3261E)),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(_error!,
+            child: Text(_activeError!,
                 style: const TextStyle(fontSize: 12, color: Color(0xFFB3261E))),
           ),
           if (canGoSettings)
@@ -519,16 +684,37 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
       );
     }
 
-    final hasText = _result.text.trim().isNotEmpty;
+    final hasText = _activeResult.text.trim().isNotEmpty;
     final isInspire = _mode == AiPanelMode.inspireIdeas ||
         _mode == AiPanelMode.inspireOpening;
     final isRewrite = _mode == AiPanelMode.rewrite;
+    final isSummarize = _mode == AiPanelMode.summarize;
+    final isOutlineExpand = _mode == AiPanelMode.outlineExpand;
+    // 主操作按钮：摘要 / 章纲扩写写回对应字段，改写替换原文，其余插入光标处。
+    final String primaryLabel = isRewrite
+        ? '替换原文'
+        : isSummarize
+            ? '保存摘要'
+            : isOutlineExpand
+                ? '保存到章纲'
+                : '插入光标处';
+    final VoidCallback? onPrimary = hasText && !_streaming
+        ? (isRewrite
+            ? _replace
+            : isSummarize
+                ? _saveSummary
+                : isOutlineExpand
+                    ? _saveOutline
+                    : _insert)
+        : null;
     return Row(
       children: <Widget>[
         if (_streaming)
           OutlinedButton(
             onPressed: () {
-              _subscription?.cancel();
+              for (final sub in _subs) {
+                sub.cancel();
+              }
               setState(() => _streaming = false);
             },
             child: const Text('停止'),
@@ -538,8 +724,9 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
             onPressed: () => _start(),
             child: const Text('重新生成'),
           ),
-          // 改写用「补充指令」输入框替代方向弹窗（ENH-04）。
-          if (!isRewrite)
+          // 改写用「补充指令」输入框替代方向弹窗（ENH-04）；
+          // 摘要 / 章纲扩写目标明确，无需「换个方向」（ENH-05）。
+          if (!isRewrite && !isSummarize && !isOutlineExpand)
             TextButton(
               onPressed: _retryWithDirection,
               child: const Text('换个方向'),
@@ -557,10 +744,8 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
         ),
         const SizedBox(width: 4),
         FilledButton(
-          onPressed: hasText && !_streaming
-              ? (isRewrite ? _replace : _insert)
-              : null,
-          child: Text(isRewrite ? '替换原文' : '插入光标处'),
+          onPressed: onPrimary,
+          child: Text(primaryLabel),
         ),
       ],
     );

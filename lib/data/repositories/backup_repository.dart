@@ -149,7 +149,11 @@ class BackupRepository {
       final chapterIdMap = <int, int>{};
       var chapterCount = 0;
       for (final raw in _asList(tables['chapters'])) {
-        final chapter = Chapter.fromJson(raw);
+        // ENH-05：v6 之前导出的备份不含 summary 键，drift 生成的 fromJson 对
+        // 非空列要求键存在，这里补默认空串以保证旧备份仍可恢复。
+        final json = Map<String, dynamic>.from(raw as Map);
+        json.putIfAbsent('summary', () => '');
+        final chapter = Chapter.fromJson(json);
         final volumeId = volumeIdMap[chapter.volumeId];
         if (volumeId == null) continue;
         final newId = await _db.into(_db.chapters).insert(ChaptersCompanion.insert(
@@ -163,6 +167,7 @@ class BackupRepository {
               status: Value(chapter.status),
               cursorOffset: Value(chapter.cursorOffset),
               scrollOffset: Value(chapter.scrollOffset),
+              summary: Value(chapter.summary),
             ));
         chapterIdMap[chapter.id] = newId;
         chapterCount++;

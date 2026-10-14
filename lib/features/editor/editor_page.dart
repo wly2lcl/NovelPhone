@@ -56,6 +56,9 @@ class _EditorPageState extends ConsumerState<EditorPage> {
   int? _rewriteEnd;
   String _rewriteText = '';
 
+  /// 章纲扩写种子（ENH-05）：本章一句话梗概，作为 AI 扩写分场大纲的输入。
+  String? _outlineSeed;
+
   /// 用于从正文 TextField 取出唯一 RenderEditable，做光标居中滚动。
   final GlobalKey _textFieldKey = GlobalKey();
 
@@ -194,6 +197,22 @@ class _EditorPageState extends ConsumerState<EditorPage> {
             icon: const Icon(Icons.list_alt),
             onPressed: _editChapterSummary,
           ),
+          // AI 章节工具（ENH-05）：逐章摘要（前情回顾）与章纲扩写共用此入口。
+          PopupMenuButton<AiPanelMode>(
+            tooltip: 'AI 章节工具',
+            icon: const Icon(Icons.auto_awesome),
+            onSelected: _openAi,
+            itemBuilder: (context) => const <PopupMenuEntry<AiPanelMode>>[
+              PopupMenuItem<AiPanelMode>(
+                value: AiPanelMode.summarize,
+                child: Text('生成本章摘要'),
+              ),
+              PopupMenuItem<AiPanelMode>(
+                value: AiPanelMode.outlineExpand,
+                child: Text('AI 扩写本章纲'),
+              ),
+            ],
+          ),
           // 专注模式唯一开关（ENH-04）：专注下工具栏与状态栏隐藏，必须常驻可退出。
           IconButton(
             tooltip: _focusMode ? '退出专注模式' : '专注模式',
@@ -227,11 +246,15 @@ class _EditorPageState extends ConsumerState<EditorPage> {
               onInsert: _controller.insertAtCursor,
               rewriteText: _rewriteText,
               onReplace: _applyRewrite,
+              outlineSeed: _outlineSeed,
+              onSaveSummary: _saveSummary,
+              onSaveOutline: _saveOutline,
               onClose: () => setState(() {
                 _aiMode = null;
                 _rewriteStart = null;
                 _rewriteEnd = null;
                 _rewriteText = '';
+                _outlineSeed = null;
               }),
             ),
           if (_checkVisible)
@@ -358,10 +381,28 @@ class _EditorPageState extends ConsumerState<EditorPage> {
       );
       return;
     }
+    // 章纲扩写（ENH-05）：以本章一句话梗概为种子，未填写则先引导作者补写。
+    if (mode == AiPanelMode.outlineExpand) {
+      final existing =
+          await ref.read(outlineRepositoryProvider).findByChapter(widget.chapterId);
+      if (!mounted) return;
+      final seed = existing?.summary.trim() ?? '';
+      if (seed.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('请先用顶栏「本章梗概」写一句话梗概，AI 再据此扩写'),
+          ),
+        );
+        return;
+      }
+      _outlineSeed = seed;
+    }
     final task = switch (mode) {
       AiPanelMode.continueWriting => AiTask.continueWriting,
       AiPanelMode.inspireIdeas || AiPanelMode.inspireOpening => AiTask.inspire,
       AiPanelMode.rewrite => AiTask.rewrite,
+      AiPanelMode.summarize => AiTask.summary,
+      AiPanelMode.outlineExpand => AiTask.outlineExpand,
     };
     final ready = await ref.read(aiServiceProvider).isReady(task);
     if (!mounted) return;
@@ -432,6 +473,25 @@ class _EditorPageState extends ConsumerState<EditorPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _controller.focusNode.requestFocus();
     });
+  }
+
+  /// 逐章摘要（ENH-05）：把 AI 摘要写回 CHAPTER.summary，供后续章节续写时注入前情。
+  Future<void> _saveSummary(String text) async {
+    await ref
+        .read(chapterRepositoryProvider)
+        .saveChapterSummary(widget.chapterId, text);
+  }
+
+  /// 章纲扩写（ENH-05）：把 AI 分场大纲覆盖写入本章章纲。
+  Future<void> _saveOutline(String text) async {
+    final chapter =
+        await ref.read(chapterRepositoryProvider).getChapter(widget.chapterId);
+    await ref.read(outlineRepositoryProvider).saveChapterSummary(
+          workId: widget.workId,
+          chapterId: widget.chapterId,
+          volumeId: chapter?.volumeId,
+          summary: text,
+        );
   }
 
   /// 编辑器侧栏入口：直接编辑本章梗概（PRD 5.4 双入口之一）。

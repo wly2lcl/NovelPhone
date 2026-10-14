@@ -285,6 +285,73 @@ class ContextBuilder {
     );
   }
 
+  /// 逐章摘要上下文（ENH-05）：以本章正文为主材料，产出供后续章节衔接的摘要。
+  /// 超长章节按预算截断并标记（不做分段 map-reduce，见方案「明确不做」）。
+  Future<BuiltContext> buildSummary({
+    required int workId,
+    required int chapterId,
+    int contextWindow = 32000,
+  }) async {
+    final budget = (contextWindow * 0.5).round();
+    final work = await works.getWork(workId);
+    final chapter = await chapters.getChapter(chapterId);
+    final title = (chapter?.title ?? '').trim();
+    final content = chapter?.content ?? '';
+    final system = _summarySystem();
+    final header = '作品：《${work?.title ?? ''}》\n'
+        '本章：${title.isEmpty ? '未命名章节' : title}\n\n'
+        '【本章正文】\n';
+    final room =
+        (budget - estimateTokens(system) - estimateTokens(header)).clamp(0, budget);
+    final body =
+        content.length > room ? content.substring(0, room) : content;
+    final truncated = body.length < content.length;
+    final payload = '$header$body';
+    return BuiltContext(
+      system: system,
+      messages: <ChatMessage>[ChatMessage.user(payload)],
+      sections: <ContextSection>[
+        ContextSection(
+          label: '本章正文',
+          content: body,
+          truncated: truncated,
+        ),
+        const ContextSection(label: '任务模式', content: '生成本章摘要（直接产出摘要正文，非对话）'),
+      ],
+      truncated: truncated,
+      estimatedTokens: estimateTokens(system) + estimateTokens(payload),
+      budgetTokens: budget,
+    );
+  }
+
+  /// 章纲扩写上下文（ENH-05）：以本章一句话梗概为种子，产出分场大纲。
+  Future<BuiltContext> buildOutlineExpand({
+    required int workId,
+    required int chapterId,
+    required String seed,
+    int contextWindow = 32000,
+  }) async {
+    final budget = (contextWindow * 0.5).round();
+    final work = await works.getWork(workId);
+    final chapter = await chapters.getChapter(chapterId);
+    final title = (chapter?.title ?? '').trim();
+    final system = _outlineSystem();
+    final payload = '作品：《${work?.title ?? ''}》\n'
+        '本章：${title.isEmpty ? '未命名章节' : title}\n\n'
+        '【本章一句话梗概】\n${seed.trim()}';
+    return BuiltContext(
+      system: system,
+      messages: <ChatMessage>[ChatMessage.user(payload)],
+      sections: <ContextSection>[
+        ContextSection(label: '本章梗概', content: seed.trim()),
+        const ContextSection(label: '任务模式', content: '章纲扩写（一句话梗概 → 分场大纲）'),
+      ],
+      truncated: false,
+      estimatedTokens: estimateTokens(system) + estimateTokens(payload),
+      budgetTokens: budget,
+    );
+  }
+
   BuiltContext _assemble({
     required String workTitle,
     required int budget,
@@ -422,6 +489,28 @@ class ContextBuilder {
     return buffer.toString();
   }
 
+  /// 逐章摘要 system（ENH-05）：只写已发生的事实，供后续章节衔接。
+  String _summarySystem() {
+    final buffer = StringBuffer()
+      ..writeln('你是一位中文小说编辑。请为作者给出的章节正文写一段「本章摘要」，供后续章节的 AI 续写衔接使用。')
+      ..writeln('要求：')
+      ..writeln('1. 篇幅 150~250 字，按时间顺序概括关键事件、人物行动与关系变化、埋下的伏笔。')
+      ..writeln('2. 只写已经发生的事实，不评价、不推测、不抒情，不预告未发生的内容。')
+      ..writeln('3. 不要标题、编号或 markdown 标记，直接输出摘要正文。');
+    return buffer.toString().trim();
+  }
+
+  /// 章纲扩写 system（ENH-05）：一句话梗概 → 可直接指导写作的分场大纲。
+  String _outlineSystem() {
+    final buffer = StringBuffer()
+      ..writeln('你是一位中文小说编剧。作者给出本章的一句话梗概，请扩写为可直接指导写作的「分场大纲」。')
+      ..writeln('要求：')
+      ..writeln('1. 按场景分 3~6 条，每条 1~2 句，写清：地点、出场人物、发生的事件与冲突、情绪转折、结尾留的钩子。')
+      ..writeln('2. 严格贴合原梗概与已有设定，不新增与原梗概矛盾的主线内容。')
+      ..writeln('3. 只输出分场大纲本身，不写额外解释、不加标题。');
+    return buffer.toString().trim();
+  }
+
   /// 改写 system（ENH-04）：只输出改写后正文，保持人称视角与既有事实，不增删情节。
   String _rewriteSystem() {
     final buffer = StringBuffer()
@@ -464,10 +553,15 @@ class ContextBuilder {
     final start = (index - previousChapters).clamp(0, index);
     final picked = ordered.sublist(start, index);
     return picked
-        .where((c) => c.content.trim().isNotEmpty)
+        .where((c) => c.content.trim().isNotEmpty || c.summary.trim().isNotEmpty)
         .map((c) {
           final title = c.title.isEmpty ? '未命名章节' : c.title;
-          return '《$title》${summarizeText(c.content)}';
+          // ENH-05：优先使用 AI 生成的章节摘要（信息密度更高），
+          // 未生成摘要的章节回退到本地抽句，行为与旧版一致。
+          final cached = c.summary.trim();
+          final digest =
+              cached.isEmpty ? summarizeText(c.content) : cached;
+          return '《$title》$digest';
         })
         .join('\n');
   }

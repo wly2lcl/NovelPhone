@@ -310,4 +310,80 @@ void main() {
     );
     expect(matched.map((c) => c.name).toList(), <String>['沈砚', '苏晚']);
   });
+
+  test('前文摘要优先使用 AI 缓存摘要（ENH-05）', () async {
+    final workId = await seedWork();
+    final ordered = await chapters.watchChapters(workId).first;
+    // 为第一章写入 AI 摘要：续写第三章时前文摘要应直接采用缓存内容。
+    await chapters.saveChapterSummary(
+      ordered.first.id,
+      'AI 摘要：沈砚离乡，风从山口灌下。',
+    );
+
+    final third = await chapters.createChapter(workId: workId, title: '第三章');
+    await chapters.saveChapter(
+      chapterId: third,
+      title: '第三章',
+      content: '沈砚握紧了刀。',
+      cursorOffset: 0,
+      scrollOffset: 0,
+    );
+
+    final context = await builder.buildContinue(
+      workId: workId,
+      chapterId: third,
+      contextWindow: 32000,
+    );
+
+    final summarySection =
+        context.sections.firstWhere((s) => s.label == '前文摘要');
+    expect(summarySection.content, contains('AI 摘要：沈砚离乡，风从山口灌下。'));
+  });
+
+  test('buildSummary 以本章正文为材料，超预算时截断并标记（ENH-05）', () async {
+    final workId = await seedWork();
+    final third = await chapters.createChapter(workId: workId, title: '第三章');
+    await chapters.saveChapter(
+      chapterId: third,
+      title: '第三章',
+      content: '沈砚握紧了刀，风从山口灌下来。',
+      cursorOffset: 0,
+      scrollOffset: 0,
+    );
+
+    final context = await builder.buildSummary(
+      workId: workId,
+      chapterId: third,
+      contextWindow: 32000,
+    );
+    expect(context.sections.map((s) => s.label), contains('本章正文'));
+    expect(context.messages.single.content, contains('沈砚握紧了刀'));
+    expect(context.truncated, isFalse);
+
+    // 极小预算：正文按预算截断并标记。
+    final tight = await builder.buildSummary(
+      workId: workId,
+      chapterId: third,
+      contextWindow: 40, // 预算 20 token，装不下 system + header
+    );
+    expect(tight.truncated, isTrue);
+    expect(tight.messages.single.content, isNot(contains('风从山口灌下来')));
+  });
+
+  test('buildOutlineExpand 把一句话梗概作为扩写种子（ENH-05）', () async {
+    final workId = await seedWork();
+    final third = await chapters.createChapter(workId: workId, title: '第三章');
+
+    final context = await builder.buildOutlineExpand(
+      workId: workId,
+      chapterId: third,
+      seed: '沈砚与苏晚在雨中摊牌',
+      contextWindow: 32000,
+    );
+
+    final section = context.sections.firstWhere((s) => s.label == '本章梗概');
+    expect(section.content, contains('沈砚与苏晚在雨中摊牌'));
+    expect(context.messages.single.content, contains('沈砚与苏晚在雨中摊牌'));
+    expect(context.truncated, isFalse);
+  });
 }

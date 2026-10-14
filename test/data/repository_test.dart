@@ -123,6 +123,22 @@ void main() {
     expect(chapter.content, '正文');
   });
 
+  test('保存章节 AI 摘要只改摘要字段（ENH-05）', () async {
+    final workId = await works.createWork(title: '长夜行');
+    final chapterId = await chapters.createChapter(workId: workId, title: '第一章');
+    await chapters.saveChapter(
+        chapterId: chapterId, title: '第一章', content: '第一章正文内容。');
+
+    await chapters.saveChapterSummary(chapterId, '沈砚离乡，风起。');
+
+    final chapter = await chapters.getChapter(chapterId);
+    expect(chapter!.summary, '沈砚离乡，风起。');
+    // 不触碰正文与字数汇总。
+    expect(chapter.content, '第一章正文内容。');
+    final work = await works.getWork(workId);
+    expect(work!.wordCount, 7);
+  });
+
   test('删除章节后作品汇总更新且章纲引用置空', () async {
     final workId = await works.createWork(title: '长夜行');
     final chapterId = await chapters.createChapter(workId: workId, title: '第一章');

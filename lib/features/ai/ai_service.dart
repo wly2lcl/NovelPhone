@@ -211,6 +211,10 @@ class AiService {
   /// 该任务是否已具备可用配置。
   Future<bool> isReady(String task) async {
     if (task == AiTask.rewrite) return await _resolveRewriteModel() != null;
+    if (task == AiTask.summary) return await _resolveSummaryModel() != null;
+    if (task == AiTask.outlineExpand) {
+      return await _resolveOutlineModel() != null;
+    }
     return await settings.resolveTaskModelWithKey(task) != null;
   }
 
@@ -221,6 +225,8 @@ class AiService {
     required int chapterId,
     String? direction,
     int? length,
+    // ENH-05：多候选续写时按候选序号微调温度制造差异（0/1/2 → -0.15/+0/+0.15）。
+    int? variant,
   }) async* {
     final resolved = await settings.resolveTaskModelWithKey(AiTask.continueWriting);
     if (resolved == null) {
@@ -253,7 +259,7 @@ class AiService {
     );
     final request = injected.toRequest(
       model: model,
-      temperature: group.temperature,
+      temperature: _variantTemperature(group.temperature, variant),
       maxTokens: group.maxTokens,
     );
 
@@ -265,6 +271,12 @@ class AiService {
       workId: workId,
       chapterId: chapterId,
     );
+  }
+
+  /// 多候选温度微调（ENH-05）：variant 为空时沿用模型组温度。
+  static double _variantTemperature(double base, int? variant) {
+    if (variant == null) return base;
+    return (base + (variant - 1) * 0.15).clamp(0.0, 2.0);
   }
 
   // ---------- 灵感（M3-16）----------
@@ -448,6 +460,116 @@ class AiService {
   /// 改写模型组解析：优先改写专用配置，其次回退续写组（零配置也可用）。
   Future<ResolvedModel?> _resolveRewriteModel() async =>
       await settings.resolveTaskModelWithKey(AiTask.rewrite) ??
+      await settings.resolveTaskModelWithKey(AiTask.continueWriting);
+
+  // ---------- 逐章摘要（ENH-05）----------
+
+  /// 为本章正文生成摘要，写回 CHAPTER.summary 后供后续章节上下文衔接。
+  Stream<AiEvent> summarizeChapter({
+    required int workId,
+    required int chapterId,
+  }) async* {
+    final resolved = await _resolveSummaryModel();
+    if (resolved == null) {
+      yield const AiNeedsConfig();
+      return;
+    }
+    final group = resolved.group;
+    final model = _firstModel(group);
+    if (model == null) {
+      yield _missingModelFailure(group);
+      return;
+    }
+
+    final built = await contexts.buildSummary(
+      workId: workId,
+      chapterId: chapterId,
+      contextWindow: group.contextWindow,
+    );
+    final injected = _withSkills(built, await settings.listEnabledSkills());
+    yield AiContextBuilt(injected);
+
+    final client = buildAiClient(
+      provider: group.provider,
+      baseUrl: group.baseUrl,
+      apiKey: resolved.apiKey,
+      httpClient: httpClient,
+    );
+    final request = injected.toRequest(
+      model: model,
+      temperature: group.temperature,
+      maxTokens: group.maxTokens,
+    );
+
+    yield* _run(
+      client: client,
+      request: request,
+      task: AiTask.summary,
+      model: model,
+      workId: workId,
+      chapterId: chapterId,
+    );
+  }
+
+  /// 摘要模型组解析：未单独配置时回退续写组（零配置也可用）。
+  Future<ResolvedModel?> _resolveSummaryModel() async =>
+      await settings.resolveTaskModelWithKey(AiTask.summary) ??
+      await settings.resolveTaskModelWithKey(AiTask.continueWriting);
+
+  // ---------- 章纲扩写（ENH-05）----------
+
+  /// 把本章一句话梗概扩写为分场大纲，结果由 UI 写回本章章纲。
+  Stream<AiEvent> expandOutline({
+    required int workId,
+    required int chapterId,
+    required String seed,
+  }) async* {
+    final resolved = await _resolveOutlineModel();
+    if (resolved == null) {
+      yield const AiNeedsConfig();
+      return;
+    }
+    final group = resolved.group;
+    final model = _firstModel(group);
+    if (model == null) {
+      yield _missingModelFailure(group);
+      return;
+    }
+
+    final built = await contexts.buildOutlineExpand(
+      workId: workId,
+      chapterId: chapterId,
+      seed: seed,
+      contextWindow: group.contextWindow,
+    );
+    final injected = _withSkills(built, await settings.listEnabledSkills());
+    yield AiContextBuilt(injected);
+
+    final client = buildAiClient(
+      provider: group.provider,
+      baseUrl: group.baseUrl,
+      apiKey: resolved.apiKey,
+      httpClient: httpClient,
+    );
+    final request = injected.toRequest(
+      model: model,
+      temperature: group.temperature,
+      maxTokens: group.maxTokens,
+    );
+
+    yield* _run(
+      client: client,
+      request: request,
+      task: AiTask.outlineExpand,
+      model: model,
+      workId: workId,
+      chapterId: chapterId,
+    );
+  }
+
+  /// 章纲扩写模型组解析：未单独配置时回退续写组（零配置也可用）。
+  Future<ResolvedModel?> _resolveOutlineModel() async =>
+      await settings.resolveTaskModelWithKey(AiTask.outlineExpand) ??
       await settings.resolveTaskModelWithKey(AiTask.continueWriting);
 
   // ---------- AI 感检查（M4-06）----------

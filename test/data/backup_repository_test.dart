@@ -133,4 +133,21 @@ void main() {
       throwsA(isA<FormatException>()),
     );
   });
+
+  test('旧备份章节缺少 summary 字段仍可恢复（ENH-05）', () async {
+    final workId = await seedWork();
+    final data = await backup.exportData();
+    // 模拟 v6 之前的备份：章节行里没有 summary 键。
+    for (final row in (data['tables'] as Map)['chapters'] as List) {
+      (row as Map).remove('summary');
+    }
+    await works.deleteWork(workId);
+
+    final report = await backup.restore(data, overwrite: true);
+
+    expect(report.chapters, 1);
+    final restored = await chapters.watchChapters(workId).first;
+    expect(restored.single.summary, '');
+    expect(restored.single.content, '雨下了一整夜，街道上没有人。');
+  });
 }

@@ -14,6 +14,7 @@ Chapter _chapter(int id, String title, String content) => Chapter(
       cursorOffset: 0,
       scrollOffset: 0,
       updatedAt: DateTime(2026, 9, 30),
+      summary: '',
     );
 
 void main() {

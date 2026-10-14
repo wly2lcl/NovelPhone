@@ -208,11 +208,21 @@ M4 自动化验证记录（2026-09-30）：`flutter analyze` 无问题；`flutte
   - 顺带修复：`AiConfirmPanel` 上下文详情由 `Container(decoration:)` 改为 `Material`，消除 `ExpansionTile`→`ListTile` 在 debug 下的「背景/水波纹不可见」断言；`EditorController` 新增 `_disposed` 守卫，避免离开编辑器时 `flush()` 的保存晚于 dispose 触发「used after being disposed」。
   - 文档同步：PRD 4.1 / 5.3 / 5.5 / 5.9 / 6.1；ARCHITECTURE 3 / 5.3 / 5.6 / 6.1；README 当前状态。
 
+- [x] ENH-05（P1）AI 逐章摘要 + 多候选续写 + AI 章纲扩写：
+  - AI 逐章摘要（前情回顾，A）：`CHAPTER` 新增 `summary` 列（schemaVersion 5 → 6，`m.addColumn`）；`ChapterRepository.saveChapterSummary` 只改摘要字段、不触碰正文与字数汇总；`ContextBuilder._previousSummary` 改为**优先使用已生成的缓存摘要**（信息密度更高），未生成的章节回退本地抽句（行为与旧版一致）；`buildSummary` 以本章正文为主材料直构上下文（超预算按 `budget - system - header` 截断并标记，不做分段 map-reduce）；`AiTask.summary` + `AiService.summarizeChapter`（模型组优先 `task_model_summary`，未配置回退续写组）；编辑器 AppBar 新增「AI 章节工具」菜单。
+  - 多候选续写（B）：`AiService.continueWriting` 新增 `variant` 参数，温度 = 组温度 -0.15 / +0 / +0.15（clamp 0..2）；面板并发订阅 3 路流、各自独立可编辑，`FilterChip('3 个候选')` 可切回单候选，多候选时 `SegmentedButton` 切「版本 1/2/3」；采纳时选中记 `adopted`、其余记 `ignored`。
+  - AI 章纲扩写（C）：`buildOutlineExpand` 以作者一句话梗概为种子直构上下文（`_outlineSystem`）；`AiTask.outlineExpand` + `AiService.expandOutline`（同样回退续写组）；面板 `AiPanelMode.outlineExpand`「保存到章纲」覆盖写入本章章纲；「编辑本章梗概」弹窗上限 200 → 1000 字。
+  - 面板改造：`AiConfirmPanel` 结果缓冲改为 3 个 `TextEditingController`、错误与 usageId 按候选索引分别记录、`_pending` 归零才解除流式态；新增 `AiPanelMode.summarize` / `outlineExpand` 与 `outlineSeed` / `onSaveSummary` / `onSaveOutline` 参数；摘要与章纲扩写隐藏「换个方向」。
+  - 备份兼容：`BackupRepository.restore` 对旧备份缺 `summary` 键 `putIfAbsent('summary', '')`，避免 drift `fromJson` 抛异常；摘要随备份导出/恢复。
+  - 验证：`test/core/context_builder_test.dart` 新增 3 个用例（缓存摘要优先、`buildSummary` 装配与超预算截断、`buildOutlineExpand` 种子）；`test/data/repository_test.dart` 新增 1 个用例（`saveChapterSummary` 只改摘要字段）；`test/data/backup_repository_test.dart` 新增 1 个用例（旧备份缺 summary 键仍可恢复）；`test/features/ai_check_test.dart` 新增 4 个用例（摘要/章纲扩写零配置引导、回退续写组与统计、多候选按 variant 调温）；`test/core/flavor_check_test.dart` 构造 `Chapter` 补 `summary`。`flutter analyze` 无问题，`flutter test` 257 用例全绿。
+  - 文档同步：PRD 4.1 / 5.4 / 5.5 / 5.9 / 6.1 / 6.2；ARCHITECTURE 4.2 / 5.3 / 5.6 / 6.1；README 当前状态。
+  - 真机验收（2026-10-14，SM_G998B / Android 13，release APK）：编辑器顶栏「AI 章节工具」菜单正常弹出「生成本章摘要 / AI 扩写本章纲」；「生成本章摘要」流式产出中文摘要并「保存摘要」，随后进入第二章续写展开「AI 看到的上下文」，其「前文摘要」段已含第一章的 AI 摘要（缓存落库 + 注入生效，A 贯通）；续写面板出现「3 个候选 / 版本 1/2/3」，三个候选文本各不相同（B 贯通）；无梗概时点「AI 扩写本章纲」弹出「请先用顶栏「本章梗概」写一句话梗概」提示，填梗概后生成 5 段分场大纲并「保存到章纲」，作品详情「章纲」Tab 显示已覆盖写入（C 贯通）；「编辑本章梗概」上限显示 0/1000。旧备份缺 `summary` 键的兼容由 `backup_repository_test` 用例覆盖。
+
 ---
 
 ## 后置 backlog（不进 MVP 承诺）
 
-进度：B-01、B-02、B-03、B-04、B-05、B-06、B-07、B-08、B-09 全部已完成；MVP 收口后的增强 ENH-01（429/5xx 自动退避重试）、ENH-02（设定集纳入 AI 上下文）、ENH-03（全 App 深色模式）、ENH-04（专注模式 + 选中段落 AI 改写 + 导出 EPUB）已完成。
+进度：B-01、B-02、B-03、B-04、B-05、B-06、B-07、B-08、B-09 全部已完成；MVP 收口后的增强 ENH-01（429/5xx 自动退避重试）、ENH-02（设定集纳入 AI 上下文）、ENH-03（全 App 深色模式）、ENH-04（专注模式 + 选中段落 AI 改写 + 导出 EPUB）、ENH-05（AI 逐章摘要 + 多候选续写 + AI 章纲扩写）已完成。
 
 - [x] B-01（P2）Responses 端点适配器：新增 `ResponsesAdapter implements AiClient`（架构 9 章触发条件成熟时）
   - 新增 `lib/core/ai/responses_adapter.dart`（端点 `POST {baseUrl}/v1/responses`，system 提为顶层 `instructions`，`input[]` 支持消息 / `function_call` / `function_call_output`；解析 `response.output_text.delta`、`response.completed` 的 usage 与 status；工具调用经 `response.output_item.*` / `response.function_call_arguments.delta` 累积）；`AiProvider.responses` 登记并在 `buildAiClient` 分发；设置页协议类型增第三段「Responses」。

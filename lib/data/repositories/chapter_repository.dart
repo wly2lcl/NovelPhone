@@ -198,6 +198,15 @@ class ChapterRepository {
     });
   }
 
+  /// 仅保存 AI 生成的本章摘要（ENH-05）：不触碰正文 / 字数 / 汇总，
+  /// 因此不会误触整洁写作统计与作品字数。
+  Future<void> saveChapterSummary(int chapterId, String summary) {
+    return _chapters.updateChapter(
+      chapterId,
+      ChaptersCompanion(summary: Value(summary)),
+    );
+  }
+
   /// 仅保存会话恢复位置（光标 / 滚动），不触碰正文与字数。
   Future<void> saveCursorPosition({
     required int chapterId,

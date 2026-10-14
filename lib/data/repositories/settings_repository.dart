@@ -21,7 +21,18 @@ class AiTask {
   static const String rewrite = 'rewrite';
   static const String check = 'check';
 
-  static const List<String> all = <String>[continueWriting, inspire, rewrite, check];
+  /// ENH-05：AI 逐章摘要（前情回顾）与 AI 章纲扩写。
+  static const String summary = 'summary';
+  static const String outlineExpand = 'outline';
+
+  static const List<String> all = <String>[
+    continueWriting,
+    inspire,
+    rewrite,
+    check,
+    summary,
+    outlineExpand,
+  ];
 
   static String label(String task) {
     switch (task) {
@@ -33,6 +44,10 @@ class AiTask {
         return 'AI 改写';
       case check:
         return 'AI 感检查';
+      case summary:
+        return 'AI 逐章摘要';
+      case outlineExpand:
+        return 'AI 章纲扩写';
       default:
         return task;
     }

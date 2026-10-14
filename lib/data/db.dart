@@ -42,6 +42,10 @@ class Chapters extends Table {
   IntColumn get cursorOffset => integer().withDefault(const Constant(0))();
   IntColumn get scrollOffset => integer().withDefault(const Constant(0))();
   DateTimeColumn get updatedAt => dateTime()();
+
+  /// AI 生成的本章摘要（ENH-05）：供后续章节续写 / 改写时注入「前情回顾」，
+  /// 区别于作者在 OUTLINE_ENTRY 手写的章纲梗概。
+  TextColumn get summary => text().withDefault(const Constant(''))();
 }
 
 /// 章节快照（B-05）：手动创建的版本历史，仅存标题与正文全文，随章节级联删除。
@@ -192,7 +196,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -215,6 +219,10 @@ class AppDatabase extends _$AppDatabase {
           if (from < 5) {
             await m.createTable(settingEntries);
             await m.createTable(characterRelations);
+          }
+          // v6（ENH-05）：CHAPTER 追加 AI 摘要列（前情回顾）。
+          if (from < 6) {
+            await m.addColumn(chapters, chapters.summary);
           }
         },
         beforeOpen: (details) async {
