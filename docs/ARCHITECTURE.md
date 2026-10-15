@@ -363,6 +363,7 @@ erDiagram
 - VOLUME.summary：AI 本卷前情回顾（ENH-06），默认空串，由「AI 章节工具 → 生成本卷前情回顾」写入，续写/改写时与最近 1-2 章摘要一并注入「前文摘要」（见 5.3）；卷摘要为空时输出与旧版逐字一致（零回归）。列随 ENH-06 落地（schemaVersion 6 → 7，`m.addColumn`）；恢复旧备份（无该键）时 `putIfAbsent('summary', '')` 兜底。
 - CHAPTER.summaryUpdatedAt（ENH-07）：可空，`saveChapterSummary` 写入时记录当前时间；「查看/编辑本章摘要」弹窗在摘要非空且正文 `updatedAt` 晚于它（或缺值）时提示「摘要可能过期」（见 PRD 5.5.1）。列随 ENH-07 落地（schemaVersion 7 → 8，`m.addColumn`）；恢复旧备份（无该键）时 `putIfAbsent('summaryUpdatedAt', null)` 兜底。
 - VOLUME.summaryChapterId（ENH-07）：默认 0，`saveVolumeSummary` 传入 `coveredChapterId` 时记录本次归并覆盖到的章节，供 `buildVolumeSummary` 增量归并（上一版回顾 + 新增章节摘要）；0 表示尚未归并过、按全量处理（零回归）。列随 ENH-07 落地（schemaVersion 7 → 8，`m.addColumn`）；恢复旧备份（无该键）时 `putIfAbsent('summaryChapterId', 0)` 兜底。
+- 热点外键索引（ENH-08）：为 VOLUME.workId / CHAPTER.volumeId / CHAPTER_SNAPSHOT.chapterId / CHARACTER.workId / OUTLINE_ENTRY.workId / INSPIRATION.workId 六个高频过滤列加 drift `@TableIndex`，消除作品/卷维度列表查询的全表扫描。建库时由 drift `createAll()` 自动创建，升级路径在 `onUpgrade` 的 `if (from < 9)` 块内用 `m.createIndex(...)` 补建（该 SQL 无 `IF NOT EXISTS`，但旧库本就没有这些索引，故安全）。仅新增索引、不改表结构，随 ENH-08 落地（schemaVersion 8 → 9）。
 
 ### 4.3 一致性规则
 

@@ -1,3 +1,7 @@
+import 'dart:io';
+
+import 'package:drift/drift.dart' show driftRuntimeOptions;
+import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:novelphone/data/db.dart';
 import 'package:novelphone/data/repositories/chapter_repository.dart';
@@ -7,6 +11,7 @@ import 'package:novelphone/data/repositories/settings_repository.dart';
 import 'package:novelphone/data/repositories/work_repository.dart';
 import 'package:novelphone/data/secure_key_store.dart';
 import 'package:novelphone/models/chapter_status.dart';
+import 'package:path/path.dart' as p;
 
 void main() {
   late AppDatabase db;
@@ -323,7 +328,62 @@ void main() {
       expect(await reopened.hasConfirmedAiNotice(), isTrue);
     });
   });
+
+  group('热点外键索引（ENH-08）', () {
+    test('建库时创建作品 / 卷维度列表查询所需索引', () async {
+      final rows = await db
+          .customSelect("SELECT name FROM sqlite_master WHERE type = 'index'")
+          .get();
+      final names = rows.map((r) => r.read<String>('name')).toSet();
+
+      expect(
+        names,
+        containsAll(_hotspotIndexNames),
+      );
+    });
+
+    test('v8 → v9 升级时为既有库补建索引', () async {
+      final dir = await Directory.systemTemp.createTemp('novelphone_mig');
+      final file = File(p.join(dir.path, 'migrate.sqlite'));
+      // 同一插槽先后开关两个 AppDatabase 实例是刻意为之，关掉 drift 的重复实例告警。
+      final previousWarn = driftRuntimeOptions.dontWarnAboutMultipleDatabases;
+      driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+      try {
+        // v9 只新增索引、不动表结构：先按当前 schema 建库，再删掉索引并回写
+        // user_version = 8，即得到与线上旧库等价的 v8 底座。
+        final seeded = AppDatabase(NativeDatabase(file));
+        for (final name in _hotspotIndexNames) {
+          await seeded.customStatement('DROP INDEX IF EXISTS $name');
+        }
+        await seeded.customStatement('PRAGMA user_version = 8');
+        await seeded.close();
+
+        // 以 v8 身份重新打开：应触发 onUpgrade(8 → 9) 补建索引。
+        final upgraded = AppDatabase(NativeDatabase(file));
+        final names = (await upgraded
+                .customSelect("SELECT name FROM sqlite_master WHERE type = 'index'")
+                .get())
+            .map((r) => r.read<String>('name'))
+            .toSet();
+        await upgraded.close();
+
+        expect(names, containsAll(_hotspotIndexNames));
+      } finally {
+        driftRuntimeOptions.dontWarnAboutMultipleDatabases = previousWarn;
+        if (dir.existsSync()) dir.deleteSync(recursive: true);
+      }
+    });
+  });
 }
+
+const List<String> _hotspotIndexNames = <String>[
+  'volumes_work_id',
+  'chapters_volume_id',
+  'chapter_snapshots_chapter_id',
+  'characters_work_id',
+  'outline_entries_work_id',
+  'inspirations_work_id',
+];
 
 /// 等待响应式流推送（drift 流更新在当前 isolate 异步派发）。
 Future<void> _waitFor(bool Function() condition) async {

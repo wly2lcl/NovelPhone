@@ -241,11 +241,20 @@ M4 自动化验证记录（2026-09-30）：`flutter analyze` 无问题；`flutte
   - 文档同步：PRD 5.5 / 5.5.1 / 5.8 / 6.1 / 6.2；ARCHITECTURE 4.2 / 5.3 / 5.6 / 6.1；README 当前状态。
   - 真机验收（2026-10-14，SM_G998B / Android 13，release APK）：编辑器「AI 续写」面板 header 显示生成耗时（如「2 秒」）并在产出完成后停表；展开「AI 看到的上下文」后该区域限高且可内部滚动、下方按钮仍在视口内（O1 / O9 贯通）；作品详情「章节」Tab 卷头「…」→「查看/编辑本卷前情回顾」正常弹出「本卷前情回顾」查看/编辑弹窗（O3 贯通）；「AI 章节工具 → 生成本章摘要」保存后再改动正文，「查看/编辑本章摘要」弹窗顶部出现「正文已改动，摘要可能过期，建议重新生成」提示（O4 贯通）。
 
+- [x] ENH-08（P1）稳健性与性能修正（4 项）：
+  - ① 修复 `sanitizeAiText` 误删正文小数：行首编号正则拆为两条——ASCII 点号要求后跟空白（`^\s*\d+\.\s+`），中文编号分隔符（`、`/`)`/`）`）仍允许零空白（`^\s*\d+[、)）]\s*`）。旧写法对 `1.5`/`3.14` 会剥成 `5`/`14`（`\s*` 允许零空白），修复后保留。
+  - ② 补 `ContextBuilder.buildInspireContext`（ENH-07 O7）单元测试：未指定章节时不补上下文（保持旧行为）、指定章节时补「前文摘要」与「本章章纲」。
+  - ③ 热点外键索引：为 VOLUME.workId / CHAPTER.volumeId / CHAPTER_SNAPSHOT.chapterId / CHARACTER.workId / OUTLINE_ENTRY.workId / INSPIRATION.workId 六个高频过滤列加 drift `@TableIndex`（消除作品/卷维度列表查询的全表扫描）；`schemaVersion` 8 → 9，`onUpgrade` 的 `if (from < 9)` 块内 `m.createIndex(...)` 为既有库补建；`dart run build_runner build` 重生成 `lib/data/db.g.dart`。不做 FTS5（全局搜索仍为本地 LIKE 直查）。
+  - ④ 摘要编辑弹窗收敛：`editor_page.dart::_editAiSummary`、`chapters_tab.dart::_editVolumeSummary`、`outline_tab.dart::showSummaryEditor` 三处收敛为共享 `lib/app/summary_editor.dart`，新增可选 `notice` 参数承载 O4「摘要可能过期」提示，沿用 `TextFormField(initialValue:)` 写法（不持有外部 `TextEditingController`，避免退场动画期红屏）。
+  - 验证：`test/features/editor_page_test.dart` 新增 1 个用例（`sanitizeAiText` 不误删 `1.5`/`3.14`、仍剥离 `1. `/`1、`/`1）` 编号）；`test/core/context_builder_test.dart` 新增 1 个用例（`buildInspireContext`）；`test/data/repository_test.dart` 新增 2 个用例（建库时索引存在、v8 → v9 升级补建索引）。`flutter analyze` 无问题，`flutter test` 277 用例全绿。
+  - 文档同步：ARCHITECTURE 4.2；README 当前状态。
+  - 真机验收（2026-10-15，SM_G998B / Android 13，release APK）：三处弹窗入口（编辑器「AI 章节工具 → 查看/编辑本章摘要」带 O4 提示、章节 Tab 卷头「查看/编辑本卷前情回顾」、章纲 Tab 编辑图标）均正常弹出并往返持久化、无红屏；老库（ENH-07 / v8）安装新包后 v8 → v9 迁移成功、作品（40.5 万字 · 42 章）数据完整无崩溃；AI 章节工具真实生成摘要后落库，「查看/编辑本章摘要」显示 `1.5x`/`3.14` 被保留、`1. ` 编号被剥离（旧代码会得到 `5x`/`14`）。
+
 ---
 
 ## 后置 backlog（不进 MVP 承诺）
 
-进度：B-01、B-02、B-03、B-04、B-05、B-06、B-07、B-08、B-09 全部已完成；MVP 收口后的增强 ENH-01（429/5xx 自动退避重试）、ENH-02（设定集纳入 AI 上下文）、ENH-03（全 App 深色模式）、ENH-04（专注模式 + 选中段落 AI 改写 + 导出 EPUB）、ENH-05（AI 逐章摘要 + 多候选续写 + AI 章纲扩写）、ENH-06（滚动摘要（本卷前情回顾）+ 摘要查看编辑）、ENH-07（体验与上下文优化 O1-O9）已完成。
+进度：B-01、B-02、B-03、B-04、B-05、B-06、B-07、B-08、B-09 全部已完成；MVP 收口后的增强 ENH-01（429/5xx 自动退避重试）、ENH-02（设定集纳入 AI 上下文）、ENH-03（全 App 深色模式）、ENH-04（专注模式 + 选中段落 AI 改写 + 导出 EPUB）、ENH-05（AI 逐章摘要 + 多候选续写 + AI 章纲扩写）、ENH-06（滚动摘要（本卷前情回顾）+ 摘要查看编辑）、ENH-07（体验与上下文优化 O1-O9）、ENH-08（稳健性与性能修正：小数误删修复 + 索引 + 弹窗收敛）已完成。
 
 - [x] B-01（P2）Responses 端点适配器：新增 `ResponsesAdapter implements AiClient`（架构 9 章触发条件成熟时）
   - 新增 `lib/core/ai/responses_adapter.dart`（端点 `POST {baseUrl}/v1/responses`，system 提为顶层 `instructions`，`input[]` 支持消息 / `function_call` / `function_call_output`；解析 `response.output_text.delta`、`response.completed` 的 usage 与 status；工具调用经 `response.output_item.*` / `response.function_call_arguments.delta` 累积）；`AiProvider.responses` 登记并在 `buildAiClient` 分发；设置页协议类型增第三段「Responses」。

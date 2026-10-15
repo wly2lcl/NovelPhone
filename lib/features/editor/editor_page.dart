@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/reading_appearance.dart';
+import '../../app/summary_editor.dart';
 import '../../app/theme.dart';
 import '../../core/formatting.dart';
 import '../../core/word_count.dart';
@@ -11,7 +12,6 @@ import '../../data/data_providers.dart';
 import '../../data/repositories/settings_repository.dart';
 import '../ai/ai_notice.dart';
 import '../ai/ai_providers.dart';
-import '../work_detail/outline_tab.dart';
 import '../work_detail/work_detail_providers.dart';
 import 'ai_confirm_panel.dart';
 import 'editor_controller.dart';
@@ -561,56 +561,22 @@ class _EditorPageState extends ConsumerState<EditorPage> {
     final chapter =
         await ref.read(chapterRepositoryProvider).getChapter(widget.chapterId);
     if (!mounted) return;
-    // 不使用外部 TextEditingController：弹窗退场动画期间 builder 会再次执行，
-    // 过早 dispose 会导致「controller used after being disposed」。
-    var text = chapter?.summary ?? '';
+    final summary = chapter?.summary ?? '';
     // ENH-07 O4：摘要生成后正文又有改动时，提示摘要可能过期。
     final summaryUpdatedAt = chapter?.summaryUpdatedAt;
-    final stale = text.trim().isNotEmpty &&
+    final stale = summary.trim().isNotEmpty &&
         (summaryUpdatedAt == null ||
             (chapter?.updatedAt.isAfter(summaryUpdatedAt) ?? false));
-    final result = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('本章 AI 摘要'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            if (stale) ...<Widget>[
-              Text('正文已改动，摘要可能过期，建议重新生成',
-                  style:
-                      TextStyle(fontSize: 12, color: context.paper.accent)),
-              const SizedBox(height: 8),
-            ],
-            TextFormField(
-              initialValue: text,
-              autofocus: true,
-              maxLines: 8,
-              maxLength: 1000,
-              onChanged: (value) => text = value,
-              decoration: const InputDecoration(
-                hintText: 'AI 生成的前情摘要，可手动修改；用于后续章节的剧情衔接',
-              ),
-            ),
-          ],
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(text.trim()),
-            child: const Text('保存'),
-          ),
-        ],
-      ),
+    await showSummaryEditor(
+      context,
+      initial: summary,
+      title: '本章 AI 摘要',
+      hintText: 'AI 生成的前情摘要，可手动修改；用于后续章节的剧情衔接',
+      notice: stale ? '正文已改动，摘要可能过期，建议重新生成' : null,
+      onSave: (text) => ref
+          .read(chapterRepositoryProvider)
+          .saveChapterSummary(widget.chapterId, text),
     );
-    if (result == null || result.length > 1000) return;
-    await ref
-        .read(chapterRepositoryProvider)
-        .saveChapterSummary(widget.chapterId, result);
   }
 
   /// 编辑器侧栏入口：直接编辑本章梗概（PRD 5.4 双入口之一）。
@@ -622,7 +588,6 @@ class _EditorPageState extends ConsumerState<EditorPage> {
     if (!mounted) return;
     await showSummaryEditor(
       context,
-      ref,
       initial: existing?.summary ?? '',
       onSave: (text) => repository.saveChapterSummary(
         workId: widget.workId,

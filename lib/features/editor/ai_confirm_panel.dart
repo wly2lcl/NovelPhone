@@ -836,7 +836,10 @@ String sanitizeAiText(String text) {
     var line = raw.trimRight();
     line = line.replaceFirst(RegExp(r'^\s*#{1,6}\s*'), '');
     line = line.replaceFirst(RegExp(r'^\s*[-*+]\s+'), '');
-    line = line.replaceFirst(RegExp(r'^\s*\d+[.、)）]\s*'), '');
+    // ASCII 点号必须紧跟空白才算编号，避免误删「1.5」「3.14」等正文小数；
+    // 中文编号分隔符（、和全/半角右括号）本身无歧义，允许零空白。
+    line = line.replaceFirst(RegExp(r'^\s*\d+\.\s+'), '');
+    line = line.replaceFirst(RegExp(r'^\s*\d+[、)）]\s*'), '');
     cleaned.add(line);
   }
   final buffer = StringBuffer();

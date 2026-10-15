@@ -21,6 +21,7 @@ class Works extends Table {
 }
 
 /// 卷。章节归属卷，卷按 sortOrder 上移/下移排序。
+@TableIndex(name: 'volumes_work_id', columns: {#workId})
 class Volumes extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get workId =>
@@ -36,6 +37,7 @@ class Volumes extends Table {
 }
 
 /// 章节。cursorOffset / scrollOffset 供会话恢复，不参与 AI 上下文组装。
+@TableIndex(name: 'chapters_volume_id', columns: {#volumeId})
 class Chapters extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get volumeId =>
@@ -59,6 +61,7 @@ class Chapters extends Table {
 
 /// 章节快照（B-05）：手动创建的版本历史，仅存标题与正文全文，随章节级联删除。
 /// 不参与 AI 上下文组装，也不随编辑自动保存而变化。
+@TableIndex(name: 'chapter_snapshots_chapter_id', columns: {#chapterId})
 class ChapterSnapshots extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get chapterId =>
@@ -70,6 +73,7 @@ class ChapterSnapshots extends Table {
 }
 
 /// 角色卡。personalityTags 存 JSON 数组字符串。
+@TableIndex(name: 'characters_work_id', columns: {#workId})
 class Characters extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get workId =>
@@ -83,6 +87,7 @@ class Characters extends Table {
 }
 
 /// 章纲。按卷组织、每章一条梗概；删除章节时 chapterId 置空而非级联删除。
+@TableIndex(name: 'outline_entries_work_id', columns: {#workId})
 class OutlineEntries extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get workId =>
@@ -95,6 +100,7 @@ class OutlineEntries extends Table {
 }
 
 /// 灵感箱（M2 落地 UI，表结构在 M1 建好）。
+@TableIndex(name: 'inspirations_work_id', columns: {#workId})
 class Inspirations extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get workId =>
@@ -205,7 +211,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -242,6 +248,15 @@ class AppDatabase extends _$AppDatabase {
           if (from < 8) {
             await m.addColumn(chapters, chapters.summaryUpdatedAt);
             await m.addColumn(volumes, volumes.summaryChapterId);
+          }
+          // v9（ENH-08）：为热点外键列补索引（作品/卷维度列表查询的全表扫描）。
+          if (from < 9) {
+            await m.createIndex(volumesWorkId);
+            await m.createIndex(chaptersVolumeId);
+            await m.createIndex(chapterSnapshotsChapterId);
+            await m.createIndex(charactersWorkId);
+            await m.createIndex(outlineEntriesWorkId);
+            await m.createIndex(inspirationsWorkId);
           }
         },
         beforeOpen: (details) async {

@@ -550,4 +550,27 @@ void main() {
     // 已归并过的第一、二章摘要不再重复注入。
     expect(incMaterial.content, isNot(contains('第一章摘要：沈砚离乡。')));
   });
+
+  test('buildInspireContext 补前文摘要与本章章纲（ENH-07 O7）', () async {
+    final workId = await seedWork();
+    final third = await chapters.createChapter(workId: workId, title: '第三章');
+    await outline.saveChapterSummary(
+      workId: workId,
+      chapterId: third,
+      summary: '沈砚与苏晚对峙。',
+    );
+
+    // 未指定章节：不补任何上下文，保持旧行为。
+    final none = await builder.buildInspireContext(workId: workId);
+    expect(none.previousSummary, isEmpty);
+    expect(none.chapterOutline, isEmpty);
+
+    final ctx =
+        await builder.buildInspireContext(workId: workId, chapterId: third);
+    // 前文摘要取第三章之前的最近章节（本地抽句）。
+    expect(ctx.previousSummary, contains('《第一章》'));
+    expect(ctx.previousSummary, contains('《第二章》'));
+    // 本章章纲来自大纲条目的摘要。
+    expect(ctx.chapterOutline, contains('沈砚与苏晚对峙。'));
+  });
 }

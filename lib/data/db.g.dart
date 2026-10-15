@@ -5639,6 +5639,30 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $SettingEntriesTable settingEntries = $SettingEntriesTable(this);
   late final $CharacterRelationsTable characterRelations =
       $CharacterRelationsTable(this);
+  late final Index volumesWorkId = Index(
+    'volumes_work_id',
+    'CREATE INDEX volumes_work_id ON volumes (work_id)',
+  );
+  late final Index chaptersVolumeId = Index(
+    'chapters_volume_id',
+    'CREATE INDEX chapters_volume_id ON chapters (volume_id)',
+  );
+  late final Index chapterSnapshotsChapterId = Index(
+    'chapter_snapshots_chapter_id',
+    'CREATE INDEX chapter_snapshots_chapter_id ON chapter_snapshots (chapter_id)',
+  );
+  late final Index charactersWorkId = Index(
+    'characters_work_id',
+    'CREATE INDEX characters_work_id ON characters (work_id)',
+  );
+  late final Index outlineEntriesWorkId = Index(
+    'outline_entries_work_id',
+    'CREATE INDEX outline_entries_work_id ON outline_entries (work_id)',
+  );
+  late final Index inspirationsWorkId = Index(
+    'inspirations_work_id',
+    'CREATE INDEX inspirations_work_id ON inspirations (work_id)',
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -5657,6 +5681,12 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     dailyWritingStats,
     settingEntries,
     characterRelations,
+    volumesWorkId,
+    chaptersVolumeId,
+    chapterSnapshotsChapterId,
+    charactersWorkId,
+    outlineEntriesWorkId,
+    inspirationsWorkId,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app/summary_editor.dart';
 import '../../app/theme.dart';
 import '../../data/data_providers.dart';
 import '../../data/db.dart';
@@ -75,7 +76,6 @@ class OutlineTab extends ConsumerWidget {
               ),
               onTap: () => showSummaryEditor(
                 context,
-                ref,
                 initial: entry.summary,
                 onSave: (text) => ref
                     .read(outlineRepositoryProvider)
@@ -150,7 +150,6 @@ class _OutlineTile extends ConsumerWidget {
       trailing: Icon(Icons.edit_note, color: context.paper.accent),
       onTap: () => showSummaryEditor(
         context,
-        ref,
         initial: summary,
         onSave: (text) => ref.read(outlineRepositoryProvider).saveChapterSummary(
               workId: workId,
@@ -161,47 +160,4 @@ class _OutlineTile extends ConsumerWidget {
       ),
     );
   }
-}
-
-/// 梗概编辑弹窗（作品详情与编辑器侧栏共用）。
-Future<void> showSummaryEditor(
-  BuildContext context,
-  WidgetRef ref, {
-  required String initial,
-  required Future<void> Function(String summary) onSave,
-  String title = '编辑本章梗概',
-}) async {
-  // 弹窗退场动画期间 showDialog 的 builder 会再次执行，若在 showDialog 返回后
-  // 立刻 dispose 外部 TextEditingController，会命中「A TextEditingController was
-  // used after being disposed」并连带整页崩溃。这里改用由文本框自身管理生命周期的
-  // initialValue，不持有外部 controller。
-  var text = initial;
-  final result = await showDialog<String>(
-    context: context,
-    builder: (dialogContext) => AlertDialog(
-      title: Text(title),
-      content: TextFormField(
-        initialValue: initial,
-        autofocus: true,
-        maxLines: 8,
-        maxLength: 1000,
-        onChanged: (value) => text = value,
-        decoration: const InputDecoration(
-          hintText: '说明本章要发生什么（0-1000 字）；AI 章纲扩写也以此为一句话梗概',
-        ),
-      ),
-      actions: <Widget>[
-        TextButton(
-          onPressed: () => Navigator.of(dialogContext).pop(),
-          child: const Text('取消'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.of(dialogContext).pop(text.trim()),
-          child: const Text('保存'),
-        ),
-      ],
-    ),
-  );
-  if (result == null || result.length > 1000) return;
-  await onSave(result);
 }

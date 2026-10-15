@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../app/summary_editor.dart';
 import '../../app/theme.dart';
 import '../../core/word_count.dart';
 import '../../data/data_providers.dart';
@@ -290,39 +291,15 @@ class _VolumeHeader extends ConsumerWidget {
 
   /// 查看 / 编辑本卷前情回顾（ENH-07 O3）：读写 VOLUME.summary。
   Future<void> _editVolumeSummary(BuildContext context, WidgetRef ref) async {
-    // 不使用外部 TextEditingController：弹窗退场动画期间 builder 会再次执行，
-    // 过早 dispose 会导致「controller used after being disposed」。
-    var text = volume.summary;
-    final result = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('本卷前情回顾'),
-        content: TextFormField(
-          initialValue: volume.summary,
-          autofocus: true,
-          maxLines: 10,
-          maxLength: 1000,
-          onChanged: (value) => text = value,
-          decoration: const InputDecoration(
-            hintText: 'AI 生成或手写的本卷前情回顾，用于后续章节的剧情衔接',
-          ),
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(text.trim()),
-            child: const Text('保存'),
-          ),
-        ],
-      ),
+    await showSummaryEditor(
+      context,
+      initial: volume.summary,
+      title: '本卷前情回顾',
+      maxLines: 10,
+      hintText: 'AI 生成或手写的本卷前情回顾，用于后续章节的剧情衔接',
+      onSave: (text) =>
+          ref.read(chapterRepositoryProvider).saveVolumeSummary(volume.id, text),
     );
-    if (result == null || result.length > 1000) return;
-    await ref
-        .read(chapterRepositoryProvider)
-        .saveVolumeSummary(volume.id, result);
   }
 
   Future<void> _confirmDeleteVolume(BuildContext context, WidgetRef ref) async {
