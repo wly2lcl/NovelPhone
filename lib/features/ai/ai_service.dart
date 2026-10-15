@@ -1,3 +1,5 @@
+import 'dart:isolate';
+
 import 'package:http/http.dart' as http;
 
 import '../../core/ai/agent_core.dart';
@@ -688,8 +690,10 @@ class AiService {
         : all.where((c) => c.id == chapterId).toList(growable: false);
     final scope = buildCheckScope(scoped);
 
-    // 第一层：本地规则引擎。
-    final ruleResult = runFlavorRules(scope.text);
+    // 第一层：本地规则引擎。整部作品可达数十万字，词库与段落分析耗时可见，
+    // 放到独立 isolate 执行，避免阻塞 UI 线程（ENH-11）。
+    final scopeText = scope.text;
+    final ruleResult = await Isolate.run(() => runFlavorRules(scopeText));
     yield CheckRuleResult(result: ruleResult, scope: scope);
     if (!deep || scope.isEmpty) return;
 

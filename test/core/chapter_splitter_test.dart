@@ -56,6 +56,23 @@ void main() {
     });
   });
 
+  group('ChapterDraft.wordCount（ENH-11）', () {
+    test('同一实例重复读取结果稳定', () {
+      final draft = ChapterDraft(title: '第一章', content: '雨下了一整夜。');
+      expect(draft.wordCount, 6);
+      expect(draft.wordCount, 6);
+    });
+
+    test('copyWith 变更正文后重新计算字数', () {
+      final draft = ChapterDraft(title: '第一章', content: '正文一');
+      expect(draft.wordCount, 3);
+      final merged = draft.copyWith(content: '正文一\n\n正文二');
+      expect(merged.wordCount, 6);
+      // 原实例不受影响（各自缓存）。
+      expect(draft.wordCount, 3);
+    });
+  });
+
   group('mergeWithPrevious', () {
     test('把指定章并入上一章并删除该章', () {
       final drafts = splitIntoChapters('第一章 A\n正文一\n第二章 B\n正文二');

@@ -37,13 +37,17 @@ final settingRepositoryProvider = Provider<SettingRepository>(
 );
 
 /// 全局搜索（B-06）：按关键词检索全部作品的章节标题与正文。
+/// autoDispose（ENH-11）：关键词变化后释放上一词的查询，避免输入过的每个
+/// 前缀都常驻内存。
 final searchProvider =
-    FutureProvider.family<List<ChapterSearchHit>, String>(
+    FutureProvider.autoDispose.family<List<ChapterSearchHit>, String>(
   (ref, keyword) => ref.watch(chapterRepositoryProvider).search(keyword),
 );
 
 /// 每日写作字数（B-07）：写作统计页据此计算今日字数与连击。
-final dailyWritingStatsProvider = StreamProvider<List<DailyWritingStat>>(
+/// autoDispose（ENH-11）：离开统计页即释放流订阅。
+final dailyWritingStatsProvider =
+    StreamProvider.autoDispose<List<DailyWritingStat>>(
   (ref) => ref.watch(chapterRepositoryProvider).watchDailyWritingStats(),
 );
 

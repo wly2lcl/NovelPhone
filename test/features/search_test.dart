@@ -96,6 +96,8 @@ void main() {
     await tester.pump();
 
     await tester.enterText(find.byType(TextField), '街道');
+    // 输入防抖（ENH-11）：先推进防抖计时器，再等真实异步（drift 查询）返回。
+    await tester.pump(const Duration(milliseconds: 350));
     for (var i = 0; i < 40; i++) {
       await tester.runAsync(
           () => Future<void>.delayed(const Duration(milliseconds: 10)));
@@ -105,6 +107,42 @@ void main() {
 
     expect(find.byType(ListTile), findsOneWidget);
     expect(find.text('长夜行'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(seconds: 2));
+  });
+
+  testWidgets('输入防抖：未到间隔不发起检索（ENH-11）', (tester) async {
+    final workId = await works.createWork(title: '长夜行');
+    await seedChapter(workId, '第一章', '雨下了一整夜，街道上没有人。');
+
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        databaseProvider.overrideWithValue(db),
+        secureKeyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+      ],
+      child: MaterialApp(theme: buildPaperTheme(), home: const SearchPage()),
+    ));
+    await tester.pump();
+
+    await tester.enterText(find.byType(TextField), '街道');
+    // 未到防抖间隔：即使给足真实异步时间，也不应产生检索结果。
+    for (var i = 0; i < 10; i++) {
+      await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 10)));
+      await tester.pump();
+    }
+    expect(find.byType(ListTile), findsNothing);
+
+    // 越过防抖间隔后正常出结果。
+    await tester.pump(const Duration(milliseconds: 350));
+    for (var i = 0; i < 40; i++) {
+      await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 10)));
+      await tester.pump();
+      if (find.byType(ListTile).evaluate().isNotEmpty) break;
+    }
+    expect(find.byType(ListTile), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(seconds: 2));

@@ -112,7 +112,7 @@ graph TB
 | 选型 | 理由 | 证据 |
 |---|---|---|
 | Flutter + Dart | 单代码库交付 iOS/Android；本地 app 形态（无服务端）与其定位匹配 | `[Expert judgment]` |
-| Riverpod | 状态管理；编译期安全的依赖注入，编辑器与 AI 面板的流式状态用 StreamProvider 自然衔接 | `[Expert judgment]` |
+| Riverpod | 状态管理；编译期安全的依赖注入，编辑器与 AI 面板的流式状态用 StreamProvider 自然衔接；只在单一页面消费的 Provider 显式 `.autoDispose`，离开页面即释放底层流订阅（ENH-11） | `[Expert judgment]` |
 | drift | SQLite 的类型安全封装；响应式查询让章节列表随编辑自动刷新；schema 迁移机制应对后续加表 | `[Expert judgment]` |
 | go_router | 声明式路由；作品列表 → 作品详情 → 编辑器三层导航与深度链接 | `[Expert judgment]` |
 | flutter_secure_storage | key 存入 keychain / keystore，满足 PRD 5.8 的安全要求 | `[Expert judgment]` |
@@ -170,7 +170,7 @@ lib/
 | 模块 | 职责 | 输入 | 输出 | 依赖 | 明确不做 |
 |---|---|---|---|---|---|
 | features/* | UI 与交互状态 | 用户操作、Repository 流 | 界面 | Repository、AI 用例接口 | 不直接访问数据库与 http |
-| features/search | 全局搜索（B-06）：关键词检索与命中高亮 | 关键词 | 命中列表（作品/章节/片段） | ChapterRepository.search | 不做索引与分词（本地 LIKE 直查，作品量级不构成瓶颈） |
+| features/search | 全局搜索（B-06）：关键词检索与命中高亮 | 关键词（输入 300ms 防抖，ENH-11） | 命中列表（作品/章节/片段） | ChapterRepository.search（autoDispose，关键词未变不重查） | 不做索引与分词（本地 LIKE 直查，作品量级不构成瓶颈） |
 | features/stats | 写作统计（B-07）：每日字数目标进度、连续写作天数、番茄钟 | 每日统计流 + 设置 | 统计页 | ChapterRepository(watchDailyWritingStats)、SettingsRepository | 番茄钟为页面内计时，不后台常驻 |
 | features/work_detail（设定集/关系图） | 设定集（B-09）：世界观/地点/道具条目；人物关系图（B-09）：环形绘制角色关系并可增删改 | 设定/角色/关系流 + 用户编辑 | 设定集 Tab、关系图页 | SettingRepository、CharacterRepository(relations) | 关系图为静态环形布局，不做自动布局与拖拽 |
 | data/repositories | 领域读写：作品/卷/章/角色/设定集/关系/章纲/统计 | DAO 结果 | 领域模型、响应式流 | drift | 不含业务编排（如分章策略在 importer） |
@@ -377,6 +377,7 @@ erDiagram
 - 编辑器仅在正文/标题相对上次落库确有变化时才重写整章（ENH-09）：`TextEditingController` 在选区变化时也会通知，`EditorController` 用 `_lastSavedText` / `_lastSavedTitle` 比对，纯移光标/改选区时只落库光标与滚动位置（`saveCursorPosition`），不触发 `saveChapter`、不重算字数、不闪「保存中」。
 - 编辑器撤销栈按「条数 + 累计字符数」双重裁剪（ENH-10）：每步快照保存整章副本（10 万字章节单条约 20 万字符），除 `_maxHistory`（100 条）外新增 `_maxHistoryChars`（200 万字符）与 `_minHistoryKeep`（10 条），超限时从最旧开始丢弃且始终保留最近 10 步可撤销；「同内容合并」与「新输入截断重做栈」逻辑不变。
 - 字数重算防抖（ENH-10）：`countWords` 对长章是整章 rune 遍历，`_onTextChanged` 改为停顿 `wordCountDebounce`（120ms）后重算（`_recountWords`），避免每次按键都全章扫描；`_dirty` / 自动保存 / 历史栈节奏不变，落库字数仍由 `saveChapter` 按实际正文计算。
+- Provider 生命周期（ENH-11）：只在单一页面消费的 Provider 一律加 `.autoDispose`（Riverpod 3 的 `.autoDispose` 修饰符默认 `isAutoDispose: false`，必须显式声明）——作品详情的 9 个流 Provider（work / volumes / chapters / characters / settingEntries / characterRelations / snapshots / outline / inspirations）与其消费页一一对应，`dailyWritingStatsProvider` 属统计页，`taskModelIdProvider` 属 AI 设置，离开页面后无人监听即释放底层 drift 流订阅；`searchProvider` 以关键词为 `family` 参数，改 autoDispose 后输入过的每个前缀不再各自常驻。
 
 ---
 
@@ -490,6 +491,7 @@ sequenceDiagram
 
 - 规则引擎：词库 + 句式模式（模式化对话标签正则、段尾感悟句特征、连续同结构段落），纯本地计算，MVP 内置约 200 条规则 `[Expert judgment]`。实现落点：词库 `core/flavor_lexicon.dart`（高 3 / 中 2 / 低 1 三级权重，含可直接替换词条的替换文本），检测纯函数 `core/ai_flavor_rules.dart`。
 - 词库单趟匹配（ENH-10）：`_matchLexicon` 由「约 200 条词条各自 `indexOf` 全文」改为一条组合正则（候选按词长降序、同级按权重降序排列）一次 `allMatches`——同一位置优先命中更长（更具体）的词条，「组合正则 + 位置的贪心去重」结果与逐条匹配一致，把 O(词条数 × 正文长度) 的重复扫描降为单趟。
+- 规则引擎移出 UI 线程（ENH-11）：整部作品可达数十万字，词库匹配与段落分析是同步 CPU 计算，在 UI 线程执行会让面板在出结果前冻结。`AiService.checkFlavor` 把范围文本取出后经 `await Isolate.run(() => runFlavorRules(scopeText))` 在独立 isolate 执行，再以 `CheckRuleResult` 事件回填；`runFlavorRules` 保持同步纯函数不变，`FlavorResult` / `FlavorIssue` / `FlavorMetrics` 全为普通数据（String / int / double / List，无 RegExp 与闭包），可安全跨 isolate 传递。
 - 检测参数（`core/ai_flavor_rules.dart` 常量）：套话密度告警 > 12 处/千字、破折号 + 省略号 > 8 处/千字、同一套话单章 ≥ 4 次触发句式重复提示；密度类判断最小样本 300 字，短章不告警避免误报。
 - 回归集（M4-05）落点：`test/core/fixtures/flavor_regression_samples.dart`（段落级样本，标注正/负），`test/core/flavor_regression_test.dart` 每版本跑一次；判定口径 `isFlavorFlagged`（存在可定位的"中"及以上问题，不含全文级密度提示）。v1 基线：40 条样本（20 正 / 20 负），召回 100%、误报 0%。
 - LLM 深检：要求模型返回 JSON（问题类型枚举、原文片段起止、建议文本），适配器层解析失败时按纯文本降级展示。

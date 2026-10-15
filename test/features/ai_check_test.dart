@@ -109,6 +109,22 @@ void main() {
     );
   });
 
+  test('规则层经 isolate 执行，结果与同步调用一致（ENH-11）', () async {
+    final events = await serviceWith(
+      MockClient((req) async => throw StateError('不应发起网络请求')),
+    ).checkFlavor(workId: workId, chapterId: chapterId).toList();
+
+    final rule = events.single as CheckRuleResult;
+    final expected = runFlavorRules(rule.scope.text);
+    expect(
+      rule.result.issues.map((i) => '${i.type}|${i.start}|${i.end}'),
+      expected.issues.map((i) => '${i.type}|${i.start}|${i.end}'),
+    );
+    expect(rule.result.metrics.wordCount, expected.metrics.wordCount);
+    expect(rule.result.metrics.clicheHits, expected.metrics.clicheHits);
+    expect(rule.result.metrics.clicheDensity, expected.metrics.clicheDensity);
+  });
+
   test('未配置检查模型时给出引导事件且保留规则结果', () async {
     final events = await serviceWith(MockClient((req) async => sseResponse('')))
         .checkFlavor(workId: workId, chapterId: chapterId, deep: true)

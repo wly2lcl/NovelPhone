@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -15,13 +17,34 @@ class SearchPage extends ConsumerStatefulWidget {
 }
 
 class _SearchPageState extends ConsumerState<SearchPage> {
+  /// 输入防抖（ENH-11）：正文 LIKE 是整表扫描，逐键检索会打断输入且浪费查询。
+  static const Duration _debounceDelay = Duration(milliseconds: 300);
+
   final TextEditingController _keyword = TextEditingController();
+  Timer? _debounce;
   String _query = '';
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _keyword.dispose();
     super.dispose();
+  }
+
+  void _onChanged(String value) {
+    _debounce?.cancel();
+    final next = value.trim();
+    if (next == _query) return;
+    _debounce = Timer(_debounceDelay, () {
+      if (!mounted) return;
+      setState(() => _query = next);
+    });
+  }
+
+  void _clear() {
+    _debounce?.cancel();
+    _keyword.clear();
+    setState(() => _query = '');
   }
 
   @override
@@ -38,17 +61,14 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             hintText: '搜索全部作品…',
             border: InputBorder.none,
           ),
-          onChanged: (value) => setState(() => _query = value.trim()),
+          onChanged: _onChanged,
         ),
         actions: <Widget>[
           if (_query.isNotEmpty)
             IconButton(
               tooltip: '清空',
               icon: const Icon(Icons.close),
-              onPressed: () {
-                _keyword.clear();
-                setState(() => _query = '');
-              },
+              onPressed: _clear,
             ),
         ],
       ),

@@ -2,12 +2,16 @@ import '../word_count.dart';
 
 /// 分章结果的最小单元。
 class ChapterDraft {
-  const ChapterDraft({required this.title, required this.content});
+  ChapterDraft({required this.title, required this.content});
 
   final String title;
   final String content;
 
-  int get wordCount => countWords(content);
+  int? _wordCount;
+
+  /// 字数（ENH-11）：导入预览每次重建都会读取，首次读取后缓存，
+  /// 避免对整章正文反复扫描。
+  int get wordCount => _wordCount ??= countWords(content);
 
   ChapterDraft copyWith({String? title, String? content}) =>
       ChapterDraft(title: title ?? this.title, content: content ?? this.content);
