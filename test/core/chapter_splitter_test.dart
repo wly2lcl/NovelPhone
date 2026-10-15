@@ -44,6 +44,16 @@ void main() {
       final drafts = splitIntoChapters('$long\n正文');
       expect(drafts.first.title.length, lessThanOrEqualTo(50));
     });
+
+    test('超长标题按码点截断，不劈开 emoji（ENH-09）', () {
+      // emoji 恰好落在第 50 个位置上：旧实现按 UTF-16 码元 substring(0, 50)
+      // 会切出孤立代理项（半个 emoji），按码点截断应保留完整 emoji。
+      final long = '# ${'A' * 49}😀尾';
+      final drafts = splitIntoChapters('$long\n正文');
+      final title = drafts.first.title;
+      expect(title.runes.length, 50);
+      expect(title.endsWith('😀'), isTrue);
+    });
   });
 
   group('mergeWithPrevious', () {

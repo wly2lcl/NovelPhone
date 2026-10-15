@@ -100,6 +100,9 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
 
   bool _needsConfig = false;
   BuiltContext? _context;
+
+  /// 多候选续写共用的预组装上下文（ENH-09）：三路只在温度上不同。
+  BuiltContext? _prebuilt;
   bool _contextExpanded = false;
 
   /// 生成耗时反馈（ENH-07 O9）：流式期间每秒刷新已用秒数。
@@ -202,6 +205,17 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
 
     // 多候选仅对续写生效（ENH-05）。
     final count = _multiMode ? 3 : 1;
+    // ENH-09：多候选三路上下文一致，先组装一次供三路共用。
+    _prebuilt = null;
+    if (_mode == AiPanelMode.continueWriting && count > 1) {
+      _prebuilt = await ref.read(aiServiceProvider).prebuildContinue(
+            workId: widget.workId,
+            chapterId: widget.chapterId,
+            direction: _lastDirection.isEmpty ? null : _lastDirection,
+            length: _length.round(),
+          );
+      if (!mounted) return;
+    }
     _pending = count;
     _subs = <StreamSubscription<AiEvent>>[
       for (var i = 0; i < count; i++)
@@ -221,6 +235,7 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
           direction: _lastDirection.isEmpty ? null : _lastDirection,
           length: _length.round(),
           variant: _multiMode ? index : null,
+          prebuilt: _prebuilt,
         );
       case AiPanelMode.inspireIdeas:
       case AiPanelMode.inspireOpening:
@@ -363,7 +378,8 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
   }
 
   Future<void> _insert() async {
-    final text = _activeResult.text.trim();
+    // ENH-09：与三处摘要路径一致，写进正文前统一清洗 markdown 标记与多余空行。
+    final text = sanitizeAiText(_activeResult.text).trim();
     if (text.isEmpty) return;
     widget.onInsert(text);
     await _markAdoption(text.length);
@@ -372,7 +388,8 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
 
   /// 改写模式（ENH-04）：把 AI 改写结果替换回原文选中区间（走编辑器撤销栈）。
   Future<void> _replace() async {
-    final text = _activeResult.text.trim();
+    // ENH-09：替换回正文前同样清洗，避免 `**加粗**`/行首编号等混入正文。
+    final text = sanitizeAiText(_activeResult.text).trim();
     if (text.isEmpty) return;
     final replace = widget.onReplace;
     if (replace == null) return;

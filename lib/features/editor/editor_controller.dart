@@ -43,6 +43,11 @@ class EditorController extends ChangeNotifier {
   String _title = '';
   String get title => _title;
 
+  /// 最近一次成功落库的标题与正文（ENH-09）：`TextEditingController` 在选区
+  /// 变化时也会通知，只挪光标不该被当成正文改动去重写整章，故用它们区分。
+  String? _lastSavedText;
+  String? _lastSavedTitle;
+
   SaveStatus _saveStatus = SaveStatus.saved;
   SaveStatus get saveStatus => _saveStatus;
 
@@ -77,6 +82,8 @@ class EditorController extends ChangeNotifier {
     if (chapter == null) return;
     _title = chapter.title;
     textController.text = chapter.content;
+    _lastSavedText = chapter.content;
+    _lastSavedTitle = chapter.title;
     _chapterWords = chapter.wordCount;
     initialScrollOffset = chapter.scrollOffset;
     final cursor = chapter.cursorOffset.clamp(0, chapter.content.length);
@@ -89,7 +96,11 @@ class EditorController extends ChangeNotifier {
   }
 
   void _onTextChanged() {
-    final words = countWords(textController.text);
+    final text = textController.text;
+    // 选区变化也会触发本监听：标题与正文都与已落库内容一致时，只挪了光标，
+    // 不重算字数、不标记「保存中」、不排保存（避免每次移光标重写整章）。
+    if (text == _lastSavedText && _title == _lastSavedTitle) return;
+    final words = countWords(text);
     if (words != _chapterWords) _chapterWords = words;
     _dirty = true;
     _saveStatus = SaveStatus.saving;
@@ -107,14 +118,26 @@ class EditorController extends ChangeNotifier {
     if (!_dirty) return;
     _saveStatus = SaveStatus.saving;
     notifyListeners();
+    final text = textController.text;
     try {
-      await repository.saveChapter(
-        chapterId: chapterId,
-        title: _title,
-        content: textController.text,
-        cursorOffset: _currentCursor,
-        scrollOffset: _currentScroll,
-      );
+      // 正文与标题都没变（多为移动光标 / 改选区）：只落库位置，不重写整章。
+      if (text == _lastSavedText && _title == _lastSavedTitle) {
+        await repository.saveCursorPosition(
+          chapterId: chapterId,
+          cursorOffset: _currentCursor,
+          scrollOffset: _currentScroll,
+        );
+      } else {
+        await repository.saveChapter(
+          chapterId: chapterId,
+          title: _title,
+          content: text,
+          cursorOffset: _currentCursor,
+          scrollOffset: _currentScroll,
+        );
+        _lastSavedText = text;
+        _lastSavedTitle = _title;
+      }
       _dirty = false;
       _lastSavedAt = DateTime.now();
       _saveStatus = SaveStatus.saved;

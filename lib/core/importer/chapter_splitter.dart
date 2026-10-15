@@ -40,9 +40,11 @@ String? _headingTitle(String line) {
   final title = (match.namedGroup('md') ?? line).trim();
   // 导出时空标题写作「未命名章节」，再导入还原为空标题，保证往返一致。
   if (title == kUntitledChapterLabel) return '';
-  return title.length > kMaxChapterTitleLength
-      ? title.substring(0, kMaxChapterTitleLength)
-      : title;
+  // 按码点截断（ENH-09）：`substring` 走 UTF-16 码元，标题含 emoji 等代理对时
+  // 会切出半个字符，这里按 runes 截断保证不劈开字符。
+  final runes = title.runes.toList(growable: false);
+  if (runes.length <= kMaxChapterTitleLength) return title;
+  return String.fromCharCodes(runes.take(kMaxChapterTitleLength));
 }
 
 /// 按章节标题正则把全文切分为章节草稿。

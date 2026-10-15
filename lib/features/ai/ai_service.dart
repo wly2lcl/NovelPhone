@@ -230,6 +230,8 @@ class AiService {
     int? length,
     // ENH-05：多候选续写时按候选序号微调温度制造差异（0/1/2 → -0.15/+0/+0.15）。
     int? variant,
+    // ENH-09：多候选共用的预组装上下文（见 prebuildContinue）；为空时现组装。
+    BuiltContext? prebuilt,
   }) async* {
     final resolved = await settings.resolveTaskModelWithKey(AiTask.continueWriting);
     if (resolved == null) {
@@ -243,15 +245,19 @@ class AiService {
       return;
     }
 
-    final built = await contexts.buildContinue(
-      workId: workId,
-      chapterId: chapterId,
-      contextWindow: group.contextWindow,
-      direction: direction,
-      length: length,
-    );
-    // B-03：把启用技能作为附加 system 指令注入。
-    final injected = _withSkills(built, await settings.listEnabledSkills());
+    // ENH-09：多候选续写三路只在温度上不同、上下文完全一致，由 prebuildContinue
+    // 预先组装好传入，避免每个候选重复取数与组装。
+    final injected = prebuilt ??
+        _withSkills(
+          await contexts.buildContinue(
+            workId: workId,
+            chapterId: chapterId,
+            contextWindow: group.contextWindow,
+            direction: direction,
+            length: length,
+          ),
+          await settings.listEnabledSkills(),
+        );
     yield AiContextBuilt(injected);
 
     final client = buildAiClient(
@@ -274,6 +280,29 @@ class AiService {
       workId: workId,
       chapterId: chapterId,
     );
+  }
+
+  /// 预组装续写上下文（ENH-09）：多候选续写的三个候选只在温度上不同，上下文
+  /// 完全一致，这里一次组装好供三路流共用，省掉两次全量取数与组装。
+  /// 返回 null 表示尚未配置可用模型，此时各流会自行走 NeedsConfig 分支。
+  Future<BuiltContext?> prebuildContinue({
+    required int workId,
+    required int chapterId,
+    String? direction,
+    int? length,
+  }) async {
+    final resolved = await settings.resolveTaskModelWithKey(AiTask.continueWriting);
+    if (resolved == null) return null;
+    final group = resolved.group;
+    if (_firstModel(group) == null) return null;
+    final built = await contexts.buildContinue(
+      workId: workId,
+      chapterId: chapterId,
+      contextWindow: group.contextWindow,
+      direction: direction,
+      length: length,
+    );
+    return _withSkills(built, await settings.listEnabledSkills());
   }
 
   /// 多候选温度微调（ENH-05）：variant 为空时沿用模型组温度。

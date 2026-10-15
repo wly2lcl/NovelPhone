@@ -386,4 +386,144 @@ void main() {
       '1.5 倍的收益\n3.14 是圆周率\n真正的编号\n中文编号\n全角编号',
     );
   });
+
+  // ---------- ENH-09：写入正文前统一清洗 ----------
+
+  testWidgets('替换原文前清洗 AI 产出的 Markdown 标记（ENH-09）', (tester) async {
+    await seed('她不禁笑了。', confirmAiNotice: true);
+    final settings = SettingsRepository(db, InMemoryKeyStore());
+    final groupId = await settings.createModelGroup(
+      name: '续写模型',
+      provider: 'openai_compat',
+      baseUrl: 'https://api.example.com/v1',
+      models: <String>['m1'],
+      apiKey: 'sk-test',
+    );
+    await settings.setTaskModel(AiTask.continueWriting, groupId);
+
+    final service = AiService(
+      settings: settings,
+      works: works,
+      chapters: chapters,
+      characters: CharacterRepository(db),
+      outline: OutlineRepository(db),
+      stats: TokenStatsRepository(db),
+      httpClient: MockClient((request) async {
+        final payload = jsonEncode(<String, dynamic>{
+          'choices': <dynamic>[
+            <String, dynamic>{
+              'delta': <String, dynamic>{'content': '## 她笑了\n\n1. 收尾。'},
+              'finish_reason': 'stop',
+            },
+          ],
+          'usage': <String, dynamic>{'prompt_tokens': 20, 'completion_tokens': 8},
+        });
+        return http.Response.bytes(
+          utf8.encode('data: $payload\n\ndata: [DONE]\n\n'),
+          200,
+          headers: <String, String>{'content-type': 'text/event-stream'},
+        );
+      }),
+    );
+
+    await tester.pumpWidget(wrap(service: service));
+    await settle(tester, find.byType(TextField));
+
+    final editable =
+        tester.widget<EditableText>(find.byType(EditableText).first);
+    editable.controller.selection =
+        const TextSelection(baseOffset: 0, extentOffset: 6);
+    await tester.pump();
+
+    await tester.tap(find.text('AI 改写'));
+    await settle(tester, find.text('替换原文'));
+
+    final replaceButton = find.widgetWithText(FilledButton, '替换原文');
+    await pumpReal(tester, until: () {
+      return replaceButton.evaluate().isNotEmpty &&
+          tester.widget<FilledButton>(replaceButton).onPressed != null;
+    });
+
+    await tester.ensureVisible(replaceButton);
+    await tester.pump();
+    await tester.tap(replaceButton);
+    await pumpReal(tester, until: () {
+      return tester
+              .widget<EditableText>(find.byType(EditableText).first)
+              .controller
+              .text !=
+          '她不禁笑了。';
+    });
+
+    final body = tester
+        .widget<EditableText>(find.byType(EditableText).first)
+        .controller
+        .text;
+    // 写回正文的是清洗后的文本：标题标记与行首编号都被剥离。
+    expect(body, isNot(contains('##')));
+    expect(body, isNot(contains('1. ')));
+    expect(body, contains('收尾。'));
+    expect(tester.takeException(), isNull);
+
+    await closePage(tester);
+  });
+
+  // ---------- ENH-09：多候选续写共用一份上下文 ----------
+
+  test('多候选续写三路共用同一份预组装上下文（ENH-09）', () async {
+    await seed('她不禁笑了。', confirmAiNotice: true);
+    final settings = SettingsRepository(db, InMemoryKeyStore());
+    final groupId = await settings.createModelGroup(
+      name: '续写模型',
+      provider: 'openai_compat',
+      baseUrl: 'https://api.example.com/v1',
+      models: <String>['m1'],
+      apiKey: 'sk-test',
+    );
+    await settings.setTaskModel(AiTask.continueWriting, groupId);
+
+    final service = AiService(
+      settings: settings,
+      works: works,
+      chapters: chapters,
+      characters: CharacterRepository(db),
+      outline: OutlineRepository(db),
+      stats: TokenStatsRepository(db),
+      httpClient: MockClient((request) async {
+        final payload = jsonEncode(<String, dynamic>{
+          'choices': <dynamic>[
+            <String, dynamic>{
+              'delta': <String, dynamic>{'content': '续写内容。'},
+              'finish_reason': 'stop',
+            },
+          ],
+          'usage': <String, dynamic>{'prompt_tokens': 20, 'completion_tokens': 8},
+        });
+        return http.Response.bytes(
+          utf8.encode('data: $payload\n\ndata: [DONE]\n\n'),
+          200,
+          headers: <String, String>{'content-type': 'text/event-stream'},
+        );
+      }),
+    );
+
+    final prebuilt =
+        await service.prebuildContinue(workId: workId, chapterId: chapterId);
+    expect(prebuilt, isNotNull);
+
+    // 三路候选只在温度上不同：传入 prebuilt 后不再各自组装，
+    // 事件里携带的就是同一个上下文对象（省掉两次全量取数与组装）。
+    for (var variant = 0; variant < 3; variant++) {
+      final events = await service
+          .continueWriting(
+            workId: workId,
+            chapterId: chapterId,
+            variant: variant,
+            prebuilt: prebuilt,
+          )
+          .toList();
+      final built = events.whereType<AiContextBuilt>().single;
+      expect(identical(built.context, prebuilt), isTrue);
+    }
+  });
 }

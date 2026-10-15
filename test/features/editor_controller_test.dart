@@ -309,4 +309,29 @@ void main() {
     );
     expect(controller.textController.text, '她不禁笑了。');
   });
+
+  test('仅移动光标不重写正文（ENH-09）', () async {
+    await chapters.saveChapter(
+      chapterId: chapterId,
+      title: '第一章',
+      content: '两人对坐，谁也没有先开口。',
+    );
+    await controller.load();
+    final before = await chapters.getChapter(chapterId);
+    expect(before!.cursorOffset, 0);
+
+    // 只挪光标（选区变化）：不应被当成正文改动。
+    controller.textController.selection =
+        const TextSelection.collapsed(offset: 3);
+
+    expect(controller.saveStatus, SaveStatus.saved);
+
+    await Future<void>.delayed(
+        EditorController.autosaveDelay + const Duration(milliseconds: 300));
+
+    final after = await chapters.getChapter(chapterId);
+    // 未走 saveChapter：正文与 updatedAt 都没变。
+    expect(after!.updatedAt, before.updatedAt);
+    expect(after.content, before.content);
+  });
 }

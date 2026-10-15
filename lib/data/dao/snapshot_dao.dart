@@ -32,9 +32,18 @@ class SnapshotDao {
 
   /// 只保留最新 [keep] 条，删除更旧的，返回清理条数。
   Future<int> pruneBeyond(int chapterId, int keep) async {
-    final rows = await _ordered(chapterId).get();
-    if (rows.length <= keep) return 0;
-    final staleIds = rows.skip(keep).map((e) => e.id).toList(growable: false);
+    // ENH-09：只读 id 列，不再把每条快照的正文载入内存。
+    final ids = await (_db.selectOnly(_db.chapterSnapshots)
+          ..addColumns(<Expression<int>>[_db.chapterSnapshots.id])
+          ..where(_db.chapterSnapshots.chapterId.equals(chapterId))
+          ..orderBy(<OrderingTerm>[
+            OrderingTerm.desc(_db.chapterSnapshots.createdAt),
+            OrderingTerm.desc(_db.chapterSnapshots.id),
+          ]))
+        .map((row) => row.read<int>(_db.chapterSnapshots.id)!)
+        .get();
+    if (ids.length <= keep) return 0;
+    final staleIds = ids.skip(keep).toList(growable: false);
     await (_db.delete(_db.chapterSnapshots)..where((t) => t.id.isIn(staleIds)))
         .go();
     return staleIds.length;

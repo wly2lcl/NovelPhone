@@ -250,11 +250,21 @@ M4 自动化验证记录（2026-09-30）：`flutter analyze` 无问题；`flutte
   - 文档同步：ARCHITECTURE 4.2；README 当前状态。
   - 真机验收（2026-10-15，SM_G998B / Android 13，release APK）：三处弹窗入口（编辑器「AI 章节工具 → 查看/编辑本章摘要」带 O4 提示、章节 Tab 卷头「查看/编辑本卷前情回顾」、章纲 Tab 编辑图标）均正常弹出并往返持久化、无红屏；老库（ENH-07 / v8）安装新包后 v8 → v9 迁移成功、作品（40.5 万字 · 42 章）数据完整无崩溃；AI 章节工具真实生成摘要后落库，「查看/编辑本章摘要」显示 `1.5x`/`3.14` 被保留、`1. ` 编号被剥离（旧代码会得到 `5x`/`14`）。
 
+- [x] ENH-09（P1）性能与一致性优化（5 项）：
+  - ① 编辑器不再因移光标重写整章：`TextEditingController` 在选区变化时也会通知监听器，旧实现把「只挪光标」当成正文改动、每次移光标都标记「保存中」并重写整章。新增 `EditorController._lastSavedText` / `_lastSavedTitle` 记录最近落库的标题与正文，`_onTextChanged` 与 `_save` 均先比对——纯移光标/改选区时只落库光标与滚动位置（`saveCursorPosition`），不重算字数、不排保存。
+  - ② 多候选续写共用一份上下文：三路候选只在温度上不同（`variant`），旧实现每路各自 `ContextBuilder` 全量取数与组装。新增 `AiService.prebuildContinue`（未配置可用模型时返回 null，各流仍走 NeedsConfig 分支）一次组装，`continueWriting` 新增可选 `prebuilt` 参数，`ai_confirm_panel` 起播前预组装并三路共用。
+  - ③ 写入正文前统一清洗：续写「插入光标处」与改写「替换原文」改为一律先经 `sanitizeAiText` 清洗（与摘要/卷回顾/章纲一致），避免 Markdown 标记与行首编号混入正文。
+  - ④ 章标题按码点安全截断：`chapter_splitter` 的 50 字截断由 UTF-16 `substring` 改为按 `runes` 截断，标题含 emoji 等代理对时不再切出半个字符。
+  - ⑤ 快照清理不载入正文：`SnapshotDao.pruneBeyond` 改为 `selectOnly` 仅取 `id` 列排序后 `skip(keep)`，避免每次创建快照把该章最多 50 条正文全文读进内存。
+  - 验证：`test/features/editor_controller_test.dart` 新增 1 个用例（仅移动光标不重写正文：`updatedAt` 与正文均不变）；`test/features/editor_page_test.dart` 新增 2 个用例（替换原文前清洗 Markdown 标记、多候选三路共用同一份预组装上下文 `identical`）；`test/core/chapter_splitter_test.dart` 新增 1 个用例（超长标题按码点截断不劈开 emoji）。`flutter analyze` 无问题，`flutter test` 281 用例全绿。Item ⑤ 由既有快照用例覆盖。
+  - 文档同步：ARCHITECTURE 3.1 / 4.2 / 4.3 / 5.6；README 当前状态。
+  - 真机验收（2026-10-15，SM_G998B / Android 13，release APK）：① 打开「第一章 断章夜航」（7614 字）后仅点正文移动光标，顶栏保持「已保存」不闪「保存中」、撤销/重做仍灰、本章字数不变；返回作品列表「最后编辑」仍为 19 小时前（未重写整章）。②「AI 续写」默认 3 候选（版本 1/2/3），上下文详情「估算 4303 / 预算 16000 token」只组装一次，三个候选均正常流式产出。③ 在候选输出框尾部追加 `1. ENH9item` 后点「插入光标处」，用编辑器「查找」验证正文含 `ENH9item`（1 处）、不含 `1. ENH9`（0 处）——编号前缀已被清洗。④ 导入含 markdown 标题 `# ` + 49 个 `A` + emoji + `尾` 的 txt（标题共 51 码点），导入预览与导入后卷内章节标题均显示为「49 个 A + 完整 emoji」（50 码点、无 `尾`、无半个字符）。⑤「版本历史」面板创建快照（显示「刚刚 · 7614 字」，走 `pruneBeyond` 轻量查询）、预览全文、恢复版本（提示「已恢复到该版本」）均正常。验证结束已删除测试导入的卷、撤销测试插入，作品恢复「40.5 万字 · 42 章」；logcat 无 FATAL / `used after being disposed` / drift-sqlite 报错。
+
 ---
 
 ## 后置 backlog（不进 MVP 承诺）
 
-进度：B-01、B-02、B-03、B-04、B-05、B-06、B-07、B-08、B-09 全部已完成；MVP 收口后的增强 ENH-01（429/5xx 自动退避重试）、ENH-02（设定集纳入 AI 上下文）、ENH-03（全 App 深色模式）、ENH-04（专注模式 + 选中段落 AI 改写 + 导出 EPUB）、ENH-05（AI 逐章摘要 + 多候选续写 + AI 章纲扩写）、ENH-06（滚动摘要（本卷前情回顾）+ 摘要查看编辑）、ENH-07（体验与上下文优化 O1-O9）、ENH-08（稳健性与性能修正：小数误删修复 + 索引 + 弹窗收敛）已完成。
+进度：B-01、B-02、B-03、B-04、B-05、B-06、B-07、B-08、B-09 全部已完成；MVP 收口后的增强 ENH-01（429/5xx 自动退避重试）、ENH-02（设定集纳入 AI 上下文）、ENH-03（全 App 深色模式）、ENH-04（专注模式 + 选中段落 AI 改写 + 导出 EPUB）、ENH-05（AI 逐章摘要 + 多候选续写 + AI 章纲扩写）、ENH-06（滚动摘要（本卷前情回顾）+ 摘要查看编辑）、ENH-07（体验与上下文优化 O1-O9）、ENH-08（稳健性与性能修正：小数误删修复 + 索引 + 弹窗收敛）、ENH-09（性能与一致性优化：编辑器不重写整章 + 多候选共用上下文 + 写入正文前清洗 + 码点截断 + 快照轻量清理）已完成。
 
 - [x] B-01（P2）Responses 端点适配器：新增 `ResponsesAdapter implements AiClient`（架构 9 章触发条件成熟时）
   - 新增 `lib/core/ai/responses_adapter.dart`（端点 `POST {baseUrl}/v1/responses`，system 提为顶层 `instructions`，`input[]` 支持消息 / `function_call` / `function_call_output`；解析 `response.output_text.delta`、`response.completed` 的 usage 与 status；工具调用经 `response.output_item.*` / `response.function_call_arguments.delta` 累积）；`AiProvider.responses` 登记并在 `buildAiClient` 分发；设置页协议类型增第三段「Responses」。
