@@ -684,10 +684,14 @@ class AiService {
     int? chapterId,
     bool deep = false,
   }) async* {
-    final all = await chapters.watchChapters(workId).first;
-    final scoped = chapterId == null
-        ? all
-        : all.where((c) => c.id == chapterId).toList(growable: false);
+    // ENH-13：单章检查只需该章正文，整部作品检查才需要全书；避免为单章读全书。
+    final List<Chapter> scoped;
+    if (chapterId == null) {
+      scoped = await chapters.watchChapters(workId).first;
+    } else {
+      final one = await chapters.getChapter(chapterId);
+      scoped = one == null ? const <Chapter>[] : <Chapter>[one];
+    }
     final scope = buildCheckScope(scoped);
 
     // 第一层：本地规则引擎。整部作品可达数十万字，词库与段落分析耗时可见，

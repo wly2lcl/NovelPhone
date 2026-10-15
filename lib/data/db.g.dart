@@ -5663,6 +5663,14 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     'inspirations_work_id',
     'CREATE INDEX inspirations_work_id ON inspirations (work_id)',
   );
+  late final Index settingEntriesWorkId = Index(
+    'setting_entries_work_id',
+    'CREATE INDEX setting_entries_work_id ON setting_entries (work_id)',
+  );
+  late final Index characterRelationsWorkId = Index(
+    'character_relations_work_id',
+    'CREATE INDEX character_relations_work_id ON character_relations (work_id)',
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -5687,6 +5695,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     charactersWorkId,
     outlineEntriesWorkId,
     inspirationsWorkId,
+    settingEntriesWorkId,
+    characterRelationsWorkId,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([

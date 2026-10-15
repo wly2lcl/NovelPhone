@@ -428,16 +428,17 @@ class _EditorPageState extends ConsumerState<EditorPage> {
       final chapter = await ref
           .read(chapterRepositoryProvider)
           .getChapter(widget.chapterId);
-      final all = await ref
+      // ENH-13：只需章节元数据判断是否写有内容，避免为前置校验读整部作品正文。
+      final metas = await ref
           .read(chapterRepositoryProvider)
-          .watchChapters(widget.workId)
+          .watchChapterMetas(widget.workId)
           .first;
       if (!mounted) return;
-      final index = all.indexWhere((c) => c.id == widget.chapterId);
+      final index = metas.indexWhere((c) => c.id == widget.chapterId);
       final hasEarlier = index > 0 &&
-          all.take(index).any((c) =>
+          metas.take(index).any((c) =>
               c.volumeId == chapter?.volumeId &&
-              (c.content.trim().isNotEmpty || c.summary.trim().isNotEmpty));
+              (c.wordCount > 0 || c.summary.trim().isNotEmpty));
       if (!hasEarlier) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('本卷还没有更早的章节内容，暂无法生成本卷前情回顾')),

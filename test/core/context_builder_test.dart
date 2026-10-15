@@ -545,6 +545,44 @@ void main() {
     });
   });
 
+  group('卷回顾省略整部正文读取（ENH-13）', () {
+    test('buildVolumeSummary 不整部读正文，仅取本卷无摘要章正文', () async {
+      final counting = _CountingChapters(db);
+      final localBuilder = ContextBuilder(
+        works: works,
+        chapters: counting,
+        characters: characters,
+        outline: outline,
+        settings: settings,
+      );
+      final workId = await seedWork();
+      final ordered = await chapters.watchChapters(workId).first;
+      // 第一章补一条 AI 摘要：走摘要即不再需要正文。
+      await chapters.saveChapterSummary(ordered[0].id, '第一章摘要：沈砚离乡。');
+      final third = await chapters.createChapter(workId: workId, title: '第三章');
+      await chapters.saveChapter(
+        chapterId: third,
+        title: '第三章',
+        content: '沈砚握紧了刀。',
+        cursorOffset: 0,
+        scrollOffset: 0,
+      );
+
+      final context = await localBuilder.buildVolumeSummary(
+          workId: workId, chapterId: third, contextWindow: 32000);
+
+      // 顺序与摘要取自元数据流，不再为一段卷回顾读整部作品正文。
+      expect(counting.fullWorkReads, 0);
+      // 正文只取当前章与「没有 AI 摘要的第二章」。
+      expect(counting.contentReads.toSet(), <int>{third, ordered[1].id});
+
+      final material = context.sections
+          .firstWhere((s) => s.label == '本卷素材（上一版回顾 + 新增章节）');
+      expect(material.content, contains('第一章摘要：沈砚离乡。'));
+      expect(material.content, contains('《第二章》沈砚在雨里走了很久'));
+    });
+  });
+
   test('超预算压缩前情摘要时保留【本卷前情】（ENH-07 O2）', () async {
     final workId = await seedWork();
     final ordered = await chapters.watchChapters(workId).first;

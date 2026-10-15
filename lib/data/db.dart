@@ -165,6 +165,7 @@ class DailyWritingStats extends Table {
 }
 
 /// 设定集条目（B-09）：世界观 / 地点 / 道具，用 type 区分，随作品级联删除。
+@TableIndex(name: 'setting_entries_work_id', columns: {#workId})
 class SettingEntries extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get workId =>
@@ -176,6 +177,7 @@ class SettingEntries extends Table {
 }
 
 /// 角色关系（B-09 人物关系图）：一条有向关系 from → to，两端角色删除时级联删除。
+@TableIndex(name: 'character_relations_work_id', columns: {#workId})
 class CharacterRelations extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get workId =>
@@ -211,7 +213,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -257,6 +259,11 @@ class AppDatabase extends _$AppDatabase {
             await m.createIndex(charactersWorkId);
             await m.createIndex(outlineEntriesWorkId);
             await m.createIndex(inspirationsWorkId);
+          }
+          // v10（ENH-13）：设定集 / 角色关系表补 workId 索引（作品维度查询）。
+          if (from < 10) {
+            await m.createIndex(settingEntriesWorkId);
+            await m.createIndex(characterRelationsWorkId);
           }
         },
         beforeOpen: (details) async {

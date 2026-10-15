@@ -382,24 +382,28 @@ class ContextBuilder {
     final budget = (contextWindow * 0.5).round();
     final work = await works.getWork(workId);
     final chapter = await chapters.getChapter(chapterId);
-    // 本卷回顾需要本卷各章正文做抽句兜底（无 AI 摘要的章节），故仍取完整章节。
-    final allChapters = await chapters.watchChapters(workId).first;
+    // ENH-13：本卷回顾只需本卷章节，先用元数据取顺序，仅对「无 AI 摘要」的
+    // 本卷章按 id 单取正文做抽句兜底，避免为一段卷回顾读整部作品正文。
+    final ordered = await chapters.watchChapterMetas(workId).first;
     final volume = chapter == null
         ? null
         : await _volumeOf(workId, chapter.volumeId);
 
     // 本卷「当前章及之前」的章节（按既有「卷排序 + 章排序」顺序，截到当前章含）。
-    final index = allChapters.indexWhere((c) => c.id == chapterId);
-    final end = index < 0 ? allChapters.length : index + 1;
-    final scoped = allChapters
+    final index = ordered.indexWhere((c) => c.id == chapterId);
+    final end = index < 0 ? ordered.length : index + 1;
+    final scoped = ordered
         .take(end)
         .where((c) => c.volumeId == chapter?.volumeId)
         .toList(growable: false);
 
+    final fallbackContents = <int, String>{};
     String digestOf(Chapter c) {
       final title = c.title.isEmpty ? '未命名章节' : c.title;
       final cached = c.summary.trim();
-      final digest = cached.isEmpty ? summarizeText(c.content) : cached;
+      final digest = cached.isEmpty
+          ? summarizeText(fallbackContents[c.id] ?? '')
+          : cached;
       return '《$title》$digest';
     }
 
@@ -412,10 +416,15 @@ class ContextBuilder {
       final coveredIndex = scoped.indexWhere((c) => c.id == coveredId);
       if (coveredIndex >= 0) freshStart = coveredIndex + 1;
     }
-    final freshMaterial = scoped
-        .sublist(freshStart)
-        .where((c) =>
-            c.content.trim().isNotEmpty || c.summary.trim().isNotEmpty)
+    final freshScoped = scoped.sublist(freshStart);
+    // 无 AI 摘要且有正文的待归并章节，按 id 单取正文（ENH-13）。
+    for (final c in freshScoped) {
+      if (c.summary.trim().isNotEmpty || c.wordCount <= 0) continue;
+      final full = await chapters.getChapter(c.id);
+      if (full != null) fallbackContents[c.id] = full.content;
+    }
+    final freshMaterial = freshScoped
+        .where((c) => c.wordCount > 0 || c.summary.trim().isNotEmpty)
         .map(digestOf)
         .join('\n');
 

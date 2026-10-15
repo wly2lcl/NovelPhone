@@ -21,6 +21,19 @@ import 'package:novelphone/features/ai/ai_service.dart';
 import 'package:novelphone/features/editor/ai_confirm_panel.dart';
 import 'package:novelphone/features/editor/editor_page.dart';
 
+/// 计数用的章节仓储替身（ENH-13）：统计整部作品正文读取次数。
+class _CountingChapters extends ChapterRepository {
+  _CountingChapters(super._db);
+
+  int fullWorkReads = 0;
+
+  @override
+  Stream<List<Chapter>> watchChapters(int workId) {
+    fullWorkReads++;
+    return super.watchChapters(workId);
+  }
+}
+
 /// 编辑器页面级回归（M1-22 真机验收暴露的缺陷）：
 /// 章节加载完成后正文区必须自动进入可编辑态，不能停留在加载指示器上。
 void main() {
@@ -61,11 +74,12 @@ void main() {
     }
   }
 
-  Widget wrap({AiService? service}) {
+  Widget wrap({AiService? service, ChapterRepository? repo}) {
     return ProviderScope(
       overrides: [
         databaseProvider.overrideWithValue(db),
         secureKeyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+        if (repo != null) chapterRepositoryProvider.overrideWithValue(repo),
         if (service != null) aiServiceProvider.overrideWithValue(service),
       ],
       child: MaterialApp(
@@ -338,6 +352,34 @@ void main() {
     expect(tester.takeException(), isNull);
     final chapter = await chapters.getChapter(chapterId);
     expect(chapter!.summary, '手动摘要：她笑了。');
+
+    await closePage(tester);
+  });
+
+  // ---------- ENH-13：本卷前情回顾前置校验 ----------
+
+  testWidgets('本卷前情回顾前置校验只查元数据，不整部读正文（ENH-13）', (tester) async {
+    await seed('她不禁笑了。');
+    // 当前章为本卷第二章（空），第一章有正文 → 应通过前置校验。
+    chapterId = await chapters.createChapter(workId: workId, title: '第二章');
+
+    final counting = _CountingChapters(db);
+    await tester.pumpWidget(wrap(repo: counting));
+    await settle(tester, find.byType(TextField));
+
+    await tester.tap(find.byTooltip('AI 章节工具'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.tap(find.text('生成本卷前情回顾'));
+    await pumpReal(tester,
+        until: () => find.text('尚未配置模型').evaluate().isNotEmpty);
+
+    // 前置校验只查章节元数据，不整部读作品正文。
+    expect(counting.fullWorkReads, 0);
+    // 第一章有内容 → 通过前置校验，走到「尚未配置模型」引导（未配置模型组）。
+    expect(find.text('尚未配置模型'), findsOneWidget);
+    expect(find.text('本卷还没有更早的章节内容，暂无法生成本卷前情回顾'), findsNothing);
+    expect(tester.takeException(), isNull);
 
     await closePage(tester);
   });

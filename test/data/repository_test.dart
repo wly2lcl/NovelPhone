@@ -362,23 +362,23 @@ void main() {
       );
     });
 
-    test('v8 → v9 升级时为既有库补建索引', () async {
+    test('v8 → v10 升级时为既有库补建索引', () async {
       final dir = await Directory.systemTemp.createTemp('novelphone_mig');
       final file = File(p.join(dir.path, 'migrate.sqlite'));
       // 同一插槽先后开关两个 AppDatabase 实例是刻意为之，关掉 drift 的重复实例告警。
       final previousWarn = driftRuntimeOptions.dontWarnAboutMultipleDatabases;
       driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
       try {
-        // v9 只新增索引、不动表结构：先按当前 schema 建库，再删掉索引并回写
+        // v9 / v10 只新增索引、不动表结构：先按当前 schema 建库，再删掉索引并回写
         // user_version = 8，即得到与线上旧库等价的 v8 底座。
         final seeded = AppDatabase(NativeDatabase(file));
-        for (final name in _hotspotIndexNames) {
+        for (final name in _allIndexNames) {
           await seeded.customStatement('DROP INDEX IF EXISTS $name');
         }
         await seeded.customStatement('PRAGMA user_version = 8');
         await seeded.close();
 
-        // 以 v8 身份重新打开：应触发 onUpgrade(8 → 9) 补建索引。
+        // 以 v8 身份重新打开：应触发 onUpgrade(8 → 10) 补建索引。
         final upgraded = AppDatabase(NativeDatabase(file));
         final names = (await upgraded
                 .customSelect("SELECT name FROM sqlite_master WHERE type = 'index'")
@@ -387,7 +387,7 @@ void main() {
             .toSet();
         await upgraded.close();
 
-        expect(names, containsAll(_hotspotIndexNames));
+        expect(names, containsAll(_allIndexNames));
       } finally {
         driftRuntimeOptions.dontWarnAboutMultipleDatabases = previousWarn;
         if (dir.existsSync()) dir.deleteSync(recursive: true);
@@ -403,6 +403,13 @@ const List<String> _hotspotIndexNames = <String>[
   'characters_work_id',
   'outline_entries_work_id',
   'inspirations_work_id',
+];
+
+/// ENH-13：设定集 / 角色关系表补的 workId 索引，连同 ENH-08 的 6 个一并断言。
+const List<String> _allIndexNames = <String>[
+  ..._hotspotIndexNames,
+  'setting_entries_work_id',
+  'character_relations_work_id',
 ];
 
 /// 等待响应式流推送（drift 流更新在当前 isolate 异步派发）。

@@ -15,6 +15,26 @@ import 'package:novelphone/data/repositories/work_repository.dart';
 import 'package:novelphone/data/secure_key_store.dart';
 import 'package:novelphone/features/ai/ai_service.dart';
 
+/// 计数用的章节仓储替身（ENH-13）：整部作品正文读取与按 id 取正文各发生几次。
+class _CountingChapters extends ChapterRepository {
+  _CountingChapters(super._db);
+
+  int fullWorkReads = 0;
+  final List<int> contentReads = <int>[];
+
+  @override
+  Stream<List<Chapter>> watchChapters(int workId) {
+    fullWorkReads++;
+    return super.watchChapters(workId);
+  }
+
+  @override
+  Future<Chapter?> getChapter(int chapterId) {
+    contentReads.add(chapterId);
+    return super.getChapter(chapterId);
+  }
+}
+
 void main() {
   late AppDatabase db;
   late WorkRepository works;
@@ -123,6 +143,31 @@ void main() {
     expect(rule.result.metrics.wordCount, expected.metrics.wordCount);
     expect(rule.result.metrics.clicheHits, expected.metrics.clicheHits);
     expect(rule.result.metrics.clicheDensity, expected.metrics.clicheDensity);
+  });
+
+  test('单章检查只读该章正文，整部检查才读全书（ENH-13）', () async {
+    final counting = _CountingChapters(db);
+    final service = AiService(
+      settings: settings,
+      works: works,
+      chapters: counting,
+      characters: CharacterRepository(db),
+      outline: OutlineRepository(db),
+      stats: stats,
+      httpClient: MockClient((req) async => throw StateError('不应发起网络请求')),
+    );
+
+    final single =
+        await service.checkFlavor(workId: workId, chapterId: chapterId).toList();
+    final rule = single.single as CheckRuleResult;
+    expect(rule.scope.segments.single.chapterId, chapterId);
+    // 单章检查不应整部读作品正文，只按 id 取该章。
+    expect(counting.fullWorkReads, 0);
+    expect(counting.contentReads, <int>[chapterId]);
+
+    // 整部作品检查仍需读全书。
+    await service.checkFlavor(workId: workId).toList();
+    expect(counting.fullWorkReads, 1);
   });
 
   test('未配置检查模型时给出引导事件且保留规则结果', () async {
