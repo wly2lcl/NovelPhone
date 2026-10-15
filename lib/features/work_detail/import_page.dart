@@ -1,3 +1,4 @@
+import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
@@ -92,15 +93,16 @@ class _ImportPageState extends ConsumerState<ImportPage> {
         allowedExtensions: const <String>['txt', 'docx'],
       );
       if (file == null) return;
+      final fileName = file.name;
       final bytes = await file.readAsBytes();
       if (bytes.length > kMaxImportBytes) {
         setState(() =>
             _error = '文件超过 10MB 上限，请先在电脑上拆分后再导入');
         return;
       }
-      final parsed = _parse(file.name, bytes);
+      final parsed = await parseImportFileAsync(fileName, bytes);
       setState(() {
-        _fileName = file.name;
+        _fileName = fileName;
         _bytes = bytes;
         _drafts = parsed.drafts;
         _encoding = parsed.encoding;
@@ -113,21 +115,6 @@ class _ImportPageState extends ConsumerState<ImportPage> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
-  }
-
-  _ParseResult _parse(String fileName, Uint8List bytes) {
-    final fallbackTitle = p.basenameWithoutExtension(fileName);
-    if (fileName.toLowerCase().endsWith('.docx')) {
-      return _ParseResult(
-        drafts: parseDocx(bytes, fallbackTitle: fallbackTitle),
-        encoding: 'docx',
-      );
-    }
-    final decoded = decodeTextBytes(bytes);
-    return _ParseResult(
-      drafts: splitIntoChapters(decoded.text, fallbackTitle: fallbackTitle),
-      encoding: decoded.encoding,
-    );
   }
 
   Future<void> _confirmImport() async {
@@ -186,8 +173,34 @@ class _ImportPageState extends ConsumerState<ImportPage> {
   }
 }
 
-class _ParseResult {
-  const _ParseResult({required this.drafts, required this.encoding});
+/// 在独立 isolate 中解析导入文件（ENH-12）：只接受可安全跨 isolate 传递的
+/// String / Uint8List 参数，调用方无法把平台对象（如文件选择器返回值）带进闭包
+/// ——否则会抛「Illegal argument in isolate message: object is unsendable」。
+@visibleForTesting
+Future<ParseResult> parseImportFileAsync(String fileName, Uint8List bytes) =>
+    Isolate.run(() => parseImportFile(fileName, bytes));
+
+/// 解析导入文件（ENH-12）：编码探测 / 正则分章 / docx 解析都是同步整文计算，
+/// 10MB 上限内的文件会把 UI 线程卡住，放到独立 isolate 执行。
+@visibleForTesting
+ParseResult parseImportFile(String fileName, Uint8List bytes) {
+  final fallbackTitle = p.basenameWithoutExtension(fileName);
+  if (fileName.toLowerCase().endsWith('.docx')) {
+    return ParseResult(
+      drafts: parseDocx(bytes, fallbackTitle: fallbackTitle),
+      encoding: 'docx',
+    );
+  }
+  final decoded = decodeTextBytes(bytes);
+  return ParseResult(
+    drafts: splitIntoChapters(decoded.text, fallbackTitle: fallbackTitle),
+    encoding: decoded.encoding,
+  );
+}
+
+/// 解析结果（ENH-12：解析函数与 isolate 一起使用，故为公开类型以便单测覆盖）。
+class ParseResult {
+  const ParseResult({required this.drafts, required this.encoding});
 
   final List<ChapterDraft> drafts;
   final String encoding;

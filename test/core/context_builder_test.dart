@@ -8,6 +8,26 @@ import 'package:novelphone/data/repositories/setting_repository.dart';
 import 'package:novelphone/data/repositories/work_repository.dart';
 import 'package:novelphone/models/setting_type.dart';
 
+/// 计数用的章节仓储替身（ENH-12）：整部作品正文读取与按 id 取正文各发生几次。
+class _CountingChapters extends ChapterRepository {
+  _CountingChapters(super._db);
+
+  int fullWorkReads = 0;
+  final List<int> contentReads = <int>[];
+
+  @override
+  Stream<List<Chapter>> watchChapters(int workId) {
+    fullWorkReads++;
+    return super.watchChapters(workId);
+  }
+
+  @override
+  Future<Chapter?> getChapter(int chapterId) {
+    contentReads.add(chapterId);
+    return super.getChapter(chapterId);
+  }
+}
+
 /// M3-13：不同作品规模下的上下文装配结果与预算遵守。
 void main() {
   late AppDatabase db;
@@ -463,6 +483,66 @@ void main() {
         .firstWhere((s) => s.label == '本卷素材（上一版回顾 + 新增章节）');
     expect(material.content, contains('《第一章》'));
     expect(material.content, isNot(contains('《第二章》')));
+  });
+
+  group('前情摘要按需取正文（ENH-12）', () {
+    test('续写上下文不整部读正文，只取无摘要的近期章', () async {
+      final counting = _CountingChapters(db);
+      final localBuilder = ContextBuilder(
+        works: works,
+        chapters: counting,
+        characters: characters,
+        outline: outline,
+        settings: settings,
+      );
+      // seedWork：第一章无 AI 摘要、第二章也只有正文（都需要本地抽句兜底）。
+      final workId = await seedWork();
+      final ordered = await chapters.watchChapters(workId).first;
+      // 第一章补一条 AI 摘要：走摘要即不再需要正文。
+      await chapters.saveChapterSummary(ordered[0].id, '第一章摘要：沈砚离乡。');
+      final third = await chapters.createChapter(workId: workId, title: '第三章');
+      await chapters.saveChapter(
+        chapterId: third,
+        title: '第三章',
+        content: '沈砚握紧了刀。',
+        cursorOffset: 0,
+        scrollOffset: 0,
+      );
+
+      final context = await localBuilder.buildContinue(
+          workId: workId, chapterId: third, contextWindow: 32000);
+
+      // 顺序与摘要都取自元数据流，不再为一段回顾把整部作品正文读进内存。
+      expect(counting.fullWorkReads, 0);
+      // 正文只取当前章与「没有 AI 摘要的第二章」。
+      expect(counting.contentReads.toSet(), <int>{third, ordered[1].id});
+
+      final summarySection =
+          context.sections.firstWhere((s) => s.label == '前文摘要');
+      // 有 AI 摘要的章节直接用摘要。
+      expect(summarySection.content, contains('第一章摘要：沈砚离乡。'));
+      // 无摘要的章节回退本地抽句，行为与旧版一致。
+      expect(summarySection.content, contains('《第二章》沈砚在雨里走了很久'));
+    });
+
+    test('灵感上下文同样不整部读正文', () async {
+      final counting = _CountingChapters(db);
+      final localBuilder = ContextBuilder(
+        works: works,
+        chapters: counting,
+        characters: characters,
+        outline: outline,
+        settings: settings,
+      );
+      final workId = await seedWork();
+      final third = await chapters.createChapter(workId: workId, title: '第三章');
+
+      final recap = await localBuilder.buildInspireContext(
+          workId: workId, chapterId: third);
+
+      expect(counting.fullWorkReads, 0);
+      expect(recap.previousSummary, contains('《第二章》沈砚在雨里走了很久'));
+    });
   });
 
   test('超预算压缩前情摘要时保留【本卷前情】（ENH-07 O2）', () async {

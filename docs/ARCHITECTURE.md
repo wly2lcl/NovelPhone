@@ -172,15 +172,15 @@ lib/
 | features/* | UI 与交互状态 | 用户操作、Repository 流 | 界面 | Repository、AI 用例接口 | 不直接访问数据库与 http |
 | features/search | 全局搜索（B-06）：关键词检索与命中高亮 | 关键词（输入 300ms 防抖，ENH-11） | 命中列表（作品/章节/片段） | ChapterRepository.search（autoDispose，关键词未变不重查） | 不做索引与分词（本地 LIKE 直查，作品量级不构成瓶颈） |
 | features/stats | 写作统计（B-07）：每日字数目标进度、连续写作天数、番茄钟 | 每日统计流 + 设置 | 统计页 | ChapterRepository(watchDailyWritingStats)、SettingsRepository | 番茄钟为页面内计时，不后台常驻 |
-| features/work_detail（设定集/关系图） | 设定集（B-09）：世界观/地点/道具条目；人物关系图（B-09）：环形绘制角色关系并可增删改 | 设定/角色/关系流 + 用户编辑 | 设定集 Tab、关系图页 | SettingRepository、CharacterRepository(relations) | 关系图为静态环形布局，不做自动布局与拖拽 |
+| features/work_detail（设定集/关系图） | 设定集（B-09）：世界观/地点/道具条目；人物关系图（B-09）：环形绘制角色关系并可增删改；txt/docx 导入（解析在 `Isolate.run` 执行，ENH-12） | 设定/角色/关系流 + 用户编辑 + 文件 bytes | 设定集 Tab、关系图页、导入预览 | SettingRepository、CharacterRepository(relations)、ChapterRepository(import) | 关系图为静态环形布局，不做自动布局与拖拽 |
 | data/repositories | 领域读写：作品/卷/章/角色/设定集/关系/章纲/统计 | DAO 结果 | 领域模型、响应式流 | drift | 不含业务编排（如分章策略在 importer） |
 | core/ai/ai_client | 屏蔽端点差异的统一调用 | ChatRequest | `Stream<ChatChunk>` | http | 不做 prompt 组装 |
-| core/ai/context_builder | 上下文组装与预算控制 | 作品 id、任务类型 | ChatRequest.messages | Repository | 不发起网络请求 |
+| core/ai/context_builder | 上下文组装与预算控制（前情摘要只读元数据并按需按 id 取正文，ENH-12） | 作品 id、任务类型 | ChatRequest.messages | Repository | 不发起网络请求 |
 | core/ai/agent_core | Tool 注册与 ReAct 循环 | 任务描述 + 工具集 | 最终文本 / 工具调用记录 | AiClient、tools | 不感知具体端点 |
-| core/ai/tools | 内置本地工具（读章节、查角色等） | 工具入参 JSON | 工具结果文本 | Repository | 不直接调模型 |
+| core/ai/tools | 内置本地工具（读章节、查角色等；标题映射只读元数据，ENH-12） | 工具入参 JSON | 工具结果文本 | Repository | 不直接调模型 |
 | core/ai/skills | 用户自定义 SKILL（B-03）：指令拼接与工具白名单过滤 | 启用的 Skill 列表 + 组装结果 / 工具集 | 注入后的 system 与工具集 | 无 | 不做网络与持久化（落库在 SettingsRepository） |
 | core/ai_flavor_rules | 规则引擎检测 | 章节文本 | 问题列表 | 无 | 不做 LLM 检测 |
-| core/importer | 解析与分章 | 文件 bytes | 分割预览 | 无 | 不写库（确认后交 Repository） |
+| core/importer | 解析与分章（由 features 侧经 `Isolate.run` 调用，避免整文同步计算卡 UI，ENH-12） | 文件 bytes | 分割预览 | 无 | 不写库（确认后交 Repository） |
 | core/exporter | 导出文本生成与备份 zip 组装/解析 | 章节数据、导出数据 Map | txt/md/docx bytes、zip bytes | archive | 不写库、不直接调分享面板（由 features 触发） |
 | core/cloud | 云备份（B-08）：S3 兼容对象存储读写（SigV4 签名）与备份/恢复编排（上传、列举、清理、下载） | 服务商配置（endpoint/region/bucket/凭证）+ zip bytes / 远端对象列表 | 远端对象列表、下载 bytes、操作结果 | http、core/exporter（zip 组装） | 不直接读写数据库（配置与编排由 features/settings 与 SettingsRepository 协作），不含中心化服务器与账号体系 |
 | features/settings | key/模型配置、token 累计、本地备份与恢复、云备份配置与触发（B-08） | 用户输入 | 经 Repository 落库、经安全存储存 key、经 core/cloud 上传下载 | SettingsRepository、TokenStatsRepository、AiUseCase(testConnection)、CloudBackupService | 不直接接触数据库、安全存储与网络 |
@@ -201,6 +201,7 @@ lib/
 - 标题超过 50 字按 50 字截断（与 `CHAPTER.title` 约束一致）；截断按码点（`runes`）而非 UTF-16 码元，避免标题含 emoji 等代理对时被劈成半个字符（ENH-09）。
 - 空标题章节导出时写作 `未命名章节`，再导入还原为空标题——这是保证「导出 → 再导入」结构一致的往返约定。
 - docx 导入优先按段落样式分章（`Title` / `Heading*` / `标题*`），无标题样式时降级为上述正则。
+- 解析移出 UI 线程（ENH-12）：编码探测（`decodeTextBytes`）、正则分章（`splitIntoChapters`）与 docx 解压解析都是同步整文计算，10MB 上限内的文件足以在 UI 线程造成可见卡顿。`features/work_detail/import_page.dart` 把解析收敛为顶层 `parseImportFile(fileName, bytes)`，生产入口 `parseImportFileAsync` 用 `Isolate.run` 执行（与 5.5 的规则引擎 isolate 化同理）。**约束**：isolate 闭包只允许捕获可发送的值（`String` / `Uint8List` 等），若捕获文件选择器返回的平台对象会抛「Illegal argument in isolate message: object is unsendable」，故必须先取出 `file.name` 再进入 isolate，且 isolate 调用封装在只接受 `String` / `Uint8List` 的顶层函数里（调用方无法把平台对象带进闭包）。
 
 导出格式（`core/exporter/`）：
 
@@ -378,6 +379,7 @@ erDiagram
 - 编辑器撤销栈按「条数 + 累计字符数」双重裁剪（ENH-10）：每步快照保存整章副本（10 万字章节单条约 20 万字符），除 `_maxHistory`（100 条）外新增 `_maxHistoryChars`（200 万字符）与 `_minHistoryKeep`（10 条），超限时从最旧开始丢弃且始终保留最近 10 步可撤销；「同内容合并」与「新输入截断重做栈」逻辑不变。
 - 字数重算防抖（ENH-10）：`countWords` 对长章是整章 rune 遍历，`_onTextChanged` 改为停顿 `wordCountDebounce`（120ms）后重算（`_recountWords`），避免每次按键都全章扫描；`_dirty` / 自动保存 / 历史栈节奏不变，落库字数仍由 `saveChapter` 按实际正文计算。
 - Provider 生命周期（ENH-11）：只在单一页面消费的 Provider 一律加 `.autoDispose`（Riverpod 3 的 `.autoDispose` 修饰符默认 `isAutoDispose: false`，必须显式声明）——作品详情的 9 个流 Provider（work / volumes / chapters / characters / settingEntries / characterRelations / snapshots / outline / inspirations）与其消费页一一对应，`dailyWritingStatsProvider` 属统计页，`taskModelIdProvider` 属 AI 设置，离开页面后无人监听即释放底层 drift 流订阅；`searchProvider` 以关键词为 `family` 参数，改 autoDispose 后输入过的每个前缀不再各自常驻。
+- 元数据优先读取（ENH-12）：只需章节标题 / 卷内顺序 / 检查范围等元信息时一律走 `ChapterRepository.watchChapterMetas`（`ChapterDao.watchMetaByWork` 投影，`content` 置空），确需正文时再按 id 单取（`getChapter`）——AI 续写 / 改写 / 灵感的前情摘要、内置工具 `get_outline` 的标题映射均已按此办理；仅 `buildVolumeSummary`（需本卷各章正文做抽句兜底）与编辑器、导出仍取完整章节。
 
 ---
 
@@ -411,6 +413,7 @@ abstract interface class AiClient {
 - 客户端构造：一个 ModelGroup（provider + baseUrl + key + model 列表）构造一个 AiClient 实例；适配器从实例侧取 baseUrl 与 key，从 ChatRequest 侧取 model、温度与输出上限。key 在构造时由 SettingsRepository 注入，不放进请求对象 `[Expert judgment]`。
 - tool calling：Chat Completions 的 `tools` / `tool_calls`、Messages 的 `tool_use` / `tool_result` 的构造与解析同样收敛在适配器内，Agent Core 只见统一表示（见 5.4）`[Expert judgment]`。
 - ResponsesAdapter：system 提为顶层 `instructions`，`input` 为条目数组（消息 / `function_call` / `function_call_output`），解析 `response.output_text.delta` 文本增量，`response.completed` 取 usage 与 status，`function_call` 系列事件的工具调用亦在此收敛（B-01 已实现）。
+- 客户端复用（ENH-12）：适配器原为 `client ?? http.Client()` 自建实例——每次生成都要重新 TLS 握手，且旧实例无人持有、从不关闭。现由 `features/ai/ai_providers.dart` 的 `httpClientProvider`（`Provider<http.Client>` + `ref.onDispose(client.close)`）提供全 App 唯一实例并注入 `AiService`，AI 调用复用同一条 keep-alive 连接；测试仍可注入 `MockClient` / 自定义 `BaseClient`。
 
 端点选择逻辑：ModelGroup.provider 字段区分 `openai_compat`（覆盖 OpenAI 官方与 DeepSeek/Kimi/通义等全部 OpenAI 兼容服务，差异仅在 baseUrl 与模型名）、`anthropic` 与 `responses`。用户配置的每个模型组自带 provider 类型，运行时无猜测 `[Data-backed]` 已确认的端点决策。
 
@@ -442,6 +445,7 @@ abstract interface class AiClient {
 7. 章纲扩写（ENH-05，`buildOutlineExpand`）：以作者一句话梗概为种子直构上下文（system + 作品/章节头 + 梗概），走「章纲扩写」system 指令产出分场/分段大纲；上下文详情展示「本章梗概」段落。摘要与章纲扩写均不参与 `_assemble` 的优先级丢弃（内容确定、一次成文）。
 8. 本卷前情回顾（ENH-06，`buildVolumeSummary`）：以本卷「当前章及之前」各章摘要为主材料直构上下文（system + 作品/卷头 + 各章摘要），按 `budget - system - header` 截断并标记 `truncated`；走「本卷前情回顾」system 指令（只产出回顾正文，非对话）；同样不参与 `_assemble` 的优先级丢弃。ENH-07 起改为**增量滚动归并**：卷已归并过（`VOLUME.summaryChapterId != 0`）时，素材为「【上一版本卷回顾】（上一版 `VOLUME.summary`） + 【新增章节摘要】（`summaryChapterId` 之后的各章摘要）」；未归并过（0）时仍按全量归并（零回归）。
 9. AI 灵感（ENH-07，`buildInspireContext`）：桥段点子模式补注入「前文摘要」（复用续写的前文摘要逻辑，含卷级/跨卷前情）与「本章章纲」两段；上下文详情同步展示「前文摘要」「本章章纲」条目。
+10. 前情摘要取数改按需读正文（ENH-12）：续写 / 改写 / 灵感三处原用 `chapters.watchChapters(workId).first` 取「最近 1-2 章摘要」，为一段摘要把整部作品正文读进内存；现改为 `watchChapterMetas(workId)`（元数据投影，`content` 置空），仅对「近期且尚无 `CHAPTER.summary`」的章节按 id 单取正文做抽句兜底（`_recapSource` 返回 `ordered` + `fallbackContents`，`_previousSummary` 用可选 `fallbackContents` 兜底，摘要优先逻辑不变）。**`buildVolumeSummary` 例外**：本卷前情回顾需要本卷各章正文做抽句兜底（第 8 点的全量归并路径），故仍取完整章节。
 
 ### 5.4 Agent Core 与 Tool 抽象
 
@@ -456,7 +460,7 @@ class Tool {
 // ReAct 循环：调用模型 → 有 tool_calls 则执行工具、结果回传 → 直到无 tool_calls
 ```
 
-- MVP 的内置工具：`get_chapter`（按 id 取正文）、`get_characters`（按作品取角色卡）、`get_outline`（取章纲）。供灵感类任务按需取数，避免一次性塞满上下文 `[Expert judgment]`。
+- MVP 的内置工具：`get_chapter`（按 id 取正文）、`get_characters`（按作品取角色卡）、`get_outline`（取章纲）。供灵感类任务按需取数，避免一次性塞满上下文 `[Expert judgment]`。其中 `get_outline` 只需「章节 id → 标题」映射，ENH-12 起改走 `watchChapterMetas` 元数据流，不再为一张标题表读入整部作品正文。
 - Tool 的 schema 结构刻意与 MCP 对齐（name/description/inputSchema），执行签名也一致；MCP 接入时，远程工具经 mcp_dart 的 `callTool` 包一层即成为同构 Tool，编排层零改动 `[Research-backed]` MCP 工具定义结构。
 - **远程 MCP 工具（B-02 已实现）**：`core/ai/mcp/mcp_bridge.dart` 用 `StreamableHttpClientTransport` 连接远程 server（手机端不支持 stdio），`tools/list` 结果按白名单包装为 `Tool` 并加 `mcp_` 前缀；认证走自定义请求头（如 `Authorization: Bearer xxx`），文本只存安全存储。工具在「桥段点子」生成时并入 `AgentCore.run(tools:)`，流结束即关闭会话；单个 server 连接失败不阻断生成。设置页「MCP 工具服务」负责配置与「测试连接」`[Expert judgment]`。OAuth 2.1 PKCE 为后续项。
 - tool calling 的端点差异（Chat Completions 的 `tools`/`tool_calls`、Messages 的 `tool_use`/`tool_result`）收敛在适配器内，Agent Core 只见统一表示 `[Expert judgment]`。

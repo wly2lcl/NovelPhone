@@ -81,7 +81,8 @@ List<Tool> buildLocalTools({
         final withSummary =
             entries.where((e) => e.summary.trim().isNotEmpty).toList();
         if (withSummary.isEmpty) return '该作品暂无章纲。';
-        final chapterList = await chapters.watchChapters(workId).first;
+        // 只需章节标题映射：走元数据流，不为一张 id→标题表读入整部作品正文（ENH-12）。
+        final chapterList = await chapters.watchChapterMetas(workId).first;
         final titleById = <int, String>{
           for (final c in chapterList)
             c.id: c.title.isEmpty ? '未命名章节' : c.title,

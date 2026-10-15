@@ -1,9 +1,18 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
 
 import '../../data/data_providers.dart';
 import '../../data/db.dart';
 import '../../data/repositories/token_stats_repository.dart';
 import 'ai_service.dart';
+
+/// 全 App 共享的 HTTP 客户端（ENH-12）：AI 生成复用同一条连接（keep-alive），
+/// 避免每次生成都新建 `http.Client` 又重新握手、且旧客户端从不关闭。
+final httpClientProvider = Provider<http.Client>((ref) {
+  final client = http.Client();
+  ref.onDispose(client.close);
+  return client;
+});
 
 /// AI 用例编排实例（ARCHITECTURE 2.2：features 经此访问 AI 层）。
 final aiServiceProvider = Provider<AiService>((ref) {
@@ -15,6 +24,7 @@ final aiServiceProvider = Provider<AiService>((ref) {
     outline: ref.watch(outlineRepositoryProvider),
     stats: ref.watch(tokenStatsRepositoryProvider),
     settingRepository: ref.watch(settingRepositoryProvider),
+    httpClient: ref.watch(httpClientProvider),
   );
 });
 

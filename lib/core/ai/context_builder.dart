@@ -160,7 +160,7 @@ class ContextBuilder {
     final budget = (contextWindow * 0.5).round();
     final work = await works.getWork(workId);
     final chapter = await chapters.getChapter(chapterId);
-    final allChapters = await chapters.watchChapters(workId).first;
+    final recap = await _recapSource(workId, chapterId);
     final volume = chapter == null
         ? null
         : await _volumeOf(workId, chapter.volumeId);
@@ -178,12 +178,13 @@ class ContextBuilder {
     // 前情摘要：本卷前情回顾（ENH-06）+ 前 1-2 章摘要（按作品内章节顺序），
     // 跨卷首章额外注入上一卷回顾（ENH-07 O5）。
     final previousSummary = _previousSummary(
-      allChapters,
+      recap.ordered,
       chapterId,
       volume?.summary.trim() ?? '',
-      previousVolumeSummary: _isVolumeHead(allChapters, chapterId)
+      previousVolumeSummary: _isVolumeHead(recap.ordered, chapterId)
           ? await _previousVolumeSummary(workId, volume)
           : '',
+      fallbackContents: recap.fallbackContents,
     );
 
     // 相关角色卡
@@ -261,7 +262,7 @@ class ContextBuilder {
     final budget = (contextWindow * 0.5).round();
     final work = await works.getWork(workId);
     final chapter = await chapters.getChapter(chapterId);
-    final allChapters = await chapters.watchChapters(workId).first;
+    final recap = await _recapSource(workId, chapterId);
     final volume = chapter == null
         ? null
         : await _volumeOf(workId, chapter.volumeId);
@@ -280,12 +281,13 @@ class ContextBuilder {
 
     // 前情摘要（含跨卷首章的上一卷回顾，ENH-07 O5）。
     final previousSummary = _previousSummary(
-      allChapters,
+      recap.ordered,
       chapterId,
       volume?.summary.trim() ?? '',
-      previousVolumeSummary: _isVolumeHead(allChapters, chapterId)
+      previousVolumeSummary: _isVolumeHead(recap.ordered, chapterId)
           ? await _previousVolumeSummary(workId, volume)
           : '',
+      fallbackContents: recap.fallbackContents,
     );
 
     return _assemble(
@@ -380,6 +382,7 @@ class ContextBuilder {
     final budget = (contextWindow * 0.5).round();
     final work = await works.getWork(workId);
     final chapter = await chapters.getChapter(chapterId);
+    // 本卷回顾需要本卷各章正文做抽句兜底（无 AI 摘要的章节），故仍取完整章节。
     final allChapters = await chapters.watchChapters(workId).first;
     final volume = chapter == null
         ? null
@@ -466,16 +469,17 @@ class ContextBuilder {
     if (chapter == null) {
       return (previousSummary: '', chapterOutline: '');
     }
-    final allChapters = await chapters.watchChapters(workId).first;
+    final recap = await _recapSource(workId, chapterId);
     final outlineEntries = await outline.listOutline(workId);
     final volume = await _volumeOf(workId, chapter.volumeId);
     final previousSummary = _previousSummary(
-      allChapters,
+      recap.ordered,
       chapterId,
       volume?.summary.trim() ?? '',
-      previousVolumeSummary: _isVolumeHead(allChapters, chapterId)
+      previousVolumeSummary: _isVolumeHead(recap.ordered, chapterId)
           ? await _previousVolumeSummary(workId, volume)
           : '',
+      fallbackContents: recap.fallbackContents,
     );
     final chapterOutline = outlineEntries
         .where((e) => e.chapterId == chapterId && e.summary.trim().isNotEmpty)
@@ -726,11 +730,14 @@ class ContextBuilder {
 
   /// 前情摘要（ENH-06 / ENH-07 O5）：上一卷前情 + 本卷前情回顾 + 最近 1-2 章摘要。
   /// [volumeSummary] 为空时输出与旧版逐字一致（零回归）。
+  /// [fallbackContents] 为「无 AI 摘要的近期章」按 id 单取的正文（ENH-12），
+  /// 传入元数据（content 为空串）时用它做本地抽句兜底。
   String _previousSummary(
     List<Chapter> ordered,
     int chapterId,
     String volumeSummary, {
     String previousVolumeSummary = '',
+    Map<int, String> fallbackContents = const <int, String>{},
   }) {
     final parts = <String>[];
     final lastVolume = previousVolumeSummary.trim();
@@ -744,17 +751,39 @@ class ContextBuilder {
       final start = (index - previousChapters).clamp(0, index);
       parts.addAll(ordered.sublist(start, index)
           .where((c) =>
-              c.content.trim().isNotEmpty || c.summary.trim().isNotEmpty)
+              (fallbackContents[c.id] ?? c.content).trim().isNotEmpty ||
+              c.summary.trim().isNotEmpty)
           .map((c) {
         final title = c.title.isEmpty ? '未命名章节' : c.title;
         // ENH-05：优先使用 AI 生成的章节摘要（信息密度更高），
         // 未生成摘要的章节回退到本地抽句，行为与旧版一致。
         final cached = c.summary.trim();
-        final digest = cached.isEmpty ? summarizeText(c.content) : cached;
+        final digest = cached.isEmpty
+            ? summarizeText(fallbackContents[c.id] ?? c.content)
+            : cached;
         return '《$title》$digest';
       }));
     }
     return parts.join('\n');
+  }
+
+  /// 前情摘要的取数（ENH-12）：顺序与摘要都在章节元数据里（`watchChapterMetas`
+  /// 含 `summary` 列），只有「没有 AI 摘要的近期章」才需要正文做本地抽句兜底，
+  /// 因此按 id 单取那 1-2 章，避免为一段回顾把整部作品正文读进内存。
+  Future<({List<Chapter> ordered, Map<int, String> fallbackContents})>
+      _recapSource(int workId, int chapterId) async {
+    final ordered = await chapters.watchChapterMetas(workId).first;
+    final contents = <int, String>{};
+    final index = ordered.indexWhere((c) => c.id == chapterId);
+    if (index > 0) {
+      final start = (index - previousChapters).clamp(0, index);
+      for (final c in ordered.sublist(start, index)) {
+        if (c.summary.trim().isNotEmpty) continue;
+        final full = await chapters.getChapter(c.id);
+        if (full != null) contents[c.id] = full.content;
+      }
+    }
+    return (ordered: ordered, fallbackContents: contents);
   }
 
   String _volumeOutline(
