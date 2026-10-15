@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
@@ -45,7 +46,9 @@ Future<Uint8List> exportBackupZipBytes(BackupRepository repository) async {
     markdowns[path] = buildWorkMarkdown(chapters);
   }
 
-  return buildBackupZip(data: data, workMarkdowns: markdowns);
+  // ENH-14：jsonEncode + zip 压缩是整库备份的主要 CPU 开销（大作品会卡住 UI），
+  // 入参为纯数据（Map<String, dynamic> / Map<String, String>），移入 isolate 执行。
+  return Isolate.run(() => buildBackupZip(data: data, workMarkdowns: markdowns));
 }
 
 /// 解析备份 zip，返回 data.json 内容（M2-11 数据校验入口之一）。

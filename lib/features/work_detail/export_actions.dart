@@ -1,3 +1,4 @@
+import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -70,8 +71,11 @@ Future<void> exportWork(
   final bytes = switch (format) {
     ExportFormat.txt => textToBytes(buildWorkText(drafts)),
     ExportFormat.markdown => textToBytes(buildWorkMarkdown(drafts)),
-    ExportFormat.docx => buildWorkDocx(drafts),
-    ExportFormat.epub => buildWorkEpub(drafts, title: title),
+    // ENH-14：docx / epub 需逐章拼 XML 并 zip 压缩，大作品同步构建会卡住 UI，
+    // 移入 isolate 执行（入参为纯数据，可安全跨 isolate）。
+    ExportFormat.docx => await Isolate.run(() => buildWorkDocx(drafts)),
+    ExportFormat.epub =>
+      await Isolate.run(() => buildWorkEpub(drafts, title: title)),
   };
   final extension = switch (format) {
     ExportFormat.txt => 'txt',

@@ -170,9 +170,9 @@ lib/
 | 模块 | 职责 | 输入 | 输出 | 依赖 | 明确不做 |
 |---|---|---|---|---|---|
 | features/* | UI 与交互状态 | 用户操作、Repository 流 | 界面 | Repository、AI 用例接口 | 不直接访问数据库与 http |
-| features/search | 全局搜索（B-06）：关键词检索与命中高亮 | 关键词（输入 300ms 防抖，ENH-11） | 命中列表（作品/章节/片段） | ChapterRepository.search（autoDispose，关键词未变不重查） | 不做索引与分词（本地 LIKE 直查，作品量级不构成瓶颈） |
+| features/search | 全局搜索（B-06）：关键词检索与命中高亮 | 关键词（输入 300ms 防抖，ENH-11） | 命中列表（作品/章节/片段） | ChapterRepository.search（autoDispose，关键词未变不重查；命中位置与片段在 SQL 内计算，ENH-14） | 不做索引与分词（本地 LIKE 直查，作品量级不构成瓶颈） |
 | features/stats | 写作统计（B-07）：每日字数目标进度、连续写作天数、番茄钟 | 每日统计流 + 设置 | 统计页 | ChapterRepository(watchDailyWritingStats)、SettingsRepository | 番茄钟为页面内计时，不后台常驻 |
-| features/work_detail（设定集/关系图） | 设定集（B-09）：世界观/地点/道具条目；人物关系图（B-09）：环形绘制角色关系并可增删改；txt/docx 导入（解析在 `Isolate.run` 执行，ENH-12） | 设定/角色/关系流 + 用户编辑 + 文件 bytes | 设定集 Tab、关系图页、导入预览 | SettingRepository、CharacterRepository(relations)、ChapterRepository(import) | 关系图为静态环形布局，不做自动布局与拖拽 |
+| features/work_detail（设定集/关系图） | 设定集（B-09）：世界观/地点/道具条目；人物关系图（B-09）：环形绘制角色关系并可增删改；txt/docx 导入（解析在 `Isolate.run` 执行，ENH-12）；txt/md/docx/epub 导出（docx/epub 构建在 `Isolate.run` 执行，ENH-14） | 设定/角色/关系流 + 用户编辑 + 文件 bytes | 设定集 Tab、关系图页、导入预览、导出文件 | SettingRepository、CharacterRepository(relations)、ChapterRepository(import) | 关系图为静态环形布局，不做自动布局与拖拽 |
 | data/repositories | 领域读写：作品/卷/章/角色/设定集/关系/章纲/统计 | DAO 结果 | 领域模型、响应式流 | drift | 不含业务编排（如分章策略在 importer） |
 | core/ai/ai_client | 屏蔽端点差异的统一调用 | ChatRequest | `Stream<ChatChunk>` | http | 不做 prompt 组装 |
 | core/ai/context_builder | 上下文组装与预算控制（前情摘要 / 本卷回顾只读元数据并按需按 id 取正文，ENH-12 / ENH-13） | 作品 id、任务类型 | ChatRequest.messages | Repository | 不发起网络请求 |
@@ -211,6 +211,7 @@ lib/
 - 整作 docx：自建最小 zip，标题段落用 `Heading1` 样式，可被 docx 导入按样式分章。
 - 整作 epub：EPUB 3 最小结构（`mimetype` 首条目且 STORE 存储、`META-INF/container.xml`、`OEBPS/` 的 `content.opf` + `nav.xhtml`(properties="nav") + `style.css` + 逐章 `chapter_N.xhtml`），可被主流阅读器打开；`dc:identifier` 取 `urn:novelphone:<作品名>` 保证确定性。
 - 备份 zip：`data.json`（作品/卷/章/角色/章纲/灵感/章节快照/每日统计/设定集/人物关系等业务表 `toJson`，含正文，供恢复）+ `works/*.md`（各作品全文，供人工查阅）；不含 API key（key 仅在 flutter_secure_storage，从不进库）。恢复支持合并（作为新作品导入）与覆盖（清空后按原 id 还原），恢复时按 `workIdMap` / `volumeIdMap` / `chapterIdMap` / `characterIdMap` 重映射外键。
+- 构建移出 UI 线程（ENH-14）：整作 docx / epub 的逐章拼 XML 与 `ZipEncoder` 压缩、整库备份的 `jsonEncode` + zip 聚合都是整文同步计算，大作品足以在 UI 线程造成可见卡顿。`features/work_detail/export_actions.dart` 的 docx / epub 分支与 `core/exporter/backup_archive.dart` 的 `buildBackupZip` 调用改由 `Isolate.run` 执行（与 3.1 的导入解析、5.5 的规则引擎同理）；txt / markdown 构建廉价仍同步。**约束**（沿用 ENH-12）：传入 isolate 的只允许可发送值——导出传 `List<ExportChapter>`（纯 `String` 字段数据类），备份传 `Map<String, dynamic> data` + `Map<String, String> workMarkdowns`（`BackupRepository.exportData()` 的逐表 `.toJson()` 因 drift 行对象不可发送，仍在主线程完成）。
 
 ---
 
@@ -351,7 +352,7 @@ erDiagram
 - CHAPTER.content 存纯文本；单章 10 万字上限（PRD 5.3），SQLite 单行无压力。
 - CHAPTER.cursorOffset / scrollOffset 供会话恢复（PRD 5.3）使用，不参与 AI 上下文组装。
 - 生成参数与任务映射：温度/输出上限存在 MODEL_GROUP（模型级默认值）；"哪个任务用哪个模型组"存在 APP_SETTING 的 `task_model_*` 键（PRD 5.8 的多任务模型配置）。
-- WORK.wordCount/chapterCount 为冗余汇总字段，随章节保存事务内更新，避免列表页聚合查询 `[Expert judgment]`。
+- WORK.wordCount/chapterCount 为冗余汇总字段，随章节保存事务内更新，避免列表页聚合查询（ENH-14 起保存正文按「新字数 − 旧字数」差量增量维护，仅删章 / 删卷 / 导入等才全量重算）`[Expert judgment]`。
 - AI_USAGE 是 token 统计的唯一数据源，设置页按 model/task 双维度聚合。
 - 统计口径落点：AI_USAGE.outcome 记录每次生成的结果（采纳/忽略/重新生成/中止），用于采纳率与忽略率；outputChars/adoptedChars 记录生成总字数与最终插入正文字数，支撑 PRD 2.2 的字符口径采纳率；检查问题处置率由检查会话结束时写入 APP_SETTING 计数器（`check_stat_total` / `check_stat_handled`）（对应 PRD 2.2、6.3、7 的本地指标）。
 - MODEL_GROUP.contextWindow 为该模型组的上下文窗口声明值，ContextBuilder 的 token 预算取其 50%（见 5.3）。
@@ -368,13 +369,15 @@ erDiagram
 - 快照清理只读 id 列（ENH-09）：`SnapshotDao.pruneBeyond` 由「取回整行再丢弃」改为 `selectOnly` 仅取 `id` 列（按 `createdAt desc, id desc` 排序后 `skip(keep)`），避免每次创建快照时把该章最多 50 条正文全文读进内存。仅改查询方式、不改表结构与落库语义。
 - 章节目录流只读元数据（ENH-10）：新增 `ChapterDao.watchMetaByWork`（`selectOnly` + `addColumns` 只取 id / volumeId / title / wordCount / status / sortOrder / 光标与滚动位置 / updatedAt / summary，`content` 置空）与 `ChapterRepository.watchChapterMetas`，`chaptersProvider`（章节目录、章纲、AI 感检查范围）改用它——写作期间每次自动保存写 `CHAPTER` 不再让目录流重发并重读全书正文。`watchByWork`（含正文）保留给编辑器加载当前章、导出等确实需要正文的场景。`ChapterDao.findMetaByVolume`（删除卷 / 章节排序）同样只取 id 与 sortOrder。
 - 快照列表只读元数据（ENH-10）：`SnapshotDao.watchMetaByChapter` 只取 id / title / wordCount / createdAt（`content` 置空）供版本历史列表使用，点开预览或恢复时经新增的 `ChapterRepository.getSnapshot(id)` 单取该条正文，避免列表流把该章最多 50 条正文全文读进内存；`findByChapter`（含正文）保留给备份与既有用例。
+- 自动保存只读轻量投影（ENH-14）：`saveChapter` 只需旧字数与所属作品，新增 `ChapterDao.findLightById`（`selectOnly` + `JOIN VOLUME`，只投影 `wordCount` 与 `workId`、不取 `content`），取代原先两次 `findById`（均为 `select *` 含正文，一次拿旧字数、一次拿 `workId`）。
+- 搜索命中片段在 SQL 内计算（ENH-14）：`ChapterRepository.search` 改 `selectOnly` 投影，用 `INSTR(lower(content), ?)` 算命中位置、`MAX` / `MIN` / `substrExpr` 直接截出「命中前 12 字 + 关键词 + 后 24 字」（未命中正文时取正文前 40 字），只回传片段与偏移，不再把整章正文读回 Dart；`LIKE` 通配符转义与「标题命中 offset = -1」语义不变。
 
 ### 4.3 一致性规则
 
 - 卷/章/角色删除走事务，级联清理（OUTLINE_ENTRY.chapterId 置空而非级联删除）；角色删除时其两端的人物关系随外键级联删除，作品删除时设定集与人物关系随外键级联删除。
 - 恢复备份时，设定集按 `workIdMap`、人物关系按 `workIdMap` 与角色 `characterIdMap` 重映射外键，避免跨库 id 不一致导致的悬空引用。
 - 删除作品为单事务删除其全部关联行；不可恢复，UI 层二次确认（PRD 5.1）。
-- 自动保存与字数汇总在同一事务，杜绝"正文新、字数旧"。
+- 自动保存与字数汇总在同一事务，杜绝"正文新、字数旧"；汇总按差量增量维护（ENH-14）：保存正文只改字数、不改章节数，`_bumpWorkAggregate` 用 `delta = 新字数 - 旧字数` 更新 `WORK.wordCount` 与 `lastEditedAt`，不再每次自动保存都 `SUM` 扫该作品全部章节正文；删章 / 删卷 / 导入等仍走 `_syncWorkAggregate` 全量重算。
 - 编辑器仅在正文/标题相对上次落库确有变化时才重写整章（ENH-09）：`TextEditingController` 在选区变化时也会通知，`EditorController` 用 `_lastSavedText` / `_lastSavedTitle` 比对，纯移光标/改选区时只落库光标与滚动位置（`saveCursorPosition`），不触发 `saveChapter`、不重算字数、不闪「保存中」。
 - 编辑器撤销栈按「条数 + 累计字符数」双重裁剪（ENH-10）：每步快照保存整章副本（10 万字章节单条约 20 万字符），除 `_maxHistory`（100 条）外新增 `_maxHistoryChars`（200 万字符）与 `_minHistoryKeep`（10 条），超限时从最旧开始丢弃且始终保留最近 10 步可撤销；「同内容合并」与「新输入截断重做栈」逻辑不变。
 - 字数重算防抖（ENH-10）：`countWords` 对长章是整章 rune 遍历，`_onTextChanged` 改为停顿 `wordCountDebounce`（120ms）后重算（`_recountWords`），避免每次按键都全章扫描；`_dirty` / 自动保存 / 历史栈节奏不变，落库字数仍由 `saveChapter` 按实际正文计算。
@@ -526,7 +529,7 @@ sequenceDiagram
 | 接口 | 方法 | 说明 |
 |---|---|---|
 | WorkRepository | `watchWorks()` / `createWork(...)` / `deleteWork(id)` | 作品列表响应式流；删除为事务 |
-| ChapterRepository | `watchChapters(workId)` / `saveChapter(...)` / `reorder(...)` / `saveChapterSummary(chapterId, summary)` / `saveVolumeSummary(volumeId, summary)` | 保存内含字数汇总事务；`saveChapterSummary`（ENH-05）只改 `CHAPTER.summary`、`saveVolumeSummary`（ENH-06）只改 `VOLUME.summary`，均不触碰正文与汇总 |
+| ChapterRepository | `watchChapters(workId)` / `watchChapterMetas(workId)` / `saveChapter(...)` / `search(keyword)` / `reorder(...)` / `saveChapterSummary(chapterId, summary)` / `saveVolumeSummary(volumeId, summary)` | 保存内含字数汇总事务（ENH-14 起只读轻量投影 `findLightById` 并按差量增量维护 `WORK.wordCount`）；`search` 在 SQL 内计算命中位置与片段（ENH-14）；`saveChapterSummary`（ENH-05）只改 `CHAPTER.summary`、`saveVolumeSummary`（ENH-06）只改 `VOLUME.summary`，均不触碰正文与汇总 |
 | CharacterRepository | `watchCharacters(workId)` / CRUD | — |
 | OutlineRepository | `watchOutline(workId)` / CRUD | — |
 | AiUseCase.continueWriting | `(workId, chapterId, options: {direction?, length?, style?, variant?}) → Stream<AiEvent>` | AiEvent = 文本增量/错误/完成；length 对应 PRD 5.5 面板可调的生成长度；`variant`（ENH-05）仅微调温度用于多候选；上下文组装在内部 |

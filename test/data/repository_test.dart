@@ -67,6 +67,24 @@ void main() {
     expect(work.chapterCount, 1);
   });
 
+  test('连续保存正文按差量增量更新作品汇总（ENH-14）', () async {
+    final workId = await works.createWork(title: '长夜行');
+    final chapterId = await chapters.createChapter(workId: workId, title: '第一章');
+
+    await chapters.saveChapter(
+        chapterId: chapterId, title: '第一章', content: '雨下了一整夜，街道上没有人。');
+    var work = await works.getWork(workId);
+    expect(work!.wordCount, 12);
+    expect(work.chapterCount, 1);
+
+    // 缩短正文：作品字数按差量回落，章节数保持不变。
+    await chapters.saveChapter(
+        chapterId: chapterId, title: '第一章', content: '两人对坐。');
+    work = await works.getWork(workId);
+    expect(work!.wordCount, 4);
+    expect(work.chapterCount, 1);
+  });
+
   test('仅保存光标位置不改变正文与字数', () async {
     final workId = await works.createWork(title: '长夜行');
     final chapterId = await chapters.createChapter(workId: workId);

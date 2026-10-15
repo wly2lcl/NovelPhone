@@ -67,6 +67,23 @@ void main() {
     expect(hits.single.matchOffset, 0);
   });
 
+  test('正文中部命中：matchOffset 精确且片段带省略号（ENH-14）', () async {
+    final workId = await works.createWork(title: '长夜行');
+    final content = '${'甲' * 30}街道${'乙' * 30}';
+    await seedChapter(workId, '第一章', content);
+
+    final hits = await chapters.search('街道');
+
+    expect(hits, hasLength(1));
+    expect(hits.single.matchOffset, 30);
+    expect(hits.single.matchLength, 2);
+    expect(hits.single.snippet, contains('街道'));
+    expect(hits.single.snippet, startsWith('…'));
+    expect(hits.single.snippet, endsWith('…'));
+    // 片段：前 12 字 + 关键词 2 字 + 后 24 字，再加两侧省略号。
+    expect(hits.single.snippet.length, 12 + 2 + 24 + 2);
+  });
+
   test('LIKE 通配符被转义，不会误匹配全部章节', () async {
     final workId = await works.createWork(title: '长夜行');
     await seedChapter(workId, '第一章', '普通的正文。');

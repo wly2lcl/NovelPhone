@@ -87,6 +87,21 @@ class ChapterDao {
     return (_db.select(_db.chapters)..where((t) => t.id.equals(id))).getSingleOrNull();
   }
 
+  /// 章节的字数与所属作品（ENH-14，不含正文）：自动保存只需旧字数与作品 id
+  /// 来增量维护作品汇总，没必要把整章正文读回 Dart。
+  Future<({int wordCount, int workId})?> findLightById(int id) async {
+    final wordCount = _db.chapters.wordCount;
+    final workId = _db.volumes.workId;
+    final query = _db.selectOnly(_db.chapters).join([
+      innerJoin(_db.volumes, _db.volumes.id.equalsExp(_db.chapters.volumeId)),
+    ])
+      ..addColumns(<Expression<Object>>[wordCount, workId])
+      ..where(_db.chapters.id.equals(id));
+    final row = await query.getSingleOrNull();
+    if (row == null) return null;
+    return (wordCount: row.read(wordCount) ?? 0, workId: row.read(workId) ?? 0);
+  }
+
   Stream<Chapter?> watchById(int id) {
     return (_db.select(_db.chapters)..where((t) => t.id.equals(id))).watchSingleOrNull();
   }

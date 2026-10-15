@@ -197,8 +197,9 @@ class ChapterRepository {
     int? scrollOffset,
   }) {
     return _db.transaction(() async {
-      final chapter = await _chapters.findById(chapterId);
-      if (chapter == null) return;
+      // ENH-14：只取旧字数与所属作品（不读整章正文），供差量与增量汇总使用。
+      final meta = await _chapters.findLightById(chapterId);
+      if (meta == null) return;
       final now = DateTime.now();
       final words = countWords(content);
       await _chapters.updateChapter(
@@ -214,9 +215,12 @@ class ChapterRepository {
           updatedAt: Value(now),
         ),
       );
-      await _writingStats.addWords(writingDayKey(now), words - chapter.wordCount);
-      await _syncWorkAggregate(await _workIdOfChapter(chapterId),
-          lastEditedAt: now);
+      await _writingStats.addWords(writingDayKey(now), words - meta.wordCount);
+      await _bumpWorkAggregate(
+        meta.workId,
+        delta: words - meta.wordCount,
+        lastEditedAt: now,
+      );
     });
   }
 
@@ -342,25 +346,71 @@ class ChapterRepository {
     final kw = keyword.trim();
     if (kw.isEmpty) return const <ChapterSearchHit>[];
     final pattern = '%${_escapeLike(kw)}%';
-    final query = _db.select(_db.chapters).join([
+    final content = _db.chapters.content;
+    // ENH-14：命中位置与摘要片段直接在 SQL 里算好，避免把命中章节的整篇正文读回 Dart。
+    // INSTR 为 1-based（0 表示正文未命中）；lower() 让 ASCII 大小写口径与 LIKE 保持一致。
+    final hitIndex = FunctionCallExpression<int>(
+      'INSTR',
+      <Expression<Object>>[
+        content.lower(),
+        Variable<String>(kw.toLowerCase()),
+      ],
+    );
+    final contentLength = content.length;
+    // 与原 _snippet 等价：命中点前留 12 字、后留 24 字（超界由 substr 自然截断）。
+    final startExpr = FunctionCallExpression<int>(
+      'MAX',
+      <Expression<Object>>[
+        const Constant<int>(1),
+        hitIndex - Variable<int>(12),
+      ],
+    );
+    final endExpr = FunctionCallExpression<int>(
+      'MIN',
+      <Expression<Object>>[
+        hitIndex + Variable<int>(kw.length + 23),
+        contentLength,
+      ],
+    );
+    final hitSnippet = content.substrExpr(
+      startExpr,
+      endExpr - startExpr + const Constant<int>(1),
+    );
+    // 正文未命中（仅标题命中）时回退到正文开头 40 字。
+    final headSnippet = content.substr(1, 40);
+
+    final query = _db.selectOnly(_db.chapters).join([
       innerJoin(_db.volumes, _db.volumes.id.equalsExp(_db.chapters.volumeId)),
       innerJoin(_db.works, _db.works.id.equalsExp(_db.volumes.workId)),
     ])
+      ..addColumns(<Expression<Object>>[
+        _db.chapters.id,
+        _db.chapters.title,
+        _db.works.id,
+        _db.works.title,
+        hitIndex,
+        contentLength,
+        hitSnippet,
+        headSnippet,
+      ])
       ..where(_db.chapters.title.like(pattern, escapeChar: '\\') |
-          _db.chapters.content.like(pattern, escapeChar: '\\'))
-      ..orderBy([OrderingTerm.desc(_db.chapters.updatedAt)])
+          content.like(pattern, escapeChar: '\\'))
+      ..orderBy(<OrderingTerm>[OrderingTerm.desc(_db.chapters.updatedAt)])
       ..limit(limit);
     final rows = await query.get();
     return rows.map((row) {
-      final chapter = row.readTable(_db.chapters);
-      final work = row.readTable(_db.works);
-      final offset = _lowerIndexOf(chapter.content, kw);
+      final hit = row.read(hitIndex) ?? 0;
+      final length = row.read(contentLength) ?? 0;
+      final offset = hit <= 0 ? -1 : hit - 1;
       return ChapterSearchHit(
-        workId: work.id,
-        workTitle: work.title,
-        chapterId: chapter.id,
-        chapterTitle: chapter.title,
-        snippet: _snippet(chapter.content, kw, offset),
+        workId: row.read(_db.works.id)!,
+        workTitle: row.read(_db.works.title)!,
+        chapterId: row.read(_db.chapters.id)!,
+        chapterTitle: row.read(_db.chapters.title)!,
+        snippet: offset < 0
+            ? _headSnippet(row.read(headSnippet) ?? '', length)
+            : _windowSnippet(
+                row.read(hitSnippet) ?? '', offset, kw.length, length),
         matchOffset: offset,
         matchLength: offset < 0 ? 0 : kw.length,
       );
@@ -372,20 +422,20 @@ class ChapterRepository {
       .replaceAll('%', '\\%')
       .replaceAll('_', '\\_');
 
-  /// SQLite 的 LIKE 对 ASCII 不区分大小写，这里同步用忽略大小写定位命中。
-  static int _lowerIndexOf(String content, String keyword) =>
-      content.toLowerCase().indexOf(keyword.toLowerCase());
+  /// 正文未命中时的片段：开头 40 字，超长补省略号。
+  static String _headSnippet(String head, int contentLength) =>
+      contentLength > 40 ? '$head…' : head;
 
-  static String _snippet(String content, String keyword, int offset) {
-    if (content.isEmpty) return '';
-    if (offset < 0) {
-      return content.length > 40 ? '${content.substring(0, 40)}…' : content;
-    }
-    final start = (offset - 12).clamp(0, content.length);
-    final end = (offset + keyword.length + 24).clamp(0, content.length);
-    final prefix = start > 0 ? '…' : '';
-    final suffix = end < content.length ? '…' : '';
-    return '$prefix${content.substring(start, end)}$suffix';
+  /// 命中点附近的片段：命中点前留 12 字、后留 24 字，两端按需补省略号。
+  static String _windowSnippet(
+    String window,
+    int offset,
+    int keywordLength,
+    int contentLength,
+  ) {
+    final prefix = offset > 12 ? '…' : '';
+    final suffix = offset + keywordLength + 24 < contentLength ? '…' : '';
+    return '$prefix$window$suffix';
   }
 
   // ---------- 导入 ----------
@@ -467,6 +517,27 @@ class ChapterRepository {
       WorksCompanion(
         wordCount: Value(aggregate.words),
         chapterCount: Value(aggregate.chapters),
+        lastEditedAt: lastEditedAt == null
+            ? const Value.absent()
+            : Value(lastEditedAt),
+      ),
+    );
+  }
+
+  /// 增量更新作品汇总（ENH-14）：保存正文只改字数、不改章节数，
+  /// 无需每次自动保存都全量扫描作品全部章节。
+  Future<void> _bumpWorkAggregate(
+    int workId, {
+    required int delta,
+    DateTime? lastEditedAt,
+  }) async {
+    if (workId == 0) return;
+    final work = await _works.findById(workId);
+    if (work == null) return;
+    await _works.updateWork(
+      workId,
+      WorksCompanion(
+        wordCount: Value(work.wordCount + delta),
         lastEditedAt: lastEditedAt == null
             ? const Value.absent()
             : Value(lastEditedAt),
