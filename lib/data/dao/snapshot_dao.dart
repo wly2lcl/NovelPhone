@@ -8,13 +8,36 @@ class SnapshotDao {
 
   final AppDatabase _db;
 
-  /// 单章快照，按创建时间倒序（最新在前）。
-  Stream<List<ChapterSnapshot>> watchByChapter(int chapterId) {
-    return _ordered(chapterId).watch();
-  }
-
+  /// 单章快照（含正文），按创建时间倒序（最新在前）。
   Future<List<ChapterSnapshot>> findByChapter(int chapterId) {
     return _ordered(chapterId).get();
+  }
+
+  /// 单章快照元数据流（ENH-10，不含正文）：列表只需标题 / 字数 / 时间，
+  /// 预览与恢复改为按 id 单取，避免把全部快照的正文都载入内存。
+  Stream<List<ChapterSnapshot>> watchMetaByChapter(int chapterId) {
+    final query = _db.selectOnly(_db.chapterSnapshots)
+      ..addColumns(<Expression<Object>>[
+        _db.chapterSnapshots.id,
+        _db.chapterSnapshots.title,
+        _db.chapterSnapshots.wordCount,
+        _db.chapterSnapshots.createdAt,
+      ])
+      ..where(_db.chapterSnapshots.chapterId.equals(chapterId))
+      ..orderBy(<OrderingTerm>[
+        OrderingTerm.desc(_db.chapterSnapshots.createdAt),
+        OrderingTerm.desc(_db.chapterSnapshots.id),
+      ]);
+    return query.watch().map((rows) => rows
+        .map((row) => ChapterSnapshot(
+              id: row.read(_db.chapterSnapshots.id)!,
+              chapterId: chapterId,
+              title: row.read(_db.chapterSnapshots.title)!,
+              content: '',
+              wordCount: row.read(_db.chapterSnapshots.wordCount)!,
+              createdAt: row.read(_db.chapterSnapshots.createdAt)!,
+            ))
+        .toList());
   }
 
   Future<ChapterSnapshot?> findById(int id) {

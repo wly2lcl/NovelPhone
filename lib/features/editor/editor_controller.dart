@@ -27,6 +27,16 @@ class EditorController extends ChangeNotifier {
 
   static const int _maxHistory = 100;
 
+  /// 撤销栈累计正文字符上限（ENH-10）：每步快照保存整章副本，10 万字章节单条约
+  /// 20 万字符，仅按条数限制仍可能占用大量内存，故同时限制累计字符数。
+  static const int _maxHistoryChars = 2000000;
+
+  /// 撤销栈始终保留的最少步数（ENH-10）：即便超出字符上限也保留最近几步可撤销。
+  static const int _minHistoryKeep = 10;
+
+  /// 字数重算防抖（ENH-10）：长章每次按键都全章遍历 rune，改为停顿后再算。
+  static const Duration wordCountDebounce = Duration(milliseconds: 120);
+
   final ChapterRepository repository;
   final int workId;
   final int chapterId;
@@ -64,6 +74,7 @@ class EditorController extends ChangeNotifier {
 
   Timer? _saveTimer;
   Timer? _historyTimer;
+  Timer? _wordTimer;
   bool _dirty = false;
   bool _applyingHistory = false;
 
@@ -100,8 +111,9 @@ class EditorController extends ChangeNotifier {
     // 选区变化也会触发本监听：标题与正文都与已落库内容一致时，只挪了光标，
     // 不重算字数、不标记「保存中」、不排保存（避免每次移光标重写整章）。
     if (text == _lastSavedText && _title == _lastSavedTitle) return;
-    final words = countWords(text);
-    if (words != _chapterWords) _chapterWords = words;
+    // ENH-10：字数改为停顿后重算，避免每次按键都对整章重跑 countWords。
+    _wordTimer?.cancel();
+    _wordTimer = Timer(wordCountDebounce, _recountWords);
     _dirty = true;
     _saveStatus = SaveStatus.saving;
     _saveTimer?.cancel();
@@ -111,6 +123,14 @@ class EditorController extends ChangeNotifier {
       _historyTimer = Timer(historyCoalesceDelay, _pushSnapshot);
     }
     notifyListeners();
+  }
+
+  /// 停顿后重算字数（ENH-10），仅在真的变了时才通知界面。
+  void _recountWords() {
+    final words = countWords(textController.text);
+    if (words == _chapterWords) return;
+    _chapterWords = words;
+    if (!_disposed) notifyListeners();
   }
 
   Future<void> _save() async {
@@ -208,8 +228,21 @@ class EditorController extends ChangeNotifier {
       _history.removeRange(_historyIndex + 1, _history.length);
     }
     _history.add(snapshot);
-    if (_history.length > _maxHistory) _history.removeAt(0);
+    _trimHistory();
     _historyIndex = _history.length - 1;
+  }
+
+  /// 按条数与累计字符数裁剪最旧快照（ENH-10），始终保留最近 [_minHistoryKeep] 步。
+  void _trimHistory() {
+    var total = 0;
+    for (final snapshot in _history) {
+      total += snapshot.text.length;
+    }
+    while (_history.length > _maxHistory ||
+        (total > _maxHistoryChars && _history.length > _minHistoryKeep)) {
+      total -= _history[0].text.length;
+      _history.removeAt(0);
+    }
   }
 
   void _commitHistoryNow() {
@@ -410,6 +443,7 @@ class EditorController extends ChangeNotifier {
     _disposed = true;
     _saveTimer?.cancel();
     _historyTimer?.cancel();
+    _wordTimer?.cancel();
     textController.dispose();
     scrollController.dispose();
     focusNode.dispose();

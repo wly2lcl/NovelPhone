@@ -365,6 +365,8 @@ erDiagram
 - VOLUME.summaryChapterId（ENH-07）：默认 0，`saveVolumeSummary` 传入 `coveredChapterId` 时记录本次归并覆盖到的章节，供 `buildVolumeSummary` 增量归并（上一版回顾 + 新增章节摘要）；0 表示尚未归并过、按全量处理（零回归）。列随 ENH-07 落地（schemaVersion 7 → 8，`m.addColumn`）；恢复旧备份（无该键）时 `putIfAbsent('summaryChapterId', 0)` 兜底。
 - 热点外键索引（ENH-08）：为 VOLUME.workId / CHAPTER.volumeId / CHAPTER_SNAPSHOT.chapterId / CHARACTER.workId / OUTLINE_ENTRY.workId / INSPIRATION.workId 六个高频过滤列加 drift `@TableIndex`，消除作品/卷维度列表查询的全表扫描。建库时由 drift `createAll()` 自动创建，升级路径在 `onUpgrade` 的 `if (from < 9)` 块内用 `m.createIndex(...)` 补建（该 SQL 无 `IF NOT EXISTS`，但旧库本就没有这些索引，故安全）。仅新增索引、不改表结构，随 ENH-08 落地（schemaVersion 8 → 9）。
 - 快照清理只读 id 列（ENH-09）：`SnapshotDao.pruneBeyond` 由「取回整行再丢弃」改为 `selectOnly` 仅取 `id` 列（按 `createdAt desc, id desc` 排序后 `skip(keep)`），避免每次创建快照时把该章最多 50 条正文全文读进内存。仅改查询方式、不改表结构与落库语义。
+- 章节目录流只读元数据（ENH-10）：新增 `ChapterDao.watchMetaByWork`（`selectOnly` + `addColumns` 只取 id / volumeId / title / wordCount / status / sortOrder / 光标与滚动位置 / updatedAt / summary，`content` 置空）与 `ChapterRepository.watchChapterMetas`，`chaptersProvider`（章节目录、章纲、AI 感检查范围）改用它——写作期间每次自动保存写 `CHAPTER` 不再让目录流重发并重读全书正文。`watchByWork`（含正文）保留给 AI 上下文组装、导出、编辑器本卷回顾预检等确实需要正文的场景。`ChapterDao.findMetaByVolume`（删除卷 / 章节排序）同样只取 id 与 sortOrder。
+- 快照列表只读元数据（ENH-10）：`SnapshotDao.watchMetaByChapter` 只取 id / title / wordCount / createdAt（`content` 置空）供版本历史列表使用，点开预览或恢复时经新增的 `ChapterRepository.getSnapshot(id)` 单取该条正文，避免列表流把该章最多 50 条正文全文读进内存；`findByChapter`（含正文）保留给备份与既有用例。
 
 ### 4.3 一致性规则
 
@@ -373,6 +375,8 @@ erDiagram
 - 删除作品为单事务删除其全部关联行；不可恢复，UI 层二次确认（PRD 5.1）。
 - 自动保存与字数汇总在同一事务，杜绝"正文新、字数旧"。
 - 编辑器仅在正文/标题相对上次落库确有变化时才重写整章（ENH-09）：`TextEditingController` 在选区变化时也会通知，`EditorController` 用 `_lastSavedText` / `_lastSavedTitle` 比对，纯移光标/改选区时只落库光标与滚动位置（`saveCursorPosition`），不触发 `saveChapter`、不重算字数、不闪「保存中」。
+- 编辑器撤销栈按「条数 + 累计字符数」双重裁剪（ENH-10）：每步快照保存整章副本（10 万字章节单条约 20 万字符），除 `_maxHistory`（100 条）外新增 `_maxHistoryChars`（200 万字符）与 `_minHistoryKeep`（10 条），超限时从最旧开始丢弃且始终保留最近 10 步可撤销；「同内容合并」与「新输入截断重做栈」逻辑不变。
+- 字数重算防抖（ENH-10）：`countWords` 对长章是整章 rune 遍历，`_onTextChanged` 改为停顿 `wordCountDebounce`（120ms）后重算（`_recountWords`），避免每次按键都全章扫描；`_dirty` / 自动保存 / 历史栈节奏不变，落库字数仍由 `saveChapter` 按实际正文计算。
 
 ---
 
@@ -485,6 +489,7 @@ sequenceDiagram
 ```
 
 - 规则引擎：词库 + 句式模式（模式化对话标签正则、段尾感悟句特征、连续同结构段落），纯本地计算，MVP 内置约 200 条规则 `[Expert judgment]`。实现落点：词库 `core/flavor_lexicon.dart`（高 3 / 中 2 / 低 1 三级权重，含可直接替换词条的替换文本），检测纯函数 `core/ai_flavor_rules.dart`。
+- 词库单趟匹配（ENH-10）：`_matchLexicon` 由「约 200 条词条各自 `indexOf` 全文」改为一条组合正则（候选按词长降序、同级按权重降序排列）一次 `allMatches`——同一位置优先命中更长（更具体）的词条，「组合正则 + 位置的贪心去重」结果与逐条匹配一致，把 O(词条数 × 正文长度) 的重复扫描降为单趟。
 - 检测参数（`core/ai_flavor_rules.dart` 常量）：套话密度告警 > 12 处/千字、破折号 + 省略号 > 8 处/千字、同一套话单章 ≥ 4 次触发句式重复提示；密度类判断最小样本 300 字，短章不告警避免误报。
 - 回归集（M4-05）落点：`test/core/fixtures/flavor_regression_samples.dart`（段落级样本，标注正/负），`test/core/flavor_regression_test.dart` 每版本跑一次；判定口径 `isFlavorFlagged`（存在可定位的"中"及以上问题，不含全文级密度提示）。v1 基线：40 条样本（20 正 / 20 负），召回 100%、误报 0%。
 - LLM 深检：要求模型返回 JSON（问题类型枚举、原文片段起止、建议文本），适配器层解析失败时按纯文本降级展示。

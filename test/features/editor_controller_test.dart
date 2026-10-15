@@ -67,6 +67,11 @@ void main() {
 
     controller.textController.text = '雨下了一整夜，街道上没有人。';
     expect(controller.saveStatus, SaveStatus.saving);
+    // ENH-10：字数改为停顿后重算，防抖窗口内仍是旧值。
+    expect(controller.chapterWords, 0);
+
+    await Future<void>.delayed(
+        EditorController.wordCountDebounce + const Duration(milliseconds: 100));
     expect(controller.chapterWords, 12);
 
     await Future<void>.delayed(EditorController.autosaveDelay + const Duration(milliseconds: 300));
@@ -214,6 +219,9 @@ void main() {
     await controller.load();
     controller.textController.text = '字' * (EditorController.maxChapterWords + 1);
 
+    // ENH-10：字数停顿后重算。
+    await Future<void>.delayed(
+        EditorController.wordCountDebounce + const Duration(milliseconds: 100));
     expect(controller.chapterWords, EditorController.maxChapterWords + 1);
     expect(controller.overWordLimit, isTrue);
 
@@ -333,5 +341,25 @@ void main() {
     // 未走 saveChapter：正文与 updatedAt 都没变。
     expect(after!.updatedAt, before.updatedAt);
     expect(after.content, before.content);
+  });
+
+  test('撤销栈超出累计字符上限时裁剪最旧快照（ENH-10）', () async {
+    await controller.load();
+    // 每轮写入 20 万字并压栈两步，累计远超 200 万字符上限。
+    for (var i = 0; i < 12; i++) {
+      controller.textController.text = '字' * 200000;
+      controller.insertAtCursor('啊');
+    }
+
+    // 裁剪后仍保留最近 10 步（9 次可撤销）：连撤 8 次还能继续。
+    for (var i = 0; i < 8; i++) {
+      controller.undo();
+    }
+    expect(controller.canUndo, isTrue);
+
+    controller.undo();
+    expect(controller.canUndo, isFalse);
+    // 最旧的空稿快照已被裁剪掉，撤到底也停在裁剪后的最早一步。
+    expect(controller.textController.text.length, 200000);
   });
 }

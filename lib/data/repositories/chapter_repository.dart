@@ -75,6 +75,10 @@ class ChapterRepository {
 
   Stream<List<Chapter>> watchChapters(int workId) => _chapters.watchByWork(workId);
 
+  /// 目录 / 大纲等 UI 只需章节元数据（ENH-10）：不读取正文，避免自动保存时重读全书。
+  Stream<List<Chapter>> watchChapterMetas(int workId) =>
+      _chapters.watchMetaByWork(workId);
+
   Stream<Chapter?> watchChapter(int chapterId) => _chapters.watchById(chapterId);
 
   Future<Chapter?> getChapter(int chapterId) => _chapters.findById(chapterId);
@@ -140,7 +144,7 @@ class ChapterRepository {
     return _db.transaction(() async {
       final volume = await _volumes.findById(volumeId);
       if (volume == null) return;
-      final chapters = await _chapters.findByVolume(volumeId);
+      final chapters = await _chapters.findMetaByVolume(volumeId);
       for (final chapter in chapters) {
         await _outline.clearChapterRef(chapter.id);
       }
@@ -260,7 +264,7 @@ class ChapterRepository {
     return _db.transaction(() async {
       final chapter = await _chapters.findById(chapterId);
       if (chapter == null) return;
-      final list = await _chapters.findByVolume(chapter.volumeId);
+      final list = await _chapters.findMetaByVolume(chapter.volumeId);
       final index = list.indexWhere((c) => c.id == chapterId);
       final target = up ? index - 1 : index + 1;
       if (index < 0 || target < 0 || target >= list.length) return;
@@ -291,7 +295,11 @@ class ChapterRepository {
   // ---------- 章节快照 / 版本历史（B-05）----------
 
   Stream<List<ChapterSnapshot>> watchSnapshots(int chapterId) =>
-      _snapshots.watchByChapter(chapterId);
+      _snapshots.watchMetaByChapter(chapterId);
+
+  /// 按 id 取单个快照（ENH-10）：列表只带元数据，预览 / 恢复正文时按需单取。
+  Future<ChapterSnapshot?> getSnapshot(int snapshotId) =>
+      _snapshots.findById(snapshotId);
 
   Future<List<ChapterSnapshot>> listSnapshots(int chapterId) =>
       _snapshots.findByChapter(chapterId);

@@ -41,6 +41,19 @@ void main() {
     expect(list.last.content, '初稿。');
   });
 
+  test('快照元数据流不含正文，正文按 id 单取（ENH-10）', () async {
+    final id = await chapters.createSnapshot(
+        chapterId: chapterId, title: '第一章', content: '留档正文。');
+
+    final metas = await chapters.watchSnapshots(chapterId).first;
+
+    expect(metas.single.content, isEmpty);
+    expect(metas.single.title, '第一章');
+    expect(metas.single.wordCount, greaterThan(0));
+
+    expect((await chapters.getSnapshot(id))!.content, '留档正文。');
+  });
+
   test('超过上限自动清理最旧的快照', () async {
     final limit = ChapterRepository.maxSnapshotsPerChapter;
     for (var i = 0; i < limit + 2; i++) {

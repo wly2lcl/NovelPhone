@@ -318,15 +318,31 @@ String _suggestionFor(FlavorLexiconEntry entry) {
 
 typedef _LexiconMatch = ({FlavorLexiconEntry entry, int start, int end});
 
+/// 词条 → 词条对象的索引，供组合正则命中后反查。
+final Map<String, FlavorLexiconEntry> _lexiconByWord = <String, FlavorLexiconEntry>{
+  for (final entry in flavorLexicon) entry.word: entry,
+};
+
+/// 词库组合正则（ENH-10）：按「词长降序、同级按权重降序」排列候选，
+/// 使同一位置优先命中更长（更具体）的词条；单趟扫描替代
+/// 「每个词条各自 indexOf 全文」的 O(词条数 × 正文长度)。
+final RegExp _lexiconPattern = () {
+  final entries = List<FlavorLexiconEntry>.of(flavorLexicon)
+    ..sort((a, b) {
+      final byLength = b.word.length.compareTo(a.word.length);
+      return byLength != 0 ? byLength : b.weight.compareTo(a.weight);
+    });
+  return RegExp(entries.map((e) => RegExp.escape(e.word)).join('|'));
+}();
+
 /// 扫描全部词条命中，重叠时保留更长（更具体）的匹配，避免重复计数。
 List<_LexiconMatch> _matchLexicon(String text) {
   final raw = <_LexiconMatch>[];
-  for (final entry in flavorLexicon) {
-    var index = text.indexOf(entry.word);
-    while (index != -1) {
-      raw.add((entry: entry, start: index, end: index + entry.word.length));
-      index = text.indexOf(entry.word, index + entry.word.length);
-    }
+  for (final match in _lexiconPattern.allMatches(text)) {
+    final word = match.group(0)!;
+    final entry = _lexiconByWord[word];
+    if (entry == null) continue;
+    raw.add((entry: entry, start: match.start, end: match.end));
   }
   raw.sort((a, b) {
     if (a.start != b.start) return a.start.compareTo(b.start);

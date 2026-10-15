@@ -82,6 +82,26 @@ void main() {
     expect(chapter.scrollOffset, 40);
   });
 
+  test('章节元数据流不含正文且字段完整（ENH-10）', () async {
+    final workId = await works.createWork(title: '长夜行');
+    final chapterId = await chapters.createChapter(workId: workId, title: '第一章');
+    await chapters.saveChapter(
+        chapterId: chapterId, title: '第一章', content: '雨下了一整夜，街道上没有人。');
+    await chapters.setChapterStatus(chapterId, ChapterStatus.finished);
+
+    final metas = await chapters.watchChapterMetas(workId).first;
+
+    expect(metas, hasLength(1));
+    final meta = metas.single;
+    expect(meta.id, chapterId);
+    expect(meta.content, isEmpty);
+    expect(meta.title, '第一章');
+    expect(meta.wordCount, 12);
+    expect(meta.status, ChapterStatus.finished.value);
+    // 需要正文的场景仍走完整查询。
+    expect((await chapters.getChapter(chapterId))!.content, '雨下了一整夜，街道上没有人。');
+  });
+
   test('章节排序上移下移与边界', () async {
     final workId = await works.createWork(title: '长夜行');
     await chapters.createChapter(workId: workId, title: '第一章');

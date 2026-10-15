@@ -43,6 +43,14 @@ void main() {
       expect(result.metrics.clicheHits, 1);
     });
 
+    test('词条互为前缀时仍取更长匹配（ENH-10 单趟匹配）', () {
+      // 词库中「顿了顿」排在「顿了顿又道」之前，组合正则必须优先命中更长的词条。
+      final result = runFlavorRules('他顿了顿又道：「算了。」', minWeight: 1);
+      final hits = result.issues.where((i) => i.type == FlavorType.cliche).toList();
+      expect(hits.single.excerpt, '顿了顿又道');
+      expect(result.metrics.clicheHits, 1);
+    });
+
     test('同一套话重复出现时给出句式重复提示', () {
       final result = runFlavorRules('她不禁笑了。\n她不禁摇头。\n她不禁皱眉。\n她不禁叹气。');
       final repeated = result.issues.where(

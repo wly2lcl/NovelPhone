@@ -12,8 +12,11 @@ final volumesProvider = StreamProvider.family<List<Volume>, int>(
   (ref, workId) => ref.watch(chapterRepositoryProvider).watchVolumes(workId),
 );
 
+/// 章节列表（ENH-10）：只带元数据、不含正文，供目录 / 大纲 / 检查范围使用；
+/// 需要正文的场景（AI 上下文、导出、编辑器）直接用 repository.watchChapters。
 final chaptersProvider = StreamProvider.family<List<Chapter>, int>(
-  (ref, workId) => ref.watch(chapterRepositoryProvider).watchChapters(workId),
+  (ref, workId) =>
+      ref.watch(chapterRepositoryProvider).watchChapterMetas(workId),
 );
 
 final charactersProvider = StreamProvider.family<List<Character>, int>(

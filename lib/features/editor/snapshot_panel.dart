@@ -37,10 +37,14 @@ class SnapshotPanel extends ConsumerWidget {
     WidgetRef ref,
     ChapterSnapshot snapshot,
   ) async {
+    final repository = ref.read(chapterRepositoryProvider);
+    // ENH-10：列表流只带元数据，预览 / 恢复所需的正文在此按 id 单取。
+    final full = await repository.getSnapshot(snapshot.id);
+    if (full == null || !context.mounted) return;
     final action = await showDialog<_SnapshotAction>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(snapshot.title.isEmpty ? '未命名章节' : snapshot.title),
+        title: Text(full.title.isEmpty ? '未命名章节' : full.title),
         content: SizedBox(
           width: double.maxFinite,
           child: SingleChildScrollView(
@@ -49,13 +53,13 @@ class SnapshotPanel extends ConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
                 Text(
-                  '${formatRelativeTime(snapshot.createdAt)} · ${snapshot.wordCount} 字',
+                  '${formatRelativeTime(full.createdAt)} · ${full.wordCount} 字',
                   style:
                       TextStyle(fontSize: 12, color: context.paper.inkSoft),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  _preview(snapshot.content),
+                  _preview(full.content),
                   style: const TextStyle(fontSize: 13, height: 1.5),
                 ),
               ],
@@ -82,9 +86,8 @@ class SnapshotPanel extends ConsumerWidget {
       ),
     );
     if (action == null) return;
-    final repository = ref.read(chapterRepositoryProvider);
     if (action == _SnapshotAction.delete) {
-      await repository.deleteSnapshot(snapshot.id);
+      await repository.deleteSnapshot(full.id);
       return;
     }
     // 恢复前先把当前内容存一份，避免误操作丢稿。
@@ -94,8 +97,8 @@ class SnapshotPanel extends ConsumerWidget {
       content: controller.textController.text,
     );
     await controller.restoreVersion(
-      title: snapshot.title,
-      content: snapshot.content,
+      title: full.title,
+      content: full.content,
     );
     if (!context.mounted) return;
     onClose();

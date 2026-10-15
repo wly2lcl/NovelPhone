@@ -260,11 +260,21 @@ M4 自动化验证记录（2026-09-30）：`flutter analyze` 无问题；`flutte
   - 文档同步：ARCHITECTURE 3.1 / 4.2 / 4.3 / 5.6；README 当前状态。
   - 真机验收（2026-10-15，SM_G998B / Android 13，release APK）：① 打开「第一章 断章夜航」（7614 字）后仅点正文移动光标，顶栏保持「已保存」不闪「保存中」、撤销/重做仍灰、本章字数不变；返回作品列表「最后编辑」仍为 19 小时前（未重写整章）。②「AI 续写」默认 3 候选（版本 1/2/3），上下文详情「估算 4303 / 预算 16000 token」只组装一次，三个候选均正常流式产出。③ 在候选输出框尾部追加 `1. ENH9item` 后点「插入光标处」，用编辑器「查找」验证正文含 `ENH9item`（1 处）、不含 `1. ENH9`（0 处）——编号前缀已被清洗。④ 导入含 markdown 标题 `# ` + 49 个 `A` + emoji + `尾` 的 txt（标题共 51 码点），导入预览与导入后卷内章节标题均显示为「49 个 A + 完整 emoji」（50 码点、无 `尾`、无半个字符）。⑤「版本历史」面板创建快照（显示「刚刚 · 7614 字」，走 `pruneBeyond` 轻量查询）、预览全文、恢复版本（提示「已恢复到该版本」）均正常。验证结束已删除测试导入的卷、撤销测试插入，作品恢复「40.5 万字 · 42 章」；logcat 无 FATAL / `used after being disposed` / drift-sqlite 报错。
 
+- [x] ENH-10（P1）大数据量读取与内存优化（5 项）：
+  - ① 章节目录 / 章纲 / AI 感检查范围不再读正文：`ChapterDao.watchByWork`（取整行含 `content`）保留给 AI 上下文 / 导出 / 编辑器；新增 `ChapterDao.watchMetaByWork` 用 `selectOnly` 只取章节元数据并把 `content` 置空，经 `ChapterRepository.watchChapterMetas` 暴露，`chaptersProvider` 改走它。写作期间自动保存写入 `chapters` 表不再让目录流重发并重读全书正文。
+  - ② AI 感检查词库改单趟匹配：`_matchLexicon` 旧实现对约 200 条词条逐条 `indexOf` 全文（O(词条数 × 正文长度)），改为把词条拼成一条组合正则（`RegExp.escape` 转义、候选按词长降序排列）一次 `allMatches`；重叠时仍优先更长词条（如 `顿了顿又道` 不被 `顿了顿` 抢占），原「按 start / 长度 / 权重排序 + 非重叠贪心去重」保留为安全网。
+  - ③ 撤销栈加累计字符上限：编辑器历史栈在 `_maxHistory = 100` 条上限外新增 `_maxHistoryChars = 2000000` 累计字符预算，超限从最旧丢弃，且始终保留最近 `_minHistoryKeep = 10` 步（10 万字章节单步快照约 20 万字符）。
+  - ④ 字数重算改防抖：`_onTextChanged` 不再每次按键对整章 `countWords`（rune 遍历全章），改为 `Timer` 停顿 120ms（`wordCountDebounce`）后重算；落库字数仍由 `saveChapter` 按实际正文计算，`dispose` 取消计时器。
+  - ⑤ 快照列表 / 卷内章节列表不读全文：`SnapshotDao` 新增 `watchMetaByChapter`（不含正文），版本历史列表改走它，预览 / 恢复时用 `ChapterRepository.getSnapshot(id)` 按 id 单取正文；新增 `ChapterDao.findMetaByVolume`（只取 id 与 sortOrder）替代 `findByVolume`，删除卷与章节排序不再载入整卷正文。
+  - 验证：`test/data/repository_test.dart` 新增 1 个用例（章节元数据流不含正文且字段完整、`getChapter` 仍能取正文）；`test/core/ai_flavor_rules_test.dart` 新增 1 个用例（词条互为前缀时仍取更长匹配）；`test/features/snapshot_test.dart` 新增 1 个用例（快照元数据流不含正文、正文按 id 单取）；`test/features/editor_controller_test.dart` 新增 1 个用例（撤销栈超累计字符上限时裁剪最旧快照）、并调整 2 个既有用例适配字数防抖。`flutter analyze` 无问题，`flutter test` 285 用例全绿（含规则回归集 v1 40 样本）。
+  - 文档同步：ARCHITECTURE 4.2 / 4.3 / 5.5；README 当前状态。
+  - 真机验收（2026-10-15，SM_G998B / Android 13，release APK）：① 作品详情章节列表正常（「novel_300k (40 章) 第一章 断章夜航 7614 字」），切章 / 编辑期间目录流不再重读全书正文。② AI 感检查面板对「第一章 断章夜航 (7614 字)」报「201 处」（筛选 chips：套话 122 / 句式重复 54 / 节奏拖沓 25），密度 19.3/千字，与单趟匹配前的基线一致（前缀重叠词条 `顿了顿又道` 仍被正确计入套话）。③ 正文输入 `abc` 后「本章 7615 字」按防抖节奏正确更新、顶栏「已保存」，点撤销后 `abc` 消失、「7614 字」、撤销灰 / 重做亮。④「版本历史」面板列出原有 2 条快照元数据（「1 小时前 · 7614 字」），点开后预览正文完整显示（走 `getSnapshot(id)` 单取）；新建快照显示「刚刚 · 7614 字」，删除该快照后面板恢复为原有 2 条。验证结束作品仍为「40.5 万字 · 42 章」，logcat 无 FATAL / drift-sqlite / `used after being disposed` 报错。
+
 ---
 
 ## 后置 backlog（不进 MVP 承诺）
 
-进度：B-01、B-02、B-03、B-04、B-05、B-06、B-07、B-08、B-09 全部已完成；MVP 收口后的增强 ENH-01（429/5xx 自动退避重试）、ENH-02（设定集纳入 AI 上下文）、ENH-03（全 App 深色模式）、ENH-04（专注模式 + 选中段落 AI 改写 + 导出 EPUB）、ENH-05（AI 逐章摘要 + 多候选续写 + AI 章纲扩写）、ENH-06（滚动摘要（本卷前情回顾）+ 摘要查看编辑）、ENH-07（体验与上下文优化 O1-O9）、ENH-08（稳健性与性能修正：小数误删修复 + 索引 + 弹窗收敛）、ENH-09（性能与一致性优化：编辑器不重写整章 + 多候选共用上下文 + 写入正文前清洗 + 码点截断 + 快照轻量清理）已完成。
+进度：B-01、B-02、B-03、B-04、B-05、B-06、B-07、B-08、B-09 全部已完成；MVP 收口后的增强 ENH-01（429/5xx 自动退避重试）、ENH-02（设定集纳入 AI 上下文）、ENH-03（全 App 深色模式）、ENH-04（专注模式 + 选中段落 AI 改写 + 导出 EPUB）、ENH-05（AI 逐章摘要 + 多候选续写 + AI 章纲扩写）、ENH-06（滚动摘要（本卷前情回顾）+ 摘要查看编辑）、ENH-07（体验与上下文优化 O1-O9）、ENH-08（稳健性与性能修正：小数误删修复 + 索引 + 弹窗收敛）、ENH-09（性能与一致性优化：编辑器不重写整章 + 多候选共用上下文 + 写入正文前清洗 + 码点截断 + 快照轻量清理）、ENH-10（大数据量读取与内存优化：目录流只读元数据 + 词库单趟匹配 + 撤销栈累计字符上限 + 字数重算防抖 + 快照/卷内章节列表不读全文）已完成。
 
 - [x] B-01（P2）Responses 端点适配器：新增 `ResponsesAdapter implements AiClient`（架构 9 章触发条件成熟时）
   - 新增 `lib/core/ai/responses_adapter.dart`（端点 `POST {baseUrl}/v1/responses`，system 提为顶层 `instructions`，`input[]` 支持消息 / `function_call` / `function_call_output`；解析 `response.output_text.delta`、`response.completed` 的 usage 与 status；工具调用经 `response.output_item.*` / `response.function_call_arguments.delta` 累积）；`AiProvider.responses` 登记并在 `buildAiClient` 分发；设置页协议类型增第三段「Responses」。
