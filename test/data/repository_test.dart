@@ -8,6 +8,7 @@ import 'package:novelphone/data/repositories/chapter_repository.dart';
 import 'package:novelphone/data/repositories/character_repository.dart';
 import 'package:novelphone/data/repositories/outline_repository.dart';
 import 'package:novelphone/data/repositories/settings_repository.dart';
+import 'package:novelphone/data/repositories/token_stats_repository.dart';
 import 'package:novelphone/data/repositories/work_repository.dart';
 import 'package:novelphone/data/secure_key_store.dart';
 import 'package:novelphone/models/chapter_status.dart';
@@ -83,6 +84,58 @@ void main() {
     work = await works.getWork(workId);
     expect(work!.wordCount, 4);
     expect(work.chapterCount, 1);
+  });
+
+  test('Token 统计按模型与任务在 SQL 内聚合（ENH-15）', () async {
+    final stats = TokenStatsRepository(db);
+
+    final first = await stats.record(
+        task: 'continue',
+        model: 'm1',
+        promptTokens: 10,
+        completionTokens: 20,
+        outputChars: 100);
+    await stats.record(
+        task: 'continue',
+        model: 'm1',
+        promptTokens: 5,
+        completionTokens: 7,
+        outputChars: 50);
+    final third = await stats.record(task: 'continue', model: 'm1', outputChars: 10);
+    await stats.record(
+        task: 'inspire',
+        model: 'm2',
+        promptTokens: 1,
+        completionTokens: 2,
+        outputChars: 30);
+    await stats.markAdopted(first, 60);
+    await stats.updateOutcome(third, AiOutcome.ignored);
+
+    final result = await stats.stats();
+
+    expect(result.rows, hasLength(2));
+    // 排序口径不变：先按任务，再按模型。
+    final continued = result.rows.first;
+    expect(continued.task, 'continue');
+    expect(continued.model, 'm1');
+    expect(continued.calls, 3);
+    expect(continued.promptTokens, 15);
+    expect(continued.completionTokens, 27);
+    expect(continued.outputChars, 160);
+    expect(continued.adopted, 1);
+    expect(continued.adoptedChars, 60);
+    expect(continued.ignored, 1);
+    final inspired = result.rows.last;
+    expect(inspired.task, 'inspire');
+    expect(inspired.calls, 1);
+    expect(inspired.ignored, 0);
+    // 汇总口径不变。
+    expect(result.calls, 4);
+    expect(result.totalTokens, 15 + 27 + 1 + 2);
+    // 流式订阅走同一条 SQL 聚合。
+    final watched = await stats.watchStats().first;
+    expect(watched.rows, hasLength(2));
+    expect(watched.rows.first.outputChars, 160);
   });
 
   test('仅保存光标位置不改变正文与字数', () async {

@@ -40,7 +40,8 @@ Future<void> restoreBackup(BuildContext context, WidgetRef ref) async {
       allowedExtensions: const <String>['zip'],
     );
     if (file == null) return;
-    data = parseBackupZip(await file.readAsBytes());
+    // ENH-15：解压 + jsonDecode 放到 isolate，避免恢复大备份时卡住 UI。
+    data = await parseBackupZipAsync(await file.readAsBytes());
   } on FormatException catch (e) {
     messenger.showSnackBar(SnackBar(content: Text('恢复失败：${e.message}')));
     return;

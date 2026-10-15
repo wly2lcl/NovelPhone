@@ -211,7 +211,8 @@ class _CloudBackupPageState extends ConsumerState<CloudBackupPage> {
     setState(() => _busy = true);
     Map<String, dynamic>? data;
     try {
-      data = parseBackupZip(await service.download(object.key));
+      // ENH-15：解压 + jsonDecode 放到 isolate，避免恢复大备份时卡住 UI。
+      data = await parseBackupZipAsync(await service.download(object.key));
     } on FormatException catch (e) {
       _showMessage('恢复失败：${e.message}', ok: false);
     } catch (e) {

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:novelphone/core/exporter/backup_archive.dart';
@@ -59,5 +61,34 @@ void main() {
     final parsed = parseBackupZip(bytes);
     expect(parsed['format'], kBackupFormat);
     expect((parsed['tables'] as Map)['chapters'], hasLength(1));
+
+    // ENH-15：markdown 全文拼接也移入 isolate，条目名与内容都应在产物里。
+    final archive = ZipDecoder().decodeBytes(bytes);
+    final entry = archive.files
+        .firstWhere((f) => f.name == 'works/长夜行.md', orElse: () => throw StateError('缺少 markdown 条目'));
+    expect(utf8.decode(entry.readBytes()!), contains('雨下了一整夜。'));
+  });
+
+  test('备份 zip 在 isolate 内解析，产物与原数据一致（ENH-15）', () async {
+    final bytes = buildBackupZip(
+      data: data,
+      workMarkdowns: <String, String>{'works/长夜行.md': '# 第一章\n'},
+    );
+
+    final parsed = await parseBackupZipAsync(bytes);
+
+    expect(parsed['format'], kBackupFormat);
+    expect(parsed['schemaVersion'], 1);
+  });
+
+  test('isolate 解析把格式错误原样抛回调用方（ENH-15）', () async {
+    final bytes = ZipEncoder().encodeBytes(
+      Archive()..add(ArchiveFile.string('works/长夜行.md', '# 第一章\n')),
+    );
+
+    await expectLater(
+      parseBackupZipAsync(bytes),
+      throwsA(isA<FormatException>()),
+    );
   });
 }

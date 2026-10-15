@@ -121,59 +121,31 @@ class TokenStatsRepository {
   Future<void> markAdopted(int id, int adoptedChars) =>
       _dao.updateAdoptedChars(id, adoptedChars, AiOutcome.adopted);
 
-  Stream<TokenStats> watchStats() => _dao.watchAll().map(_aggregate);
+  Stream<TokenStats> watchStats() => _dao.watchAggregated().map(_toStats);
 
-  Future<TokenStats> stats() async => _aggregate(await _dao.findAll());
+  Future<TokenStats> stats() async => _toStats(await _dao.findAggregated());
 
   Future<void> reset() => _dao.deleteAll();
 
-  TokenStats _aggregate(List<AiUsage> usages) {
-    final map = <String, _MutableRow>{};
-    for (final usage in usages) {
-      final key = '${usage.model}\u0000${usage.task}';
-      final row = map.putIfAbsent(
-        key,
-        () => _MutableRow(model: usage.model, task: usage.task),
-      );
-      row.calls++;
-      row.promptTokens += usage.promptTokens;
-      row.completionTokens += usage.completionTokens;
-      row.outputChars += usage.outputChars;
-      row.adoptedChars += usage.adoptedChars;
-      if (usage.outcome == AiOutcome.adopted) row.adopted++;
-      if (usage.outcome == AiOutcome.ignored) row.ignored++;
-    }
-    final rows = map.values
-        .map((r) => TokenStatRow(
-              model: r.model,
-              task: r.task,
-              calls: r.calls,
-              promptTokens: r.promptTokens,
-              completionTokens: r.completionTokens,
-              outputChars: r.outputChars,
-              adoptedChars: r.adoptedChars,
-              adopted: r.adopted,
-              ignored: r.ignored,
-            ))
-        .toList()
-      ..sort((a, b) {
+  /// 分组小计已在 SQL 内算好（ENH-15），这里只做排序与类型映射。
+  TokenStats _toStats(List<UsageAggregate> aggregated) {
+    final rows = <TokenStatRow>[
+      for (final a in aggregated)
+        TokenStatRow(
+          model: a.model,
+          task: a.task,
+          calls: a.calls,
+          promptTokens: a.promptTokens,
+          completionTokens: a.completionTokens,
+          outputChars: a.outputChars,
+          adoptedChars: a.adoptedChars,
+          adopted: a.adopted,
+          ignored: a.ignored,
+        ),
+    ]..sort((a, b) {
         final byTask = a.task.compareTo(b.task);
         return byTask != 0 ? byTask : a.model.compareTo(b.model);
       });
     return TokenStats(rows: rows);
   }
-}
-
-class _MutableRow {
-  _MutableRow({required this.model, required this.task});
-
-  final String model;
-  final String task;
-  int calls = 0;
-  int promptTokens = 0;
-  int completionTokens = 0;
-  int outputChars = 0;
-  int adoptedChars = 0;
-  int adopted = 0;
-  int ignored = 0;
 }

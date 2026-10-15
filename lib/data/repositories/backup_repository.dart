@@ -184,32 +184,39 @@ class BackupRepository {
         chapterCount++;
       }
 
+      // ENH-15：以下叶表（快照/写作统计/设定集/角色关系/章纲/灵感）都不需要
+      // 回传新 id（其外键在上一阶段已映射好），故先攒成 Companion 列表再用
+      // insertAll 一次写入，替掉「逐行 await insert」的数千次往返。
+      final snapshotRows = <ChapterSnapshotsCompanion>[];
       for (final raw in _asList(tables['chapterSnapshots'])) {
         final snapshot = ChapterSnapshot.fromJson(raw);
         final chapterId = chapterIdMap[snapshot.chapterId];
         if (chapterId == null) continue;
-        await _db
-            .into(_db.chapterSnapshots)
-            .insert(ChapterSnapshotsCompanion.insert(
-              chapterId: chapterId,
-              createdAt: snapshot.createdAt,
-              id: overwrite ? Value(snapshot.id) : const Value.absent(),
-              title: Value(snapshot.title),
-              content: Value(snapshot.content),
-              wordCount: Value(snapshot.wordCount),
-            ));
+        snapshotRows.add(ChapterSnapshotsCompanion.insert(
+          chapterId: chapterId,
+          createdAt: snapshot.createdAt,
+          id: overwrite ? Value(snapshot.id) : const Value.absent(),
+          title: Value(snapshot.title),
+          content: Value(snapshot.content),
+          wordCount: Value(snapshot.wordCount),
+        ));
+      }
+      if (snapshotRows.isNotEmpty) {
+        await _db.chapterSnapshots.insertAll(snapshotRows);
       }
 
+      final statRows = <DailyWritingStatsCompanion>[];
       for (final raw in _asList(tables['dailyWritingStats'])) {
         final stat = DailyWritingStat.fromJson(raw);
         // 无外键，按日期主键合并；已有日期保留本机数据（合并模式下不覆盖）。
-        await _db.into(_db.dailyWritingStats).insert(
-              DailyWritingStatsCompanion.insert(
-                day: stat.day,
-                words: Value(stat.words),
-              ),
-              mode: InsertMode.insertOrIgnore,
-            );
+        statRows.add(DailyWritingStatsCompanion.insert(
+          day: stat.day,
+          words: Value(stat.words),
+        ));
+      }
+      if (statRows.isNotEmpty) {
+        await _db.dailyWritingStats
+            .insertAll(statRows, mode: InsertMode.insertOrIgnore);
       }
 
       var characterCount = 0;
@@ -234,63 +241,76 @@ class BackupRepository {
         characterCount++;
       }
 
+      final settingRows = <SettingEntriesCompanion>[];
       for (final raw in _asList(tables['settingEntries'])) {
         final entry = SettingEntry.fromJson(raw);
         final workId = workIdMap[entry.workId];
         if (workId == null) continue;
-        await _db.into(_db.settingEntries).insert(SettingEntriesCompanion.insert(
-              workId: workId,
-              name: entry.name,
-              createdAt: entry.createdAt,
-              id: overwrite ? Value(entry.id) : const Value.absent(),
-              type: Value(entry.type),
-              content: Value(entry.content),
-            ));
+        settingRows.add(SettingEntriesCompanion.insert(
+          workId: workId,
+          name: entry.name,
+          createdAt: entry.createdAt,
+          id: overwrite ? Value(entry.id) : const Value.absent(),
+          type: Value(entry.type),
+          content: Value(entry.content),
+        ));
+      }
+      if (settingRows.isNotEmpty) {
+        await _db.settingEntries.insertAll(settingRows);
       }
 
+      final relationRows = <CharacterRelationsCompanion>[];
       for (final raw in _asList(tables['characterRelations'])) {
         final relation = CharacterRelation.fromJson(raw);
         final workId = workIdMap[relation.workId];
         final fromId = characterIdMap[relation.fromCharacterId];
         final toId = characterIdMap[relation.toCharacterId];
         if (workId == null || fromId == null || toId == null) continue;
-        await _db.into(_db.characterRelations).insert(
-              CharacterRelationsCompanion.insert(
-                workId: workId,
-                fromCharacterId: fromId,
-                toCharacterId: toId,
-                id: overwrite ? Value(relation.id) : const Value.absent(),
-                label: Value(relation.label),
-              ),
-            );
+        relationRows.add(CharacterRelationsCompanion.insert(
+          workId: workId,
+          fromCharacterId: fromId,
+          toCharacterId: toId,
+          id: overwrite ? Value(relation.id) : const Value.absent(),
+          label: Value(relation.label),
+        ));
+      }
+      if (relationRows.isNotEmpty) {
+        await _db.characterRelations.insertAll(relationRows);
       }
 
+      final outlineRows = <OutlineEntriesCompanion>[];
       for (final raw in _asList(tables['outlineEntries'])) {
         final entry = OutlineEntry.fromJson(raw);
         final chapterId = entry.chapterId == null
             ? null
             : chapterIdMap[entry.chapterId!];
-        await _db.into(_db.outlineEntries).insert(OutlineEntriesCompanion.insert(
-              workId: workIdMap[entry.workId] ?? 0,
-              summary: Value(entry.summary),
-              id: overwrite ? Value(entry.id) : const Value.absent(),
-              volumeId: Value(entry.volumeId == null
-                  ? null
-                  : volumeIdMap[entry.volumeId!]),
-              chapterId: Value(chapterId),
-            ));
+        outlineRows.add(OutlineEntriesCompanion.insert(
+          workId: workIdMap[entry.workId] ?? 0,
+          summary: Value(entry.summary),
+          id: overwrite ? Value(entry.id) : const Value.absent(),
+          volumeId: Value(
+              entry.volumeId == null ? null : volumeIdMap[entry.volumeId!]),
+          chapterId: Value(chapterId),
+        ));
+      }
+      if (outlineRows.isNotEmpty) {
+        await _db.outlineEntries.insertAll(outlineRows);
       }
 
+      final inspirationRows = <InspirationsCompanion>[];
       for (final raw in _asList(tables['inspirations'])) {
         final inspiration = Inspiration.fromJson(raw);
         final workId = workIdMap[inspiration.workId];
         if (workId == null) continue;
-        await _db.into(_db.inspirations).insert(InspirationsCompanion.insert(
-              workId: workId,
-              content: inspiration.content,
-              createdAt: inspiration.createdAt,
-              id: overwrite ? Value(inspiration.id) : const Value.absent(),
-            ));
+        inspirationRows.add(InspirationsCompanion.insert(
+          workId: workId,
+          content: inspiration.content,
+          createdAt: inspiration.createdAt,
+          id: overwrite ? Value(inspiration.id) : const Value.absent(),
+        ));
+      }
+      if (inspirationRows.isNotEmpty) {
+        await _db.inspirations.insertAll(inspirationRows);
       }
 
       return BackupRestoreReport(

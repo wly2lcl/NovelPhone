@@ -5,7 +5,9 @@ import 'package:novelphone/data/repositories/chapter_repository.dart';
 import 'package:novelphone/data/repositories/character_repository.dart';
 import 'package:novelphone/data/repositories/inspiration_repository.dart';
 import 'package:novelphone/data/repositories/outline_repository.dart';
+import 'package:novelphone/data/repositories/setting_repository.dart';
 import 'package:novelphone/data/repositories/work_repository.dart';
+import 'package:novelphone/models/setting_type.dart';
 
 /// M2-10 / M2-11：整库备份导出与恢复（覆盖 / 合并）。
 void main() {
@@ -16,6 +18,7 @@ void main() {
   late CharacterRepository characters;
   late OutlineRepository outlines;
   late InspirationRepository inspirations;
+  late SettingRepository settings;
 
   setUp(() {
     db = AppDatabase.memory();
@@ -25,6 +28,7 @@ void main() {
     characters = CharacterRepository(db);
     outlines = OutlineRepository(db);
     inspirations = InspirationRepository(db);
+    settings = SettingRepository(db);
   });
 
   tearDown(() async {
@@ -121,6 +125,48 @@ void main() {
     expect(await works.countWorks(), 2);
     final titles = (await works.listWorks()).map((w) => w.title).toList();
     expect(titles.where((t) => t == '长夜行'), hasLength(2));
+  });
+
+  test('恢复时叶表批量写入并保持外键映射（ENH-15）', () async {
+    final workId = await seedWork();
+    final chapterId = (await chapters.watchChapters(workId).first).single.id;
+    await chapters.createSnapshot(
+        chapterId: chapterId, title: '第一章 雨', content: '雨下了一整夜，街道上没有人。');
+    await settings.createEntry(
+      workId: workId,
+      type: SettingType.location,
+      name: '雾港',
+      content: '终年多雾的港口城市。',
+    );
+    final characterId = (await characters.listCharacters(workId)).single.id;
+    final otherId = await characters.createCharacter(workId: workId, name: '阿七');
+    await characters.createRelation(
+      workId: workId,
+      fromCharacterId: characterId,
+      toCharacterId: otherId,
+      label: '同僚',
+    );
+
+    final data = await backup.exportData();
+    await works.deleteWork(workId);
+    expect(await works.countWorks(), 0);
+
+    final report = await backup.restore(data, overwrite: true);
+
+    expect(report.works, 1);
+    // 覆盖恢复保留原 id，故仍可用删除前的 id 查回各叶表数据。
+    expect(await chapters.listSnapshots(chapterId), hasLength(1));
+    final entries = await settings.listEntries(workId);
+    expect(entries.single.name, '雾港');
+    expect(entries.single.type, SettingType.location.value);
+    final relations = await db.select(db.characterRelations).get();
+    expect(relations, hasLength(1));
+    expect(relations.single.workId, workId);
+    expect(relations.single.fromCharacterId, characterId);
+    expect(relations.single.toCharacterId, otherId);
+    expect(relations.single.label, '同僚');
+    // 每日写作统计（保存正文时写入）也在批量路径中保留。
+    expect(await db.select(db.dailyWritingStats).get(), isNotEmpty);
   });
 
   test('非备份文件被拒绝', () async {
