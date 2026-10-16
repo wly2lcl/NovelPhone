@@ -18,6 +18,7 @@ import 'package:novelphone/features/ai/ai_providers.dart';
 import 'package:novelphone/features/ai/ai_service.dart';
 import 'package:novelphone/features/editor/editor_controller.dart';
 import 'package:novelphone/features/editor/flavor_check_panel.dart';
+import 'package:novelphone/l10n/generated/app_localizations.dart';
 
 /// 深检必失败的假用例服务（M4-13）：仅用于验证面板对失败事件的处置。
 class _FailingDeepService extends AiService {
@@ -110,6 +111,7 @@ void main() {
     EditorController? controller,
     VoidCallback? onClose,
     AiService? service,
+    Locale locale = const Locale('zh'),
   }) {
     return ProviderScope(
       overrides: [
@@ -119,6 +121,9 @@ void main() {
       ],
       child: MaterialApp(
         theme: buildPaperTheme(),
+        locale: locale,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
           body: Column(
             children: <Widget>[
@@ -190,6 +195,22 @@ void main() {
 
     expect(find.text('原文：不禁'), findsOneWidget);
     expect(find.textContaining('对于'), findsNothing);
+
+    await closePanel(tester);
+  });
+
+  testWidgets('英文界面渲染英文类型与严重度标签（ENH-17）', (tester) async {
+    await seed('她不禁笑了。');
+    await tester.pumpWidget(
+      wrap(scopeChapterId: chapterId, locale: const Locale('en')),
+    );
+    await settle(tester, find.text('1 issue'));
+
+    expect(find.text('AI-flavor check'), findsOneWidget);
+    expect(find.text('1 issue'), findsOneWidget);
+    expect(find.text('Clichés 1'), findsOneWidget);
+    expect(find.text('High'), findsWidgets);
+    expect(find.text('Original: 不禁'), findsOneWidget);
 
     await closePanel(tester);
   });

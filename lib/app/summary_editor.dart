@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/l10n.dart';
 import 'theme.dart';
 
 /// 摘要类文本编辑弹窗（本章梗概 / 本章 AI 摘要 / 本卷前情回顾共用）。
@@ -13,8 +14,8 @@ Future<void> showSummaryEditor(
   BuildContext context, {
   required String initial,
   required Future<void> Function(String summary) onSave,
-  String title = '编辑本章梗概',
-  String hintText = '说明本章要发生什么（0-1000 字）；AI 章纲扩写也以此为一句话梗概',
+  String? title,
+  String? hintText,
   int maxLines = 8,
   String? notice,
 }) async {
@@ -22,7 +23,7 @@ Future<void> showSummaryEditor(
   final result = await showDialog<String>(
     context: context,
     builder: (dialogContext) => AlertDialog(
-      title: Text(title),
+      title: Text(title ?? dialogContext.l10n.summaryEditTitle),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -40,18 +41,20 @@ Future<void> showSummaryEditor(
             maxLines: maxLines,
             maxLength: 1000,
             onChanged: (value) => text = value,
-            decoration: InputDecoration(hintText: hintText),
+            decoration: InputDecoration(
+              hintText: hintText ?? dialogContext.l10n.summaryEditHint,
+            ),
           ),
         ],
       ),
       actions: <Widget>[
         TextButton(
           onPressed: () => Navigator.of(dialogContext).pop(),
-          child: const Text('取消'),
+          child: Text(dialogContext.l10n.commonCancel),
         ),
         FilledButton(
           onPressed: () => Navigator.of(dialogContext).pop(text.trim()),
-          child: const Text('保存'),
+          child: Text(dialogContext.l10n.commonSave),
         ),
       ],
     ),

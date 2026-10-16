@@ -13,7 +13,7 @@
 - **数据归你**——SQLite 本地存储、API Key 存系统安全区、备份导出到本地文件或你自己的对象存储；
 - **治理「AI 味」**——内置规则引擎与可选 LLM 深检标记套话、重复句式等问题，支持定位与一键替换；AI 续写默认并发生成多个候选，供你对照挑选。
 
-当前状态：MVP 功能范围（78 / 78）已收口，此后 16 项增强（ENH-01~16）全部落地；Android release 签名与 GitHub Actions CI 就绪，312 个自动化用例通过，真机验收记录见 [docs/TODO.md](docs/TODO.md)。
+当前状态：MVP 功能范围（78 / 78）已收口，此后 17 项增强（ENH-01~17，含全 App 简体中文 / English 双语 UI）全部落地；Android release 签名与 GitHub Actions CI 就绪，314 个自动化用例通过，真机验收记录见 [docs/TODO.md](docs/TODO.md)。
 
 ## 截图
 
@@ -60,6 +60,11 @@
 - 出网稳健性：429 / 5xx 在首个文本增量前指数退避自动重试，内容过滤等错误分类给出可读提示
 - MCP 工具服务：接入远程 Streamable HTTP server，把其工具提供给 AI 调用
 - 自定义技能：附加指令文本 + 工具白名单，注入续写与灵感编排
+
+### 界面与体验
+
+- 界面语言：简体中文 / English 双语，默认跟随系统，可在设置 → 写作 → 语言内切换（即时生效并持久化）；AI 提示词与中文域数据保持中文
+- 全 App 深色模式：跟随系统 / 浅色 / 深色三态，暖色纸质调色板亮暗两套随主题切换
 
 ### 数据、统计与隐私
 
@@ -111,7 +116,7 @@ dart run build_runner build --delete-conflicting-outputs
 ```bash
 dart format --output=none --set-exit-if-changed lib test
 flutter analyze
-flutter test    # 312 个用例：数据层 / 编辑器控制器 / AI 客户端与编排 / 检查引擎 / 页面 widget
+flutter test    # 314 个用例：数据层 / 编辑器控制器 / AI 客户端与编排 / 检查引擎 / 页面 widget
 ```
 
 GitHub Actions（[ci.yml](.github/workflows/ci.yml)）在 push 与 PR 上执行上述三项检查。
@@ -124,7 +129,7 @@ GitHub Actions（[ci.yml](.github/workflows/ci.yml)）在 push 与 PR 上执行�
 |---|---|
 | [docs/PRD.md](docs/PRD.md) | 产品定位、功能范围与验收标准 |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 技术选型、分层模块、数据模型与 AI 层设计 |
-| [docs/TODO.md](docs/TODO.md) | 任务清单、进度跟踪与真机验收记录（M1-M4 + ENH-01~16） |
+| [docs/TODO.md](docs/TODO.md) | 任务清单、进度跟踪与真机验收记录（M1-M4 + ENH-01~17） |
 | [docs/COMPLIANCE.md](docs/COMPLIANCE.md) | 隐私政策、数据安全说明与上架资料要点 |
 
 ## 许可证

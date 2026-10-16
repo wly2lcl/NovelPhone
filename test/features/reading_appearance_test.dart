@@ -11,6 +11,7 @@ import 'package:novelphone/data/repositories/work_repository.dart';
 import 'package:novelphone/data/secure_key_store.dart';
 import 'package:novelphone/features/editor/editor_page.dart';
 import 'package:novelphone/features/settings/appearance_page.dart';
+import 'package:novelphone/l10n/generated/app_localizations.dart';
 
 void main() {
   group('ReadingAppearance 解析', () {
@@ -123,7 +124,13 @@ void main() {
           databaseProvider.overrideWithValue(db),
           secureKeyStoreProvider.overrideWithValue(InMemoryKeyStore()),
         ],
-        child: MaterialApp(theme: buildPaperTheme(), home: child),
+        child: MaterialApp(
+          theme: buildPaperTheme(),
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: child,
+        ),
       );
     }
 
@@ -191,6 +198,9 @@ void main() {
           container: container,
           child: MaterialApp(
             theme: buildPaperTheme(),
+            locale: const Locale('zh'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
             home: const AppearancePage(),
           ),
         ),

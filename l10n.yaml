@@ -1,0 +1,6 @@
+# 国际化资源与代码生成配置（flutter gen-l10n；flutter pub get 时自动执行）
+arb-dir: lib/l10n
+template-arb-file: app_zh.arb
+output-localization-file: app_localizations.dart
+output-dir: lib/l10n/generated
+nullable-getter: false

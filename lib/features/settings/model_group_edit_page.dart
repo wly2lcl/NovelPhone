@@ -6,6 +6,8 @@ import '../../core/ai/ai_client_factory.dart';
 import '../../data/data_providers.dart';
 import '../../data/db.dart';
 import '../../data/repositories/settings_repository.dart';
+import '../../l10n/error_text.dart';
+import '../../l10n/l10n.dart';
 import '../ai/ai_providers.dart';
 
 /// 模型组编辑（M3-18 / M3-19）：新增或修改模型组，key 只写安全存储。
@@ -132,7 +134,7 @@ class _ModelGroupEditPageState extends ConsumerState<ModelGroupEditPage> {
     if (!mounted) return;
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(const SnackBar(content: Text('已保存')));
+    ).showSnackBar(SnackBar(content: Text(context.l10n.modelEditSaved)));
     Navigator.of(context).pop();
   }
 
@@ -142,7 +144,7 @@ class _ModelGroupEditPageState extends ConsumerState<ModelGroupEditPage> {
     if (models.isEmpty) {
       setState(() {
         _testOk = false;
-        _testMessage = '请先填写至少一个模型名';
+        _testMessage = context.l10n.modelEditTestNoModel;
       });
       return;
     }
@@ -157,7 +159,7 @@ class _ModelGroupEditPageState extends ConsumerState<ModelGroupEditPage> {
     if (apiKey.isEmpty) {
       setState(() {
         _testOk = false;
-        _testMessage = '请先填写 API Key';
+        _testMessage = context.l10n.modelEditTestNoApiKey;
       });
       return;
     }
@@ -184,19 +186,20 @@ class _ModelGroupEditPageState extends ConsumerState<ModelGroupEditPage> {
     setState(() {
       _testing = false;
       _testOk = result.ok;
-      _testMessage = result.message;
+      _testMessage = testResultText(context.l10n, result);
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isNew ? '新增模型组' : '编辑模型组'),
+        title: Text(_isNew ? l10n.modelGroupsNew : l10n.modelEditTitle),
         actions: <Widget>[
           TextButton(
             onPressed: _loading ? null : _save,
-            child: const Text('保存'),
+            child: Text(l10n.commonSave),
           ),
         ],
       ),
@@ -210,25 +213,27 @@ class _ModelGroupEditPageState extends ConsumerState<ModelGroupEditPage> {
                   TextFormField(
                     controller: _name,
                     maxLength: 30,
-                    decoration: const InputDecoration(
-                      labelText: '名称',
-                      hintText: '例如：DeepSeek 官方',
+                    decoration: InputDecoration(
+                      labelText: l10n.modelEditNameLabel,
+                      hintText: l10n.modelEditNameHint,
                     ),
-                    validator: (v) => (v ?? '').trim().isEmpty ? '请填写名称' : null,
+                    validator: (v) => (v ?? '').trim().isEmpty
+                        ? l10n.modelEditNameRequired
+                        : null,
                   ),
                   const SizedBox(height: 16),
-                  const _FieldLabel('协议类型'),
+                  _FieldLabel(l10n.modelEditProtocolLabel),
                   SegmentedButton<String>(
-                    segments: const <ButtonSegment<String>>[
+                    segments: <ButtonSegment<String>>[
                       ButtonSegment<String>(
                         value: AiProvider.openaiCompat,
-                        label: Text('OpenAI 兼容'),
+                        label: Text(l10n.modelGroupsOpenAiCompat),
                       ),
-                      ButtonSegment<String>(
+                      const ButtonSegment<String>(
                         value: AiProvider.anthropic,
                         label: Text('Anthropic'),
                       ),
-                      ButtonSegment<String>(
+                      const ButtonSegment<String>(
                         value: AiProvider.responses,
                         label: Text('Responses'),
                       ),
@@ -245,23 +250,26 @@ class _ModelGroupEditPageState extends ConsumerState<ModelGroupEditPage> {
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _baseUrl,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Base URL',
-                      helperText: '需包含 /v1，例如 https://api.deepseek.com/v1',
+                      helperText: l10n.modelEditBaseUrlHelper,
                     ),
-                    validator: (v) =>
-                        (v ?? '').trim().isEmpty ? '请填写 Base URL' : null,
+                    validator: (v) => (v ?? '').trim().isEmpty
+                        ? l10n.modelEditBaseUrlRequired
+                        : null,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _models,
                     minLines: 2,
                     maxLines: 5,
-                    decoration: const InputDecoration(
-                      labelText: '模型列表',
-                      helperText: '每行一个，第一行为默认使用的模型',
+                    decoration: InputDecoration(
+                      labelText: l10n.modelEditModelsLabel,
+                      helperText: l10n.modelEditModelsHelper,
                     ),
-                    validator: (_) => _modelList.isEmpty ? '请至少填写一个模型名' : null,
+                    validator: (_) => _modelList.isEmpty
+                        ? l10n.modelEditModelsRequired
+                        : null,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -269,14 +277,16 @@ class _ModelGroupEditPageState extends ConsumerState<ModelGroupEditPage> {
                     obscureText: true,
                     decoration: InputDecoration(
                       labelText: 'API Key',
-                      hintText: _hasKey ? '已保存，留空则不修改' : '粘贴服务商提供的 Key',
-                      helperText: '仅保存在本机安全存储，不会随备份导出',
+                      hintText: _hasKey
+                          ? l10n.modelEditApiKeySaved
+                          : l10n.modelEditApiKeyHint,
+                      helperText: l10n.modelEditApiKeyHelper,
                     ),
                   ),
                   const SizedBox(height: 16),
                   Row(
                     children: <Widget>[
-                      const _FieldLabel('温度'),
+                      _FieldLabel(l10n.modelEditTemperature),
                       Expanded(
                         child: Slider(
                           value: _temperature,
@@ -298,8 +308,8 @@ class _ModelGroupEditPageState extends ConsumerState<ModelGroupEditPage> {
                         child: TextFormField(
                           controller: _maxTokens,
                           keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: '输出上限 token',
+                          decoration: InputDecoration(
+                            labelText: l10n.modelEditMaxTokensLabel,
                           ),
                         ),
                       ),
@@ -308,9 +318,9 @@ class _ModelGroupEditPageState extends ConsumerState<ModelGroupEditPage> {
                         child: TextFormField(
                           controller: _contextWindow,
                           keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: '上下文窗口',
-                            helperText: '预算取其 50%',
+                          decoration: InputDecoration(
+                            labelText: l10n.modelEditContextWindow,
+                            helperText: l10n.modelEditContextWindowHelper,
                           ),
                         ),
                       ),
@@ -319,8 +329,8 @@ class _ModelGroupEditPageState extends ConsumerState<ModelGroupEditPage> {
                   const SizedBox(height: 12),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
-                    title: const Text('启用'),
-                    subtitle: const Text('停用后不会被任务映射使用'),
+                    title: Text(l10n.modelEditEnabled),
+                    subtitle: Text(l10n.modelEditEnabledSubtitle),
                     value: _enabled,
                     activeTrackColor: context.paper.accent,
                     onChanged: (v) => setState(() => _enabled = v),
@@ -339,7 +349,7 @@ class _ModelGroupEditPageState extends ConsumerState<ModelGroupEditPage> {
                                 ),
                               )
                             : const Icon(Icons.wifi_tethering, size: 18),
-                        label: const Text('测试连接'),
+                        label: Text(l10n.modelEditTestConnection),
                       ),
                     ],
                   ),

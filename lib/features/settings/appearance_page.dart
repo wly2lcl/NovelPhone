@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/reading_appearance.dart';
 import '../../app/theme.dart';
 import '../../data/data_providers.dart';
+import '../../l10n/l10n.dart';
 
 /// 写作外观设置（B-04）：夜间纸张、正文字号、行距，改完即时保存。
 /// 仅作用于编辑器写作区（对齐 PRD「深夜沉浸：关灯后切换护眼深色模式，全屏专注写作」）。
@@ -43,7 +44,7 @@ class _AppearancePageState extends ConsumerState<AppearancePage> {
   Widget build(BuildContext context) {
     final appearance = _appearance;
     return Scaffold(
-      appBar: AppBar(title: const Text('写作外观')),
+      appBar: AppBar(title: Text(context.l10n.appearanceTitle)),
       body: appearance == null
           ? const Center(child: CircularProgressIndicator())
           : ListView(
@@ -51,15 +52,15 @@ class _AppearancePageState extends ConsumerState<AppearancePage> {
               children: <Widget>[
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('夜间纸张'),
-                  subtitle: const Text('深色护眼背景，适合关灯后写作'),
+                  title: Text(context.l10n.appearanceDarkPaper),
+                  subtitle: Text(context.l10n.appearanceDarkPaperSubtitle),
                   value: appearance.dark,
                   activeTrackColor: Theme.of(context).colorScheme.primary,
                   onChanged: (v) => _save(appearance.copyWith(dark: v)),
                 ),
                 const Divider(height: 24),
                 _SliderTile(
-                  label: '正文字号',
+                  label: context.l10n.appearanceFontSize,
                   value: appearance.fontSize,
                   min: ReadingAppearance.minFontSize,
                   max: ReadingAppearance.maxFontSize,
@@ -71,7 +72,7 @@ class _AppearancePageState extends ConsumerState<AppearancePage> {
                   onChanged: (v) => _save(appearance.copyWith(fontSize: v)),
                 ),
                 _SliderTile(
-                  label: '行距',
+                  label: context.l10n.appearanceLineHeight,
                   value: appearance.lineHeight,
                   min: ReadingAppearance.minLineHeight,
                   max: ReadingAppearance.maxLineHeight,
@@ -85,7 +86,7 @@ class _AppearancePageState extends ConsumerState<AppearancePage> {
                 ),
                 const Divider(height: 24),
                 Text(
-                  '预览',
+                  context.l10n.appearancePreview,
                   style: TextStyle(
                     fontSize: 12,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -168,8 +169,7 @@ class _Preview extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
       ),
       child: Text(
-        '长夜将尽，她推开窗，风雪扑面而来。\n'
-        '远处的灯一盏盏熄灭，只有案头那支蜡烛还亮着。',
+        context.l10n.appearancePreviewText,
         style: TextStyle(
           fontFamily: kSerifFontFamily,
           fontFamilyFallback: kSerifFontFallback,

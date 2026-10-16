@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/theme.dart';
 import '../../core/ai/skills/skill.dart';
 import '../../data/data_providers.dart';
+import '../../l10n/l10n.dart';
 
 /// 用户自定义 SKILL 管理（B-03）：维护附加指令、工具白名单与参数模板。
 /// 启用的技能会在续写 / 灵感生成时作为附加 system 指令注入。
@@ -42,19 +43,20 @@ class _SkillsPageState extends ConsumerState<SkillsPage> {
   }
 
   Future<void> _confirmDelete(Skill skill) async {
+    final l10n = context.l10n;
     final ok = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('删除技能'),
-        content: Text('删除「${skill.name}」后，其指令不再注入 AI 生成。'),
+        title: Text(l10n.skillDeleteTitle),
+        content: Text(l10n.skillDeleteBody(skill.name)),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('取消'),
+            child: Text(l10n.commonCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('删除'),
+            child: Text(l10n.commonDelete),
           ),
         ],
       ),
@@ -67,12 +69,13 @@ class _SkillsPageState extends ConsumerState<SkillsPage> {
   @override
   Widget build(BuildContext context) {
     final skills = _skills;
+    final l10n = context.l10n;
     return Scaffold(
-      appBar: AppBar(title: const Text('自定义技能')),
+      appBar: AppBar(title: Text(l10n.skillTitle)),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openEdit(null),
         icon: const Icon(Icons.add),
-        label: const Text('新增技能'),
+        label: Text(l10n.skillAdd),
       ),
       body: skills == null
           ? const Center(child: CircularProgressIndicator())
@@ -95,7 +98,7 @@ class _SkillsPageState extends ConsumerState<SkillsPage> {
                   title: Text(skill.name),
                   subtitle: Text(
                     '${skill.instruction.trim()}\n'
-                    '${skill.allowedTools.isEmpty ? '工具：不限制' : '工具白名单：${skill.allowedTools.join('、')}'}',
+                    '${skill.allowedTools.isEmpty ? l10n.skillToolsUnlimited : l10n.skillToolsWhitelist(skill.allowedTools.join(l10n.skillListSeparator))}',
                     maxLines: 3,
                     style: TextStyle(
                       fontSize: 12,
@@ -120,17 +123,16 @@ class _SkillsPageState extends ConsumerState<SkillsPage> {
                               await _confirmDelete(skill);
                           }
                         },
-                        itemBuilder: (context) =>
-                            const <PopupMenuEntry<String>>[
-                              PopupMenuItem<String>(
-                                value: 'edit',
-                                child: Text('编辑'),
-                              ),
-                              PopupMenuItem<String>(
-                                value: 'delete',
-                                child: Text('删除'),
-                              ),
-                            ],
+                        itemBuilder: (context) => <PopupMenuEntry<String>>[
+                          PopupMenuItem<String>(
+                            value: 'edit',
+                            child: Text(context.l10n.commonEdit),
+                          ),
+                          PopupMenuItem<String>(
+                            value: 'delete',
+                            child: Text(context.l10n.commonDelete),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -159,11 +161,10 @@ class _EmptyHint extends StatelessWidget {
               color: context.paper.inkSoft,
             ),
             const SizedBox(height: 12),
-            const Text('还没有自定义技能'),
+            Text(context.l10n.skillEmptyTitle),
             const SizedBox(height: 4),
             Text(
-              '写一段附加指令（如「只用短句」「避免旁白解释」），'
-              '启用后会注入续写与灵感生成的 system 提示',
+              context.l10n.skillEmptyHint,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall,
             ),
@@ -295,7 +296,7 @@ class _SkillEditPageState extends ConsumerState<SkillEditPage> {
     if (!mounted) return;
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(const SnackBar(content: Text('已保存')));
+    ).showSnackBar(SnackBar(content: Text(context.l10n.skillSaved)));
     Navigator.of(context).pop();
   }
 
@@ -303,11 +304,13 @@ class _SkillEditPageState extends ConsumerState<SkillEditPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isNew ? '新增技能' : '编辑技能'),
+        title: Text(
+          _isNew ? context.l10n.skillNewTitle : context.l10n.skillEditTitle,
+        ),
         actions: <Widget>[
           TextButton(
             onPressed: _loading ? null : _save,
-            child: const Text('保存'),
+            child: Text(context.l10n.commonSave),
           ),
         ],
       ),
@@ -321,36 +324,38 @@ class _SkillEditPageState extends ConsumerState<SkillEditPage> {
                   TextFormField(
                     controller: _name,
                     maxLength: 30,
-                    decoration: const InputDecoration(
-                      labelText: '技能名称',
-                      hintText: '例如：冷硬短句',
+                    decoration: InputDecoration(
+                      labelText: context.l10n.skillNameLabel,
+                      hintText: context.l10n.skillNameHint,
                     ),
-                    validator: (v) =>
-                        (v ?? '').trim().isEmpty ? '请填写技能名称' : null,
+                    validator: (v) => (v ?? '').trim().isEmpty
+                        ? context.l10n.skillNameRequired
+                        : null,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _instruction,
                     minLines: 4,
                     maxLines: 10,
-                    decoration: const InputDecoration(
-                      labelText: '指令文本',
-                      hintText: '例如：只用短句，避免解释性旁白，对话不写语气副词。',
-                      helperText: '会作为附加 system 指令注入续写与灵感生成',
+                    decoration: InputDecoration(
+                      labelText: context.l10n.skillInstructionLabel,
+                      hintText: context.l10n.skillInstructionHint,
+                      helperText: context.l10n.skillInstructionHelper,
                       alignLabelWithHint: true,
                     ),
-                    validator: (v) =>
-                        (v ?? '').trim().isEmpty ? '请填写指令文本' : null,
+                    validator: (v) => (v ?? '').trim().isEmpty
+                        ? context.l10n.skillInstructionRequired
+                        : null,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _parameters,
                     minLines: 1,
                     maxLines: 4,
-                    decoration: const InputDecoration(
-                      labelText: '参数模板（可选）',
-                      hintText: '每行一条 键=值，例如 字数=800',
-                      helperText: '在指令中用 {{参数名}} 引用，注入时替换为对应值',
+                    decoration: InputDecoration(
+                      labelText: context.l10n.skillParamsLabel,
+                      hintText: context.l10n.skillParamsHint,
+                      helperText: context.l10n.skillParamsHelper('{{', '}}'),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -358,19 +363,17 @@ class _SkillEditPageState extends ConsumerState<SkillEditPage> {
                     controller: _allowedTools,
                     minLines: 2,
                     maxLines: 5,
-                    decoration: const InputDecoration(
-                      labelText: '工具白名单（可选）',
-                      hintText: '每行一个工具名，例如 get_chapter',
-                      helperText:
-                          '留空表示不限制；内置工具 get_chapter / get_characters / '
-                          'get_outline，MCP 工具以 mcp_ 开头',
+                    decoration: InputDecoration(
+                      labelText: context.l10n.skillToolsLabel,
+                      hintText: context.l10n.skillToolsHint,
+                      helperText: context.l10n.skillToolsHelper,
                     ),
                   ),
                   const SizedBox(height: 12),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
-                    title: const Text('启用'),
-                    subtitle: const Text('停用后不注入，也不参与工具白名单'),
+                    title: Text(context.l10n.skillEnable),
+                    subtitle: Text(context.l10n.skillEnableSubtitle),
                     value: _enabled,
                     activeTrackColor: context.paper.accent,
                     onChanged: (v) => setState(() => _enabled = v),

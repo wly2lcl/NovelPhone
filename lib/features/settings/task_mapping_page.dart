@@ -5,6 +5,7 @@ import '../../app/theme.dart';
 import '../../data/data_providers.dart';
 import '../../data/db.dart';
 import '../../data/repositories/settings_repository.dart';
+import '../../l10n/l10n.dart';
 import '../ai/ai_providers.dart';
 
 /// 任务 → 模型映射（M3-18）：续写 / 灵感 / AI 感检查各自指定模型组。
@@ -13,27 +14,28 @@ class TaskMappingPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
     final groups = ref.watch(modelGroupsProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('任务与模型映射')),
+      appBar: AppBar(title: Text(l10n.settingsTaskMapping)),
       body: groups.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('加载失败：$e')),
+        error: (e, _) => Center(child: Text(l10n.taskMapLoadFailed('$e'))),
         data: (list) {
           if (list.isEmpty) {
-            return const Center(
+            return Center(
               child: Padding(
-                padding: EdgeInsets.all(32),
-                child: Text('请先在「模型组与 API Key」中添加模型组'),
+                padding: const EdgeInsets.all(32),
+                child: Text(l10n.taskMapEmptyHint),
               ),
             );
           }
           return ListView(
             children: <Widget>[
               Padding(
-                padding: EdgeInsets.fromLTRB(16, 16, 16, 4),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
                 child: Text(
-                  '为每类 AI 任务指定使用的模型组；未指定则对应功能不可用。',
+                  l10n.taskMapIntro,
                   style: TextStyle(fontSize: 12, color: context.paper.inkSoft),
                 ),
               ),
@@ -55,6 +57,7 @@ class _TaskMappingTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
     final selectedId = ref.watch(taskModelIdProvider(task)).value;
     final enabledGroups = groups.where((g) => g.enabled).toList();
     final validSelected = enabledGroups.any((g) => g.id == selectedId)
@@ -62,13 +65,16 @@ class _TaskMappingTile extends ConsumerWidget {
         : null;
 
     return ListTile(
-      title: Text(AiTask.label(task)),
+      title: Text(_aiTaskLabel(l10n, task)),
       trailing: DropdownButton<int?>(
         value: validSelected,
-        hint: const Text('未指定'),
+        hint: Text(l10n.taskMapUnassigned),
         underline: const SizedBox.shrink(),
         items: <DropdownMenuItem<int?>>[
-          const DropdownMenuItem<int?>(value: null, child: Text('未指定')),
+          DropdownMenuItem<int?>(
+            value: null,
+            child: Text(l10n.taskMapUnassigned),
+          ),
           for (final group in enabledGroups)
             DropdownMenuItem<int?>(value: group.id, child: Text(group.name)),
         ],
@@ -78,3 +84,15 @@ class _TaskMappingTile extends ConsumerWidget {
     );
   }
 }
+
+/// AI 任务展示名（AiTask 常量 → 本地化文案）。
+String _aiTaskLabel(AppLocalizations l10n, String task) => switch (task) {
+  AiTask.continueWriting => l10n.aiTaskContinue,
+  AiTask.inspire => l10n.aiTaskInspire,
+  AiTask.rewrite => l10n.aiTaskRewrite,
+  AiTask.check => l10n.aiTaskCheck,
+  AiTask.summary => l10n.aiTaskSummary,
+  AiTask.outlineExpand => l10n.aiTaskOutlineExpand,
+  AiTask.volumeSummary => l10n.aiTaskVolumeSummary,
+  _ => task,
+};

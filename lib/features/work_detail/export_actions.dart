@@ -8,16 +8,17 @@ import '../../core/exporter/share_export.dart';
 import '../../core/exporter/text_exporter.dart';
 import '../../data/data_providers.dart';
 import '../../data/db.dart';
+import '../../l10n/l10n.dart';
 
 /// 导出格式（PRD 功能 12）。
 enum ExportFormat { txt, markdown, docx, epub }
 
 extension on ExportFormat {
-  String get label => switch (this) {
-    ExportFormat.txt => '纯文本（.txt）',
-    ExportFormat.markdown => 'Markdown（.md）',
-    ExportFormat.docx => 'Word 文档（.docx）',
-    ExportFormat.epub => 'EPUB 电子书（.epub）',
+  String label(AppLocalizations l10n) => switch (this) {
+    ExportFormat.txt => l10n.exportActionsFormatTxt,
+    ExportFormat.markdown => l10n.exportActionsFormatMarkdown,
+    ExportFormat.docx => l10n.exportActionsFormatDocx,
+    ExportFormat.epub => l10n.exportActionsFormatEpub,
   };
 }
 
@@ -27,14 +28,15 @@ Future<void> exportChapter(
   WidgetRef ref,
   Chapter chapter,
 ) async {
+  final l10n = context.l10n;
   final format = await _pickFormat(context, const <ExportFormat>[
     ExportFormat.txt,
     ExportFormat.markdown,
-  ], title: '导出本章');
+  ], title: l10n.exportActionsChapterTitle);
   if (format == null) return;
   final draft = ExportChapter(title: chapter.title, content: chapter.content);
   final name = safeExportFileName(
-    chapter.title.isEmpty ? '未命名章节' : chapter.title,
+    chapter.title.isEmpty ? l10n.commonUntitledChapter : chapter.title,
     format == ExportFormat.txt ? 'txt' : 'md',
   );
   final bytes = textToBytes(
@@ -43,12 +45,22 @@ Future<void> exportChapter(
         : buildChapterMarkdown(draft),
   );
   if (!context.mounted) return;
-  await _share(context, fileName: name, bytes: bytes, title: '导出章节');
+  await _share(
+    context,
+    fileName: name,
+    bytes: bytes,
+    title: l10n.exportActionsShareChapterTitle,
+  );
 }
 
 /// 整作导出（M2-09）：txt / markdown / docx，正文 + 章节结构。
 Future<void> exportWork(BuildContext context, WidgetRef ref, int workId) async {
-  final format = await _pickFormat(context, ExportFormat.values, title: '导出作品');
+  final l10n = context.l10n;
+  final format = await _pickFormat(
+    context,
+    ExportFormat.values,
+    title: l10n.exportActionsExportWorkTitle,
+  );
   if (format == null) return;
   final work = await ref.read(workRepositoryProvider).getWork(workId);
   final chapters = await ref
@@ -59,14 +71,14 @@ Future<void> exportWork(BuildContext context, WidgetRef ref, int workId) async {
   if (chapters.isEmpty) {
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(const SnackBar(content: Text('这部作品还没有章节，暂无可导出的内容')));
+    ).showSnackBar(SnackBar(content: Text(l10n.exportActionsNoChapters)));
     return;
   }
   final drafts = <ExportChapter>[
     for (final chapter in chapters)
       ExportChapter(title: chapter.title, content: chapter.content),
   ];
-  final title = work?.title ?? '作品';
+  final title = work?.title ?? l10n.workDetailTitleFallback;
   final bytes = switch (format) {
     ExportFormat.txt => textToBytes(buildWorkText(drafts)),
     ExportFormat.markdown => textToBytes(buildWorkMarkdown(drafts)),
@@ -116,7 +128,7 @@ Future<ExportFormat?> _pickFormat(
           for (final format in formats)
             ListTile(
               leading: const Icon(Icons.description_outlined),
-              title: Text(format.label),
+              title: Text(format.label(sheetContext.l10n)),
               onTap: () => Navigator.of(sheetContext).pop(format),
             ),
         ],
@@ -135,8 +147,8 @@ Future<void> _share(
     await shareExport(fileName: fileName, bytes: bytes, title: title);
   } catch (e) {
     if (!context.mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('导出失败：$e')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(context.l10n.exportActionsShareFailed('$e'))),
+    );
   }
 }

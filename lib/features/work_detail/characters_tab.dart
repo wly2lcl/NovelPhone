@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/theme.dart';
 import '../../data/data_providers.dart';
 import '../../data/db.dart';
+import '../../l10n/l10n.dart';
 import '../../models/character_tags.dart';
 import 'work_detail_providers.dart';
 
@@ -37,7 +38,7 @@ class CharactersTab extends ConsumerWidget {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openEditor(context, ref),
         icon: const Icon(Icons.person_add_alt),
-        label: const Text('新建角色卡'),
+        label: Text(context.l10n.charactersNewCard),
       ),
     );
   }
@@ -68,10 +69,13 @@ class _EmptyCharactersHint extends StatelessWidget {
           children: <Widget>[
             Icon(Icons.groups_outlined, size: 64, color: context.paper.inkSoft),
             const SizedBox(height: 12),
-            Text('还没有角色卡', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              context.l10n.charactersEmptyTitle,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 6),
             Text(
-              '为角色建立档案后，AI 续写与灵感会自动带上相关角色设定。',
+              context.l10n.charactersEmptyHint,
               textAlign: TextAlign.center,
               style: TextStyle(color: context.paper.inkSoft),
             ),
@@ -133,7 +137,9 @@ class _CharacterCard extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                character.identity.isEmpty ? '身份未填写' : character.identity,
+                character.identity.isEmpty
+                    ? context.l10n.charactersIdentityEmpty
+                    : character.identity,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(color: context.paper.inkSoft, fontSize: 13),
@@ -238,7 +244,9 @@ class _CharacterFormSheetState extends ConsumerState<_CharacterFormSheet> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               Text(
-                _isEditing ? '编辑角色卡' : '新建角色卡',
+                _isEditing
+                    ? context.l10n.charactersEditCard
+                    : context.l10n.charactersNewCard,
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: 16),
@@ -246,19 +254,21 @@ class _CharacterFormSheetState extends ConsumerState<_CharacterFormSheet> {
                 controller: _name,
                 maxLength: 20,
                 decoration: InputDecoration(
-                  labelText: '姓名（必填，1-20 字）',
+                  labelText: context.l10n.charactersNameLabel,
                   errorText: _nameError,
                 ),
               ),
               TextField(
                 controller: _identity,
-                decoration: const InputDecoration(labelText: '身份'),
+                decoration: InputDecoration(
+                  labelText: context.l10n.charactersIdentityLabel,
+                ),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: _tags,
                 decoration: InputDecoration(
-                  labelText: '性格标签（最多 10 个，空格或逗号分隔）',
+                  labelText: context.l10n.charactersTagsLabel,
                   errorText: _tagError,
                 ),
               ),
@@ -266,19 +276,25 @@ class _CharacterFormSheetState extends ConsumerState<_CharacterFormSheet> {
               TextField(
                 controller: _appearance,
                 maxLines: 3,
-                decoration: const InputDecoration(labelText: '外貌特征'),
+                decoration: InputDecoration(
+                  labelText: context.l10n.charactersAppearanceLabel,
+                ),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: _relations,
                 maxLines: 3,
-                decoration: const InputDecoration(labelText: '人际关系'),
+                decoration: InputDecoration(
+                  labelText: context.l10n.charactersRelationsLabel,
+                ),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: _arc,
                 maxLines: 3,
-                decoration: const InputDecoration(labelText: '角色弧光'),
+                decoration: InputDecoration(
+                  labelText: context.l10n.charactersArcLabel,
+                ),
               ),
               const SizedBox(height: 20),
               Row(
@@ -290,9 +306,9 @@ class _CharacterFormSheetState extends ConsumerState<_CharacterFormSheet> {
                         Icons.delete_outline,
                         color: Color(0xFFB3261E),
                       ),
-                      label: const Text(
-                        '删除',
-                        style: TextStyle(color: Color(0xFFB3261E)),
+                      label: Text(
+                        context.l10n.commonDelete,
+                        style: const TextStyle(color: Color(0xFFB3261E)),
                       ),
                     ),
                   const Spacer(),
@@ -300,12 +316,12 @@ class _CharacterFormSheetState extends ConsumerState<_CharacterFormSheet> {
                     onPressed: _saving
                         ? null
                         : () => Navigator.of(context).pop(),
-                    child: const Text('取消'),
+                    child: Text(context.l10n.commonCancel),
                   ),
                   const SizedBox(width: 8),
                   FilledButton(
                     onPressed: _saving ? null : _save,
-                    child: const Text('保存'),
+                    child: Text(context.l10n.commonSave),
                   ),
                 ],
               ),
@@ -320,8 +336,10 @@ class _CharacterFormSheetState extends ConsumerState<_CharacterFormSheet> {
     final name = _name.text.trim();
     final tags = parseTagInput(_tags.text, max: 11);
     setState(() {
-      _nameError = name.isEmpty || name.length > 20 ? '姓名需 1-20 字' : null;
-      _tagError = tags.length > 10 ? '性格标签最多 10 个' : null;
+      _nameError = name.isEmpty || name.length > 20
+          ? context.l10n.charactersNameError
+          : null;
+      _tagError = tags.length > 10 ? context.l10n.charactersTagsError : null;
     });
     if (_nameError != null || _tagError != null) return;
 
@@ -364,16 +382,18 @@ class _CharacterFormSheetState extends ConsumerState<_CharacterFormSheet> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text('删除「${widget.character!.name}」？'),
-        content: const Text('删除后角色卡不可恢复。'),
+        title: Text(
+          dialogContext.l10n.charactersDeleteConfirm(widget.character!.name),
+        ),
+        content: Text(dialogContext.l10n.charactersDeleteBody),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('取消'),
+            child: Text(dialogContext.l10n.commonCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('删除'),
+            child: Text(dialogContext.l10n.commonDelete),
           ),
         ],
       ),

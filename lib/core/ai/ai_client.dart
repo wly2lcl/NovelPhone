@@ -125,12 +125,41 @@ class ChatDone extends ChatChunk {
   final String? finishReason;
 }
 
+/// [ChatError.code] 的已知取值（同一 [AiErrorKind] 下的细分场景，
+/// 供展示时选择本地化文案；无法识别时为 null，回退原始 message）。
+abstract final class ChatErrorCode {
+  /// 工具调用轮次超限（AgentCore，kind 保持 unknown 以兼容既有断言）。
+  static const String toolLoop = 'toolLoop';
+
+  /// 模型服务流内返回错误（messages / responses 的 error 事件）。
+  static const String providerError = 'providerError';
+
+  /// 模型服务返回失败（responses 的 response.failed）。
+  static const String providerFailed = 'providerFailed';
+
+  /// 模型输出被截断（responses 的 response.incomplete）。
+  static const String incompleteOutput = 'incompleteOutput';
+}
+
 class ChatError extends ChatChunk {
-  const ChatError({required this.kind, required this.message, this.statusCode});
+  const ChatError({
+    required this.kind,
+    required this.message,
+    this.statusCode,
+    this.code,
+    this.detail,
+  });
 
   final AiErrorKind kind;
   final String message;
   final int? statusCode;
+
+  /// 子分类（[ChatErrorCode] 常量之一；无法识别时为 null）。
+  final String? code;
+
+  /// message 中插值的原始信息（底层异常文本 / 服务商返回原因），
+  /// 供展示时按 locale 重组合文案。
+  final String? detail;
 }
 
 /// 模型调用统一接口。一个模型组构造一个实例，key 在构造时注入。

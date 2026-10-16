@@ -86,6 +86,7 @@ class AgentCore {
     yield const ChatError(
       kind: AiErrorKind.unknown,
       message: 'AI 工具调用轮次超限，已停止',
+      code: ChatErrorCode.toolLoop,
     );
   }
 

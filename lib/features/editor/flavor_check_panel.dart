@@ -13,6 +13,8 @@ import '../../core/word_count.dart';
 import '../../data/data_providers.dart';
 import '../../data/db.dart';
 import '../../data/repositories/settings_repository.dart';
+import '../../l10n/error_text.dart';
+import '../../l10n/l10n.dart';
 import '../ai/ai_notice.dart';
 import '../ai/ai_providers.dart';
 import '../ai/ai_service.dart';
@@ -191,7 +193,14 @@ class _FlavorCheckPanelState extends ConsumerState<FlavorCheckPanel> {
       case CheckDeepFailed():
         setState(() {
           _deepRunning = false;
-          _error = event.message;
+          _error = aiFailureText(
+            context.l10n,
+            kind: event.kind,
+            message: event.message,
+            statusCode: event.statusCode,
+            code: event.code,
+            detail: event.detail,
+          );
           _errorKind = event.kind;
         });
       case CheckNeedsConfig():
@@ -281,7 +290,7 @@ class _FlavorCheckPanelState extends ConsumerState<FlavorCheckPanel> {
     // 偏移漂移保护：原文已变化时不动，提示重新检查。
     if (issue.excerpt.isNotEmpty &&
         text.substring(issue.start, issue.end) != issue.excerpt) {
-      _snack('原文已变化，请重新运行检查');
+      _snack(context.l10n.flavorOriginalChanged);
       return;
     }
     final start = issue.start;
@@ -292,7 +301,11 @@ class _FlavorCheckPanelState extends ConsumerState<FlavorCheckPanel> {
       _sessionHandled++;
       _shiftAfterReplace(start, end, replacement.length);
     });
-    _snack(replacement.isEmpty ? '已删除该词' : '已替换为「$replacement」');
+    _snack(
+      replacement.isEmpty
+          ? context.l10n.flavorDeletedWord
+          : context.l10n.flavorReplacedWith(replacement),
+    );
   }
 
   void _locate(FlavorIssue issue) {
@@ -382,7 +395,10 @@ class _FlavorCheckPanelState extends ConsumerState<FlavorCheckPanel> {
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 6),
                         child: Text(
-                          '仅显示前 ${shown.length} 条，共 ${visible.length} 条',
+                          context.l10n.flavorShownOfTotal(
+                            shown.length,
+                            visible.length,
+                          ),
                           style: TextStyle(
                             fontSize: 12,
                             color: context.paper.inkSoft,
@@ -404,10 +420,13 @@ class _FlavorCheckPanelState extends ConsumerState<FlavorCheckPanel> {
       children: <Widget>[
         Icon(Icons.spellcheck, size: 18, color: context.paper.accent),
         const SizedBox(width: 6),
-        const Text('AI 感检查', style: TextStyle(fontWeight: FontWeight.w600)),
+        Text(
+          context.l10n.flavorTitle,
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
         const SizedBox(width: 8),
         Text(
-          '$count 处',
+          context.l10n.flavorIssueCount(count),
           style: TextStyle(fontSize: 12, color: context.paper.inkSoft),
         ),
         if (_deepRunning) ...<Widget>[
@@ -419,13 +438,13 @@ class _FlavorCheckPanelState extends ConsumerState<FlavorCheckPanel> {
           ),
           const SizedBox(width: 6),
           Text(
-            '深检 $_deepDone/$_deepTotal',
+            context.l10n.flavorDeepProgress(_deepDone, _deepTotal),
             style: TextStyle(fontSize: 12, color: context.paper.inkSoft),
           ),
         ],
         const Spacer(),
         IconButton(
-          tooltip: '收起',
+          tooltip: context.l10n.aiPanelCollapse,
           icon: const Icon(Icons.close, size: 20),
           onPressed: _close,
         ),
@@ -443,7 +462,7 @@ class _FlavorCheckPanelState extends ConsumerState<FlavorCheckPanel> {
     return Row(
       children: <Widget>[
         Text(
-          '范围',
+          context.l10n.flavorScope,
           style: TextStyle(fontSize: 12, color: context.paper.inkSoft),
         ),
         const SizedBox(width: 8),
@@ -461,16 +480,20 @@ class _FlavorCheckPanelState extends ConsumerState<FlavorCheckPanel> {
                     _run();
                   },
             items: <DropdownMenuItem<int>>[
-              const DropdownMenuItem<int>(
+              DropdownMenuItem<int>(
                 value: _wholeWork,
-                child: Text('整部作品'),
+                child: Text(context.l10n.flavorWholeWork),
               ),
               for (var i = 0; i < chapters.length; i++)
                 DropdownMenuItem<int>(
                   value: chapters[i].id,
                   child: Text(
-                    '${chapters[i].title.isEmpty ? '未命名章节' : chapters[i].title}'
-                    '（${formatWordCount(chapters[i].wordCount)}）',
+                    context.l10n.flavorChapterItem(
+                      chapters[i].title.isEmpty
+                          ? context.l10n.commonUntitledChapter
+                          : chapters[i].title,
+                      formatWordCount(chapters[i].wordCount, context.l10n),
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -478,7 +501,7 @@ class _FlavorCheckPanelState extends ConsumerState<FlavorCheckPanel> {
           ),
         ),
         Text(
-          formatWordCount(_scopeInfo?.wordCount ?? 0),
+          formatWordCount(_scopeInfo?.wordCount ?? 0, context.l10n),
           style: TextStyle(fontSize: 12, color: context.paper.inkSoft),
         ),
       ],
@@ -489,9 +512,12 @@ class _FlavorCheckPanelState extends ConsumerState<FlavorCheckPanel> {
     return Padding(
       padding: const EdgeInsets.only(top: 4),
       child: Text(
-        '套话 ${metrics.clicheHits} 处 · 密度 ${metrics.clicheDensity.toStringAsFixed(1)}/千字 · '
-        '句式重复率 ${(metrics.patternRepeatRate * 100).toStringAsFixed(0)}% · '
-        '破折号/省略号 ${metrics.ellipsisCount + metrics.dashCount} 处',
+        context.l10n.flavorMetrics(
+          metrics.clicheHits,
+          metrics.clicheDensity.toStringAsFixed(1),
+          (metrics.patternRepeatRate * 100).toStringAsFixed(0),
+          metrics.ellipsisCount + metrics.dashCount,
+        ),
         style: TextStyle(fontSize: 11, color: context.paper.inkSoft),
       ),
     );
@@ -504,17 +530,21 @@ class _FlavorCheckPanelState extends ConsumerState<FlavorCheckPanel> {
         FilledButton.icon(
           onPressed: canRun ? _startDeep : null,
           icon: const Icon(Icons.auto_awesome, size: 16),
-          label: Text(_deepRunning ? '深检中…' : 'LLM 深检'),
+          label: Text(
+            _deepRunning
+                ? context.l10n.flavorDeepRunning
+                : context.l10n.flavorDeepCheck,
+          ),
         ),
         const SizedBox(width: 8),
         TextButton(
           onPressed: _deepRunning ? null : () => _run(),
-          child: const Text('重新检查'),
+          child: Text(context.l10n.flavorRecheck),
         ),
         const Spacer(),
         if (!_scopeEmpty && !_canReplaceInPlace && widget.controller == null)
           Text(
-            '修改请在编辑器中完成',
+            context.l10n.flavorEditInEditor,
             style: TextStyle(fontSize: 11, color: context.paper.inkSoft),
           ),
       ],
@@ -522,14 +552,19 @@ class _FlavorCheckPanelState extends ConsumerState<FlavorCheckPanel> {
   }
 
   Widget _buildTokens() {
+    final l10n = context.l10n;
     final parts = <String>[];
     if (_estimatedTokens != null) {
-      parts.add('预估 ~${formatTokenCount(_estimatedTokens!)} token');
+      parts.add(
+        l10n.flavorEstimatedTokens(formatTokenCount(_estimatedTokens!, l10n)),
+      );
     }
     if (_promptTokens != null && _completionTokens != null) {
       parts.add(
-        '实测 输入 ${formatTokenCount(_promptTokens!)} + '
-        '输出 ${formatTokenCount(_completionTokens!)}',
+        l10n.flavorMeasuredTokens(
+          formatTokenCount(_promptTokens!, l10n),
+          formatTokenCount(_completionTokens!, l10n),
+        ),
       );
     }
     return Text(
@@ -541,8 +576,8 @@ class _FlavorCheckPanelState extends ConsumerState<FlavorCheckPanel> {
   Widget _buildNeedsConfig() {
     return _banner(
       icon: Icons.key_outlined,
-      message: '尚未配置 AI 感检查所用的模型，深检不可用。',
-      actionLabel: '去设置',
+      message: context.l10n.flavorNeedsConfigMessage,
+      actionLabel: context.l10n.editorGoSettings,
       onAction: _goSettings,
     );
   }
@@ -552,8 +587,10 @@ class _FlavorCheckPanelState extends ConsumerState<FlavorCheckPanel> {
         _errorKind == AiErrorKind.auth || _errorKind == AiErrorKind.badRequest;
     return _banner(
       icon: Icons.error_outline,
-      message: '深检失败（已保留规则结果）：$_error',
-      actionLabel: canGoSettings ? '去设置' : '重试深检',
+      message: context.l10n.flavorDeepFailed(_error!),
+      actionLabel: canGoSettings
+          ? context.l10n.editorGoSettings
+          : context.l10n.flavorRetryDeepCheck,
       onAction: canGoSettings ? _goSettings : _startDeep,
     );
   }
@@ -607,7 +644,7 @@ class _FlavorCheckPanelState extends ConsumerState<FlavorCheckPanel> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Text(
-            '模型未返回结构化结果，原文如下：',
+            context.l10n.flavorFallbackNotice,
             style: TextStyle(fontSize: 12, color: context.paper.accent),
           ),
           const SizedBox(height: 4),
@@ -632,13 +669,13 @@ class _FlavorCheckPanelState extends ConsumerState<FlavorCheckPanel> {
       runSpacing: -6,
       children: <Widget>[
         FilterChip(
-          label: const Text('全部'),
+          label: Text(context.l10n.flavorFilterAll),
           selected: _typeFilter.isEmpty,
           onSelected: (_) => setState(_typeFilter.clear),
         ),
         for (final type in types)
           FilterChip(
-            label: Text('$type ${counts[type]}'),
+            label: Text('${_typeLabel(type)} ${counts[type]}'),
             selected: _typeFilter.contains(type),
             onSelected: (selected) => setState(() {
               if (selected) {
@@ -656,7 +693,7 @@ class _FlavorCheckPanelState extends ConsumerState<FlavorCheckPanel> {
     return Padding(
       padding: EdgeInsets.symmetric(vertical: 12),
       child: Text(
-        '该范围没有正文，无可检查内容',
+        context.l10n.flavorEmptyHint,
         style: TextStyle(fontSize: 13, color: context.paper.inkSoft),
       ),
     );
@@ -666,7 +703,7 @@ class _FlavorCheckPanelState extends ConsumerState<FlavorCheckPanel> {
     return Padding(
       padding: EdgeInsets.symmetric(vertical: 12),
       child: Text(
-        '未发现明显的 AI 味问题',
+        context.l10n.flavorCleanHint,
         style: TextStyle(fontSize: 13, color: context.paper.inkSoft),
       ),
     );
@@ -690,7 +727,7 @@ class _FlavorCheckPanelState extends ConsumerState<FlavorCheckPanel> {
               _severityDot(issue.severity),
               const SizedBox(width: 6),
               Text(
-                FlavorSeverity.label(issue.severity),
+                _severityLabel(issue.severity),
                 style: TextStyle(
                   fontSize: 11,
                   color: _severityColor(issue.severity),
@@ -699,7 +736,7 @@ class _FlavorCheckPanelState extends ConsumerState<FlavorCheckPanel> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  '${issue.type}${issue.source == FlavorSource.llm ? ' · 深检' : ''}',
+                  '${_typeLabel(issue.type)}${issue.source == FlavorSource.llm ? ' · ${context.l10n.flavorDeepBadge}' : ''}',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -708,7 +745,7 @@ class _FlavorCheckPanelState extends ConsumerState<FlavorCheckPanel> {
                 ),
               ),
               PopupMenuButton<String>(
-                tooltip: '更多',
+                tooltip: context.l10n.commonMore,
                 icon: const Icon(Icons.more_horiz, size: 18),
                 onSelected: (value) {
                   switch (value) {
@@ -724,26 +761,30 @@ class _FlavorCheckPanelState extends ConsumerState<FlavorCheckPanel> {
                 },
                 itemBuilder: (context) => <PopupMenuEntry<String>>[
                   if (canLocate)
-                    const PopupMenuItem<String>(
+                    PopupMenuItem<String>(
                       value: 'locate',
-                      child: Text('定位到原文'),
+                      child: Text(context.l10n.flavorLocateInText),
                     ),
                   if (canReplace)
                     PopupMenuItem<String>(
                       value: 'replace',
                       child: Text(
                         issue.replacement!.isEmpty
-                            ? '一键删除该词'
-                            : '一键替换为「${issue.replacement}」',
+                            ? context.l10n.flavorDeleteWord
+                            : context.l10n.flavorReplaceWith(
+                                issue.replacement!,
+                              ),
                       ),
                     ),
-                  const PopupMenuItem<String>(
+                  PopupMenuItem<String>(
                     value: 'ignore',
-                    child: Text('忽略这条'),
+                    child: Text(context.l10n.flavorIgnoreThis),
                   ),
                   PopupMenuItem<String>(
                     value: 'ignoreType',
-                    child: Text('忽略全部「${issue.type}」'),
+                    child: Text(
+                      context.l10n.flavorIgnoreAllType(_typeLabel(issue.type)),
+                    ),
                   ),
                 ],
               ),
@@ -753,7 +794,7 @@ class _FlavorCheckPanelState extends ConsumerState<FlavorCheckPanel> {
             Padding(
               padding: const EdgeInsets.only(left: 2, right: 8),
               child: Text(
-                '原文：${issue.excerpt}',
+                context.l10n.flavorOriginalText(issue.excerpt),
                 style: TextStyle(fontSize: 12, color: context.paper.ink),
               ),
             ),
@@ -768,7 +809,7 @@ class _FlavorCheckPanelState extends ConsumerState<FlavorCheckPanel> {
             Padding(
               padding: const EdgeInsets.only(left: 2, right: 8, top: 2),
               child: Text(
-                '建议：${issue.suggestion}',
+                context.l10n.flavorSuggestion(issue.suggestion!),
                 style: TextStyle(fontSize: 12, color: context.paper.accent),
               ),
             ),
@@ -777,17 +818,21 @@ class _FlavorCheckPanelState extends ConsumerState<FlavorCheckPanel> {
               if (canLocate)
                 TextButton(
                   onPressed: () => _locate(issue),
-                  child: const Text('定位'),
+                  child: Text(context.l10n.flavorLocate),
                 ),
               if (canReplace)
                 TextButton(
                   onPressed: () => _replace(issue),
-                  child: Text(issue.replacement!.isEmpty ? '删除' : '替换'),
+                  child: Text(
+                    issue.replacement!.isEmpty
+                        ? context.l10n.commonDelete
+                        : context.l10n.flavorReplace,
+                  ),
                 ),
               const Spacer(),
               TextButton(
                 onPressed: () => _ignore(issue),
-                child: const Text('忽略'),
+                child: Text(context.l10n.flavorIgnore),
               ),
             ],
           ),
@@ -811,5 +856,30 @@ class _FlavorCheckPanelState extends ConsumerState<FlavorCheckPanel> {
     if (severity >= FlavorSeverity.high) return const Color(0xFFB3261E);
     if (severity == FlavorSeverity.medium) return context.paper.accent;
     return context.paper.inkSoft;
+  }
+
+  String _severityLabel(int severity) {
+    if (severity >= FlavorSeverity.high) return context.l10n.flavorSeverityHigh;
+    if (severity == FlavorSeverity.medium) {
+      return context.l10n.flavorSeverityMedium;
+    }
+    return context.l10n.flavorSeverityLow;
+  }
+
+  String _typeLabel(String type) {
+    switch (type) {
+      case FlavorType.cliche:
+        return context.l10n.flavorTypeCliche;
+      case FlavorType.repetition:
+        return context.l10n.flavorTypeRepetition;
+      case FlavorType.translationese:
+        return context.l10n.flavorTypeTranslationese;
+      case FlavorType.oversummary:
+        return context.l10n.flavorTypeOversummary;
+      case FlavorType.pacing:
+        return context.l10n.flavorTypePacing;
+      default:
+        return type;
+    }
   }
 }

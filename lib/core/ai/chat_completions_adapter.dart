@@ -60,7 +60,11 @@ class ChatCompletionsAdapter implements AiClient {
         ..body = jsonEncode(body);
       response = await _client.send(request);
     } catch (e) {
-      yield ChatError(kind: AiErrorKind.network, message: '网络请求失败：$e');
+      yield ChatError(
+        kind: AiErrorKind.network,
+        message: '网络请求失败：$e',
+        detail: '$e',
+      );
       return;
     }
 
@@ -112,7 +116,11 @@ class ChatCompletionsAdapter implements AiClient {
       }
     } catch (e) {
       // 网络中断：保留已收流，由 UI 提供重试（ARCHITECTURE 5.2）。
-      yield ChatError(kind: AiErrorKind.network, message: '流式读取中断：$e');
+      yield ChatError(
+        kind: AiErrorKind.network,
+        message: '流式读取中断：$e',
+        detail: '$e',
+      );
       return;
     }
 

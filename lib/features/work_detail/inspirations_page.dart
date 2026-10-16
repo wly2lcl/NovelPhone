@@ -5,6 +5,7 @@ import '../../app/theme.dart';
 import '../../core/formatting.dart';
 import '../../data/data_providers.dart';
 import '../../data/db.dart';
+import '../../l10n/l10n.dart';
 import 'work_detail_providers.dart';
 
 /// 灵感箱（PRD 功能 7）：灵感片段列表，新增/编辑/删除。
@@ -20,7 +21,7 @@ class InspirationsPage extends ConsumerWidget {
         ref.watch(inspirationsProvider(workId)).value ?? const <Inspiration>[];
 
     return Scaffold(
-      appBar: AppBar(title: const Text('灵感箱')),
+      appBar: AppBar(title: Text(context.l10n.workDetailInspirationsTitle)),
       body: inspirations.isEmpty
           ? const _EmptyHint()
           : ListView.separated(
@@ -35,7 +36,7 @@ class InspirationsPage extends ConsumerWidget {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => openInspirationEditor(context, ref, workId: workId),
         icon: const Icon(Icons.add),
-        label: const Text('记录灵感'),
+        label: Text(context.l10n.workDetailRecordInspiration),
       ),
     );
   }
@@ -58,10 +59,13 @@ class _EmptyHint extends StatelessWidget {
               color: context.paper.inkSoft,
             ),
             const SizedBox(height: 12),
-            Text('灵感箱是空的', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              context.l10n.workDetailInspirationsEmpty,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 6),
             Text(
-              '随手记下桥段、设定或一句对白，AI 灵感产出的点子也会存到这里。',
+              context.l10n.workDetailInspirationsEmptyHint,
               textAlign: TextAlign.center,
               style: TextStyle(color: context.paper.inkSoft),
             ),
@@ -101,7 +105,7 @@ class _InspirationCard extends ConsumerWidget {
                     Text(inspiration.content),
                     const SizedBox(height: 6),
                     Text(
-                      formatRelativeTime(inspiration.createdAt),
+                      formatRelativeTime(inspiration.createdAt, context.l10n),
                       style: TextStyle(
                         color: context.paper.inkSoft,
                         fontSize: 12,
@@ -111,7 +115,7 @@ class _InspirationCard extends ConsumerWidget {
                 ),
               ),
               IconButton(
-                tooltip: '删除',
+                tooltip: context.l10n.commonDelete,
                 icon: Icon(Icons.delete_outline, color: context.paper.inkSoft),
                 onPressed: () => confirmDeleteInspiration(
                   context,
@@ -141,22 +145,28 @@ Future<void> openInspirationEditor(
   final result = await showDialog<String>(
     context: context,
     builder: (dialogContext) => AlertDialog(
-      title: Text(inspiration == null ? '记录灵感' : '编辑灵感'),
+      title: Text(
+        inspiration == null
+            ? dialogContext.l10n.workDetailRecordInspiration
+            : dialogContext.l10n.workDetailEditInspiration,
+      ),
       content: TextFormField(
         initialValue: inspiration?.content ?? '',
         autofocus: true,
         maxLines: 6,
         onChanged: (value) => input = value,
-        decoration: const InputDecoration(hintText: '写点什么…'),
+        decoration: InputDecoration(
+          hintText: dialogContext.l10n.workDetailInspirationHint,
+        ),
       ),
       actions: <Widget>[
         TextButton(
           onPressed: () => Navigator.of(dialogContext).pop(),
-          child: const Text('取消'),
+          child: Text(dialogContext.l10n.commonCancel),
         ),
         FilledButton(
           onPressed: () => Navigator.of(dialogContext).pop(input.trim()),
-          child: const Text('保存'),
+          child: Text(dialogContext.l10n.commonSave),
         ),
       ],
     ),
@@ -181,16 +191,16 @@ Future<void> confirmDeleteInspiration(
   final confirmed = await showDialog<bool>(
     context: context,
     builder: (dialogContext) => AlertDialog(
-      title: const Text('删除这条灵感？'),
+      title: Text(dialogContext.l10n.workDetailDeleteInspirationConfirm),
       content: Text(content, maxLines: 4, overflow: TextOverflow.ellipsis),
       actions: <Widget>[
         TextButton(
           onPressed: () => Navigator.of(dialogContext).pop(false),
-          child: const Text('取消'),
+          child: Text(dialogContext.l10n.commonCancel),
         ),
         FilledButton(
           onPressed: () => Navigator.of(dialogContext).pop(true),
-          child: const Text('删除'),
+          child: Text(dialogContext.l10n.commonDelete),
         ),
       ],
     ),

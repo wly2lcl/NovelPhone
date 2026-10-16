@@ -6,6 +6,7 @@ import '../../core/formatting.dart';
 import '../../data/data_providers.dart';
 import '../../data/repositories/settings_repository.dart';
 import '../../data/repositories/token_stats_repository.dart';
+import '../../l10n/l10n.dart';
 import '../ai/ai_providers.dart';
 
 /// Token 与采纳统计（M3-20，PRD 功能 10）：按模型+任务聚合展示，可重置。
@@ -14,26 +15,27 @@ class TokenStatsPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
     final stats = ref.watch(tokenStatsProvider);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Token 与采纳统计'),
+        title: Text(l10n.settingsTokenStats),
         actions: <Widget>[
           TextButton(
             onPressed: () async {
               final ok = await showDialog<bool>(
                 context: context,
                 builder: (dialogContext) => AlertDialog(
-                  title: const Text('重置统计'),
-                  content: const Text('清空全部生成与采纳记录，不可恢复。'),
+                  title: Text(l10n.tokenStatsResetTitle),
+                  content: Text(l10n.tokenStatsResetBody),
                   actions: <Widget>[
                     TextButton(
                       onPressed: () => Navigator.of(dialogContext).pop(false),
-                      child: const Text('取消'),
+                      child: Text(l10n.commonCancel),
                     ),
                     FilledButton(
                       onPressed: () => Navigator.of(dialogContext).pop(true),
-                      child: const Text('清空'),
+                      child: Text(l10n.commonClear),
                     ),
                   ],
                 ),
@@ -42,19 +44,19 @@ class TokenStatsPage extends ConsumerWidget {
                 await ref.read(tokenStatsRepositoryProvider).reset();
               }
             },
-            child: const Text('重置'),
+            child: Text(l10n.commonReset),
           ),
         ],
       ),
       body: stats.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('加载失败：$e')),
+        error: (e, _) => Center(child: Text(l10n.tokenStatsLoadFailed('$e'))),
         data: (data) {
           final checkStats = ref.watch(checkStatsProvider).value;
           if (data.isEmpty && (checkStats == null || checkStats.total == 0)) {
             return Center(
               child: Padding(
-                padding: EdgeInsets.all(32),
+                padding: const EdgeInsets.all(32),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
@@ -63,8 +65,8 @@ class TokenStatsPage extends ConsumerWidget {
                       size: 40,
                       color: context.paper.inkSoft,
                     ),
-                    SizedBox(height: 12),
-                    Text('还没有生成记录'),
+                    const SizedBox(height: 12),
+                    Text(l10n.tokenStatsEmpty),
                   ],
                 ),
               ),
@@ -91,6 +93,7 @@ class _SummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final check = checkStats;
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -98,16 +101,22 @@ class _SummaryCard extends StatelessWidget {
         spacing: 16,
         runSpacing: 8,
         children: <Widget>[
-          _Metric(label: '生成次数', value: '${stats.calls}'),
+          _Metric(label: l10n.tokenStatsCalls, value: '${stats.calls}'),
           _Metric(
-            label: 'Token 合计',
-            value: formatTokenCount(stats.totalTokens),
+            label: l10n.tokenStatsTotalTokens,
+            value: formatTokenCount(stats.totalTokens, l10n),
           ),
-          _Metric(label: '采纳率', value: _percent(stats.adoptionRate)),
-          _Metric(label: '忽略率', value: _percent(stats.ignoreRate)),
+          _Metric(
+            label: l10n.tokenStatsAdoptionRate,
+            value: _percent(stats.adoptionRate),
+          ),
+          _Metric(
+            label: l10n.tokenStatsIgnoreRate,
+            value: _percent(stats.ignoreRate),
+          ),
           if (check != null && check.total > 0)
             _Metric(
-              label: '检查问题处置率',
+              label: l10n.tokenStatsCheckHandledRate,
               value:
                   '${(check.handled / check.total * 100).toStringAsFixed(1)}%',
             ),
@@ -156,16 +165,29 @@ class _StatRowCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return ListTile(
-      title: Text('${AiTask.label(row.task)} · ${row.model}'),
+      title: Text('${_aiTaskLabel(l10n, row.task)} · ${row.model}'),
       subtitle: Text(
-        '${row.calls} 次 · 输入 ${formatTokenCount(row.promptTokens)} · '
-        '输出 ${formatTokenCount(row.completionTokens)}\n'
-        '生成 ${row.outputChars} 字 · 采纳 ${row.adoptedChars} 字 · '
-        '采纳 ${row.adopted} 次 · 忽略 ${row.ignored} 次',
+        '${l10n.tokenStatsRowCalls(row.calls)} · '
+        '${l10n.tokenStatsRowTokens(formatTokenCount(row.promptTokens, l10n), formatTokenCount(row.completionTokens, l10n))}\n'
+        '${l10n.tokenStatsRowChars(row.outputChars, row.adoptedChars)} · '
+        '${l10n.tokenStatsRowCounts(row.adopted, row.ignored)}',
         style: TextStyle(fontSize: 12, color: context.paper.inkSoft),
       ),
       isThreeLine: true,
     );
   }
 }
+
+/// AI 任务展示名（AiTask 常量 → 本地化文案）。
+String _aiTaskLabel(AppLocalizations l10n, String task) => switch (task) {
+  AiTask.continueWriting => l10n.aiTaskContinue,
+  AiTask.inspire => l10n.aiTaskInspire,
+  AiTask.rewrite => l10n.aiTaskRewrite,
+  AiTask.check => l10n.aiTaskCheck,
+  AiTask.summary => l10n.aiTaskSummary,
+  AiTask.outlineExpand => l10n.aiTaskOutlineExpand,
+  AiTask.volumeSummary => l10n.aiTaskVolumeSummary,
+  _ => task,
+};

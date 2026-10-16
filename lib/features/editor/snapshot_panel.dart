@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/theme.dart';
 import '../../core/formatting.dart';
+import '../../core/word_count.dart';
 import '../../data/data_providers.dart';
 import '../../data/db.dart';
+import '../../l10n/l10n.dart';
 import '../work_detail/work_detail_providers.dart';
 import 'editor_controller.dart';
 
@@ -32,7 +34,7 @@ class SnapshotPanel extends ConsumerWidget {
     if (!context.mounted) return;
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(const SnackBar(content: Text('已创建快照')));
+    ).showSnackBar(SnackBar(content: Text(context.l10n.snapshotCreated)));
   }
 
   Future<void> _open(
@@ -47,7 +49,9 @@ class SnapshotPanel extends ConsumerWidget {
     final action = await showDialog<_SnapshotAction>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(full.title.isEmpty ? '未命名章节' : full.title),
+        title: Text(
+          full.title.isEmpty ? context.l10n.commonUntitledChapter : full.title,
+        ),
         content: SizedBox(
           width: double.maxFinite,
           child: SingleChildScrollView(
@@ -56,12 +60,13 @@ class SnapshotPanel extends ConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
                 Text(
-                  '${formatRelativeTime(full.createdAt)} · ${full.wordCount} 字',
+                  '${formatRelativeTime(full.createdAt, context.l10n)} · '
+                  '${formatWordCount(full.wordCount, context.l10n)}',
                   style: TextStyle(fontSize: 12, color: context.paper.inkSoft),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  _preview(full.content),
+                  _preview(context.l10n, full.content),
                   style: const TextStyle(fontSize: 13, height: 1.5),
                 ),
               ],
@@ -72,16 +77,19 @@ class SnapshotPanel extends ConsumerWidget {
           TextButton(
             onPressed: () =>
                 Navigator.of(dialogContext).pop(_SnapshotAction.delete),
-            child: const Text('删除', style: TextStyle(color: Color(0xFFB3261E))),
+            child: Text(
+              context.l10n.commonDelete,
+              style: const TextStyle(color: Color(0xFFB3261E)),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('取消'),
+            child: Text(context.l10n.commonCancel),
           ),
           FilledButton(
             onPressed: () =>
                 Navigator.of(dialogContext).pop(_SnapshotAction.restore),
-            child: const Text('恢复此版本'),
+            child: Text(context.l10n.snapshotRestoreVersion),
           ),
         ],
       ),
@@ -102,12 +110,12 @@ class SnapshotPanel extends ConsumerWidget {
     onClose();
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(const SnackBar(content: Text('已恢复到该版本')));
+    ).showSnackBar(SnackBar(content: Text(context.l10n.snapshotRestored)));
   }
 
   /// 预览截断，避免超长章节（10 万字）在弹窗内渲染卡顿。
-  static String _preview(String content) {
-    if (content.isEmpty) return '（空章节）';
+  static String _preview(AppLocalizations l10n, String content) {
+    if (content.isEmpty) return l10n.snapshotEmptyChapter;
     return content.length > 2000 ? '${content.substring(0, 2000)}…' : content;
   }
 
@@ -124,19 +132,22 @@ class SnapshotPanel extends ConsumerWidget {
         children: <Widget>[
           Row(
             children: <Widget>[
-              const Expanded(
+              Expanded(
                 child: Text(
-                  '版本历史',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  context.l10n.snapshotHistoryTitle,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
               TextButton.icon(
                 onPressed: () => _create(context, ref),
                 icon: const Icon(Icons.add, size: 18),
-                label: const Text('创建快照'),
+                label: Text(context.l10n.snapshotCreate),
               ),
               IconButton(
-                tooltip: '关闭',
+                tooltip: context.l10n.commonClose,
                 icon: const Icon(Icons.close),
                 onPressed: onClose,
               ),
@@ -146,7 +157,7 @@ class SnapshotPanel extends ConsumerWidget {
             Padding(
               padding: EdgeInsets.symmetric(vertical: 16),
               child: Text(
-                '还没有快照。写作途中点「创建快照」留存一个版本。',
+                context.l10n.snapshotEmptyHint,
                 style: TextStyle(fontSize: 13, color: context.paper.inkSoft),
               ),
             )
@@ -167,12 +178,15 @@ class SnapshotPanel extends ConsumerWidget {
                       color: context.paper.inkSoft,
                     ),
                     title: Text(
-                      snapshot.title.isEmpty ? '未命名章节' : snapshot.title,
+                      snapshot.title.isEmpty
+                          ? context.l10n.commonUntitledChapter
+                          : snapshot.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     subtitle: Text(
-                      '${formatRelativeTime(snapshot.createdAt)} · ${snapshot.wordCount} 字',
+                      '${formatRelativeTime(snapshot.createdAt, context.l10n)} · '
+                      '${formatWordCount(snapshot.wordCount, context.l10n)}',
                       style: TextStyle(
                         fontSize: 12,
                         color: context.paper.inkSoft,

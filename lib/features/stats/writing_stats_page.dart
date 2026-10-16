@@ -7,6 +7,7 @@ import '../../app/theme.dart';
 import '../../core/writing_stats.dart';
 import '../../data/data_providers.dart';
 import '../../data/db.dart';
+import '../../l10n/l10n.dart';
 
 /// 写作统计（B-07）：今日字数与每日目标进度、连续写作天数、番茄钟。
 class WritingStatsPage extends ConsumerStatefulWidget {
@@ -93,7 +94,7 @@ class _WritingStatsPageState extends ConsumerState<WritingStatsPage> {
     });
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(const SnackBar(content: Text('番茄钟完成，休息一下吧')));
+    ).showSnackBar(SnackBar(content: Text(context.l10n.statsPomodoroFinished)));
   }
 
   // ---------- 编辑弹窗 ----------
@@ -104,27 +105,27 @@ class _WritingStatsPageState extends ConsumerState<WritingStatsPage> {
     final result = await showDialog<int>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('每日字数目标'),
+        title: Text(context.l10n.statsDailyTargetTitle),
         content: TextFormField(
           initialValue: input,
           autofocus: true,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            hintText: '0 表示不设目标',
-            suffixText: '字',
+          decoration: InputDecoration(
+            hintText: context.l10n.statsDailyTargetHint,
+            suffixText: context.l10n.statsDailyTargetUnit,
           ),
           onChanged: (v) => input = v,
         ),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('取消'),
+            child: Text(context.l10n.commonCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(
               dialogContext,
             ).pop(int.tryParse(input.trim()) ?? 0),
-            child: const Text('保存'),
+            child: Text(context.l10n.commonSave),
           ),
         ],
       ),
@@ -140,27 +141,27 @@ class _WritingStatsPageState extends ConsumerState<WritingStatsPage> {
     final result = await showDialog<int>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('番茄钟时长'),
+        title: Text(context.l10n.statsPomodoroDurationTitle),
         content: TextFormField(
           initialValue: input,
           autofocus: true,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            hintText: '1~120',
-            suffixText: '分钟',
+          decoration: InputDecoration(
+            hintText: context.l10n.statsPomodoroDurationHint,
+            suffixText: context.l10n.statsPomodoroDurationUnit,
           ),
           onChanged: (v) => input = v,
         ),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('取消'),
+            child: Text(context.l10n.commonCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(
               dialogContext,
             ).pop(int.tryParse(input.trim()) ?? 25),
-            child: const Text('保存'),
+            child: Text(context.l10n.commonSave),
           ),
         ],
       ),
@@ -190,7 +191,7 @@ class _WritingStatsPageState extends ConsumerState<WritingStatsPage> {
     );
 
     return Scaffold(
-      appBar: AppBar(title: const Text('写作统计')),
+      appBar: AppBar(title: Text(context.l10n.statsTitle)),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         children: <Widget>[
@@ -202,9 +203,11 @@ class _WritingStatsPageState extends ConsumerState<WritingStatsPage> {
           const SizedBox(height: 16),
           _StatTile(
             icon: Icons.local_fire_department_outlined,
-            title: '连续写作',
-            value: '$streak 天',
-            subtitle: streak > 0 ? '保持下去，别断更' : '今天写一点，开启连击',
+            title: context.l10n.statsStreakTitle,
+            value: context.l10n.statsStreakDays(streak),
+            subtitle: streak > 0
+                ? context.l10n.statsStreakKeepGoing
+                : context.l10n.statsStreakStart,
           ),
           const Divider(height: 24),
           _PomodoroCard(
@@ -263,9 +266,15 @@ class _TodayCard extends StatelessWidget {
         children: <Widget>[
           Row(
             children: <Widget>[
-              Text('今日写作', style: TextStyle(color: context.paper.inkSoft)),
+              Text(
+                context.l10n.statsTodayTitle,
+                style: TextStyle(color: context.paper.inkSoft),
+              ),
               const Spacer(),
-              TextButton(onPressed: onEditTarget, child: const Text('设定目标')),
+              TextButton(
+                onPressed: onEditTarget,
+                child: Text(context.l10n.statsSetTarget),
+              ),
             ],
           ),
           const SizedBox(height: 8),
@@ -281,16 +290,12 @@ class _TodayCard extends StatelessWidget {
                     color: context.paper.ink,
                   ),
                 ),
-                if (hasGoal)
-                  TextSpan(
-                    text: ' / $goal 字',
-                    style: TextStyle(color: context.paper.inkSoft),
-                  )
-                else
-                  TextSpan(
-                    text: ' 字',
-                    style: TextStyle(color: context.paper.inkSoft),
-                  ),
+                TextSpan(
+                  text: hasGoal
+                      ? context.l10n.statsWordsOfGoal(goal)
+                      : context.l10n.statsWordsOnly(words),
+                  style: TextStyle(color: context.paper.inkSoft),
+                ),
               ],
             ),
           ),
@@ -306,7 +311,9 @@ class _TodayCard extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              progress >= 1.0 ? '已达成今日目标' : '距离目标还差 ${goal - words} 字',
+              progress >= 1.0
+                  ? context.l10n.statsGoalReached
+                  : context.l10n.statsGoalRemaining(goal - words),
               style: TextStyle(fontSize: 12, color: context.paper.inkSoft),
             ),
           ],
@@ -353,9 +360,15 @@ class _PomodoroCard extends StatelessWidget {
           children: <Widget>[
             Icon(Icons.timer_outlined, color: context.paper.inkSoft),
             const SizedBox(width: 8),
-            const Text('番茄钟', style: TextStyle(fontWeight: FontWeight.w600)),
+            Text(
+              context.l10n.statsPomodoroTitle,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
             const Spacer(),
-            TextButton(onPressed: onEditMinutes, child: Text('$minutes 分钟')),
+            TextButton(
+              onPressed: onEditMinutes,
+              child: Text(context.l10n.statsPomodoroMinutes(minutes)),
+            ),
           ],
         ),
         const SizedBox(height: 8),
@@ -377,20 +390,24 @@ class _PomodoroCard extends StatelessWidget {
             FilledButton.icon(
               onPressed: running ? onPause : onStart,
               icon: Icon(running ? Icons.pause : Icons.play_arrow),
-              label: Text(running ? '暂停' : '开始'),
+              label: Text(
+                running
+                    ? context.l10n.statsPomodoroPause
+                    : context.l10n.statsPomodoroStart,
+              ),
             ),
             const SizedBox(width: 12),
             OutlinedButton.icon(
               onPressed: onReset,
               icon: const Icon(Icons.refresh),
-              label: const Text('重置'),
+              label: Text(context.l10n.commonReset),
             ),
           ],
         ),
         const SizedBox(height: 12),
         Center(
           child: Text(
-            '今日已完成 $done 个番茄钟',
+            context.l10n.statsPomodoroDoneToday(done),
             style: TextStyle(fontSize: 13, color: context.paper.inkSoft),
           ),
         ),

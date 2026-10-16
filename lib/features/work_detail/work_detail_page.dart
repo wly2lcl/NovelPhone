@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../data/data_providers.dart';
+import '../../l10n/l10n.dart';
 import '../editor/flavor_check_panel.dart';
 import 'chapters_tab.dart';
 import 'characters_tab.dart';
@@ -25,20 +26,22 @@ class WorkDetailPage extends ConsumerWidget {
       length: 4,
       child: Scaffold(
         appBar: AppBar(
-          title: Text(workAsync.value?.title ?? '作品'),
+          title: Text(
+            workAsync.value?.title ?? context.l10n.workDetailTitleFallback,
+          ),
           actions: <Widget>[
             IconButton(
-              tooltip: '更多',
+              tooltip: context.l10n.commonMore,
               icon: const Icon(Icons.more_vert),
               onPressed: () => _showWorkActions(context, ref, workId),
             ),
           ],
-          bottom: const TabBar(
+          bottom: TabBar(
             tabs: <Widget>[
-              Tab(text: '章节'),
-              Tab(text: '角色卡'),
-              Tab(text: '设定集'),
-              Tab(text: '章纲'),
+              Tab(text: context.l10n.workDetailTabChapters),
+              Tab(text: context.l10n.workDetailTabCharacters),
+              Tab(text: context.l10n.workDetailTabWorldbuilding),
+              Tab(text: context.l10n.workDetailTabOutline),
             ],
           ),
         ),
@@ -56,7 +59,7 @@ class WorkDetailPage extends ConsumerWidget {
             child: OutlinedButton.icon(
               onPressed: () => _runFlavorCheck(context, workId),
               icon: const Icon(Icons.spellcheck),
-              label: const Text('运行 AI 感检查'),
+              label: Text(context.l10n.workDetailRunFlavorCheck),
             ),
           ),
         ),
@@ -85,66 +88,71 @@ class WorkDetailPage extends ConsumerWidget {
   ) async {
     await showModalBottomSheet<void>(
       context: context,
-      builder: (sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            ListTile(
-              leading: const Icon(Icons.upload_file_outlined),
-              title: const Text('导入 txt / docx'),
-              onTap: () async {
-                Navigator.of(sheetContext).pop();
-                final count = await context.push<int>('/work/$workId/import');
-                if (count != null && count > 0 && context.mounted) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text('已导入 $count 章')));
-                }
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.lightbulb_outline),
-              title: const Text('灵感箱'),
-              onTap: () {
-                Navigator.of(sheetContext).pop();
-                context.push('/work/$workId/inspirations');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.hub_outlined),
-              title: const Text('人物关系图'),
-              onTap: () {
-                Navigator.of(sheetContext).pop();
-                context.push('/work/$workId/relations');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.file_download_outlined),
-              title: const Text('导出作品'),
-              onTap: () async {
-                Navigator.of(sheetContext).pop();
-                await exportWork(context, ref, workId);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.tune),
-              title: const Text('AI 设置'),
-              onTap: () {
-                Navigator.of(sheetContext).pop();
-                context.push('/settings');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.drive_file_rename_outline),
-              title: const Text('重命名作品'),
-              onTap: () {
-                Navigator.of(sheetContext).pop();
-                _renameWork(context, ref, workId);
-              },
-            ),
-          ],
-        ),
-      ),
+      builder: (sheetContext) {
+        final l10n = sheetContext.l10n;
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              ListTile(
+                leading: const Icon(Icons.upload_file_outlined),
+                title: Text(l10n.workDetailImportTxtDocx),
+                onTap: () async {
+                  Navigator.of(sheetContext).pop();
+                  final count = await context.push<int>('/work/$workId/import');
+                  if (count != null && count > 0 && context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(l10n.workDetailImportedCount(count)),
+                      ),
+                    );
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.lightbulb_outline),
+                title: Text(l10n.workDetailInspirationsTitle),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  context.push('/work/$workId/inspirations');
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.hub_outlined),
+                title: Text(l10n.relationGraphTitle),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  context.push('/work/$workId/relations');
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.file_download_outlined),
+                title: Text(l10n.exportActionsExportWorkTitle),
+                onTap: () async {
+                  Navigator.of(sheetContext).pop();
+                  await exportWork(context, ref, workId);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.tune),
+                title: Text(l10n.workDetailAiSettings),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  context.push('/settings');
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.drive_file_rename_outline),
+                title: Text(l10n.workDetailRenameWork),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  _renameWork(context, ref, workId);
+                },
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -161,7 +169,7 @@ class WorkDetailPage extends ConsumerWidget {
     final newTitle = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('重命名作品'),
+        title: Text(dialogContext.l10n.workDetailRenameWork),
         content: TextFormField(
           initialValue: work.title,
           autofocus: true,
@@ -171,11 +179,11 @@ class WorkDetailPage extends ConsumerWidget {
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('取消'),
+            child: Text(dialogContext.l10n.commonCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(text.trim()),
-            child: const Text('保存'),
+            child: Text(dialogContext.l10n.commonSave),
           ),
         ],
       ),

@@ -27,12 +27,6 @@ class FlavorSeverity {
   static const int high = 3;
   static const int medium = 2;
   static const int low = 1;
-
-  static String label(int severity) {
-    if (severity >= high) return '高';
-    if (severity == medium) return '中';
-    return '低';
-  }
 }
 
 /// 问题来源：规则引擎 / LLM 深检（两层合并时保留来源）。

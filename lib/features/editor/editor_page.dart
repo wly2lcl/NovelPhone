@@ -10,6 +10,7 @@ import '../../core/formatting.dart';
 import '../../core/word_count.dart';
 import '../../data/data_providers.dart';
 import '../../data/repositories/settings_repository.dart';
+import '../../l10n/l10n.dart';
 import '../ai/ai_notice.dart';
 import '../ai/ai_providers.dart';
 import '../work_detail/work_detail_providers.dart';
@@ -176,7 +177,9 @@ class _EditorPageState extends ConsumerState<EditorPage> {
               children: <Widget>[
                 Flexible(
                   child: Text(
-                    _controller.title.isEmpty ? '未命名章节' : _controller.title,
+                    _controller.title.isEmpty
+                        ? context.l10n.commonUntitledChapter
+                        : _controller.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -189,7 +192,7 @@ class _EditorPageState extends ConsumerState<EditorPage> {
         ),
         actions: <Widget>[
           IconButton(
-            tooltip: '版本历史',
+            tooltip: context.l10n.snapshotHistoryTitle,
             icon: const Icon(Icons.history),
             onPressed: () => setState(() {
               _findVisible = false;
@@ -199,37 +202,39 @@ class _EditorPageState extends ConsumerState<EditorPage> {
             }),
           ),
           IconButton(
-            tooltip: '本章梗概',
+            tooltip: context.l10n.editorChapterSummaryTooltip,
             icon: const Icon(Icons.list_alt),
             onPressed: _editChapterSummary,
           ),
           // AI 章节工具（ENH-05 / ENH-06）：逐章摘要、卷前情回顾、章纲扩写、查看/编辑摘要。
           PopupMenuButton<_ChapterTool>(
-            tooltip: 'AI 章节工具',
+            tooltip: context.l10n.editorAiToolsTooltip,
             icon: const Icon(Icons.auto_awesome),
             onSelected: _onChapterTool,
-            itemBuilder: (context) => const <PopupMenuEntry<_ChapterTool>>[
+            itemBuilder: (context) => <PopupMenuEntry<_ChapterTool>>[
               PopupMenuItem<_ChapterTool>(
                 value: _ChapterTool.summarize,
-                child: Text('生成本章摘要'),
+                child: Text(context.l10n.editorToolSummarize),
               ),
               PopupMenuItem<_ChapterTool>(
                 value: _ChapterTool.volumeSummary,
-                child: Text('生成本卷前情回顾'),
+                child: Text(context.l10n.editorToolVolumeSummary),
               ),
               PopupMenuItem<_ChapterTool>(
                 value: _ChapterTool.outlineExpand,
-                child: Text('AI 扩写本章纲'),
+                child: Text(context.l10n.editorToolOutlineExpand),
               ),
               PopupMenuItem<_ChapterTool>(
                 value: _ChapterTool.editSummary,
-                child: Text('查看/编辑本章摘要'),
+                child: Text(context.l10n.editorToolEditSummary),
               ),
             ],
           ),
           // 专注模式唯一开关（ENH-04）：专注下工具栏与状态栏隐藏，必须常驻可退出。
           IconButton(
-            tooltip: _focusMode ? '退出专注模式' : '专注模式',
+            tooltip: _focusMode
+                ? context.l10n.editorExitFocusMode
+                : context.l10n.editorFocusMode,
             icon: Icon(
               _focusMode ? Icons.fullscreen_exit : Icons.center_focus_strong,
             ),
@@ -344,7 +349,7 @@ class _EditorPageState extends ConsumerState<EditorPage> {
               color: palette.ink,
             ),
             decoration: InputDecoration(
-              hintText: '在这里写下正文…',
+              hintText: context.l10n.editorBodyHint,
               filled: false,
               border: InputBorder.none,
               enabledBorder: InputBorder.none,
@@ -364,7 +369,7 @@ class _EditorPageState extends ConsumerState<EditorPage> {
     final title = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('章节标题'),
+        title: Text(context.l10n.editorChapterTitleDialog),
         content: TextFormField(
           initialValue: _controller.title,
           autofocus: true,
@@ -374,11 +379,11 @@ class _EditorPageState extends ConsumerState<EditorPage> {
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('取消'),
+            child: Text(context.l10n.commonCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(text.trim()),
-            child: const Text('保存'),
+            child: Text(context.l10n.commonSave),
           ),
         ],
       ),
@@ -405,9 +410,9 @@ class _EditorPageState extends ConsumerState<EditorPage> {
   Future<void> _openAi(AiPanelMode mode) async {
     // 改写需在点击那一刻同步快照选区（任何 await 之前，否则 selection 会被改写）。
     if (mode == AiPanelMode.rewrite && !_snapshotRewriteSelection()) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('请先在正文中选中要改写的段落')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.editorSelectRewriteText)),
+      );
       return;
     }
     // 章纲扩写（ENH-05）：以本章一句话梗概为种子，未填写则先引导作者补写。
@@ -419,7 +424,7 @@ class _EditorPageState extends ConsumerState<EditorPage> {
       final seed = existing?.summary.trim() ?? '';
       if (seed.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('请先用顶栏「本章梗概」写一句话梗概，AI 再据此扩写')),
+          SnackBar(content: Text(context.l10n.editorNeedOutlineSeed)),
         );
         return;
       }
@@ -448,7 +453,7 @@ class _EditorPageState extends ConsumerState<EditorPage> {
               );
       if (!hasEarlier) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('本卷还没有更早的章节内容，暂无法生成本卷前情回顾')),
+          SnackBar(content: Text(context.l10n.editorNoEarlierChapters)),
         );
         return;
       }
@@ -467,16 +472,16 @@ class _EditorPageState extends ConsumerState<EditorPage> {
       final go = await showDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          title: const Text('尚未配置模型'),
-          content: const Text('请先在设置中添加模型组并填写 API Key，再使用 AI 功能。'),
+          title: Text(context.l10n.editorNoModelTitle),
+          content: Text(context.l10n.editorNoModelBody),
           actions: <Widget>[
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('稍后'),
+              child: Text(context.l10n.editorLater),
             ),
             FilledButton(
               onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: const Text('去设置'),
+              child: Text(context.l10n.editorGoSettings),
             ),
           ],
         ),
@@ -522,9 +527,9 @@ class _EditorPageState extends ConsumerState<EditorPage> {
       replacement: text,
     );
     if (!ok) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('原文已变化，请重新选中后再改写')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.editorOriginalChanged)),
+      );
       return;
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -586,9 +591,9 @@ class _EditorPageState extends ConsumerState<EditorPage> {
     await showSummaryEditor(
       context,
       initial: summary,
-      title: '本章 AI 摘要',
-      hintText: 'AI 生成的前情摘要，可手动修改；用于后续章节的剧情衔接',
-      notice: stale ? '正文已改动，摘要可能过期，建议重新生成' : null,
+      title: context.l10n.editorSummaryTitle,
+      hintText: context.l10n.editorSummaryHint,
+      notice: stale ? context.l10n.editorSummaryStale : null,
       onSave: (text) => ref
           .read(chapterRepositoryProvider)
           .saveChapterSummary(widget.chapterId, text),
@@ -637,7 +642,7 @@ class _SaveIndicator extends StatelessWidget {
               ),
               SizedBox(width: 8),
               Text(
-                '保存中',
+                context.l10n.editorSaving,
                 style: TextStyle(fontSize: 13, color: context.paper.inkSoft),
               ),
             ],
@@ -655,7 +660,7 @@ class _SaveIndicator extends StatelessWidget {
               ),
               SizedBox(width: 6),
               Text(
-                '已保存',
+                context.l10n.editorSaved,
                 style: TextStyle(fontSize: 13, color: context.paper.inkSoft),
               ),
             ],
@@ -669,9 +674,9 @@ class _SaveIndicator extends StatelessWidget {
             size: 16,
             color: Color(0xFFB3261E),
           ),
-          label: const Text(
-            '保存失败，点击重试',
-            style: TextStyle(color: Color(0xFFB3261E), fontSize: 13),
+          label: Text(
+            context.l10n.editorSaveFailed,
+            style: const TextStyle(color: Color(0xFFB3261E), fontSize: 13),
           ),
         );
     }
@@ -708,56 +713,62 @@ class _Toolbar extends StatelessWidget {
             children: <Widget>[
               _ToolButton(
                 icon: Icons.auto_awesome,
-                label: 'AI 续写',
+                label: context.l10n.editorAiContinue,
                 palette: palette,
                 onPressed: () => onAiFeature(AiPanelMode.continueWriting),
               ),
               _ToolButton(
                 icon: Icons.lightbulb_outline,
-                label: 'AI 灵感',
+                label: context.l10n.editorAiInspire,
                 palette: palette,
                 onPressed: () => onAiFeature(AiPanelMode.inspireIdeas),
               ),
               _ToolButton(
                 icon: Icons.auto_fix_high,
-                label: 'AI 改写',
+                label: context.l10n.editorAiRewrite,
                 palette: palette,
                 onPressed: () => onAiFeature(AiPanelMode.rewrite),
               ),
               _ToolButton(
                 icon: Icons.search,
-                label: '查找',
+                label: context.l10n.editorFind,
                 palette: palette,
                 onPressed: onFind,
               ),
               _ToolButton(
                 icon: Icons.spellcheck,
-                label: 'AI 感',
+                label: context.l10n.editorAiCheck,
                 palette: palette,
                 onPressed: onCheck,
               ),
               PopupMenuButton<bool>(
-                tooltip: '段落移动',
+                tooltip: context.l10n.editorMoveParagraph,
                 onSelected: (up) => controller.moveParagraph(up: up),
-                itemBuilder: (context) => const <PopupMenuEntry<bool>>[
-                  PopupMenuItem<bool>(value: true, child: Text('本段上移')),
-                  PopupMenuItem<bool>(value: false, child: Text('本段下移')),
+                itemBuilder: (context) => <PopupMenuEntry<bool>>[
+                  PopupMenuItem<bool>(
+                    value: true,
+                    child: Text(context.l10n.editorMoveParagraphUp),
+                  ),
+                  PopupMenuItem<bool>(
+                    value: false,
+                    child: Text(context.l10n.editorMoveParagraphDown),
+                  ),
                 ],
                 child: _ToolButtonBody(
                   icon: Icons.swap_vert,
-                  label: '段落移动',
+                  label: context.l10n.editorMoveParagraph,
                   palette: palette,
                 ),
               ),
               _ToolButton(
                 icon: Icons.undo,
-                label: '撤销',
+                label: context.l10n.editorUndo,
                 palette: palette,
                 onPressed: controller.canUndo ? controller.undo : null,
               ),
               _ToolButton(
                 icon: Icons.redo,
-                label: '重做',
+                label: context.l10n.editorRedo,
                 palette: palette,
                 onPressed: controller.canRedo ? controller.redo : null,
               ),
@@ -858,7 +869,9 @@ class _StatusBar extends ConsumerWidget {
         child: Row(
           children: <Widget>[
             Text(
-              '本章 ${formatWordCount(controller.chapterWords)}',
+              context.l10n.editorChapterWords(
+                formatWordCount(controller.chapterWords, context.l10n),
+              ),
               style: TextStyle(
                 fontSize: 12,
                 color: controller.overWordLimit
@@ -868,14 +881,18 @@ class _StatusBar extends ConsumerWidget {
             ),
             const SizedBox(width: 12),
             Text(
-              '全书 ${formatWordCount(workWords)}',
+              context.l10n.editorWholeWorkWords(
+                formatWordCount(workWords, context.l10n),
+              ),
               style: TextStyle(fontSize: 12, color: palette.inkSoft),
             ),
             const Spacer(),
             Text(
               controller.lastSavedAt == null
                   ? ''
-                  : '最后保存 ${formatRelativeTime(controller.lastSavedAt!)}',
+                  : context.l10n.editorLastSaved(
+                      formatRelativeTime(controller.lastSavedAt!, context.l10n),
+                    ),
               style: TextStyle(fontSize: 12, color: palette.inkSoft),
             ),
           ],

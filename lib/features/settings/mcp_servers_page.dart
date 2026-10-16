@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/theme.dart';
 import '../../core/ai/mcp/mcp_bridge.dart';
 import '../../data/data_providers.dart';
+import '../../l10n/l10n.dart';
 
 /// MCP 工具服务管理（B-02）：维护远程 Streamable HTTP server 与认证头。
 /// 认证头只写安全存储（与 API key 同策略），配置 JSON 仅存 URL / 白名单。
@@ -53,19 +54,20 @@ class _McpServersPageState extends ConsumerState<McpServersPage> {
   }
 
   Future<void> _confirmDelete(McpServerConfig server) async {
+    final l10n = context.l10n;
     final ok = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('删除 MCP 服务'),
-        content: Text('删除「${server.name}」后，其认证头也会一并从本机移除。'),
+        title: Text(l10n.mcpDeleteTitle),
+        content: Text(l10n.mcpDeleteBody(server.name)),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('取消'),
+            child: Text(l10n.commonCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('删除'),
+            child: Text(l10n.commonDelete),
           ),
         ],
       ),
@@ -78,12 +80,13 @@ class _McpServersPageState extends ConsumerState<McpServersPage> {
   @override
   Widget build(BuildContext context) {
     final servers = _servers;
+    final l10n = context.l10n;
     return Scaffold(
-      appBar: AppBar(title: const Text('MCP 工具服务')),
+      appBar: AppBar(title: Text(l10n.mcpTitle)),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openEdit(null),
         icon: const Icon(Icons.add),
-        label: const Text('新增服务'),
+        label: Text(l10n.mcpAdd),
       ),
       body: servers == null
           ? const Center(child: CircularProgressIndicator())
@@ -106,7 +109,7 @@ class _McpServersPageState extends ConsumerState<McpServersPage> {
                   title: Text(server.name),
                   subtitle: Text(
                     '${server.url}\n'
-                    '${server.allowedTools.isEmpty ? '全部工具可用' : '白名单：${server.allowedTools.join('、')}'}',
+                    '${server.allowedTools.isEmpty ? l10n.mcpAllTools : l10n.mcpWhitelist(server.allowedTools.join(l10n.mcpListSeparator))}',
                     maxLines: 3,
                     style: TextStyle(
                       fontSize: 12,
@@ -131,17 +134,16 @@ class _McpServersPageState extends ConsumerState<McpServersPage> {
                               await _confirmDelete(server);
                           }
                         },
-                        itemBuilder: (context) =>
-                            const <PopupMenuEntry<String>>[
-                              PopupMenuItem<String>(
-                                value: 'edit',
-                                child: Text('编辑'),
-                              ),
-                              PopupMenuItem<String>(
-                                value: 'delete',
-                                child: Text('删除'),
-                              ),
-                            ],
+                        itemBuilder: (context) => <PopupMenuEntry<String>>[
+                          PopupMenuItem<String>(
+                            value: 'edit',
+                            child: Text(context.l10n.commonEdit),
+                          ),
+                          PopupMenuItem<String>(
+                            value: 'delete',
+                            child: Text(context.l10n.commonDelete),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -166,10 +168,10 @@ class _EmptyHint extends StatelessWidget {
           children: <Widget>[
             Icon(Icons.hub_outlined, size: 40, color: context.paper.inkSoft),
             const SizedBox(height: 12),
-            const Text('还没有 MCP 服务'),
+            Text(context.l10n.mcpEmptyTitle),
             const SizedBox(height: 4),
             Text(
-              '添加远程 MCP server 后，其工具会在「桥段点子」生成时供 AI 调用',
+              context.l10n.mcpEmptyHint,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall,
             ),
@@ -301,17 +303,18 @@ class _McpServerEditPageState extends ConsumerState<McpServerEditPage> {
     if (!mounted) return;
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(const SnackBar(content: Text('已保存')));
+    ).showSnackBar(SnackBar(content: Text(context.l10n.mcpSaved)));
     Navigator.of(context).pop();
   }
 
   /// 测试连接：连上后列出该 server 暴露的工具名。
   Future<void> _testConnection() async {
+    final l10n = context.l10n;
     final url = _url.text.trim();
     if (url.isEmpty) {
       setState(() {
         _testOk = false;
-        _testMessage = '请先填写 MCP 端点地址';
+        _testMessage = l10n.mcpEndpointMissing;
       });
       return;
     }
@@ -335,10 +338,13 @@ class _McpServerEditPageState extends ConsumerState<McpServerEditPage> {
       );
       ok = true;
       message = names.isEmpty
-          ? '连接成功，但该服务未暴露工具'
-          : '连接成功，${names.length} 个工具：${names.join('、')}';
+          ? l10n.mcpTestOkNoTools
+          : l10n.mcpTestOkTools(
+              names.length,
+              names.join(l10n.mcpListSeparator),
+            );
     } catch (e) {
-      message = '连接失败：$e';
+      message = l10n.mcpTestFailed('$e');
     }
     if (!mounted) return;
     setState(() {
@@ -352,11 +358,13 @@ class _McpServerEditPageState extends ConsumerState<McpServerEditPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isNew ? '新增 MCP 服务' : '编辑 MCP 服务'),
+        title: Text(
+          _isNew ? context.l10n.mcpNewTitle : context.l10n.mcpEditTitle,
+        ),
         actions: <Widget>[
           TextButton(
             onPressed: _loading ? null : _save,
-            child: const Text('保存'),
+            child: Text(context.l10n.commonSave),
           ),
         ],
       ),
@@ -370,26 +378,29 @@ class _McpServerEditPageState extends ConsumerState<McpServerEditPage> {
                   TextFormField(
                     controller: _name,
                     maxLength: 30,
-                    decoration: const InputDecoration(
-                      labelText: '名称',
-                      hintText: '例如：我的本地 MCP 服务',
+                    decoration: InputDecoration(
+                      labelText: context.l10n.mcpNameLabel,
+                      hintText: context.l10n.mcpNameHint,
                     ),
-                    validator: (v) => (v ?? '').trim().isEmpty ? '请填写名称' : null,
+                    validator: (v) => (v ?? '').trim().isEmpty
+                        ? context.l10n.mcpNameRequired
+                        : null,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _url,
-                    decoration: const InputDecoration(
-                      labelText: 'MCP 端点地址',
-                      helperText:
-                          'Streamable HTTP 完整地址，例如 https://example.com/mcp',
+                    decoration: InputDecoration(
+                      labelText: context.l10n.mcpEndpointLabel,
+                      helperText: context.l10n.mcpEndpointHelper,
                     ),
                     validator: (v) {
                       final value = (v ?? '').trim();
-                      if (value.isEmpty) return '请填写端点地址';
+                      if (value.isEmpty) {
+                        return context.l10n.mcpEndpointRequired;
+                      }
                       final uri = Uri.tryParse(value);
                       if (uri == null || !uri.hasScheme) {
-                        return '请填写带 http(s):// 的完整地址';
+                        return context.l10n.mcpEndpointInvalid;
                       }
                       return null;
                     },
@@ -400,11 +411,11 @@ class _McpServerEditPageState extends ConsumerState<McpServerEditPage> {
                     minLines: 1,
                     maxLines: 3,
                     decoration: InputDecoration(
-                      labelText: '认证请求头',
+                      labelText: context.l10n.mcpAuthLabel,
                       hintText: _hasAuth
-                          ? '已保存，留空则不修改'
-                          : '每行一条，例如 Authorization: Bearer xxx',
-                      helperText: '仅保存在本机安全存储，不会随备份导出',
+                          ? context.l10n.mcpAuthHintSaved
+                          : context.l10n.mcpAuthHint,
+                      helperText: context.l10n.mcpAuthHelper,
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -412,16 +423,16 @@ class _McpServerEditPageState extends ConsumerState<McpServerEditPage> {
                     controller: _allowedTools,
                     minLines: 2,
                     maxLines: 5,
-                    decoration: const InputDecoration(
-                      labelText: '工具白名单',
-                      helperText: '每行一个远程工具名；留空表示全部允许',
+                    decoration: InputDecoration(
+                      labelText: context.l10n.mcpToolsLabel,
+                      helperText: context.l10n.mcpToolsHelper,
                     ),
                   ),
                   const SizedBox(height: 12),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
-                    title: const Text('启用'),
-                    subtitle: const Text('停用后其工具不会暴露给 AI'),
+                    title: Text(context.l10n.mcpEnable),
+                    subtitle: Text(context.l10n.mcpEnableSubtitle),
                     value: _enabled,
                     activeTrackColor: context.paper.accent,
                     onChanged: (v) => setState(() => _enabled = v),
@@ -440,7 +451,7 @@ class _McpServerEditPageState extends ConsumerState<McpServerEditPage> {
                                 ),
                               )
                             : const Icon(Icons.wifi_tethering, size: 18),
-                        label: const Text('测试连接'),
+                        label: Text(context.l10n.mcpTestConnection),
                       ),
                     ],
                   ),

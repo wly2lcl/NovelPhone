@@ -7,9 +7,20 @@ import '../../app/theme.dart';
 import '../../core/word_count.dart';
 import '../../data/data_providers.dart';
 import '../../data/db.dart';
+import '../../l10n/l10n.dart';
 import '../../models/chapter_status.dart';
 import 'export_actions.dart';
 import 'work_detail_providers.dart';
+
+/// 章节状态展示文案：ChapterStatus.label 仍供 AI 提示词与 DB 使用，
+/// UI 展示统一走共享 l10n 键。
+String _statusLabel(AppLocalizations l10n, ChapterStatus status) {
+  return switch (status) {
+    ChapterStatus.draft => l10n.chapterStatusDraft,
+    ChapterStatus.revising => l10n.chapterStatusRevising,
+    ChapterStatus.finished => l10n.chapterStatusFinished,
+  };
+}
 
 /// 章节 Tab（PRD 5.2）：按卷分组展示章节，提供卷管理与章节管理入口。
 class ChaptersTab extends ConsumerWidget {
@@ -73,7 +84,7 @@ class ChaptersTab extends ConsumerWidget {
               child: OutlinedButton.icon(
                 onPressed: () => _createVolume(context, ref),
                 icon: const Icon(Icons.create_new_folder_outlined),
-                label: const Text('新建卷'),
+                label: Text(context.l10n.chaptersNewVolume),
               ),
             ),
           ),
@@ -89,21 +100,23 @@ class ChaptersTab extends ConsumerWidget {
     final name = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('新建卷'),
+        title: Text(dialogContext.l10n.chaptersNewVolume),
         content: TextFormField(
           autofocus: true,
           maxLength: 30,
           onChanged: (value) => text = value,
-          decoration: const InputDecoration(hintText: '例如：第二卷 风起'),
+          decoration: InputDecoration(
+            hintText: dialogContext.l10n.chaptersNewVolumeHint,
+          ),
         ),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('取消'),
+            child: Text(dialogContext.l10n.commonCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(text.trim()),
-            child: const Text('创建'),
+            child: Text(dialogContext.l10n.chaptersCreate),
           ),
         ],
       ),
@@ -128,10 +141,13 @@ class _EmptyChaptersHint extends StatelessWidget {
             color: context.paper.inkSoft,
           ),
           const SizedBox(height: 12),
-          Text('还没有章节', style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            context.l10n.chaptersEmptyTitle,
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           const SizedBox(height: 6),
           Text(
-            '在下方「新建卷」后即可开始写第一章。',
+            context.l10n.chaptersEmptyHint,
             style: TextStyle(color: context.paper.inkSoft),
           ),
         ],
@@ -196,12 +212,12 @@ class _VolumeHeader extends ConsumerWidget {
         children: <Widget>[
           Expanded(
             child: Text(
-              '${volume.name}（$chapterCount 章）',
+              context.l10n.chaptersVolumeHeader(volume.name, chapterCount),
               style: Theme.of(context).textTheme.titleMedium,
             ),
           ),
           IconButton(
-            tooltip: '卷操作',
+            tooltip: context.l10n.chaptersVolumeActions,
             icon: const Icon(Icons.more_horiz),
             onPressed: () => _showVolumeActions(context, ref),
           ),
@@ -214,60 +230,63 @@ class _VolumeHeader extends ConsumerWidget {
     final repository = ref.read(chapterRepositoryProvider);
     await showModalBottomSheet<void>(
       context: context,
-      builder: (sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            ListTile(
-              leading: const Icon(Icons.drive_file_rename_outline),
-              title: const Text('重命名卷'),
-              onTap: () async {
-                Navigator.of(sheetContext).pop();
-                await _renameVolume(context, ref);
-              },
-            ),
-            // ENH-07 O3：查看 / 编辑本卷前情回顾（AI 生成的 VOLUME.summary）。
-            ListTile(
-              leading: const Icon(Icons.auto_stories_outlined),
-              title: const Text('查看/编辑本卷前情回顾'),
-              onTap: () async {
-                Navigator.of(sheetContext).pop();
-                await _editVolumeSummary(context, ref);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.arrow_upward),
-              title: const Text('上移'),
-              onTap: () {
-                Navigator.of(sheetContext).pop();
-                repository.moveVolume(volume.id, up: true);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.arrow_downward),
-              title: const Text('下移'),
-              onTap: () {
-                Navigator.of(sheetContext).pop();
-                repository.moveVolume(volume.id, up: false);
-              },
-            ),
-            ListTile(
-              leading: const Icon(
-                Icons.delete_outline,
-                color: Color(0xFFB3261E),
+      builder: (sheetContext) {
+        final l10n = sheetContext.l10n;
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              ListTile(
+                leading: const Icon(Icons.drive_file_rename_outline),
+                title: Text(l10n.chaptersRenameVolume),
+                onTap: () async {
+                  Navigator.of(sheetContext).pop();
+                  await _renameVolume(context, ref);
+                },
               ),
-              title: const Text(
-                '删除卷',
-                style: TextStyle(color: Color(0xFFB3261E)),
+              // ENH-07 O3：查看 / 编辑本卷前情回顾（AI 生成的 VOLUME.summary）。
+              ListTile(
+                leading: const Icon(Icons.auto_stories_outlined),
+                title: Text(l10n.chaptersVolumeSummaryAction),
+                onTap: () async {
+                  Navigator.of(sheetContext).pop();
+                  await _editVolumeSummary(context, ref);
+                },
               ),
-              onTap: () async {
-                Navigator.of(sheetContext).pop();
-                await _confirmDeleteVolume(context, ref);
-              },
-            ),
-          ],
-        ),
-      ),
+              ListTile(
+                leading: const Icon(Icons.arrow_upward),
+                title: Text(l10n.chaptersMoveUp),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  repository.moveVolume(volume.id, up: true);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.arrow_downward),
+                title: Text(l10n.chaptersMoveDown),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  repository.moveVolume(volume.id, up: false);
+                },
+              ),
+              ListTile(
+                leading: const Icon(
+                  Icons.delete_outline,
+                  color: Color(0xFFB3261E),
+                ),
+                title: Text(
+                  l10n.chaptersDeleteVolume,
+                  style: const TextStyle(color: Color(0xFFB3261E)),
+                ),
+                onTap: () async {
+                  Navigator.of(sheetContext).pop();
+                  await _confirmDeleteVolume(context, ref);
+                },
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -276,7 +295,7 @@ class _VolumeHeader extends ConsumerWidget {
     final name = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('重命名卷'),
+        title: Text(dialogContext.l10n.chaptersRenameVolume),
         content: TextFormField(
           initialValue: volume.name,
           autofocus: true,
@@ -286,11 +305,11 @@ class _VolumeHeader extends ConsumerWidget {
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('取消'),
+            child: Text(dialogContext.l10n.commonCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(text.trim()),
-            child: const Text('保存'),
+            child: Text(dialogContext.l10n.commonSave),
           ),
         ],
       ),
@@ -304,9 +323,9 @@ class _VolumeHeader extends ConsumerWidget {
     await showSummaryEditor(
       context,
       initial: volume.summary,
-      title: '本卷前情回顾',
+      title: context.l10n.chaptersVolumeSummaryTitle,
       maxLines: 10,
-      hintText: 'AI 生成或手写的本卷前情回顾，用于后续章节的剧情衔接',
+      hintText: context.l10n.chaptersVolumeSummaryHint,
       onSave: (text) => ref
           .read(chapterRepositoryProvider)
           .saveVolumeSummary(volume.id, text),
@@ -317,20 +336,22 @@ class _VolumeHeader extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text('删除「${volume.name}」？'),
+        title: Text(
+          dialogContext.l10n.chaptersDeleteVolumeConfirm(volume.name),
+        ),
         content: Text(
           chapterCount == 0
-              ? '该卷下没有章节。'
-              : '该卷下的 $chapterCount 个章节会一并删除，此操作不可恢复。',
+              ? dialogContext.l10n.chaptersDeleteVolumeEmptyBody
+              : dialogContext.l10n.chaptersDeleteVolumeBody(chapterCount),
         ),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('取消'),
+            child: Text(dialogContext.l10n.commonCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('删除'),
+            child: Text(dialogContext.l10n.commonDelete),
           ),
         ],
       ),
@@ -353,7 +374,7 @@ class _AddChapterButton extends ConsumerWidget {
       child: TextButton.icon(
         onPressed: () => _createChapter(context, ref),
         icon: const Icon(Icons.add, size: 18),
-        label: const Text('在本卷新建章节'),
+        label: Text(context.l10n.chaptersAddChapterInVolume),
       ),
     );
   }
@@ -395,17 +416,23 @@ class _ChapterTile extends ConsumerWidget {
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
         color: context.paper.accent.withValues(alpha: 0.12),
-        child: Text('更多', style: TextStyle(color: context.paper.accent)),
+        child: Text(
+          context.l10n.commonMore,
+          style: TextStyle(color: context.paper.accent),
+        ),
       ),
       child: ListTile(
         contentPadding: EdgeInsets.zero,
         title: Text(
-          chapter.title.isEmpty ? '未命名章节' : chapter.title,
+          chapter.title.isEmpty
+              ? context.l10n.commonUntitledChapter
+              : chapter.title,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
         subtitle: Text(
-          '${formatWordCount(chapter.wordCount)} · ${status.label}',
+          '${formatWordCount(chapter.wordCount, context.l10n)} · '
+          '${_statusLabel(context.l10n, status)}',
         ),
         trailing: Icon(Icons.chevron_right, color: context.paper.inkSoft),
         onTap: () => context.push('/work/$workId/chapter/${chapter.id}'),
@@ -419,86 +446,89 @@ class _ChapterTile extends ConsumerWidget {
     final index = chaptersInVolume.indexWhere((c) => c.id == chapter.id);
     await showModalBottomSheet<void>(
       context: context,
-      builder: (sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            ListTile(
-              leading: const Icon(Icons.drive_file_rename_outline),
-              title: const Text('重命名章节'),
-              onTap: () async {
-                Navigator.of(sheetContext).pop();
-                await _renameChapter(context, ref);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.arrow_upward),
-              title: const Text('上移'),
-              enabled: index > 0,
-              onTap: () {
-                Navigator.of(sheetContext).pop();
-                repository.moveChapter(chapter.id, up: true);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.arrow_downward),
-              title: const Text('下移'),
-              enabled: index >= 0 && index < chaptersInVolume.length - 1,
-              onTap: () {
-                Navigator.of(sheetContext).pop();
-                repository.moveChapter(chapter.id, up: false);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.swap_horiz),
-              title: const Text('移动到其他卷'),
-              onTap: () {
-                Navigator.of(sheetContext).pop();
-                _moveToVolume(context, ref);
-              },
-            ),
-            const Divider(height: 1),
-            for (final status in ChapterStatus.values)
+      builder: (sheetContext) {
+        final l10n = sheetContext.l10n;
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
               ListTile(
-                leading: Icon(
-                  status == ChapterStatus.fromValue(chapter.status)
-                      ? Icons.radio_button_checked
-                      : Icons.radio_button_unchecked,
-                  color: context.paper.accent,
-                ),
-                title: Text('标记为${status.label}'),
-                onTap: () {
+                leading: const Icon(Icons.drive_file_rename_outline),
+                title: Text(l10n.chaptersRenameChapter),
+                onTap: () async {
                   Navigator.of(sheetContext).pop();
-                  repository.setChapterStatus(chapter.id, status);
+                  await _renameChapter(context, ref);
                 },
               ),
-            const Divider(height: 1),
-            ListTile(
-              leading: const Icon(Icons.ios_share),
-              title: const Text('导出本章'),
-              onTap: () async {
-                Navigator.of(sheetContext).pop();
-                await exportChapter(context, ref, chapter);
-              },
-            ),
-            const Divider(height: 1),
-            ListTile(
-              leading: const Icon(
-                Icons.delete_outline,
-                color: Color(0xFFB3261E),
+              ListTile(
+                leading: const Icon(Icons.arrow_upward),
+                title: Text(l10n.chaptersMoveUp),
+                enabled: index > 0,
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  repository.moveChapter(chapter.id, up: true);
+                },
               ),
-              title: const Text(
-                '删除章节',
-                style: TextStyle(color: Color(0xFFB3261E)),
+              ListTile(
+                leading: const Icon(Icons.arrow_downward),
+                title: Text(l10n.chaptersMoveDown),
+                enabled: index >= 0 && index < chaptersInVolume.length - 1,
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  repository.moveChapter(chapter.id, up: false);
+                },
               ),
-              onTap: () async {
-                Navigator.of(sheetContext).pop();
-                await _confirmDeleteChapter(context, ref);
-              },
-            ),
-          ],
-        ),
-      ),
+              ListTile(
+                leading: const Icon(Icons.swap_horiz),
+                title: Text(l10n.chaptersMoveToVolume),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  _moveToVolume(context, ref);
+                },
+              ),
+              const Divider(height: 1),
+              for (final status in ChapterStatus.values)
+                ListTile(
+                  leading: Icon(
+                    status == ChapterStatus.fromValue(chapter.status)
+                        ? Icons.radio_button_checked
+                        : Icons.radio_button_unchecked,
+                    color: context.paper.accent,
+                  ),
+                  title: Text(l10n.chaptersMarkAs(_statusLabel(l10n, status))),
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    repository.setChapterStatus(chapter.id, status);
+                  },
+                ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.ios_share),
+                title: Text(l10n.exportActionsChapterTitle),
+                onTap: () async {
+                  Navigator.of(sheetContext).pop();
+                  await exportChapter(context, ref, chapter);
+                },
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(
+                  Icons.delete_outline,
+                  color: Color(0xFFB3261E),
+                ),
+                title: Text(
+                  l10n.chaptersDeleteChapter,
+                  style: const TextStyle(color: Color(0xFFB3261E)),
+                ),
+                onTap: () async {
+                  Navigator.of(sheetContext).pop();
+                  await _confirmDeleteChapter(context, ref);
+                },
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -507,7 +537,7 @@ class _ChapterTile extends ConsumerWidget {
     final title = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('重命名章节'),
+        title: Text(dialogContext.l10n.chaptersRenameChapter),
         content: TextFormField(
           initialValue: chapter.title,
           autofocus: true,
@@ -517,11 +547,11 @@ class _ChapterTile extends ConsumerWidget {
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('取消'),
+            child: Text(dialogContext.l10n.commonCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(text.trim()),
-            child: const Text('保存'),
+            child: Text(dialogContext.l10n.commonSave),
           ),
         ],
       ),
@@ -537,9 +567,9 @@ class _ChapterTile extends ConsumerWidget {
     final candidates = volumes.where((v) => v.id != chapter.volumeId).toList();
     if (candidates.isEmpty || !context.mounted) {
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('没有其他卷可移动')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.l10n.chaptersNoOtherVolume)),
+        );
       }
       return;
     }
@@ -574,16 +604,22 @@ class _ChapterTile extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text('删除「${chapter.title.isEmpty ? '未命名章节' : chapter.title}」？'),
-        content: const Text('删除后本章正文不可恢复。'),
+        title: Text(
+          dialogContext.l10n.chaptersDeleteChapterConfirm(
+            chapter.title.isEmpty
+                ? dialogContext.l10n.commonUntitledChapter
+                : chapter.title,
+          ),
+        ),
+        content: Text(dialogContext.l10n.chaptersDeleteChapterBody),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('取消'),
+            child: Text(dialogContext.l10n.commonCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('删除'),
+            child: Text(dialogContext.l10n.commonDelete),
           ),
         ],
       ),

@@ -81,7 +81,7 @@ Map<String, dynamic> parseBackupZip(Uint8List bytes) {
   try {
     archive = ZipDecoder().decodeBytes(bytes);
   } on Exception {
-    throw const FormatException('文件不是有效的 zip 备份');
+    throw const BackupException(BackupErrorKind.invalidZip, '文件不是有效的 zip 备份');
   }
   ArchiveFile? dataEntry;
   for (final file in archive.files) {
@@ -92,20 +92,27 @@ Map<String, dynamic> parseBackupZip(Uint8List bytes) {
   }
   final raw = dataEntry?.readBytes();
   if (raw == null) {
-    throw const FormatException('备份文件缺少 $kBackupDataEntry');
+    throw const BackupException(
+      BackupErrorKind.missingDataEntry,
+      '备份文件缺少 $kBackupDataEntry',
+      detail: kBackupDataEntry,
+    );
   }
   final Object? decoded;
   try {
     decoded = jsonDecode(utf8.decode(raw));
   } on FormatException {
-    throw const FormatException('备份内容解析失败');
+    throw const BackupException(BackupErrorKind.decodeFailed, '备份内容解析失败');
   }
   if (decoded is! Map) {
-    throw const FormatException('备份内容格式不正确');
+    throw const BackupException(BackupErrorKind.invalidFormat, '备份内容格式不正确');
   }
   final result = decoded.cast<String, dynamic>();
   if (result['format'] != kBackupFormat) {
-    throw const FormatException('不是 NovelPhone 的备份文件');
+    throw const BackupException(
+      BackupErrorKind.wrongFormat,
+      '不是 NovelPhone 的备份文件',
+    );
   }
   return result;
 }

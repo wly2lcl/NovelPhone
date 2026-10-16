@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/theme.dart';
 import '../../data/data_providers.dart';
 import '../../data/repositories/work_repository.dart';
+import '../../l10n/l10n.dart';
 import '../../models/work_cover_colors.dart';
 
 /// 新建作品表单（PRD 5.1）：标题必填 1-50 字，封面色块从 8 色预设中选择。
@@ -30,11 +31,11 @@ class _NewWorkPageState extends ConsumerState<NewWorkPage> {
   Future<void> _submit() async {
     final title = _titleController.text.trim();
     if (title.isEmpty) {
-      setState(() => _error = '请填写作品标题');
+      setState(() => _error = context.l10n.newWorkTitleRequired);
       return;
     }
     if (title.characters.length > 50) {
-      setState(() => _error = '标题最多 50 字');
+      setState(() => _error = context.l10n.newWorkTitleMax(50));
       return;
     }
 
@@ -48,7 +49,7 @@ class _NewWorkPageState extends ConsumerState<NewWorkPage> {
       if (await repository.countWorks() >= WorkRepository.maxWorks) {
         setState(() {
           _submitting = false;
-          _error = '作品数量已达上限 ${WorkRepository.maxWorks} 部';
+          _error = context.l10n.worksLimitReached(WorkRepository.maxWorks);
         });
         return;
       }
@@ -62,7 +63,7 @@ class _NewWorkPageState extends ConsumerState<NewWorkPage> {
       if (!mounted) return;
       setState(() {
         _submitting = false;
-        _error = '创建失败：$error';
+        _error = context.l10n.commonCreateFailed('$error');
       });
     }
   }
@@ -70,21 +71,30 @@ class _NewWorkPageState extends ConsumerState<NewWorkPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('新建作品')),
+      appBar: AppBar(title: Text(context.l10n.worksNew)),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: <Widget>[
-          Text('作品标题', style: TextStyle(color: context.paper.inkSoft)),
+          Text(
+            context.l10n.newWorkTitleLabel,
+            style: TextStyle(color: context.paper.inkSoft),
+          ),
           const SizedBox(height: 8),
           TextField(
             controller: _titleController,
             autofocus: true,
             maxLength: 50,
-            decoration: InputDecoration(hintText: '例如：长夜行', errorText: _error),
+            decoration: InputDecoration(
+              hintText: context.l10n.newWorkTitleHint,
+              errorText: _error,
+            ),
             onSubmitted: (_) => _submit(),
           ),
           const SizedBox(height: 8),
-          Text('封面色块', style: TextStyle(color: context.paper.inkSoft)),
+          Text(
+            context.l10n.newWorkCoverLabel,
+            style: TextStyle(color: context.paper.inkSoft),
+          ),
           const SizedBox(height: 12),
           Wrap(
             spacing: 14,
@@ -114,7 +124,11 @@ class _NewWorkPageState extends ConsumerState<NewWorkPage> {
           const SizedBox(height: 32),
           FilledButton(
             onPressed: _submitting ? null : _submit,
-            child: Text(_submitting ? '创建中…' : '创建作品'),
+            child: Text(
+              _submitting
+                  ? context.l10n.newWorkCreating
+                  : context.l10n.newWorkCreate,
+            ),
           ),
         ],
       ),

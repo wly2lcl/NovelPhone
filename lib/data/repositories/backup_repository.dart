@@ -6,6 +6,43 @@ import '../db.dart';
 const String kBackupFormat = 'novelphone-backup';
 const int kBackupFormatVersion = 1;
 
+/// 备份文件 / 恢复错误分类（供展示时本地化）。
+enum BackupErrorKind {
+  /// 不是有效的 zip。
+  invalidZip,
+
+  /// zip 内缺少 data.json。
+  missingDataEntry,
+
+  /// data.json 反序列化失败。
+  decodeFailed,
+
+  /// data.json 顶层不是对象。
+  invalidFormat,
+
+  /// 格式标识不是 NovelPhone 备份。
+  wrongFormat,
+
+  /// 备份来自更新版本的应用。
+  newerVersion,
+
+  /// 备份表数据不完整。
+  incomplete,
+}
+
+/// 备份格式错误：继承 [FormatException] 以保持既有捕获语义
+/// （`on FormatException` 与既有 `isA<FormatException>()` 测试不受影响）；
+/// message 与原实现逐字一致，kind/detail 供展示时本地化。
+class BackupException extends FormatException {
+  const BackupException(this.kind, String message, {this.detail})
+    : super(message);
+
+  final BackupErrorKind kind;
+
+  /// message 中插值的原始信息（如缺少的条目名）。
+  final String? detail;
+}
+
 /// 恢复结果统计。
 class BackupRestoreReport {
   const BackupRestoreReport({
@@ -92,15 +129,21 @@ class BackupRepository {
   }) {
     final format = data['format'];
     if (format != kBackupFormat) {
-      throw const FormatException('不是 NovelPhone 的备份文件');
+      throw const BackupException(
+        BackupErrorKind.wrongFormat,
+        '不是 NovelPhone 的备份文件',
+      );
     }
     final schemaVersion = data['schemaVersion'];
     if (schemaVersion is! int || schemaVersion > _db.schemaVersion) {
-      throw const FormatException('备份来自更新版本的应用，请先升级 app');
+      throw const BackupException(
+        BackupErrorKind.newerVersion,
+        '备份来自更新版本的应用，请先升级 app',
+      );
     }
     final tables = data['tables'];
     if (tables is! Map) {
-      throw const FormatException('备份内容不完整');
+      throw const BackupException(BackupErrorKind.incomplete, '备份内容不完整');
     }
 
     return _db.transaction(() async {

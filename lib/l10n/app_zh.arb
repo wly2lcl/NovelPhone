@@ -1,0 +1,1307 @@
+{
+  "@@locale": "zh",
+  "appTitle": "NovelPhone",
+  "commonCancel": "取消",
+  "commonDelete": "删除",
+  "commonSettings": "设置",
+  "commonCreateFailed": "创建失败：{detail}",
+  "@commonCreateFailed": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "worksSearchTooltip": "全局搜索",
+  "worksNew": "新建作品",
+  "worksLoadFailed": "读取作品失败：{detail}",
+  "@worksLoadFailed": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "worksEmptyTitle": "还没有作品",
+  "worksEmptyHint": "把脑中的故事写下来，从第一部作品开始。",
+  "worksEmptyCreate": "创建第一部作品",
+  "worksPin": "置顶",
+  "worksUnpin": "取消置顶",
+  "worksDelete": "删除作品",
+  "worksDeleteConfirm": "删除《{title}》？",
+  "@worksDeleteConfirm": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "worksDeleteConfirmBody": "该作品的全部章节、角色卡与章纲会一并删除，此操作不可恢复。",
+  "worksLastEdited": "最后编辑 {time}",
+  "@worksLastEdited": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "worksLimitReached": "作品数量已达上限 {max} 部",
+  "@worksLimitReached": {
+    "placeholders": {
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "chapterCount": "{count} 章",
+  "@chapterCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "newWorkTitleRequired": "请填写作品标题",
+  "newWorkTitleMax": "标题最多 {max} 字",
+  "@newWorkTitleMax": {
+    "placeholders": {
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "newWorkTitleLabel": "作品标题",
+  "newWorkTitleHint": "例如：长夜行",
+  "newWorkCoverLabel": "封面色块",
+  "newWorkCreating": "创建中…",
+  "newWorkCreate": "创建作品",
+  "timeJustNow": "刚刚",
+  "timeMinutesAgo": "{count} 分钟前",
+  "@timeMinutesAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "timeHoursAgo": "{count} 小时前",
+  "@timeHoursAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "timeYesterday": "昨天",
+  "timeDaysAgo": "{count} 天前",
+  "@timeDaysAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "wordCountExact": "{count} 字",
+  "@wordCountExact": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "wordCountWan": "{value} 万字",
+  "@wordCountWan": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "wordCountK": "{value} 千字",
+  "@wordCountK": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "wordCountM": "{value} 百万字",
+  "@wordCountM": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "tokenCountScaled": "{value} 万",
+  "@tokenCountScaled": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "tokenCountMega": "{value} 百万",
+  "@tokenCountMega": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "commonSave": "保存",
+  "commonConfirm": "确定",
+  "commonEdit": "编辑",
+  "commonRename": "重命名",
+  "commonRetry": "重试",
+  "commonClose": "关闭",
+  "commonRestore": "恢复",
+  "commonAdd": "添加",
+  "commonDone": "完成",
+  "commonCopy": "复制",
+  "commonBack": "返回",
+  "commonMore": "更多",
+  "commonClear": "清空",
+  "commonReset": "重置",
+  "commonUntitledChapter": "未命名章节",
+  "chapterStatusDraft": "草稿",
+  "chapterStatusRevising": "修订中",
+  "chapterStatusFinished": "定稿",
+  "settingTypeWorldview": "世界观",
+  "settingTypeLocation": "地点",
+  "settingTypeItem": "道具",
+  "localeSystem": "跟随系统",
+  "localeZh": "简体中文",
+  "localeEn": "English",
+  "editorChapterTitleDialog": "章节标题",
+  "editorChapterSummaryTooltip": "本章梗概",
+  "editorAiToolsTooltip": "AI 章节工具",
+  "editorToolSummarize": "生成本章摘要",
+  "editorToolVolumeSummary": "生成本卷前情回顾",
+  "editorToolOutlineExpand": "AI 扩写本章纲",
+  "editorToolEditSummary": "查看/编辑本章摘要",
+  "editorExitFocusMode": "退出专注模式",
+  "editorFocusMode": "专注模式",
+  "editorBodyHint": "在这里写下正文…",
+  "editorSelectRewriteText": "请先在正文中选中要改写的段落",
+  "editorNeedOutlineSeed": "请先用顶栏「本章梗概」写一句话梗概，AI 再据此扩写",
+  "editorNoEarlierChapters": "本卷还没有更早的章节内容，暂无法生成本卷前情回顾",
+  "editorNoModelTitle": "尚未配置模型",
+  "editorNoModelBody": "请先在设置中添加模型组并填写 API Key，再使用 AI 功能。",
+  "editorLater": "稍后",
+  "editorGoSettings": "去设置",
+  "editorOriginalChanged": "原文已变化，请重新选中后再改写",
+  "editorSummaryTitle": "本章 AI 摘要",
+  "editorSummaryHint": "AI 生成的前情摘要，可手动修改；用于后续章节的剧情衔接",
+  "editorSummaryStale": "正文已改动，摘要可能过期，建议重新生成",
+  "editorSaving": "保存中",
+  "editorSaved": "已保存",
+  "editorSaveFailed": "保存失败，点击重试",
+  "editorAiContinue": "AI 续写",
+  "editorAiInspire": "AI 灵感",
+  "editorAiRewrite": "AI 改写",
+  "editorFind": "查找",
+  "editorAiCheck": "AI 感",
+  "editorMoveParagraph": "段落移动",
+  "editorMoveParagraphUp": "本段上移",
+  "editorMoveParagraphDown": "本段下移",
+  "editorUndo": "撤销",
+  "editorRedo": "重做",
+  "editorChapterWords": "本章 {words}",
+  "@editorChapterWords": {
+    "placeholders": {
+      "words": {
+        "type": "String"
+      }
+    }
+  },
+  "editorWholeWorkWords": "全书 {words}",
+  "@editorWholeWorkWords": {
+    "placeholders": {
+      "words": {
+        "type": "String"
+      }
+    }
+  },
+  "editorLastSaved": "最后保存 {time}",
+  "@editorLastSaved": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "aiPanelTitleContinue": "AI 续写",
+  "aiPanelTitleInspireIdeas": "AI 灵感 · 桥段点子",
+  "aiPanelTitleInspireOpening": "AI 灵感 · 开篇助手",
+  "aiPanelTitleRewrite": "AI 改写",
+  "aiPanelTitleSummarize": "AI 逐章摘要",
+  "aiPanelTitleOutlineExpand": "AI 章纲扩写",
+  "aiPanelTitleVolumeSummary": "AI 本卷前情回顾",
+  "aiPanelNewDirection": "换个方向",
+  "aiPanelDirectionHint": "补充一句方向指令，例如：让两人在此摊牌",
+  "aiPanelRegenerate": "重新生成",
+  "aiPanelElapsedSeconds": "{seconds} 秒",
+  "@aiPanelElapsedSeconds": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "aiPanelCollapse": "收起",
+  "aiPanelModeIdeas": "桥段点子",
+  "aiPanelModeOpening": "开篇助手",
+  "aiPanelInstructionHint": "补充指令（可选），例如：让她的话更冷淡",
+  "aiPanelLengthLabel": "篇幅 {count} 字",
+  "@aiPanelLengthLabel": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "aiPanelCandidateCount": "3 个候选",
+  "aiPanelVersion": "版本 {n}",
+  "@aiPanelVersion": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "aiPanelContextTitle": "AI 看到的上下文（估算 {estimated} / 预算 {budget} token）",
+  "@aiPanelContextTitle": {
+    "placeholders": {
+      "estimated": {
+        "type": "int"
+      },
+      "budget": {
+        "type": "int"
+      }
+    }
+  },
+  "aiPanelTruncated": "已省略较早前文",
+  "aiPanelResultHint": "AI 产出将在这里流式显示，可直接编辑后再插入正文",
+  "aiPanelNeedsConfig": "尚未配置可用的模型与 API Key",
+  "aiPanelReplaceOriginal": "替换原文",
+  "aiPanelSaveSummary": "保存摘要",
+  "aiPanelSaveToOutline": "保存到章纲",
+  "aiPanelSaveVolumeSummary": "保存前情回顾",
+  "aiPanelInsertAtCursor": "插入光标处",
+  "aiPanelStop": "停止",
+  "aiPanelSaveToInspiration": "存入灵感箱",
+  "aiPanelDiscard": "放弃",
+  "aiPanelSavedToInspiration": "已存入灵感箱",
+  "rewriteIntentPolish": "润色",
+  "rewriteIntentExpand": "扩写",
+  "rewriteIntentCondense": "缩写",
+  "rewriteIntentTone": "改语气",
+  "aiSectionChapterText": "本章正文",
+  "aiSectionTaskMode": "任务模式",
+  "aiSectionChapterSynopsis": "本章梗概",
+  "aiSectionVolumeMaterial": "本卷素材（上一版回顾 + 新增章节）",
+  "aiSectionVolumeOutline": "卷级大纲",
+  "aiSectionPreviousSummary": "前文摘要",
+  "aiSectionCharacters": "相关角色卡",
+  "aiSectionSettings": "设定集",
+  "aiSectionChapterOutline": "本章章纲",
+  "aiSectionChapterTail": "本章已写内容（尾部）",
+  "aiSectionRequirements": "生成要求",
+  "aiSectionUserSkills": "用户技能",
+  "flavorTitle": "AI 感检查",
+  "flavorShownOfTotal": "仅显示前 {shown} 条，共 {total} 条",
+  "@flavorShownOfTotal": {
+    "placeholders": {
+      "shown": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "flavorIssueCount": "{count} 处",
+  "@flavorIssueCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "flavorDeepProgress": "深检 {done}/{total}",
+  "@flavorDeepProgress": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "flavorScope": "范围",
+  "flavorWholeWork": "整部作品",
+  "flavorChapterItem": "{title}（{words}）",
+  "@flavorChapterItem": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "words": {
+        "type": "String"
+      }
+    }
+  },
+  "flavorMetrics": "套话 {cliche} 处 · 密度 {density}/千字 · 句式重复率 {repeat}% · 破折号/省略号 {dash} 处",
+  "@flavorMetrics": {
+    "placeholders": {
+      "cliche": {
+        "type": "int"
+      },
+      "density": {
+        "type": "String"
+      },
+      "repeat": {
+        "type": "String"
+      },
+      "dash": {
+        "type": "int"
+      }
+    }
+  },
+  "flavorDeepRunning": "深检中…",
+  "flavorDeepCheck": "LLM 深检",
+  "flavorRecheck": "重新检查",
+  "flavorEditInEditor": "修改请在编辑器中完成",
+  "flavorEstimatedTokens": "预估 ~{tokens} token",
+  "@flavorEstimatedTokens": {
+    "placeholders": {
+      "tokens": {
+        "type": "String"
+      }
+    }
+  },
+  "flavorMeasuredTokens": "实测 输入 {input} + 输出 {output}",
+  "@flavorMeasuredTokens": {
+    "placeholders": {
+      "input": {
+        "type": "String"
+      },
+      "output": {
+        "type": "String"
+      }
+    }
+  },
+  "flavorNeedsConfigMessage": "尚未配置 AI 感检查所用的模型，深检不可用。",
+  "flavorDeepFailed": "深检失败（已保留规则结果）：{error}",
+  "@flavorDeepFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "flavorRetryDeepCheck": "重试深检",
+  "flavorFallbackNotice": "模型未返回结构化结果，原文如下：",
+  "flavorFilterAll": "全部",
+  "flavorSeverityHigh": "高",
+  "flavorSeverityMedium": "中",
+  "flavorSeverityLow": "低",
+  "flavorTypeCliche": "套话",
+  "flavorTypeRepetition": "句式重复",
+  "flavorTypeTranslationese": "翻译腔",
+  "flavorTypeOversummary": "过度总结",
+  "flavorTypePacing": "节奏拖沓",
+  "flavorEmptyHint": "该范围没有正文，无可检查内容",
+  "flavorCleanHint": "未发现明显的 AI 味问题",
+  "flavorDeepBadge": "深检",
+  "flavorLocateInText": "定位到原文",
+  "flavorDeleteWord": "一键删除该词",
+  "flavorReplaceWith": "一键替换为「{replacement}」",
+  "@flavorReplaceWith": {
+    "placeholders": {
+      "replacement": {
+        "type": "String"
+      }
+    }
+  },
+  "flavorIgnoreThis": "忽略这条",
+  "flavorIgnoreAllType": "忽略全部「{type}」",
+  "@flavorIgnoreAllType": {
+    "placeholders": {
+      "type": {
+        "type": "String"
+      }
+    }
+  },
+  "flavorOriginalText": "原文：{excerpt}",
+  "@flavorOriginalText": {
+    "placeholders": {
+      "excerpt": {
+        "type": "String"
+      }
+    }
+  },
+  "flavorSuggestion": "建议：{suggestion}",
+  "@flavorSuggestion": {
+    "placeholders": {
+      "suggestion": {
+        "type": "String"
+      }
+    }
+  },
+  "flavorLocate": "定位",
+  "flavorReplace": "替换",
+  "flavorIgnore": "忽略",
+  "flavorDeletedWord": "已删除该词",
+  "flavorReplacedWith": "已替换为「{replacement}」",
+  "@flavorReplacedWith": {
+    "placeholders": {
+      "replacement": {
+        "type": "String"
+      }
+    }
+  },
+  "flavorOriginalChanged": "原文已变化，请重新运行检查",
+  "snapshotCreated": "已创建快照",
+  "snapshotRestoreVersion": "恢复此版本",
+  "snapshotRestored": "已恢复到该版本",
+  "snapshotEmptyChapter": "（空章节）",
+  "snapshotHistoryTitle": "版本历史",
+  "snapshotCreate": "创建快照",
+  "snapshotEmptyHint": "还没有快照。写作途中点「创建快照」留存一个版本。",
+  "findReplaceReplacedCount": "已替换 {count} 处",
+  "@findReplaceReplacedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "findReplaceFindHint": "查找",
+  "findReplaceCaseSensitive": "区分大小写",
+  "findReplaceMatchCount": "{count} 处",
+  "@findReplaceMatchCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "findReplaceReplacementHint": "替换为",
+  "findReplaceReplace": "替换",
+  "findReplaceReplaceAll": "全部替换",
+  "aiErrorNetwork": "网络请求失败：{detail}",
+  "@aiErrorNetwork": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "aiErrorAuth": "鉴权失败（{status}）：请到设置页检查 API Key",
+  "@aiErrorAuth": {
+    "placeholders": {
+      "status": {
+        "type": "int"
+      }
+    }
+  },
+  "aiErrorRateLimit": "请求过于频繁（429），请稍后重试",
+  "aiErrorServer": "模型服务暂时不可用（{status}），请稍后重试",
+  "@aiErrorServer": {
+    "placeholders": {
+      "status": {
+        "type": "int"
+      }
+    }
+  },
+  "aiErrorContentFilter": "内容被模型服务商拒绝：{detail}",
+  "@aiErrorContentFilter": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "aiErrorBadRequest": "请求失败（{status}）：{detail}",
+  "@aiErrorBadRequest": {
+    "placeholders": {
+      "status": {
+        "type": "int"
+      },
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "aiErrorProviderError": "模型服务返回错误：{detail}",
+  "@aiErrorProviderError": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "aiErrorProviderFailed": "模型服务返回失败：{detail}",
+  "@aiErrorProviderFailed": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "aiErrorIncompleteOutput": "模型输出被截断（incomplete），请缩短上下文或提高输出上限",
+  "aiErrorToolLoop": "AI 工具调用轮次超限，已停止",
+  "cloudErrorEndpointMissing": "请先填写 Endpoint",
+  "cloudErrorNetwork": "网络请求失败：{detail}",
+  "@cloudErrorNetwork": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "cloudErrorSignatureMismatch": "签名校验失败（SignatureDoesNotMatch）：请检查 AccessKey / SecretKey、Endpoint 与 Region 是否匹配",
+  "cloudErrorForbidden": "访问被拒绝（403）：请检查 AccessKey / SecretKey 与桶权限",
+  "cloudErrorNotFound": "资源不存在（404）：请检查 Endpoint、桶名与路径前缀",
+  "cloudErrorClockSkew": "设备时钟与服务器偏差过大（RequestTimeTooSkewed）：请校准系统时间",
+  "cloudErrorHttp": "云端返回 HTTP {status}：{detail}",
+  "@cloudErrorHttp": {
+    "placeholders": {
+      "status": {
+        "type": "int"
+      },
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "backupErrorInvalidZip": "文件不是有效的 zip 备份",
+  "backupErrorMissingEntry": "备份文件缺少 {entry}",
+  "@backupErrorMissingEntry": {
+    "placeholders": {
+      "entry": {
+        "type": "String"
+      }
+    }
+  },
+  "backupErrorDecodeFailed": "备份内容解析失败",
+  "backupErrorInvalidFormat": "备份内容格式不正确",
+  "backupErrorWrongFormat": "不是 NovelPhone 的备份文件",
+  "backupErrorNewerVersion": "备份来自更新版本的应用，请先升级 app",
+  "backupErrorIncomplete": "备份内容不完整",
+  "modelTestOk": "连接成功",
+  "modelTestOkDetail": "连接成功：{detail}",
+  "@modelTestOkDetail": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "modelTestMissingModel": "请先填写模型名",
+  "modelTestMissingKey": "请先填写 API Key",
+  "modelTestFailed": "连接失败：{detail}",
+  "@modelTestFailed": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "searchHint": "搜索全部作品…",
+  "searchEmptyHint": "输入关键词，搜索全部作品的章节标题与正文。",
+  "searchFailed": "搜索失败：{detail}",
+  "@searchFailed": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "searchNoResults": "没有找到包含「{keyword}」的章节",
+  "@searchNoResults": {
+    "placeholders": {
+      "keyword": {
+        "type": "String"
+      }
+    }
+  },
+  "statsTitle": "写作统计",
+  "statsTodayTitle": "今日写作",
+  "statsSetTarget": "设定目标",
+  "statsWordsOfGoal": " / {goal} 字",
+  "@statsWordsOfGoal": {
+    "placeholders": {
+      "goal": {
+        "type": "int"
+      }
+    }
+  },
+  "statsWordsOnly": " 字",
+  "@statsWordsOnly": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "statsGoalRemaining": "距离目标还差 {count} 字",
+  "@statsGoalRemaining": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "statsGoalReached": "已达成今日目标",
+  "statsStreakTitle": "连续写作",
+  "statsStreakDays": "{count} 天",
+  "@statsStreakDays": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "statsStreakKeepGoing": "保持下去，别断更",
+  "statsStreakStart": "今天写一点，开启连击",
+  "statsPomodoroTitle": "番茄钟",
+  "statsPomodoroMinutes": "{count} 分钟",
+  "@statsPomodoroMinutes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "statsPomodoroStart": "开始",
+  "statsPomodoroPause": "暂停",
+  "statsPomodoroDoneToday": "今日已完成 {count} 个番茄钟",
+  "@statsPomodoroDoneToday": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "statsPomodoroFinished": "番茄钟完成，休息一下吧",
+  "statsDailyTargetTitle": "每日字数目标",
+  "statsDailyTargetHint": "0 表示不设目标",
+  "statsDailyTargetUnit": "字",
+  "statsPomodoroDurationTitle": "番茄钟时长",
+  "statsPomodoroDurationHint": "1~120",
+  "statsPomodoroDurationUnit": "分钟",
+  "appearanceTitle": "写作外观",
+  "appearanceDarkPaper": "夜间纸张",
+  "appearanceDarkPaperSubtitle": "深色护眼背景，适合关灯后写作",
+  "appearanceFontSize": "正文字号",
+  "appearanceLineHeight": "行距",
+  "appearancePreview": "预览",
+  "appearancePreviewText": "长夜将尽，她推开窗，风雪扑面而来。\n远处的灯一盏盏熄灭，只有案头那支蜡烛还亮着。",
+  "summaryEditTitle": "编辑本章梗概",
+  "summaryEditHint": "说明本章要发生什么（0-1000 字）；AI 章纲扩写也以此为一句话梗概",
+  "aiNoticeTitle": "使用 AI 前请知悉",
+  "aiNoticeBody": "你的作品正文与设定默认只保存在本机。当你使用 AI 功能时，应用会把你自行配置的模型服务商所需的最小上下文（当前章节内容、章纲、相关角色卡等）通过网络直接发送给你配置的服务商，不会经过 NovelPhone 的服务器。\n\n你的 API Key 保存在设备安全区，不会上传。\n\n点击\"我已了解\"表示你已知悉并同意上述传输行为。",
+  "aiNoticeConfirm": "我已了解",
+  "settingsSectionAiModels": "AI 与模型",
+  "settingsModelGroups": "模型组与 API Key",
+  "settingsModelGroupsSubtitle": "按服务商管理 key、baseUrl、模型列表与生成参数",
+  "settingsTaskMapping": "任务与模型映射",
+  "settingsTaskMappingSubtitle": "为续写、灵感、AI 感检查分别指定模型组",
+  "settingsTokenStats": "Token 与采纳统计",
+  "settingsMcpServers": "MCP 工具服务",
+  "settingsMcpServersSubtitle": "接入远程 MCP server，把其工具提供给 AI 调用",
+  "settingsSkills": "自定义技能",
+  "settingsSkillsSubtitle": "附加指令与工具白名单，注入续写与灵感生成",
+  "settingsSectionWriting": "写作",
+  "settingsAppearance": "写作外观",
+  "settingsAppearanceSubtitle": "夜间纸张、正文字号与行距",
+  "settingsThemeMode": "深浅模式",
+  "themeModeSystem": "跟随系统",
+  "themeModeLight": "浅色",
+  "themeModeDark": "深色",
+  "settingsLanguage": "语言",
+  "settingsWritingStats": "写作统计",
+  "settingsWritingStatsSubtitle": "每日字数目标、连续写作天数与番茄钟",
+  "settingsSectionData": "数据",
+  "settingsBackupHint": "作品数据全部保存在本机。卸载应用或换机前，请先「备份到文件」，否则数据将无法找回。",
+  "settingsBackupToFile": "备份到文件",
+  "settingsBackupToFileSubtitle": "导出全部作品与正文，用于换机或防丢失",
+  "settingsRestoreFromBackup": "从备份恢复",
+  "settingsRestoreFromBackupSubtitle": "选择备份文件，可合并为新作品或覆盖本机数据",
+  "settingsCloudBackup": "云备份",
+  "settingsCloudBackupSubtitle": "备份到你自己的对象存储（S3 / OSS / COS 等），默认关闭",
+  "modelGroupsNew": "新增模型组",
+  "modelGroupsLoadFailed": "加载失败：{detail}",
+  "@modelGroupsLoadFailed": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "modelGroupsEmptyTitle": "还没有模型组",
+  "modelGroupsEmptyHint": "添加服务商与 API Key 后，续写与灵感功能才能使用",
+  "modelGroupsOpenAiCompat": "OpenAI 兼容",
+  "modelGroupsNoModel": "未填写模型",
+  "modelGroupsModelSeparator": "、",
+  "modelGroupsNoKey": "未填 Key",
+  "modelGroupsDeleteTitle": "删除模型组",
+  "modelGroupsDeleteConfirm": "删除「{name}」后，其 API Key 也会一并从本机移除。",
+  "@modelGroupsDeleteConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "modelGroupsDeleted": "已删除模型组",
+  "modelEditTitle": "编辑模型组",
+  "modelEditNameLabel": "名称",
+  "modelEditNameHint": "例如：DeepSeek 官方",
+  "modelEditNameRequired": "请填写名称",
+  "modelEditProtocolLabel": "协议类型",
+  "modelEditBaseUrlHelper": "需包含 /v1，例如 https://api.deepseek.com/v1",
+  "modelEditBaseUrlRequired": "请填写 Base URL",
+  "modelEditModelsLabel": "模型列表",
+  "modelEditModelsHelper": "每行一个，第一行为默认使用的模型",
+  "modelEditModelsRequired": "请至少填写一个模型名",
+  "modelEditApiKeySaved": "已保存，留空则不修改",
+  "modelEditApiKeyHint": "粘贴服务商提供的 Key",
+  "modelEditApiKeyHelper": "仅保存在本机安全存储，不会随备份导出",
+  "modelEditTemperature": "温度",
+  "modelEditMaxTokensLabel": "输出上限 token",
+  "modelEditContextWindow": "上下文窗口",
+  "modelEditContextWindowHelper": "预算取其 50%",
+  "modelEditEnabled": "启用",
+  "modelEditEnabledSubtitle": "停用后不会被任务映射使用",
+  "modelEditTestConnection": "测试连接",
+  "modelEditTestNoModel": "请先填写至少一个模型名",
+  "modelEditTestNoApiKey": "请先填写 API Key",
+  "modelEditSaved": "已保存",
+  "taskMapLoadFailed": "加载失败：{detail}",
+  "@taskMapLoadFailed": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "taskMapEmptyHint": "请先在「模型组与 API Key」中添加模型组",
+  "taskMapIntro": "为每类 AI 任务指定使用的模型组；未指定则对应功能不可用。",
+  "taskMapUnassigned": "未指定",
+  "aiTaskContinue": "AI 续写",
+  "aiTaskInspire": "AI 灵感",
+  "aiTaskRewrite": "AI 改写",
+  "aiTaskCheck": "AI 感检查",
+  "aiTaskSummary": "AI 逐章摘要",
+  "aiTaskOutlineExpand": "AI 章纲扩写",
+  "aiTaskVolumeSummary": "AI 本卷前情回顾",
+  "tokenStatsResetTitle": "重置统计",
+  "tokenStatsResetBody": "清空全部生成与采纳记录，不可恢复。",
+  "tokenStatsLoadFailed": "加载失败：{detail}",
+  "@tokenStatsLoadFailed": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "tokenStatsEmpty": "还没有生成记录",
+  "tokenStatsCalls": "生成次数",
+  "tokenStatsTotalTokens": "Token 合计",
+  "tokenStatsAdoptionRate": "采纳率",
+  "tokenStatsIgnoreRate": "忽略率",
+  "tokenStatsCheckHandledRate": "检查问题处置率",
+  "tokenStatsRowCalls": "{count} 次",
+  "@tokenStatsRowCalls": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "tokenStatsRowTokens": "输入 {prompt} · 输出 {completion}",
+  "@tokenStatsRowTokens": {
+    "placeholders": {
+      "prompt": {
+        "type": "String"
+      },
+      "completion": {
+        "type": "String"
+      }
+    }
+  },
+  "tokenStatsRowChars": "生成 {output} 字 · 采纳 {adopted} 字",
+  "@tokenStatsRowChars": {
+    "placeholders": {
+      "output": {
+        "type": "int"
+      },
+      "adopted": {
+        "type": "int"
+      }
+    }
+  },
+  "tokenStatsRowCounts": "采纳 {adopted} 次 · 忽略 {ignored} 次",
+  "@tokenStatsRowCounts": {
+    "placeholders": {
+      "adopted": {
+        "type": "int"
+      },
+      "ignored": {
+        "type": "int"
+      }
+    }
+  },
+  "statStatusAdopted": "已采纳",
+  "statStatusIgnored": "已忽略",
+  "statStatusRegenerated": "重新生成",
+  "statStatusAborted": "已中止",
+  "statStatusPending": "待处置",
+  "backupShareTitle": "NovelPhone 备份",
+  "backupRestoreDone": "恢复完成：{works} 部作品、{chapters} 章、{characters} 个角色卡",
+  "@backupRestoreDone": {
+    "placeholders": {
+      "works": {
+        "type": "int"
+      },
+      "chapters": {
+        "type": "int"
+      },
+      "characters": {
+        "type": "int"
+      }
+    }
+  },
+  "backupRestoreModeTitle": "选择恢复方式",
+  "backupRestoreModeBody": "合并：把备份中的作品作为新作品导入，不清空现有数据。\n覆盖：先清空本机全部作品，再按备份原样还原，无法撤销。",
+  "backupRestoreModeMerge": "合并",
+  "backupRestoreModeOverwrite": "覆盖",
+  "cloudSaved": "已保存",
+  "cloudTitle": "云备份",
+  "cloudEnable": "启用云备份",
+  "cloudEnableSubtitle": "关闭时不联网、不产生任何云端请求",
+  "cloudProviderLabel": "服务商",
+  "cloudProviderAwsS3": "AWS S3",
+  "cloudProviderAliyunOss": "阿里云 OSS",
+  "cloudProviderQiniuKodo": "七牛云 Kodo",
+  "cloudProviderTencentCos": "腾讯云 COS",
+  "cloudProviderHuaweiObs": "华为云 OBS",
+  "cloudRegionHintAwsS3": "例如 us-east-1",
+  "cloudRegionHintAliyunOss": "例如 cn-hangzhou",
+  "cloudRegionHintQiniuKodo": "例如 cn-east-1",
+  "cloudRegionHintTencentCos": "例如 ap-guangzhou",
+  "cloudRegionHintHuaweiObs": "例如 cn-north-4",
+  "cloudEndpointHintAwsS3": "不带桶名，例如 s3.us-east-1.amazonaws.com",
+  "cloudEndpointHintAliyunOss": "不带桶名，例如 oss-cn-hangzhou.aliyuncs.com",
+  "cloudEndpointHintQiniuKodo": "不带桶名，例如 s3-cn-east-1.qiniucs.com",
+  "cloudEndpointHintTencentCos": "不带桶名，例如 cos.ap-guangzhou.myqcloud.com",
+  "cloudEndpointHintHuaweiObs": "不带桶名，例如 obs.cn-north-4.myhuaweicloud.com",
+  "cloudRegionRequired": "请填写Region",
+  "cloudEndpointRequired": "请填写Endpoint",
+  "cloudBucketRequired": "请填写桶名",
+  "cloudBucketLabel": "存储桶 Bucket",
+  "cloudPrefixLabel": "路径前缀",
+  "cloudPrefixHelper": "默认 {prefix}",
+  "@cloudPrefixHelper": {
+    "placeholders": {
+      "prefix": {
+        "type": "String"
+      }
+    }
+  },
+  "cloudKeepCountLabel": "保留份数",
+  "cloudKeepCountHelper": "超出后自动删除最旧的备份，最小 1",
+  "cloudKeepCountInvalid": "请填写不小于 1 的整数",
+  "cloudCredentialsHelper": "仅保存在本机安全存储，不会随备份导出",
+  "cloudSecretHintSaved": "已保存，留空则不修改",
+  "cloudTestConnection": "测试连接",
+  "cloudBackupNow": "立即备份",
+  "cloudRefreshRemote": "刷新远端备份",
+  "cloudTestOk": "连接成功：桶与凭证可用",
+  "cloudBackupOk": "备份成功：{objectKey}（{size}）",
+  "@cloudBackupOk": {
+    "placeholders": {
+      "objectKey": {
+        "type": "String"
+      },
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "cloudBackupOkPruned": "，已清理 {count} 份旧备份",
+  "@cloudBackupOkPruned": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "cloudRemoteEmpty": "远端暂无备份",
+  "cloudRemoteCount": "远端共 {count} 份备份",
+  "@cloudRemoteCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "cloudNeedEndpointRegionBucket": "请先完整填写 Endpoint、Region 与桶名",
+  "cloudNeedCredentials": "请先填写 AccessKey 与 SecretKey",
+  "cloudAutoTitle": "自动备份",
+  "cloudAutoSubtitle": "开启后于启动 / 回到前台时，距上次备份满所选间隔则自动备份",
+  "cloudIntervalLabel": "备份频率",
+  "cloudIntervalEvery12h": "每 12 小时",
+  "cloudIntervalDaily": "每天",
+  "cloudIntervalWeekly": "每周",
+  "cloudRemoteSection": "远端备份",
+  "cloudRemoteTapRefresh": "点击「刷新远端备份」查看已有备份",
+  "cloudPrivacyHint": "云备份默认关闭，仅在你开启并触发时联网（含开启自动备份后按频率触发）。备份内容与本地 zip 一致（含正文，不含任何 API Key）；AccessKey / SecretKey 只保存在本机安全存储。",
+  "mcpDeleteTitle": "删除 MCP 服务",
+  "mcpDeleteBody": "删除「{name}」后，其认证头也会一并从本机移除。",
+  "@mcpDeleteBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "mcpTitle": "MCP 工具服务",
+  "mcpAdd": "新增服务",
+  "mcpAllTools": "全部工具可用",
+  "mcpWhitelist": "白名单：{tools}",
+  "@mcpWhitelist": {
+    "placeholders": {
+      "tools": {
+        "type": "String"
+      }
+    }
+  },
+  "mcpListSeparator": "、",
+  "mcpEmptyTitle": "还没有 MCP 服务",
+  "mcpEmptyHint": "添加远程 MCP server 后，其工具会在「桥段点子」生成时供 AI 调用",
+  "mcpSaved": "已保存",
+  "mcpEndpointMissing": "请先填写 MCP 端点地址",
+  "mcpTestOkNoTools": "连接成功，但该服务未暴露工具",
+  "mcpTestOkTools": "连接成功，{count} 个工具：{names}",
+  "@mcpTestOkTools": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "names": {
+        "type": "String"
+      }
+    }
+  },
+  "mcpTestFailed": "连接失败：{detail}",
+  "@mcpTestFailed": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "mcpNewTitle": "新增 MCP 服务",
+  "mcpEditTitle": "编辑 MCP 服务",
+  "mcpNameLabel": "名称",
+  "mcpNameHint": "例如：我的本地 MCP 服务",
+  "mcpNameRequired": "请填写名称",
+  "mcpEndpointLabel": "MCP 端点地址",
+  "mcpEndpointHelper": "Streamable HTTP 完整地址，例如 https://example.com/mcp",
+  "mcpEndpointRequired": "请填写端点地址",
+  "mcpEndpointInvalid": "请填写带 http(s):// 的完整地址",
+  "mcpAuthLabel": "认证请求头",
+  "mcpAuthHintSaved": "已保存，留空则不修改",
+  "mcpAuthHint": "每行一条，例如 Authorization: Bearer xxx",
+  "mcpAuthHelper": "仅保存在本机安全存储，不会随备份导出",
+  "mcpToolsLabel": "工具白名单",
+  "mcpToolsHelper": "每行一个远程工具名；留空表示全部允许",
+  "mcpEnable": "启用",
+  "mcpEnableSubtitle": "停用后其工具不会暴露给 AI",
+  "mcpTestConnection": "测试连接",
+  "skillDeleteTitle": "删除技能",
+  "skillDeleteBody": "删除「{name}」后，其指令不再注入 AI 生成。",
+  "@skillDeleteBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "skillTitle": "自定义技能",
+  "skillAdd": "新增技能",
+  "skillToolsUnlimited": "工具：不限制",
+  "skillToolsWhitelist": "工具白名单：{tools}",
+  "@skillToolsWhitelist": {
+    "placeholders": {
+      "tools": {
+        "type": "String"
+      }
+    }
+  },
+  "skillListSeparator": "、",
+  "skillEmptyTitle": "还没有自定义技能",
+  "skillEmptyHint": "写一段附加指令（如「只用短句」「避免旁白解释」），启用后会注入续写与灵感生成的 system 提示",
+  "skillSaved": "已保存",
+  "skillNewTitle": "新增技能",
+  "skillEditTitle": "编辑技能",
+  "skillNameLabel": "技能名称",
+  "skillNameHint": "例如：冷硬短句",
+  "skillNameRequired": "请填写技能名称",
+  "skillInstructionLabel": "指令文本",
+  "skillInstructionHint": "例如：只用短句，避免解释性旁白，对话不写语气副词。",
+  "skillInstructionHelper": "会作为附加 system 指令注入续写与灵感生成",
+  "skillInstructionRequired": "请填写指令文本",
+  "skillParamsLabel": "参数模板（可选）",
+  "skillParamsHint": "每行一条 键=值，例如 字数=800",
+  "skillParamsHelper": "在指令中用 {open}参数名{close} 引用，注入时替换为对应值",
+  "@skillParamsHelper": {
+    "placeholders": {
+      "open": {
+        "type": "String"
+      },
+      "close": {
+        "type": "String"
+      }
+    }
+  },
+  "skillToolsLabel": "工具白名单（可选）",
+  "skillToolsHint": "每行一个工具名，例如 get_chapter",
+  "skillToolsHelper": "留空表示不限制；内置工具 get_chapter / get_characters / get_outline，MCP 工具以 mcp_ 开头",
+  "skillEnable": "启用",
+  "skillEnableSubtitle": "停用后不注入，也不参与工具白名单",
+  "workDetailTitleFallback": "作品",
+  "workDetailTabChapters": "章节",
+  "workDetailTabCharacters": "角色卡",
+  "workDetailTabWorldbuilding": "设定集",
+  "workDetailTabOutline": "章纲",
+  "workDetailRunFlavorCheck": "运行 AI 感检查",
+  "workDetailImportTxtDocx": "导入 txt / docx",
+  "workDetailInspirationsTitle": "灵感箱",
+  "workDetailAiSettings": "AI 设置",
+  "workDetailRenameWork": "重命名作品",
+  "workDetailImportedCount": "已导入 {count} 章",
+  "@workDetailImportedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "workDetailRecordInspiration": "记录灵感",
+  "workDetailEditInspiration": "编辑灵感",
+  "workDetailInspirationHint": "写点什么…",
+  "workDetailInspirationsEmpty": "灵感箱是空的",
+  "workDetailInspirationsEmptyHint": "随手记下桥段、设定或一句对白，AI 灵感产出的点子也会存到这里。",
+  "workDetailDeleteInspirationConfirm": "删除这条灵感？",
+  "chaptersNewVolume": "新建卷",
+  "chaptersNewVolumeHint": "例如：第二卷 风起",
+  "chaptersCreate": "创建",
+  "chaptersEmptyTitle": "还没有章节",
+  "chaptersEmptyHint": "在下方「新建卷」后即可开始写第一章。",
+  "chaptersVolumeHeader": "{volume}（{count} 章）",
+  "@chaptersVolumeHeader": {
+    "placeholders": {
+      "volume": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chaptersVolumeActions": "卷操作",
+  "chaptersRenameVolume": "重命名卷",
+  "chaptersVolumeSummaryAction": "查看/编辑本卷前情回顾",
+  "chaptersMoveUp": "上移",
+  "chaptersMoveDown": "下移",
+  "chaptersDeleteVolume": "删除卷",
+  "chaptersVolumeSummaryTitle": "本卷前情回顾",
+  "chaptersVolumeSummaryHint": "AI 生成或手写的本卷前情回顾，用于后续章节的剧情衔接",
+  "chaptersDeleteVolumeConfirm": "删除「{volume}」？",
+  "@chaptersDeleteVolumeConfirm": {
+    "placeholders": {
+      "volume": {
+        "type": "String"
+      }
+    }
+  },
+  "chaptersDeleteVolumeEmptyBody": "该卷下没有章节。",
+  "chaptersDeleteVolumeBody": "该卷下的 {count} 个章节会一并删除，此操作不可恢复。",
+  "@chaptersDeleteVolumeBody": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chaptersAddChapterInVolume": "在本卷新建章节",
+  "chaptersRenameChapter": "重命名章节",
+  "chaptersMoveToVolume": "移动到其他卷",
+  "chaptersMarkAs": "标记为{status}",
+  "@chaptersMarkAs": {
+    "placeholders": {
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "chaptersDeleteChapter": "删除章节",
+  "chaptersNoOtherVolume": "没有其他卷可移动",
+  "chaptersDeleteChapterConfirm": "删除「{title}」？",
+  "@chaptersDeleteChapterConfirm": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "chaptersDeleteChapterBody": "删除后本章正文不可恢复。",
+  "outlineOrphanSection": "未关联章节的梗概",
+  "outlineEmptyEntry": "（空梗概）",
+  "outlineEmptyTitle": "还没有章纲",
+  "outlineEmptyHint": "先在「章节」Tab 创建章节，即可为每章写一句话梗概。",
+  "outlineNoSummary": "未填写梗概",
+  "charactersNewCard": "新建角色卡",
+  "charactersEditCard": "编辑角色卡",
+  "charactersEmptyTitle": "还没有角色卡",
+  "charactersEmptyHint": "为角色建立档案后，AI 续写与灵感会自动带上相关角色设定。",
+  "charactersIdentityEmpty": "身份未填写",
+  "charactersNameLabel": "姓名（必填，1-20 字）",
+  "charactersIdentityLabel": "身份",
+  "charactersTagsLabel": "性格标签（最多 10 个，空格或逗号分隔）",
+  "charactersAppearanceLabel": "外貌特征",
+  "charactersRelationsLabel": "人际关系",
+  "charactersArcLabel": "角色弧光",
+  "charactersNameError": "姓名需 1-20 字",
+  "charactersTagsError": "性格标签最多 10 个",
+  "charactersDeleteConfirm": "删除「{name}」？",
+  "@charactersDeleteConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "charactersDeleteBody": "删除后角色卡不可恢复。",
+  "worldbuildingNewEntry": "新建设定",
+  "worldbuildingEditEntry": "编辑设定",
+  "worldbuildingEmptyTitle": "还没有{type}",
+  "@worldbuildingEmptyTitle": {
+    "placeholders": {
+      "type": {
+        "type": "String"
+      }
+    }
+  },
+  "worldbuildingEmptyHint": "记录作品的{type}设定，方便写作时随时查阅。",
+  "@worldbuildingEmptyHint": {
+    "placeholders": {
+      "type": {
+        "type": "String"
+      }
+    }
+  },
+  "worldbuildingNameLabel": "名称（必填，1-50 字）",
+  "worldbuildingContentLabel": "设定内容",
+  "worldbuildingNameError": "名称需 1-50 字",
+  "worldbuildingDeleteConfirm": "删除「{name}」？",
+  "@worldbuildingDeleteConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "worldbuildingDeleteBody": "删除后设定条目不可恢复。",
+  "relationGraphTitle": "人物关系图",
+  "relationGraphEmpty": "还没有关系，点击右下角添加",
+  "relationGraphDeletedCharacter": "已删除角色",
+  "relationGraphAdd": "添加关系",
+  "relationGraphEdit": "编辑关系",
+  "relationGraphMinCharacters": "至少需要两个角色卡才能绘制关系图",
+  "relationGraphCharacterA": "角色 A",
+  "relationGraphCharacterB": "角色 B",
+  "relationGraphLabelField": "关系（如：师徒、宿敌）",
+  "relationGraphSelectTwo": "请选择两个不同的角色",
+  "importPageTitle": "导入文稿",
+  "importPagePickFile": "选择 txt / docx 文件",
+  "importPageRepickFile": "重新选择文件",
+  "importPageConfirmButton": "确认导入 {count} 章",
+  "@importPageConfirmButton": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importPageFileTooLarge": "文件超过 10MB 上限，请先在电脑上拆分后再导入",
+  "importPageNoContent": "没有解析到正文内容，请确认文件格式",
+  "importPageParseFailed": "解析失败：{detail}",
+  "@importPageParseFailed": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "importPageFailed": "导入失败：{detail}",
+  "@importPageFailed": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "importPageDialogEmptyTitle": "存在空章节",
+  "importPageDialogEmptyBody": "有 {count} 章没有正文。保留这些空章节吗？",
+  "@importPageDialogEmptyBody": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importPageKeepAll": "全部保留",
+  "importPageDropEmpty": "丢弃空章节",
+  "importPageNoImportable": "没有可导入的章节",
+  "importPagePickHintTitle": "导入旧稿",
+  "importPagePickHintBody": "支持 txt（UTF-8 / GBK）与 docx。导入后按「第 X 章」等标题自动分章，可在下一步预览并调整。",
+  "importPageFileSummary": "编码 {encoding} · {count} 章 · 共 {words} 字",
+  "@importPageFileSummary": {
+    "placeholders": {
+      "encoding": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      },
+      "words": {
+        "type": "int"
+      }
+    }
+  },
+  "importPageMergeIntoPrevious": "并入上一章",
+  "exportActionsFormatTxt": "纯文本（.txt）",
+  "exportActionsFormatMarkdown": "Markdown（.md）",
+  "exportActionsFormatDocx": "Word 文档（.docx）",
+  "exportActionsFormatEpub": "EPUB 电子书（.epub）",
+  "exportActionsChapterTitle": "导出本章",
+  "exportActionsShareChapterTitle": "导出章节",
+  "exportActionsExportWorkTitle": "导出作品",
+  "exportActionsNoChapters": "这部作品还没有章节，暂无可导出的内容",
+  "exportActionsShareFailed": "导出失败：{detail}",
+  "@exportActionsShareFailed": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  }
+}

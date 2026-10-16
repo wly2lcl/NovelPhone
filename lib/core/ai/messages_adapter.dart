@@ -65,7 +65,11 @@ class MessagesAdapter implements AiClient {
         ..body = jsonEncode(body);
       response = await _client.send(request);
     } catch (e) {
-      yield ChatError(kind: AiErrorKind.network, message: '网络请求失败：$e');
+      yield ChatError(
+        kind: AiErrorKind.network,
+        message: '网络请求失败：$e',
+        detail: '$e',
+      );
       return;
     }
 
@@ -139,12 +143,18 @@ class MessagesAdapter implements AiClient {
           yield ChatError(
             kind: AiErrorKind.badRequest,
             message: '模型服务返回错误：$message',
+            code: ChatErrorCode.providerError,
+            detail: message,
           );
           return;
         }
       }
     } catch (e) {
-      yield ChatError(kind: AiErrorKind.network, message: '流式读取中断：$e');
+      yield ChatError(
+        kind: AiErrorKind.network,
+        message: '流式读取中断：$e',
+        detail: '$e',
+      );
       return;
     }
 

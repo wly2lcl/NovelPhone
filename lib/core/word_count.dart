@@ -1,3 +1,5 @@
+import '../l10n/l10n.dart';
+
 /// 中文字数统计（PRD 5.3 实时字数）。
 ///
 /// 口径：中日韩字符（含假名、谚文）按 1 字计；连续的拉丁字母/数字串按 1 词计；
@@ -21,10 +23,18 @@ int countWords(String text) {
   return count;
 }
 
-/// 字数展示：小于 1 万直接显示，超过按"万"保留 1 位小数。
-String formatWordCount(int words) {
-  if (words < 10000) return '$words 字';
-  return '${(words / 10000).toStringAsFixed(1)} 万字';
+/// 字数展示：中文界面按「万」折算，英文界面按 K / M 折算。
+String formatWordCount(int words, AppLocalizations l10n) {
+  if (l10n.localeName.startsWith('zh')) {
+    if (words < 10000) return l10n.wordCountExact('$words');
+    return l10n.wordCountWan((words / 10000).toStringAsFixed(1));
+  }
+  if (words < 1000) return l10n.wordCountExact('$words');
+  if (words < 1000000) {
+    final k = words / 1000;
+    return l10n.wordCountK(k.toStringAsFixed(k >= 100 ? 0 : 1));
+  }
+  return l10n.wordCountM((words / 1000000).toStringAsFixed(1));
 }
 
 bool _isCjk(int rune) {

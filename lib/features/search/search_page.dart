@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/theme.dart';
 import '../../data/data_providers.dart';
 import '../../data/repositories/chapter_repository.dart';
+import '../../l10n/l10n.dart';
 
 /// 全局搜索（B-06）：跨作品检索章节标题与正文，点击命中跳转编辑器并高亮。
 class SearchPage extends ConsumerStatefulWidget {
@@ -77,8 +78,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           controller: _keyword,
           autofocus: true,
           textInputAction: TextInputAction.search,
-          decoration: const InputDecoration(
-            hintText: '搜索全部作品…',
+          decoration: InputDecoration(
+            hintText: context.l10n.searchHint,
             border: InputBorder.none,
           ),
           onChanged: _onChanged,
@@ -86,7 +87,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         actions: <Widget>[
           if (_query.isNotEmpty)
             IconButton(
-              tooltip: '清空',
+              tooltip: context.l10n.commonClear,
               icon: const Icon(Icons.close),
               onPressed: _clear,
             ),
@@ -102,7 +103,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 32),
           child: Text(
-            '输入关键词，搜索全部作品的章节标题与正文。',
+            context.l10n.searchEmptyHint,
             textAlign: TextAlign.center,
             style: TextStyle(color: context.paper.inkSoft),
           ),
@@ -111,12 +112,13 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     }
     return resultsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, stack) => Center(child: Text('搜索失败：$error')),
+      error: (error, stack) =>
+          Center(child: Text(context.l10n.searchFailed('$error'))),
       data: (hits) {
         if (hits.isEmpty) {
           return Center(
             child: Text(
-              '没有找到包含「$_query」的章节',
+              context.l10n.searchNoResults(_query),
               style: TextStyle(color: context.paper.inkSoft),
             ),
           );
@@ -155,7 +157,9 @@ class _HitTile extends StatelessWidget {
       isThreeLine: true,
       title: _highlight(
         context,
-        hit.chapterTitle.isEmpty ? '未命名章节' : hit.chapterTitle,
+        hit.chapterTitle.isEmpty
+            ? context.l10n.commonUntitledChapter
+            : hit.chapterTitle,
         Theme.of(context).textTheme.titleSmall,
       ),
       subtitle: Padding(

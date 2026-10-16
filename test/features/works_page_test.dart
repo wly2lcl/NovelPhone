@@ -5,6 +5,7 @@ import 'package:novelphone/app/theme.dart';
 import 'package:novelphone/data/db.dart';
 import 'package:novelphone/features/works/works_page.dart';
 import 'package:novelphone/features/works/works_providers.dart';
+import 'package:novelphone/l10n/generated/app_localizations.dart';
 
 void main() {
   Widget wrap(List<Work> works) {
@@ -12,7 +13,13 @@ void main() {
       overrides: [
         worksProvider.overrideWith((ref) => Stream<List<Work>>.value(works)),
       ],
-      child: MaterialApp(theme: buildPaperTheme(), home: const WorksPage()),
+      child: MaterialApp(
+        theme: buildPaperTheme(),
+        locale: const Locale('zh'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: const WorksPage(),
+      ),
     );
   }
 

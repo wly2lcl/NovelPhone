@@ -7,6 +7,7 @@ import '../../core/ai/ai_client_factory.dart';
 import '../../data/data_providers.dart';
 import '../../data/db.dart';
 import '../../data/repositories/settings_repository.dart';
+import '../../l10n/l10n.dart';
 import '../ai/ai_providers.dart';
 
 /// 模型组管理（M3-18）：按服务商维护协议类型、baseUrl、模型列表与生成参数。
@@ -15,17 +16,18 @@ class ModelGroupsPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
     final groups = ref.watch(modelGroupsProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('模型组与 API Key')),
+      appBar: AppBar(title: Text(l10n.settingsModelGroups)),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/settings/model-groups/new'),
         icon: const Icon(Icons.add),
-        label: const Text('新增模型组'),
+        label: Text(l10n.modelGroupsNew),
       ),
       body: groups.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('加载失败：$e')),
+        error: (e, _) => Center(child: Text(l10n.modelGroupsLoadFailed('$e'))),
         data: (list) {
           if (list.isEmpty) return const _EmptyHint();
           return ListView.separated(
@@ -53,10 +55,10 @@ class _EmptyHint extends StatelessWidget {
           children: <Widget>[
             Icon(Icons.key_outlined, size: 40, color: context.paper.inkSoft),
             const SizedBox(height: 12),
-            const Text('还没有模型组'),
+            Text(context.l10n.modelGroupsEmptyTitle),
             const SizedBox(height: 4),
             Text(
-              '添加服务商与 API Key 后，续写与灵感功能才能使用',
+              context.l10n.modelGroupsEmptyHint,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall,
             ),
@@ -94,11 +96,12 @@ class _ModelGroupTileState extends ConsumerState<_ModelGroupTile> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final group = widget.group;
     final models = SettingsRepository.parseModels(group.models);
     final providerLabel = group.provider == AiProvider.anthropic
         ? 'Anthropic Messages'
-        : 'OpenAI 兼容';
+        : l10n.modelGroupsOpenAiCompat;
     return ListTile(
       leading: Icon(
         _hasKey ? Icons.key : Icons.key_off_outlined,
@@ -107,8 +110,8 @@ class _ModelGroupTileState extends ConsumerState<_ModelGroupTile> {
       title: Text(group.name),
       subtitle: Text(
         '$providerLabel · ${group.baseUrl}\n'
-        '${models.isEmpty ? '未填写模型' : models.join('、')}'
-        '${_hasKey ? '' : ' · 未填 Key'}',
+        '${models.isEmpty ? l10n.modelGroupsNoModel : models.join(l10n.modelGroupsModelSeparator)}'
+        '${_hasKey ? '' : ' · ${l10n.modelGroupsNoKey}'}',
         maxLines: 3,
         style: TextStyle(fontSize: 12, color: context.paper.inkSoft),
       ),
@@ -132,9 +135,15 @@ class _ModelGroupTileState extends ConsumerState<_ModelGroupTile> {
                   await _confirmDelete(context);
               }
             },
-            itemBuilder: (context) => const <PopupMenuEntry<String>>[
-              PopupMenuItem<String>(value: 'edit', child: Text('编辑')),
-              PopupMenuItem<String>(value: 'delete', child: Text('删除')),
+            itemBuilder: (context) => <PopupMenuEntry<String>>[
+              PopupMenuItem<String>(
+                value: 'edit',
+                child: Text(l10n.commonEdit),
+              ),
+              PopupMenuItem<String>(
+                value: 'delete',
+                child: Text(l10n.commonDelete),
+              ),
             ],
           ),
         ],
@@ -145,19 +154,20 @@ class _ModelGroupTileState extends ConsumerState<_ModelGroupTile> {
 
   /// 删除二次确认（M3-19）：同时清除安全存储中的 key。
   Future<void> _confirmDelete(BuildContext context) async {
+    final l10n = context.l10n;
     final ok = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('删除模型组'),
-        content: Text('删除「${widget.group.name}」后，其 API Key 也会一并从本机移除。'),
+        title: Text(l10n.modelGroupsDeleteTitle),
+        content: Text(l10n.modelGroupsDeleteConfirm(widget.group.name)),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('取消'),
+            child: Text(l10n.commonCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('删除'),
+            child: Text(l10n.commonDelete),
           ),
         ],
       ),
@@ -169,7 +179,7 @@ class _ModelGroupTileState extends ConsumerState<_ModelGroupTile> {
     if (context.mounted) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('已删除模型组')));
+      ).showSnackBar(SnackBar(content: Text(l10n.modelGroupsDeleted)));
     }
   }
 }

@@ -65,7 +65,11 @@ class ResponsesAdapter implements AiClient {
         ..body = jsonEncode(body);
       response = await _client.send(request);
     } catch (e) {
-      yield ChatError(kind: AiErrorKind.network, message: '网络请求失败：$e');
+      yield ChatError(
+        kind: AiErrorKind.network,
+        message: '网络请求失败：$e',
+        detail: '$e',
+      );
       return;
     }
 
@@ -127,6 +131,7 @@ class ResponsesAdapter implements AiClient {
             yield const ChatError(
               kind: AiErrorKind.badRequest,
               message: '模型输出被截断（incomplete），请缩短上下文或提高输出上限',
+              code: ChatErrorCode.incompleteOutput,
             );
             return;
           }
@@ -134,19 +139,27 @@ class ResponsesAdapter implements AiClient {
           yield ChatError(
             kind: AiErrorKind.server,
             message: '模型服务返回失败：${_errorText(decoded)}',
+            code: ChatErrorCode.providerFailed,
+            detail: _errorText(decoded),
           );
           return;
         } else if (type == 'error') {
           yield ChatError(
             kind: AiErrorKind.badRequest,
             message: '模型服务返回错误：${_errorText(decoded)}',
+            code: ChatErrorCode.providerError,
+            detail: _errorText(decoded),
           );
           return;
         }
       }
     } catch (e) {
       // 网络中断：保留已收流，由 UI 提供重试（ARCHITECTURE 5.2）。
-      yield ChatError(kind: AiErrorKind.network, message: '流式读取中断：$e');
+      yield ChatError(
+        kind: AiErrorKind.network,
+        message: '流式读取中断：$e',
+        detail: '$e',
+      );
       return;
     }
 

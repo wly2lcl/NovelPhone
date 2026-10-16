@@ -4,8 +4,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/theme.dart';
 import '../../data/data_providers.dart';
 import '../../data/db.dart';
+import '../../l10n/l10n.dart';
 import '../../models/setting_type.dart';
 import 'work_detail_providers.dart';
+
+/// 设定类型展示文案：SettingType.label 保持不动（存储/提示词兼容），
+/// UI 展示统一走共享 l10n 键。
+String _settingTypeLabel(AppLocalizations l10n, SettingType type) {
+  return switch (type) {
+    SettingType.worldview => l10n.settingTypeWorldview,
+    SettingType.location => l10n.settingTypeLocation,
+    SettingType.item => l10n.settingTypeItem,
+  };
+}
 
 /// 设定集 Tab（B-09）：世界观 / 地点 / 道具三类条目的展示与编辑。
 class WorldbuildingTab extends ConsumerStatefulWidget {
@@ -39,7 +50,7 @@ class _WorldbuildingTabState extends ConsumerState<WorldbuildingTab> {
                   Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: ChoiceChip(
-                      label: Text(type.label),
+                      label: Text(_settingTypeLabel(context.l10n, type)),
                       selected: _filter == type,
                       onSelected: (_) => setState(() => _filter = type),
                     ),
@@ -64,7 +75,7 @@ class _WorldbuildingTabState extends ConsumerState<WorldbuildingTab> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openEditor(context, initialType: _filter),
         icon: const Icon(Icons.add),
-        label: const Text('新建设定'),
+        label: Text(context.l10n.worldbuildingNewEntry),
       ),
     );
   }
@@ -106,12 +117,16 @@ class _EmptySettingsHint extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              '还没有${type.label}',
+              context.l10n.worldbuildingEmptyTitle(
+                _settingTypeLabel(context.l10n, type),
+              ),
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 6),
             Text(
-              '记录作品的${type.label}设定，方便写作时随时查阅。',
+              context.l10n.worldbuildingEmptyHint(
+                _settingTypeLabel(context.l10n, type),
+              ),
               textAlign: TextAlign.center,
               style: TextStyle(color: context.paper.inkSoft),
             ),
@@ -151,7 +166,10 @@ class _SettingCard extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    SettingType.fromValue(entry.type).label,
+                    _settingTypeLabel(
+                      context.l10n,
+                      SettingType.fromValue(entry.type),
+                    ),
                     style: TextStyle(color: context.paper.accent, fontSize: 12),
                   ),
                 ],
@@ -226,7 +244,9 @@ class _SettingFormSheetState extends ConsumerState<_SettingFormSheet> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               Text(
-                _isEditing ? '编辑设定' : '新建设定',
+                _isEditing
+                    ? context.l10n.worldbuildingEditEntry
+                    : context.l10n.worldbuildingNewEntry,
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: 16),
@@ -235,7 +255,7 @@ class _SettingFormSheetState extends ConsumerState<_SettingFormSheet> {
                 children: <Widget>[
                   for (final type in SettingType.values)
                     ChoiceChip(
-                      label: Text(type.label),
+                      label: Text(_settingTypeLabel(context.l10n, type)),
                       selected: _type == type,
                       onSelected: (_) => setState(() => _type = type),
                     ),
@@ -246,7 +266,7 @@ class _SettingFormSheetState extends ConsumerState<_SettingFormSheet> {
                 controller: _name,
                 maxLength: 50,
                 decoration: InputDecoration(
-                  labelText: '名称（必填，1-50 字）',
+                  labelText: context.l10n.worldbuildingNameLabel,
                   errorText: _nameError,
                 ),
               ),
@@ -254,7 +274,9 @@ class _SettingFormSheetState extends ConsumerState<_SettingFormSheet> {
               TextField(
                 controller: _content,
                 maxLines: 6,
-                decoration: const InputDecoration(labelText: '设定内容'),
+                decoration: InputDecoration(
+                  labelText: context.l10n.worldbuildingContentLabel,
+                ),
               ),
               const SizedBox(height: 20),
               Row(
@@ -266,9 +288,9 @@ class _SettingFormSheetState extends ConsumerState<_SettingFormSheet> {
                         Icons.delete_outline,
                         color: Color(0xFFB3261E),
                       ),
-                      label: const Text(
-                        '删除',
-                        style: TextStyle(color: Color(0xFFB3261E)),
+                      label: Text(
+                        context.l10n.commonDelete,
+                        style: const TextStyle(color: Color(0xFFB3261E)),
                       ),
                     ),
                   const Spacer(),
@@ -276,12 +298,12 @@ class _SettingFormSheetState extends ConsumerState<_SettingFormSheet> {
                     onPressed: _saving
                         ? null
                         : () => Navigator.of(context).pop(),
-                    child: const Text('取消'),
+                    child: Text(context.l10n.commonCancel),
                   ),
                   const SizedBox(width: 8),
                   FilledButton(
                     onPressed: _saving ? null : _save,
-                    child: const Text('保存'),
+                    child: Text(context.l10n.commonSave),
                   ),
                 ],
               ),
@@ -295,7 +317,9 @@ class _SettingFormSheetState extends ConsumerState<_SettingFormSheet> {
   Future<void> _save() async {
     final name = _name.text.trim();
     setState(() {
-      _nameError = name.isEmpty || name.length > 50 ? '名称需 1-50 字' : null;
+      _nameError = name.isEmpty || name.length > 50
+          ? context.l10n.worldbuildingNameError
+          : null;
     });
     if (_nameError != null) return;
 
@@ -328,16 +352,18 @@ class _SettingFormSheetState extends ConsumerState<_SettingFormSheet> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text('删除「${widget.entry!.name}」？'),
-        content: const Text('删除后设定条目不可恢复。'),
+        title: Text(
+          dialogContext.l10n.worldbuildingDeleteConfirm(widget.entry!.name),
+        ),
+        content: Text(dialogContext.l10n.worldbuildingDeleteBody),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('取消'),
+            child: Text(dialogContext.l10n.commonCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('删除'),
+            child: Text(dialogContext.l10n.commonDelete),
           ),
         ],
       ),

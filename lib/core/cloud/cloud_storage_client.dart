@@ -15,12 +15,51 @@ class CloudObject {
   final DateTime? lastModified;
 }
 
+/// 云存储错误分类（供展示时本地化；unknown 表示无法识别的构造来源）。
+enum CloudStorageErrorCode {
+  /// 未填写 Endpoint。
+  endpointMissing,
+
+  /// 底层网络请求失败（Socket / 超时等）。
+  network,
+
+  /// 签名校验失败（SignatureDoesNotMatch）。
+  signatureMismatch,
+
+  /// 403 访问被拒绝。
+  forbidden,
+
+  /// 404 资源不存在。
+  notFound,
+
+  /// 设备时钟与服务器偏差过大（RequestTimeTooSkewed）。
+  clockSkew,
+
+  /// 其余非 2xx：携带状态码与响应片段。
+  httpError,
+
+  /// 未分类（兜底，展示时回退原始 message）。
+  unknown,
+}
+
 /// 云备份存储错误：携带可读原因，供 UI 明确提示（ARCHITECTURE 9.1 错误处理）。
 class CloudStorageException implements Exception {
-  const CloudStorageException(this.message, {this.statusCode});
+  const CloudStorageException(
+    this.message, {
+    this.code = CloudStorageErrorCode.unknown,
+    this.statusCode,
+    this.detail,
+  });
 
   final String message;
+
+  /// 结构化分类，展示时据此选择本地化文案。
+  final CloudStorageErrorCode code;
+
   final int? statusCode;
+
+  /// message 中插值的原始信息（底层异常文本 / 响应片段）。
+  final String? detail;
 
   @override
   String toString() => message;
@@ -191,7 +230,10 @@ class S3CompatibleClient implements CloudStorageClient {
   Uri _uri({required String path, Map<String, String>? query}) {
     var base = _config.endpoint.trim();
     if (base.isEmpty) {
-      throw const CloudStorageException('请先填写 Endpoint');
+      throw const CloudStorageException(
+        '请先填写 Endpoint',
+        code: CloudStorageErrorCode.endpointMissing,
+      );
     }
     if (!base.contains('://')) base = 'https://$base';
     final parsed = Uri.parse(base);
@@ -231,7 +273,11 @@ class S3CompatibleClient implements CloudStorageClient {
     try {
       return await request();
     } catch (e) {
-      throw CloudStorageException('网络请求失败：$e');
+      throw CloudStorageException(
+        '网络请求失败：$e',
+        code: CloudStorageErrorCode.network,
+        detail: '$e',
+      );
     }
   }
 
@@ -248,28 +294,37 @@ class S3CompatibleClient implements CloudStorageClient {
       return CloudStorageException(
         '签名校验失败（SignatureDoesNotMatch）：请检查 AccessKey / SecretKey、'
         'Endpoint 与 Region 是否匹配',
+        code: CloudStorageErrorCode.signatureMismatch,
         statusCode: code,
       );
     }
     if (code == 403) {
       return CloudStorageException(
         '访问被拒绝（403）：请检查 AccessKey / SecretKey 与桶权限',
+        code: CloudStorageErrorCode.forbidden,
         statusCode: code,
       );
     }
     if (code == 404) {
       return CloudStorageException(
         '资源不存在（404）：请检查 Endpoint、桶名与路径前缀',
+        code: CloudStorageErrorCode.notFound,
         statusCode: code,
       );
     }
     if (body.contains('RequestTimeTooSkewed')) {
       return CloudStorageException(
         '设备时钟与服务器偏差过大（RequestTimeTooSkewed）：请校准系统时间',
+        code: CloudStorageErrorCode.clockSkew,
         statusCode: code,
       );
     }
-    return CloudStorageException('云端返回 HTTP $code：$body', statusCode: code);
+    return CloudStorageException(
+      '云端返回 HTTP $code：$body',
+      code: CloudStorageErrorCode.httpError,
+      statusCode: code,
+      detail: body,
+    );
   }
 
   static String _snippet(String body) {

@@ -11,9 +11,11 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  # 中文本地化（编辑器选择菜单等系统文案）
+  # 国际化：系统控件文案的多语言 delegate（编辑器选择菜单等）
   flutter_localizations:
     sdk: flutter
+  # 国际化：AppLocalizations 生成代码依赖（生成配置见 l10n.yaml）
+  intl: ^0.20.2
 
   # 状态管理与依赖注入
   flutter_riverpod: ^3.4.3
@@ -56,3 +58,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  # 启用 flutter gen-l10n 国际化代码生成（flutter pub get 时自动执行）
+  generate: true

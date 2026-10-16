@@ -90,10 +90,21 @@ class AiFinished extends AiEvent {
 }
 
 class AiFailed extends AiEvent {
-  const AiFailed({required this.kind, required this.message});
+  const AiFailed({
+    required this.kind,
+    required this.message,
+    this.statusCode,
+    this.code,
+    this.detail,
+  });
 
   final AiErrorKind kind;
   final String message;
+
+  /// 结构化补充信息（来自 [ChatError]），供展示时本地化重组文案。
+  final int? statusCode;
+  final String? code;
+  final String? detail;
 }
 
 /// 未配置可用的模型组或 key：UI 引导至设置页而非报错（PRD 5.8）。
@@ -155,10 +166,21 @@ class CheckDeepFinished extends CheckEvent {
 
 /// 深检失败：保留规则层结果并提示（PRD 5.7 边界异常）。
 class CheckDeepFailed extends CheckEvent {
-  const CheckDeepFailed({required this.kind, required this.message});
+  const CheckDeepFailed({
+    required this.kind,
+    required this.message,
+    this.statusCode,
+    this.code,
+    this.detail,
+  });
 
   final AiErrorKind kind;
   final String message;
+
+  /// 结构化补充信息（来自 [ChatError]），供展示时本地化重组文案。
+  final int? statusCode;
+  final String? code;
+  final String? detail;
 }
 
 /// 深检需要配置模型（引导至设置页）。
@@ -166,12 +188,50 @@ class CheckNeedsConfig extends CheckEvent {
   const CheckNeedsConfig();
 }
 
+/// 测试连接结果分类（供展示时本地化）。
+enum TestResultKind {
+  /// 连接成功（可能携带模型回复 detail）。
+  ok,
+
+  /// 未填写模型名。
+  missingModel,
+
+  /// 未填写 API Key。
+  missingApiKey,
+
+  /// 请求失败（细节见 errorKind / code / statusCode / detail）。
+  failed,
+}
+
 /// 测试连接结果。
 class TestResult {
-  const TestResult({required this.ok, required this.message});
+  const TestResult({
+    required this.ok,
+    required this.message,
+    required this.kind,
+    this.detail,
+    this.errorKind,
+    this.statusCode,
+    this.code,
+  });
 
   final bool ok;
   final String message;
+
+  /// 结构化分类，展示时据此选择本地化文案。
+  final TestResultKind kind;
+
+  /// 成功时模型回复的可读文本；失败时插值的原始信息。
+  final String? detail;
+
+  /// [kind] 为 failed 且来自流式错误时的错误分类。
+  final AiErrorKind? errorKind;
+
+  /// 失败时的 HTTP 状态码（来自 [ChatError.statusCode]）。
+  final int? statusCode;
+
+  /// 失败时的子分类（[ChatErrorCode] 常量，来自 [ChatError.code]）。
+  final String? code;
 }
 
 /// AI 用例编排（ARCHITECTURE 5.6 / 6.1）：续写、灵感、测试连接。
@@ -761,6 +821,9 @@ class AiService {
       final buffer = StringBuffer();
       AiErrorKind? failure;
       String failureMessage = '';
+      int? failureStatus;
+      String? failureCode;
+      String? failureDetail;
 
       await for (final chunk in client.streamChat(request)) {
         switch (chunk) {
@@ -772,6 +835,9 @@ class AiService {
           case ChatError():
             failure = chunk.kind;
             failureMessage = chunk.message;
+            failureStatus = chunk.statusCode;
+            failureCode = chunk.code;
+            failureDetail = chunk.detail;
           case ChatDone():
           case ChatToolCalls():
             break;
@@ -790,7 +856,13 @@ class AiService {
           promptTokens: promptTokens,
           completionTokens: completionTokens,
         );
-        yield CheckDeepFailed(kind: failure, message: failureMessage);
+        yield CheckDeepFailed(
+          kind: failure,
+          message: failureMessage,
+          statusCode: failureStatus,
+          code: failureCode,
+          detail: failureDetail,
+        );
         return;
       }
 
@@ -845,9 +917,19 @@ class AiService {
     required String apiKey,
   }) async {
     final model = _firstModel(group);
-    if (model == null) return const TestResult(ok: false, message: '请先填写模型名');
+    if (model == null) {
+      return const TestResult(
+        ok: false,
+        kind: TestResultKind.missingModel,
+        message: '请先填写模型名',
+      );
+    }
     if (apiKey.isEmpty) {
-      return const TestResult(ok: false, message: '请先填写 API Key');
+      return const TestResult(
+        ok: false,
+        kind: TestResultKind.missingApiKey,
+        message: '请先填写 API Key',
+      );
     }
 
     final client = buildAiClient(
@@ -868,12 +950,23 @@ class AiService {
       if (chunk is ChatTextDelta) {
         buffer.write(chunk.text);
       } else if (chunk is ChatError) {
-        return TestResult(ok: false, message: chunk.message);
+        return TestResult(
+          ok: false,
+          kind: TestResultKind.failed,
+          message: chunk.message,
+          errorKind: chunk.kind,
+          statusCode: chunk.statusCode,
+          code: chunk.code,
+          detail: chunk.detail,
+        );
       }
     }
+    final reply = buffer.isEmpty ? null : buffer.toString().trim();
     return TestResult(
       ok: true,
-      message: buffer.isEmpty ? '连接成功' : '连接成功：${buffer.toString().trim()}',
+      kind: TestResultKind.ok,
+      message: reply == null ? '连接成功' : '连接成功：$reply',
+      detail: reply,
     );
   }
 
@@ -934,7 +1027,13 @@ class AiService {
               completionTokens: completionTokens,
             );
           }
-          yield AiFailed(kind: chunk.kind, message: chunk.message);
+          yield AiFailed(
+            kind: chunk.kind,
+            message: chunk.message,
+            statusCode: chunk.statusCode,
+            code: chunk.code,
+            detail: chunk.detail,
+          );
           return;
         case ChatDone():
         case ChatToolCalls():

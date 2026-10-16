@@ -20,6 +20,7 @@ import 'package:novelphone/features/ai/ai_providers.dart';
 import 'package:novelphone/features/ai/ai_service.dart';
 import 'package:novelphone/features/editor/ai_confirm_panel.dart';
 import 'package:novelphone/features/editor/editor_page.dart';
+import 'package:novelphone/l10n/generated/app_localizations.dart';
 
 /// 计数用的章节仓储替身（ENH-13）：统计整部作品正文读取次数。
 class _CountingChapters extends ChapterRepository {
@@ -85,6 +86,9 @@ void main() {
       ],
       child: MaterialApp(
         theme: buildPaperTheme(),
+        locale: const Locale('zh'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         home: EditorPage(workId: workId, chapterId: chapterId),
       ),
     );

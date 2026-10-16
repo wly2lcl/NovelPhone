@@ -9,6 +9,7 @@ import 'package:novelphone/data/repositories/chapter_repository.dart';
 import 'package:novelphone/data/repositories/work_repository.dart';
 import 'package:novelphone/data/secure_key_store.dart';
 import 'package:novelphone/features/search/search_page.dart';
+import 'package:novelphone/l10n/generated/app_localizations.dart';
 
 /// B-06：全局搜索（跨作品检索章节标题与正文）。
 void main() {
@@ -140,7 +141,13 @@ void main() {
           databaseProvider.overrideWithValue(db),
           secureKeyStoreProvider.overrideWithValue(InMemoryKeyStore()),
         ],
-        child: MaterialApp(theme: buildPaperTheme(), home: const SearchPage()),
+        child: MaterialApp(
+          theme: buildPaperTheme(),
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const SearchPage(),
+        ),
       ),
     );
     await tester.pump();
@@ -173,7 +180,13 @@ void main() {
           databaseProvider.overrideWithValue(db),
           secureKeyStoreProvider.overrideWithValue(InMemoryKeyStore()),
         ],
-        child: MaterialApp(theme: buildPaperTheme(), home: const SearchPage()),
+        child: MaterialApp(
+          theme: buildPaperTheme(),
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const SearchPage(),
+        ),
       ),
     );
     await tester.pump();
@@ -226,6 +239,9 @@ void main() {
         ],
         child: MaterialApp.router(
           theme: buildPaperTheme(),
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           routerConfig: router,
         ),
       ),

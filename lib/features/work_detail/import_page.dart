@@ -13,6 +13,7 @@ import '../../core/importer/import_archive.dart';
 import '../../core/importer/text_encoding.dart';
 import '../../data/data_providers.dart';
 import '../../data/repositories/chapter_repository.dart';
+import '../../l10n/l10n.dart';
 
 /// 导入上限（M2-12）：超过 10MB 的文件提示改用其他方式。
 const int kMaxImportBytes = 10 * 1024 * 1024;
@@ -38,7 +39,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('导入文稿')),
+      appBar: AppBar(title: Text(context.l10n.importPageTitle)),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
         children: <Widget>[
@@ -68,14 +69,18 @@ class _ImportPageState extends ConsumerState<ImportPage> {
           OutlinedButton.icon(
             onPressed: _busy ? null : _pickFile,
             icon: const Icon(Icons.folder_open),
-            label: Text(_drafts.isEmpty ? '选择 txt / docx 文件' : '重新选择文件'),
+            label: Text(
+              _drafts.isEmpty
+                  ? context.l10n.importPagePickFile
+                  : context.l10n.importPageRepickFile,
+            ),
           ),
           if (_drafts.isNotEmpty) ...<Widget>[
             const SizedBox(height: 12),
             FilledButton.icon(
               onPressed: _busy ? null : _confirmImport,
               icon: const Icon(Icons.download_done),
-              label: Text('确认导入 ${_drafts.length} 章'),
+              label: Text(context.l10n.importPageConfirmButton(_drafts.length)),
             ),
           ],
         ],
@@ -84,6 +89,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
   }
 
   Future<void> _pickFile() async {
+    final l10n = context.l10n;
     setState(() {
       _busy = true;
       _error = null;
@@ -97,7 +103,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
       final fileName = file.name;
       final bytes = await file.readAsBytes();
       if (bytes.length > kMaxImportBytes) {
-        setState(() => _error = '文件超过 10MB 上限，请先在电脑上拆分后再导入');
+        setState(() => _error = l10n.importPageFileTooLarge);
         return;
       }
       final parsed = await parseImportFileAsync(fileName, bytes);
@@ -106,34 +112,37 @@ class _ImportPageState extends ConsumerState<ImportPage> {
         _bytes = bytes;
         _drafts = parsed.drafts;
         _encoding = parsed.encoding;
-        if (_drafts.isEmpty) _error = '没有解析到正文内容，请确认文件格式';
+        if (_drafts.isEmpty) _error = l10n.importPageNoContent;
       });
     } on FormatException catch (e) {
-      setState(() => _error = e.message);
+      setState(() => _error = l10n.importPageFailed(e.message));
     } catch (e) {
-      setState(() => _error = '解析失败：$e');
+      setState(() => _error = l10n.importPageParseFailed('$e'));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
 
   Future<void> _confirmImport() async {
+    final l10n = context.l10n;
     var drafts = _drafts;
     final emptyCount = drafts.where((d) => d.wordCount == 0).length;
     if (emptyCount > 0) {
       final keep = await showDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          title: const Text('存在空章节'),
-          content: Text('有 $emptyCount 章没有正文。保留这些空章节吗？'),
+          title: Text(dialogContext.l10n.importPageDialogEmptyTitle),
+          content: Text(
+            dialogContext.l10n.importPageDialogEmptyBody(emptyCount),
+          ),
           actions: <Widget>[
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: const Text('全部保留'),
+              child: Text(dialogContext.l10n.importPageKeepAll),
             ),
             FilledButton(
               onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('丢弃空章节'),
+              child: Text(dialogContext.l10n.importPageDropEmpty),
             ),
           ],
         ),
@@ -144,7 +153,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
       }
     }
     if (drafts.isEmpty) {
-      setState(() => _error = '没有可导入的章节');
+      setState(() => _error = l10n.importPageNoImportable);
       return;
     }
 
@@ -224,11 +233,13 @@ class _PickHint extends StatelessWidget {
             color: context.paper.inkSoft,
           ),
           const SizedBox(height: 12),
-          Text('导入旧稿', style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            context.l10n.importPagePickHintTitle,
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           const SizedBox(height: 6),
           Text(
-            '支持 txt（UTF-8 / GBK）与 docx。导入后按「第 X 章」等标题自动分章，'
-            '可在下一步预览并调整。',
+            context.l10n.importPagePickHintBody,
             textAlign: TextAlign.center,
             style: TextStyle(color: context.paper.inkSoft),
           ),
@@ -288,7 +299,11 @@ class _FileSummary extends StatelessWidget {
         leading: Icon(Icons.description_outlined, color: context.paper.accent),
         title: Text(fileName, maxLines: 1, overflow: TextOverflow.ellipsis),
         subtitle: Text(
-          '编码 $encoding · $chapterCount 章 · 共 $totalWords 字',
+          context.l10n.importPageFileSummary(
+            encoding ?? '',
+            chapterCount,
+            totalWords,
+          ),
           style: TextStyle(color: context.paper.inkSoft, fontSize: 13),
         ),
       ),
@@ -316,17 +331,20 @@ class _DraftTile extends StatelessWidget {
         style: TextStyle(color: context.paper.inkSoft),
       ),
       title: Text(
-        draft.title.isEmpty ? '未命名章节' : draft.title,
+        draft.title.isEmpty ? context.l10n.commonUntitledChapter : draft.title,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
       subtitle: Text(
-        '${draft.wordCount} 字',
+        context.l10n.wordCountExact('${draft.wordCount}'),
         style: TextStyle(color: context.paper.inkSoft, fontSize: 12),
       ),
       trailing: onMerge == null
           ? null
-          : TextButton(onPressed: onMerge, child: const Text('并入上一章')),
+          : TextButton(
+              onPressed: onMerge,
+              child: Text(context.l10n.importPageMergeIntoPrevious),
+            ),
     );
   }
 }

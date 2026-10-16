@@ -7,6 +7,7 @@ import '../../core/formatting.dart';
 import '../../core/word_count.dart';
 import '../../data/data_providers.dart';
 import '../../data/db.dart';
+import '../../l10n/l10n.dart';
 import '../../models/work_cover_colors.dart';
 import 'works_providers.dart';
 
@@ -23,25 +24,26 @@ class WorksPage extends ConsumerWidget {
         title: const Text('NovelPhone'),
         actions: <Widget>[
           IconButton(
-            tooltip: '全局搜索',
+            tooltip: context.l10n.worksSearchTooltip,
             icon: const Icon(Icons.search),
             onPressed: () => context.push('/search'),
           ),
           IconButton(
-            tooltip: '设置',
+            tooltip: context.l10n.commonSettings,
             icon: const Icon(Icons.tune),
             onPressed: () => context.push('/settings'),
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        tooltip: '新建作品',
+        tooltip: context.l10n.worksNew,
         onPressed: () => context.push('/new-work'),
         child: const Icon(Icons.add),
       ),
       body: worksAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stack) => Center(child: Text('读取作品失败：$error')),
+        error: (error, stack) =>
+            Center(child: Text(context.l10n.worksLoadFailed('$error'))),
         data: (works) {
           if (works.isEmpty) return const _EmptyWorks();
           return ListView.separated(
@@ -71,17 +73,20 @@ class _EmptyWorks extends StatelessWidget {
             color: context.paper.inkSoft,
           ),
           const SizedBox(height: 16),
-          Text('还没有作品', style: Theme.of(context).textTheme.titleLarge),
+          Text(
+            context.l10n.worksEmptyTitle,
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
           const SizedBox(height: 8),
           Text(
-            '把脑中的故事写下来，从第一部作品开始。',
+            context.l10n.worksEmptyHint,
             style: TextStyle(color: context.paper.inkSoft),
           ),
           const SizedBox(height: 24),
           FilledButton.icon(
             onPressed: () => context.push('/new-work'),
             icon: const Icon(Icons.add),
-            label: const Text('创建第一部作品'),
+            label: Text(context.l10n.worksEmptyCreate),
           ),
         ],
       ),
@@ -138,7 +143,8 @@ class _WorkCard extends ConsumerWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '${formatWordCount(work.wordCount)} · ${work.chapterCount} 章',
+                      '${formatWordCount(work.wordCount, context.l10n)} · '
+                      '${context.l10n.chapterCount(work.chapterCount)}',
                       style: TextStyle(
                         fontSize: 13,
                         color: context.paper.inkSoft,
@@ -146,7 +152,9 @@ class _WorkCard extends ConsumerWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '最后编辑 ${formatRelativeTime(work.lastEditedAt)}',
+                      context.l10n.worksLastEdited(
+                        formatRelativeTime(work.lastEditedAt, context.l10n),
+                      ),
                       style: TextStyle(
                         fontSize: 12,
                         color: context.paper.inkSoft,
@@ -178,7 +186,9 @@ class _WorkCard extends ConsumerWidget {
               leading: Icon(
                 work.pinned ? Icons.push_pin_outlined : Icons.push_pin,
               ),
-              title: Text(work.pinned ? '取消置顶' : '置顶'),
+              title: Text(
+                work.pinned ? context.l10n.worksUnpin : context.l10n.worksPin,
+              ),
               onTap: () async {
                 Navigator.of(sheetContext).pop();
                 await repository.setPinned(work.id, !work.pinned);
@@ -189,9 +199,9 @@ class _WorkCard extends ConsumerWidget {
                 Icons.delete_outline,
                 color: Color(0xFFB3261E),
               ),
-              title: const Text(
-                '删除作品',
-                style: TextStyle(color: Color(0xFFB3261E)),
+              title: Text(
+                context.l10n.worksDelete,
+                style: const TextStyle(color: Color(0xFFB3261E)),
               ),
               onTap: () async {
                 Navigator.of(sheetContext).pop();
@@ -212,16 +222,16 @@ class _WorkCard extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text('删除《${work.title}》？'),
-        content: const Text('该作品的全部章节、角色卡与章纲会一并删除，此操作不可恢复。'),
+        title: Text(context.l10n.worksDeleteConfirm(work.title)),
+        content: Text(context.l10n.worksDeleteConfirmBody),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('取消'),
+            child: Text(context.l10n.commonCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('删除'),
+            child: Text(context.l10n.commonDelete),
           ),
         ],
       ),

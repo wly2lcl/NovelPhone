@@ -134,7 +134,8 @@ graph TB
 ```
 lib/
 ├── main.dart                     # 入口：初始化 drift、secure storage、ProviderScope
-├── app/                          # 应用壳：主题（PaperPalette 亮/暗调色板 + 全局深浅模式）、go_router 路由表
+├── app/                          # 应用壳：主题（PaperPalette 亮/暗调色板 + 全局深浅模式）、go_router 路由表、应用内语言（app/locale.dart，ENH-17）
+├── l10n/                         # 国际化（ENH-17）：app_zh.arb / app_en.arb（zh 为模板）+ generated/（gen-l10n 产物）+ l10n.dart（context.l10n 扩展）+ error_text.dart（错误文案展示时本地化）
 ├── models/                       # 数据模型（与 drift 表对应的实体）
 ├── data/
 │   ├── db.dart                   # drift 数据库定义与迁移
@@ -183,7 +184,8 @@ lib/
 | core/importer | 解析与分章（由 features 侧经 `Isolate.run` 调用，避免整文同步计算卡 UI，ENH-12） | 文件 bytes | 分割预览 | 无 | 不写库（确认后交 Repository） |
 | core/exporter | 导出文本生成与备份 zip 组装/解析（组装与解析的重活经 isolate 执行，ENH-14 / ENH-15） | 章节数据、导出数据 Map | txt/md/docx bytes、zip bytes | archive | 不写库、不直接调分享面板（由 features 触发） |
 | core/cloud | 云备份（B-08）：S3 兼容对象存储读写（SigV4 签名）与备份/恢复编排（上传、列举、清理、下载） | 服务商配置（endpoint/region/bucket/凭证）+ zip bytes / 远端对象列表 | 远端对象列表、下载 bytes、操作结果 | http、core/exporter（zip 组装） | 不直接读写数据库（配置与编排由 features/settings 与 SettingsRepository 协作），不含中心化服务器与账号体系 |
-| features/settings | key/模型配置、token 累计、本地备份与恢复、云备份配置与触发（B-08） | 用户输入 | 经 Repository 落库、经安全存储存 key、经 core/cloud 上传下载 | SettingsRepository、TokenStatsRepository、AiUseCase(testConnection)、CloudBackupService | 不直接接触数据库、安全存储与网络 |
+| features/settings | key/模型配置、token 累计、本地备份与恢复、云备份配置与触发（B-08）、语言设置（ENH-17） | 用户输入 | 经 Repository 落库、经安全存储存 key、经 core/cloud 上传下载 | SettingsRepository、TokenStatsRepository、AiUseCase(testConnection)、CloudBackupService | 不直接接触数据库、安全存储与网络 |
+| l10n | 国际化（ENH-17）：ARB 资源（zh 模板 + en 翻译，约 583 键）、`context.l10n` 读取扩展、错误文案展示时本地化（error_text.dart） | ARB 生成代码、结构化错误（kind/code/detail） | 本地化文案 | Flutter gen-l10n（编译期生成） | 不翻译 AI 提示词与中文语料域数据（flavor 词库/规则名/导出内容/DB 默认值） |
 
 依赖方向：features → repositories / ai 用例 → core/ai → ai_client；无环 `[Expert judgment]`。
 
@@ -586,12 +588,15 @@ Responses（OpenAI Responses 端点，B-01 已实现）：
 | 离线 | 非 AI 功能全离线 | 所有 Repository 本地；AI 失败不影响写作主链路 |
 | 可测试性 | 核心逻辑可单测 | AiClient 可注入 fake 实现；规则引擎纯函数；ContextBuilder 输入为 Repository 接口，可 mock `[Expert judgment]` |
 | 备份 | 整库 zip 可迁移 | 导出全部表数据为 JSON（含正文，供恢复）+ 各作品 markdown 全文（供人工查阅与迁移）；恢复支持合并/覆盖 |
+| 国际化 | zh / en 双语 UI，默认跟随系统（ENH-17） | Flutter gen-l10n + ARB（zh 为模板，值即原硬编码串保证 zh 行为不变；en 计数用 ICU plural）；`context.l10n` 统一读取；语言设置三态（跟随系统 / 简体中文 / English，落 `APP_SETTING.app_locale`，null=跟随系统）；错误文案经 `error_text.dart` 展示时本地化；AI 提示词、flavor 词库/规则名、导出内容与 DB 默认值保持中文（域数据不随 UI 语言变化）`[Expert judgment]` |
 
 ---
 
 ## 8. 错误处理总策略
 
 错误分三类处置：**本地错误**（保存失败、IO）在 UI 状态栏提示且不打断写作；**网络类错误**按 5.2 表分级处理，全部保留现场可重试；**数据类错误**（导入解析失败、备份损坏）给出明确原因与修复建议（如"编码识别失败，请转存为 UTF-8"）。任何自动重试不超过 1 次，避免弱网下重复扣费 `[Expert judgment]`。
+
+错误文案本地化（ENH-17）：错误对象的 message 保持 zh 构造不变（保护既有行为与断言），另携带结构化字段 `kind` / `code` / `detail`；UI 展示统一经 `lib/l10n/error_text.dart` 的 `aiErrorText` / `aiFailureText`（AiFailed / CheckDeepFailed 事件）/ `cloudErrorText` / `backupErrorText` / `testResultText` 按当前 locale 重组合文案；类型或字段无法识别时回退原始 message / toString，保证信息不丢。
 
 ---
 
@@ -641,3 +646,4 @@ Responses（OpenAI Responses 端点，B-01 已实现）：
 - Android release 签名（ENH-16）：keystore（`android/upload-keystore.jks`）与 `android/key.properties`（storeFile / storePassword / keyAlias / keyPassword）均不入库（`.gitignore`），**需离线备份**——丢失将无法对已发布应用做覆盖升级；`app/build.gradle.kts` 的 release 构建读 `key.properties` 并挂 `signingConfigs.release`，启用 R8（`isMinifyEnabled` + `isShrinkResources`）与 `proguard-rules.pro`（keep `io.flutter.**`；`-dontwarn com.google.android.play.core.**` 对应 Flutter 延迟组件按需引用的可选类）。
 - CI（ENH-16）：`.github/workflows/ci.yml` 在 push / PR to main 上执行 `flutter pub get` → `dart format --output=none --set-exit-if-changed lib test` → `flutter analyze` → `flutter test`，Flutter 版本固定 3.44.3 与本地一致；格式校验只覆盖 `lib` / `test`（`tool/` 为开发工具，只参与 analyze）。
 - 假 LLM 服务（ENH-16，开发工具）：`tool/fake_llm_server.dart` 在本机回环模拟 Chat Completions / Messages 正常流与 429 / 5xx / 内容过滤错误（分场景路径，`GET /stats` 观测请求计数、`GET /stats/reset` 重置），`dart run tool/fake_llm_server.dart [port] [chunkDelayMs]` 启动；配合 `adb reverse tcp:8899 tcp:8899` 可在真机验证重试与错误分类路径，无需真实供应商 Key，不随应用产物发布。
+- 国际化（ENH-17）：`l10n.yaml` 配置 `arb-dir: lib/l10n`、`template-arb-file: app_zh.arb`（zh 为模板）、输出 `lib/l10n/generated/`、`nullable-getter: false`；`pubspec.yaml` 开启 `flutter: generate: true`，`flutter pub get` 自动重新生成（产物确定性、经 `dart format` 保持整洁）。UI 读取统一 `context.l10n.x`（`lib/l10n/l10n.dart` 扩展）；新增 UI 文案一律加键到两份 ARB，禁止硬编码中文（AI 提示词、`flavor_lexicon.dart` / `ai_flavor_rules.dart` 语料、导出内容与 DB 默认数据除外）；en 计数文案用 ICU plural，zh 模板值为原硬编码串（保证 zh 行为与全部既有测试断言不变）；iOS 侧 `Info.plist` 声明 `CFBundleLocalizations`。

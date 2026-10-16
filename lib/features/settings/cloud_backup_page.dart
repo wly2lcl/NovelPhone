@@ -6,6 +6,8 @@ import '../../core/cloud/cloud_backup_service.dart';
 import '../../core/cloud/cloud_storage_client.dart';
 import '../../core/exporter/backup_archive.dart';
 import '../../data/data_providers.dart';
+import '../../l10n/error_text.dart';
+import '../../l10n/l10n.dart';
 import '../../models/cloud_backup_config.dart';
 import 'backup_actions.dart';
 
@@ -115,15 +117,16 @@ class _CloudBackupPageState extends ConsumerState<CloudBackupPage> {
     if (announce) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('已保存')));
+      ).showSnackBar(SnackBar(content: Text(context.l10n.cloudSaved)));
     }
   }
 
   /// 按当前表单（未保存的输入优先）构造编排服务；缺少必填项时返回 null。
   Future<CloudBackupService?> _buildService() async {
+    final l10n = context.l10n;
     final config = _currentConfig();
     if (!config.isConfigured) {
-      _showMessage('请先完整填写 Endpoint、Region 与桶名', ok: false);
+      _showMessage(l10n.cloudNeedEndpointRegionBucket, ok: false);
       return null;
     }
     final repo = ref.read(settingsRepositoryProvider);
@@ -137,7 +140,7 @@ class _CloudBackupPageState extends ConsumerState<CloudBackupPage> {
         accessKey.isEmpty ||
         secretKey == null ||
         secretKey.isEmpty) {
-      _showMessage('请先填写 AccessKey 与 SecretKey', ok: false);
+      _showMessage(l10n.cloudNeedCredentials, ok: false);
       return null;
     }
     return CloudBackupService(
@@ -149,14 +152,15 @@ class _CloudBackupPageState extends ConsumerState<CloudBackupPage> {
   }
 
   Future<void> _testConnection() async {
+    final l10n = context.l10n;
     final service = await _buildService();
     if (service == null) return;
     setState(() => _busy = true);
     try {
       await service.testConnection();
-      _showMessage('连接成功：桶与凭证可用', ok: true);
+      _showMessage(l10n.cloudTestOk, ok: true);
     } catch (e) {
-      _showMessage('连接失败：$e', ok: false);
+      _showMessage(cloudErrorText(l10n, e), ok: false);
     } finally {
       service.dispose();
       if (mounted) setState(() => _busy = false);
@@ -164,6 +168,7 @@ class _CloudBackupPageState extends ConsumerState<CloudBackupPage> {
   }
 
   Future<void> _backupNow() async {
+    final l10n = context.l10n;
     final service = await _buildService();
     if (service == null) return;
     setState(() => _busy = true);
@@ -174,13 +179,13 @@ class _CloudBackupPageState extends ConsumerState<CloudBackupPage> {
           .read(settingsRepositoryProvider)
           .setCloudLastBackupAt(DateTime.now());
       _showMessage(
-        '备份成功：${result.key}（${_formatSize(result.bytes)}）'
-        '${result.pruned > 0 ? '，已清理 ${result.pruned} 份旧备份' : ''}',
+        l10n.cloudBackupOk(result.key, _formatSize(result.bytes)) +
+            (result.pruned > 0 ? l10n.cloudBackupOkPruned(result.pruned) : ''),
         ok: true,
       );
       await _loadBackups();
     } catch (e) {
-      _showMessage('备份失败：$e', ok: false);
+      _showMessage(cloudErrorText(l10n, e), ok: false);
     } finally {
       service.dispose();
       if (mounted) setState(() => _busy = false);
@@ -188,6 +193,7 @@ class _CloudBackupPageState extends ConsumerState<CloudBackupPage> {
   }
 
   Future<void> _loadBackups() async {
+    final l10n = context.l10n;
     final service = await _buildService();
     if (service == null) return;
     setState(() => _busy = true);
@@ -195,11 +201,13 @@ class _CloudBackupPageState extends ConsumerState<CloudBackupPage> {
       final backups = await service.listBackups();
       if (mounted) setState(() => _backups = backups);
       _showMessage(
-        backups.isEmpty ? '远端暂无备份' : '远端共 ${backups.length} 份备份',
+        backups.isEmpty
+            ? l10n.cloudRemoteEmpty
+            : l10n.cloudRemoteCount(backups.length),
         ok: true,
       );
     } catch (e) {
-      _showMessage('读取远端备份失败：$e', ok: false);
+      _showMessage(cloudErrorText(l10n, e), ok: false);
     } finally {
       service.dispose();
       if (mounted) setState(() => _busy = false);
@@ -207,6 +215,7 @@ class _CloudBackupPageState extends ConsumerState<CloudBackupPage> {
   }
 
   Future<void> _restore(CloudObject object) async {
+    final l10n = context.l10n;
     final service = await _buildService();
     if (service == null) return;
     setState(() => _busy = true);
@@ -215,9 +224,9 @@ class _CloudBackupPageState extends ConsumerState<CloudBackupPage> {
       // ENH-15：解压 + jsonDecode 放到 isolate，避免恢复大备份时卡住 UI。
       data = await parseBackupZipAsync(await service.download(object.key));
     } on FormatException catch (e) {
-      _showMessage('恢复失败：${e.message}', ok: false);
+      _showMessage(cloudErrorText(l10n, e), ok: false);
     } catch (e) {
-      _showMessage('恢复失败：$e', ok: false);
+      _showMessage(cloudErrorText(l10n, e), ok: false);
     } finally {
       service.dispose();
       if (mounted) setState(() => _busy = false);
@@ -234,7 +243,11 @@ class _CloudBackupPageState extends ConsumerState<CloudBackupPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            '恢复完成：${report.works} 部作品、${report.chapters} 章、${report.characters} 个角色卡',
+            context.l10n.backupRestoreDone(
+              report.works,
+              report.chapters,
+              report.characters,
+            ),
           ),
         ),
       );
@@ -242,7 +255,7 @@ class _CloudBackupPageState extends ConsumerState<CloudBackupPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('恢复失败：$e')));
+      ).showSnackBar(SnackBar(content: Text(cloudErrorText(context.l10n, e))));
     }
   }
 
@@ -250,11 +263,11 @@ class _CloudBackupPageState extends ConsumerState<CloudBackupPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('云备份'),
+        title: Text(context.l10n.cloudTitle),
         actions: <Widget>[
           TextButton(
             onPressed: _loading ? null : () => _save(),
-            child: const Text('保存'),
+            child: Text(context.l10n.commonSave),
           ),
         ],
       ),
@@ -268,8 +281,8 @@ class _CloudBackupPageState extends ConsumerState<CloudBackupPage> {
                   const _PrivacyHint(),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
-                    title: const Text('启用云备份'),
-                    subtitle: const Text('关闭时不联网、不产生任何云端请求'),
+                    title: Text(context.l10n.cloudEnable),
+                    subtitle: Text(context.l10n.cloudEnableSubtitle),
                     value: _enabled,
                     activeTrackColor: context.paper.accent,
                     onChanged: (value) async {
@@ -281,12 +294,14 @@ class _CloudBackupPageState extends ConsumerState<CloudBackupPage> {
                     const Divider(height: 24),
                     DropdownButtonFormField<CloudProvider>(
                       initialValue: _provider,
-                      decoration: const InputDecoration(labelText: '服务商'),
+                      decoration: InputDecoration(
+                        labelText: context.l10n.cloudProviderLabel,
+                      ),
                       items: <DropdownMenuItem<CloudProvider>>[
                         for (final provider in CloudProvider.values)
                           DropdownMenuItem<CloudProvider>(
                             value: provider,
-                            child: Text(provider.label),
+                            child: Text(_providerLabel(context.l10n, provider)),
                           ),
                       ],
                       onChanged: (value) {
@@ -302,55 +317,59 @@ class _CloudBackupPageState extends ConsumerState<CloudBackupPage> {
                       controller: _region,
                       decoration: InputDecoration(
                         labelText: 'Region',
-                        hintText: _provider.regionHint,
+                        hintText: _regionHint(context.l10n, _provider),
                       ),
-                      validator: _required('Region'),
+                      validator: _required(context.l10n.cloudRegionRequired),
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _endpoint,
                       decoration: InputDecoration(
                         labelText: 'Endpoint',
-                        helperText: _provider.endpointHint,
+                        helperText: _endpointHint(context.l10n, _provider),
                       ),
-                      validator: _required('Endpoint'),
+                      validator: _required(context.l10n.cloudEndpointRequired),
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _bucket,
-                      decoration: const InputDecoration(
-                        labelText: '存储桶 Bucket',
+                      decoration: InputDecoration(
+                        labelText: context.l10n.cloudBucketLabel,
                       ),
-                      validator: _required('桶名'),
+                      validator: _required(context.l10n.cloudBucketRequired),
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _prefix,
-                      decoration: const InputDecoration(
-                        labelText: '路径前缀',
-                        helperText: '默认 novelphone/backups/',
+                      decoration: InputDecoration(
+                        labelText: context.l10n.cloudPrefixLabel,
+                        helperText: context.l10n.cloudPrefixHelper(
+                          kDefaultCloudBackupPrefix,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _keepCount,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: '保留份数',
-                        helperText: '超出后自动删除最旧的备份，最小 1',
+                      decoration: InputDecoration(
+                        labelText: context.l10n.cloudKeepCountLabel,
+                        helperText: context.l10n.cloudKeepCountHelper,
                       ),
                       validator: (v) {
                         final n = int.tryParse((v ?? '').trim());
-                        if (n == null || n < 1) return '请填写不小于 1 的整数';
+                        if (n == null || n < 1) {
+                          return context.l10n.cloudKeepCountInvalid;
+                        }
                         return null;
                       },
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _accessKey,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'AccessKey ID',
-                        helperText: '仅保存在本机安全存储，不会随备份导出',
+                        helperText: context.l10n.cloudCredentialsHelper,
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -359,8 +378,10 @@ class _CloudBackupPageState extends ConsumerState<CloudBackupPage> {
                       obscureText: true,
                       decoration: InputDecoration(
                         labelText: 'Secret Access Key',
-                        hintText: _hasSecret ? '已保存，留空则不修改' : '',
-                        helperText: '仅保存在本机安全存储，不会随备份导出',
+                        hintText: _hasSecret
+                            ? context.l10n.cloudSecretHintSaved
+                            : '',
+                        helperText: context.l10n.cloudCredentialsHelper,
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -371,7 +392,7 @@ class _CloudBackupPageState extends ConsumerState<CloudBackupPage> {
                         OutlinedButton.icon(
                           onPressed: _busy ? null : _testConnection,
                           icon: const Icon(Icons.wifi_tethering, size: 18),
-                          label: const Text('测试连接'),
+                          label: Text(context.l10n.cloudTestConnection),
                         ),
                         FilledButton.icon(
                           onPressed: _busy ? null : _backupNow,
@@ -379,12 +400,12 @@ class _CloudBackupPageState extends ConsumerState<CloudBackupPage> {
                             Icons.cloud_upload_outlined,
                             size: 18,
                           ),
-                          label: const Text('立即备份'),
+                          label: Text(context.l10n.cloudBackupNow),
                         ),
                         OutlinedButton.icon(
                           onPressed: _busy ? null : _loadBackups,
                           icon: const Icon(Icons.refresh, size: 18),
-                          label: const Text('刷新远端备份'),
+                          label: Text(context.l10n.cloudRefreshRemote),
                         ),
                       ],
                     ),
@@ -408,8 +429,8 @@ class _CloudBackupPageState extends ConsumerState<CloudBackupPage> {
                       ),
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: const Text('自动备份'),
-                      subtitle: const Text('开启后于启动 / 回到前台时，距上次备份满所选间隔则自动备份'),
+                      title: Text(context.l10n.cloudAutoTitle),
+                      subtitle: Text(context.l10n.cloudAutoSubtitle),
                       value: _autoEnabled,
                       activeTrackColor: context.paper.accent,
                       onChanged: (value) async {
@@ -420,12 +441,16 @@ class _CloudBackupPageState extends ConsumerState<CloudBackupPage> {
                     if (_autoEnabled) ...<Widget>[
                       DropdownButtonFormField<CloudAutoInterval>(
                         initialValue: _autoInterval,
-                        decoration: const InputDecoration(labelText: '备份频率'),
+                        decoration: InputDecoration(
+                          labelText: context.l10n.cloudIntervalLabel,
+                        ),
                         items: <DropdownMenuItem<CloudAutoInterval>>[
                           for (final interval in CloudAutoInterval.values)
                             DropdownMenuItem<CloudAutoInterval>(
                               value: interval,
-                              child: Text(interval.label),
+                              child: Text(
+                                _intervalLabel(context.l10n, interval),
+                              ),
                             ),
                         ],
                         onChanged: (value) async {
@@ -438,7 +463,7 @@ class _CloudBackupPageState extends ConsumerState<CloudBackupPage> {
                     ],
                     const Divider(height: 24),
                     Text(
-                      '远端备份',
+                      context.l10n.cloudRemoteSection,
                       style: TextStyle(color: context.paper.inkSoft),
                     ),
                     const SizedBox(height: 4),
@@ -454,8 +479,8 @@ class _CloudBackupPageState extends ConsumerState<CloudBackupPage> {
     );
   }
 
-  FormFieldValidator<String> _required(String label) =>
-      (value) => (value ?? '').trim().isEmpty ? '请填写$label' : null;
+  FormFieldValidator<String> _required(String message) =>
+      (value) => (value ?? '').trim().isEmpty ? message : null;
 }
 
 /// 人类可读的文件大小。
@@ -463,6 +488,66 @@ String _formatSize(int bytes) {
   if (bytes < 1024) return '$bytes B';
   if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
   return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+}
+
+/// 服务商展示名（模型枚举仅用于落库标识，展示处按语言映射）。
+String _providerLabel(AppLocalizations l10n, CloudProvider provider) {
+  switch (provider) {
+    case CloudProvider.awsS3:
+      return l10n.cloudProviderAwsS3;
+    case CloudProvider.aliyunOss:
+      return l10n.cloudProviderAliyunOss;
+    case CloudProvider.qiniuKodo:
+      return l10n.cloudProviderQiniuKodo;
+    case CloudProvider.tencentCos:
+      return l10n.cloudProviderTencentCos;
+    case CloudProvider.huaweiObs:
+      return l10n.cloudProviderHuaweiObs;
+  }
+}
+
+/// region 填写提示。
+String _regionHint(AppLocalizations l10n, CloudProvider provider) {
+  switch (provider) {
+    case CloudProvider.awsS3:
+      return l10n.cloudRegionHintAwsS3;
+    case CloudProvider.aliyunOss:
+      return l10n.cloudRegionHintAliyunOss;
+    case CloudProvider.qiniuKodo:
+      return l10n.cloudRegionHintQiniuKodo;
+    case CloudProvider.tencentCos:
+      return l10n.cloudRegionHintTencentCos;
+    case CloudProvider.huaweiObs:
+      return l10n.cloudRegionHintHuaweiObs;
+  }
+}
+
+/// endpoint 填写提示。
+String _endpointHint(AppLocalizations l10n, CloudProvider provider) {
+  switch (provider) {
+    case CloudProvider.awsS3:
+      return l10n.cloudEndpointHintAwsS3;
+    case CloudProvider.aliyunOss:
+      return l10n.cloudEndpointHintAliyunOss;
+    case CloudProvider.qiniuKodo:
+      return l10n.cloudEndpointHintQiniuKodo;
+    case CloudProvider.tencentCos:
+      return l10n.cloudEndpointHintTencentCos;
+    case CloudProvider.huaweiObs:
+      return l10n.cloudEndpointHintHuaweiObs;
+  }
+}
+
+/// 自动备份频率展示名。
+String _intervalLabel(AppLocalizations l10n, CloudAutoInterval interval) {
+  switch (interval) {
+    case CloudAutoInterval.every12h:
+      return l10n.cloudIntervalEvery12h;
+    case CloudAutoInterval.daily:
+      return l10n.cloudIntervalDaily;
+    case CloudAutoInterval.weekly:
+      return l10n.cloudIntervalWeekly;
+  }
 }
 
 class _PrivacyHint extends StatelessWidget {
@@ -484,9 +569,7 @@ class _PrivacyHint extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              '云备份默认关闭，仅在你开启并触发时联网（含开启自动备份后按频率触发）。'
-              '备份内容与本地 zip 一致（含正文，不含任何 API Key）；'
-              'AccessKey / SecretKey 只保存在本机安全存储。',
+              context.l10n.cloudPrivacyHint,
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ),
@@ -514,7 +597,7 @@ class _BackupList extends StatelessWidget {
       return Padding(
         padding: EdgeInsets.symmetric(vertical: 12),
         child: Text(
-          '点击「刷新远端备份」查看已有备份',
+          context.l10n.cloudRemoteTapRefresh,
           style: TextStyle(fontSize: 12, color: context.paper.inkSoft),
         ),
       );
@@ -523,7 +606,7 @@ class _BackupList extends StatelessWidget {
       return Padding(
         padding: EdgeInsets.symmetric(vertical: 12),
         child: Text(
-          '远端暂无备份',
+          context.l10n.cloudRemoteEmpty,
           style: TextStyle(fontSize: 12, color: context.paper.inkSoft),
         ),
       );

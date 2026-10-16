@@ -5,6 +5,7 @@ import '../../app/summary_editor.dart';
 import '../../app/theme.dart';
 import '../../data/data_providers.dart';
 import '../../data/db.dart';
+import '../../l10n/l10n.dart';
 import 'work_detail_providers.dart';
 
 /// 章纲 Tab（PRD 5.4）：按卷组织，为每章写一句话梗概；作品详情与编辑器双入口。
@@ -58,7 +59,7 @@ class OutlineTab extends ConsumerWidget {
           Padding(
             padding: EdgeInsets.only(top: 16, bottom: 4),
             child: Text(
-              '未关联章节的梗概',
+              context.l10n.outlineOrphanSection,
               style: TextStyle(color: context.paper.inkSoft),
             ),
           ),
@@ -67,12 +68,14 @@ class OutlineTab extends ConsumerWidget {
               contentPadding: EdgeInsets.zero,
               leading: Icon(Icons.link_off, color: context.paper.inkSoft),
               title: Text(
-                entry.summary.isEmpty ? '（空梗概）' : entry.summary,
+                entry.summary.isEmpty
+                    ? context.l10n.outlineEmptyEntry
+                    : entry.summary,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
               trailing: IconButton(
-                tooltip: '删除',
+                tooltip: context.l10n.commonDelete,
                 icon: const Icon(
                   Icons.delete_outline,
                   color: Color(0xFFB3261E),
@@ -111,10 +114,13 @@ class _EmptyOutlineHint extends StatelessWidget {
               color: context.paper.inkSoft,
             ),
             const SizedBox(height: 12),
-            Text('还没有章纲', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              context.l10n.outlineEmptyTitle,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 6),
             Text(
-              '先在「章节」Tab 创建章节，即可为每章写一句话梗概。',
+              context.l10n.outlineEmptyHint,
               textAlign: TextAlign.center,
               style: TextStyle(color: context.paper.inkSoft),
             ),
@@ -144,12 +150,14 @@ class _OutlineTile extends ConsumerWidget {
     return ListTile(
       contentPadding: EdgeInsets.zero,
       title: Text(
-        chapter.title.isEmpty ? '未命名章节' : chapter.title,
+        chapter.title.isEmpty
+            ? context.l10n.commonUntitledChapter
+            : chapter.title,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
       subtitle: Text(
-        summary.isEmpty ? '未填写梗概' : summary,
+        summary.isEmpty ? context.l10n.outlineNoSummary : summary,
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(

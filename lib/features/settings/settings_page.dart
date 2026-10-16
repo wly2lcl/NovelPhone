@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../app/locale.dart';
 import '../../app/theme.dart';
 import '../../data/data_providers.dart';
+import '../../l10n/l10n.dart';
 import 'backup_actions.dart';
 
 /// 设置页（M1 为占位，M2 补备份引导，M3 落地模型组 / key / 统计）。
@@ -12,83 +14,85 @@ class SettingsPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
     return Scaffold(
-      appBar: AppBar(title: const Text('设置')),
+      appBar: AppBar(title: Text(l10n.commonSettings)),
       body: ListView(
         children: <Widget>[
-          const _SectionTitle('AI 与模型'),
+          _SectionTitle(l10n.settingsSectionAiModels),
           ListTile(
             leading: const Icon(Icons.key_outlined),
-            title: const Text('模型组与 API Key'),
-            subtitle: const Text('按服务商管理 key、baseUrl、模型列表与生成参数'),
+            title: Text(l10n.settingsModelGroups),
+            subtitle: Text(l10n.settingsModelGroupsSubtitle),
             trailing: Icon(Icons.chevron_right, color: context.paper.inkSoft),
             onTap: () => context.push('/settings/model-groups'),
           ),
           ListTile(
             leading: const Icon(Icons.alt_route),
-            title: const Text('任务与模型映射'),
-            subtitle: const Text('为续写、灵感、AI 感检查分别指定模型组'),
+            title: Text(l10n.settingsTaskMapping),
+            subtitle: Text(l10n.settingsTaskMappingSubtitle),
             trailing: Icon(Icons.chevron_right, color: context.paper.inkSoft),
             onTap: () => context.push('/settings/task-mapping'),
           ),
           ListTile(
             leading: const Icon(Icons.insights_outlined),
-            title: const Text('Token 与采纳统计'),
+            title: Text(l10n.settingsTokenStats),
             trailing: Icon(Icons.chevron_right, color: context.paper.inkSoft),
             onTap: () => context.push('/settings/token-stats'),
           ),
           ListTile(
             leading: const Icon(Icons.hub_outlined),
-            title: const Text('MCP 工具服务'),
-            subtitle: const Text('接入远程 MCP server，把其工具提供给 AI 调用'),
+            title: Text(l10n.settingsMcpServers),
+            subtitle: Text(l10n.settingsMcpServersSubtitle),
             trailing: Icon(Icons.chevron_right, color: context.paper.inkSoft),
             onTap: () => context.push('/settings/mcp-servers'),
           ),
           ListTile(
             leading: const Icon(Icons.auto_awesome_outlined),
-            title: const Text('自定义技能'),
-            subtitle: const Text('附加指令与工具白名单，注入续写与灵感生成'),
+            title: Text(l10n.settingsSkills),
+            subtitle: Text(l10n.settingsSkillsSubtitle),
             trailing: Icon(Icons.chevron_right, color: context.paper.inkSoft),
             onTap: () => context.push('/settings/skills'),
           ),
           const Divider(),
-          const _SectionTitle('写作'),
+          _SectionTitle(l10n.settingsSectionWriting),
           ListTile(
             leading: const Icon(Icons.dark_mode_outlined),
-            title: const Text('写作外观'),
-            subtitle: const Text('夜间纸张、正文字号与行距'),
+            title: Text(l10n.settingsAppearance),
+            subtitle: Text(l10n.settingsAppearanceSubtitle),
             trailing: Icon(Icons.chevron_right, color: context.paper.inkSoft),
             onTap: () => context.push('/settings/appearance'),
           ),
           const _ThemeModeTile(),
+          const _LocaleTile(),
           ListTile(
             leading: const Icon(Icons.local_fire_department_outlined),
-            title: const Text('写作统计'),
-            subtitle: const Text('每日字数目标、连续写作天数与番茄钟'),
+            title: Text(l10n.settingsWritingStats),
+            subtitle: Text(l10n.settingsWritingStatsSubtitle),
             trailing: Icon(Icons.chevron_right, color: context.paper.inkSoft),
             onTap: () => context.push('/settings/writing-stats'),
           ),
           const Divider(),
-          const _SectionTitle('数据'),
+          _SectionTitle(l10n.settingsSectionData),
           const _BackupHint(),
           ListTile(
             leading: const Icon(Icons.backup_outlined),
-            title: const Text('备份到文件'),
-            subtitle: const Text('导出全部作品与正文，用于换机或防丢失'),
+            title: Text(l10n.settingsBackupToFile),
+            subtitle: Text(l10n.settingsBackupToFileSubtitle),
             trailing: Icon(Icons.chevron_right, color: context.paper.inkSoft),
             onTap: () => exportBackup(context, ref),
           ),
           ListTile(
             leading: const Icon(Icons.restore),
-            title: const Text('从备份恢复'),
-            subtitle: const Text('选择备份文件，可合并为新作品或覆盖本机数据'),
+            title: Text(l10n.settingsRestoreFromBackup),
+            subtitle: Text(l10n.settingsRestoreFromBackupSubtitle),
             trailing: Icon(Icons.chevron_right, color: context.paper.inkSoft),
             onTap: () => restoreBackup(context, ref),
           ),
           ListTile(
             leading: const Icon(Icons.cloud_outlined),
-            title: const Text('云备份'),
-            subtitle: const Text('备份到你自己的对象存储（S3 / OSS / COS 等），默认关闭'),
+            title: Text(l10n.settingsCloudBackup),
+            subtitle: Text(l10n.settingsCloudBackupSubtitle),
             trailing: Icon(Icons.chevron_right, color: context.paper.inkSoft),
             onTap: () => context.push('/settings/cloud-backup'),
           ),
@@ -118,8 +122,7 @@ class _BackupHint extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              '作品数据全部保存在本机。卸载应用或换机前，请先「备份到文件」，'
-              '否则数据将无法找回。',
+              context.l10n.settingsBackupHint,
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ),
@@ -150,6 +153,7 @@ class _ThemeModeTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final mode = ref.watch(appThemeModeProvider).value ?? AppThemeMode.system;
+    final l10n = context.l10n;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       child: Column(
@@ -159,7 +163,7 @@ class _ThemeModeTile extends ConsumerWidget {
             children: <Widget>[
               Icon(Icons.brightness_6_outlined, color: context.paper.ink),
               const SizedBox(width: 12),
-              const Text('深浅模式'),
+              Text(l10n.settingsThemeMode),
             ],
           ),
           const SizedBox(height: 10),
@@ -169,7 +173,10 @@ class _ThemeModeTile extends ConsumerWidget {
               showSelectedIcon: false,
               segments: <ButtonSegment<AppThemeMode>>[
                 for (final m in AppThemeMode.values)
-                  ButtonSegment<AppThemeMode>(value: m, label: Text(m.label)),
+                  ButtonSegment<AppThemeMode>(
+                    value: m,
+                    label: Text(_themeModeLabel(l10n, m)),
+                  ),
               ],
               selected: <AppThemeMode>{mode},
               onSelectionChanged: (selection) async {
@@ -185,3 +192,59 @@ class _ThemeModeTile extends ConsumerWidget {
     );
   }
 }
+
+String _themeModeLabel(AppLocalizations l10n, AppThemeMode mode) =>
+    switch (mode) {
+      AppThemeMode.system => l10n.themeModeSystem,
+      AppThemeMode.light => l10n.themeModeLight,
+      AppThemeMode.dark => l10n.themeModeDark,
+    };
+
+/// 界面语言：跟随系统 / 简体中文 / English，写入后全应用立即生效。
+class _LocaleTile extends ConsumerWidget {
+  const _LocaleTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final locale = ref.watch(appLocaleProvider).value ?? AppLocale.system;
+    final l10n = context.l10n;
+    return ListTile(
+      leading: const Icon(Icons.translate),
+      title: Text(l10n.settingsLanguage),
+      subtitle: Text(_localeLabel(l10n, locale)),
+      trailing: Icon(Icons.chevron_right, color: context.paper.inkSoft),
+      onTap: () async {
+        final selected = await showModalBottomSheet<AppLocale>(
+          context: context,
+          builder: (sheetContext) => SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                for (final value in AppLocale.values)
+                  ListTile(
+                    title: Text(_localeLabel(l10n, value)),
+                    trailing: value == locale
+                        ? Icon(Icons.check, color: sheetContext.paper.accent)
+                        : null,
+                    onTap: () => Navigator.of(sheetContext).pop(value),
+                  ),
+              ],
+            ),
+          ),
+        );
+        if (selected == null) return;
+        await ref
+            .read(settingsRepositoryProvider)
+            .setSetting(AppLocale.settingKey, selected.value);
+        ref.invalidate(appLocaleProvider);
+      },
+    );
+  }
+}
+
+String _localeLabel(AppLocalizations l10n, AppLocale locale) =>
+    switch (locale) {
+      AppLocale.system => l10n.localeSystem,
+      AppLocale.zh => l10n.localeZh,
+      AppLocale.en => l10n.localeEn,
+    };

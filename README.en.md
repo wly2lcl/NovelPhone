@@ -13,7 +13,7 @@ Two design principles:
 - **Your data stays yours** — SQLite storage on device, API keys in the OS secure store, backups to local files or your own object storage;
 - **Curating the "AI flavor"** — a built-in rule engine plus optional LLM deep-check flags clichés and repetitive sentence patterns with locate-and-replace actions; AI continuation generates multiple candidates in parallel for you to compare.
 
-Status: the MVP scope (78 / 78) is complete, followed by 16 enhancements (ENH-01~16). Android release signing and GitHub Actions CI are in place; 312 automated tests pass. Real-device acceptance records are in [docs/TODO.md](docs/TODO.md) (Chinese).
+Status: the MVP scope (78 / 78) is complete, followed by 17 enhancements (ENH-01~17, including a full Simplified-Chinese / English bilingual UI). Android release signing and GitHub Actions CI are in place; 314 automated tests pass. Real-device acceptance records are in [docs/TODO.md](docs/TODO.md) (Chinese).
 
 ## Screenshots
 
@@ -60,6 +60,11 @@ Status: the MVP scope (78 / 78) is complete, followed by 16 enhancements (ENH-01
 - Network resilience: exponential backoff retry on 429 / 5xx before the first text delta; classified, readable errors for content-filtering and other failures
 - MCP tool service: connect a remote Streamable HTTP server and let AI call its tools
 - Custom skills: extra instruction text plus a tool allowlist, injected into continuation and inspiration orchestration
+
+### UI & experience
+
+- Bilingual UI: Simplified Chinese / English, following the system locale by default and switchable in Settings → Writing → Language (effective immediately, persisted). AI prompts and Chinese domain data stay in Chinese
+- App-wide dark mode: follow-system / light / dark, with light and dark variants of the warm paper palette
 
 ### Data, stats & privacy
 
@@ -111,7 +116,7 @@ dart run build_runner build --delete-conflicting-outputs
 ```bash
 dart format --output=none --set-exit-if-changed lib test
 flutter analyze
-flutter test    # 312 cases: data layer / editor controller / AI client & orchestration / check engine / widgets
+flutter test    # 314 cases: data layer / editor controller / AI client & orchestration / check engine / widgets
 ```
 
 GitHub Actions ([ci.yml](.github/workflows/ci.yml)) runs the three checks on pushes and pull requests.
@@ -124,7 +129,7 @@ Dev helper: [tool/fake_llm_server.dart](tool/fake_llm_server.dart) simulates Cha
 |---|---|
 | [docs/PRD.md](docs/PRD.md) | Product positioning, scope and acceptance criteria |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Tech choices, layering, data model and AI-layer design |
-| [docs/TODO.md](docs/TODO.md) | Task list, progress tracking and real-device acceptance records (M1-M4 + ENH-01~16) |
+| [docs/TODO.md](docs/TODO.md) | Task list, progress tracking and real-device acceptance records (M1-M4 + ENH-01~17) |
 | [docs/COMPLIANCE.md](docs/COMPLIANCE.md) | Privacy policy, data-security notes and store-listing points |
 
 (The docs above are written in Chinese.)

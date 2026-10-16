@@ -28,12 +28,14 @@ ChatError mapHttpError(int statusCode, String body) {
       kind: AiErrorKind.contentFilter,
       message: '内容被模型服务商拒绝：${_snippet(body)}',
       statusCode: statusCode,
+      detail: _snippet(body),
     );
   }
   return ChatError(
     kind: AiErrorKind.badRequest,
     message: '请求失败（$statusCode）：${_snippet(body)}',
     statusCode: statusCode,
+    detail: _snippet(body),
   );
 }
 

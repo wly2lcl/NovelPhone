@@ -11,6 +11,7 @@ import 'package:novelphone/data/repositories/work_repository.dart';
 import 'package:novelphone/data/secure_key_store.dart';
 import 'package:novelphone/features/work_detail/relation_graph_page.dart';
 import 'package:novelphone/features/work_detail/worldbuilding_tab.dart';
+import 'package:novelphone/l10n/generated/app_localizations.dart';
 import 'package:novelphone/models/setting_type.dart';
 
 /// B-09：设定集（世界观/地点/道具）与人物关系图。
@@ -191,6 +192,9 @@ void main() {
         ],
         child: MaterialApp(
           theme: buildPaperTheme(),
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: WorldbuildingTab(workId: workId),
         ),
       ),
@@ -241,6 +245,9 @@ void main() {
         ],
         child: MaterialApp(
           theme: buildPaperTheme(),
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: RelationGraphPage(workId: workId),
         ),
       ),

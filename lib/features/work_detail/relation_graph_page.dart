@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/theme.dart';
 import '../../data/data_providers.dart';
 import '../../data/db.dart';
+import '../../l10n/l10n.dart';
 import 'work_detail_providers.dart';
 
 /// 人物关系图（B-09）：环形节点 + 关系连线，下方为可编辑的关系列表。
@@ -24,7 +25,7 @@ class RelationGraphPage extends ConsumerWidget {
     final nameById = <int, String>{for (final c in characters) c.id: c.name};
 
     return Scaffold(
-      appBar: AppBar(title: const Text('人物关系图')),
+      appBar: AppBar(title: Text(context.l10n.relationGraphTitle)),
       body: Column(
         children: <Widget>[
           SizedBox(
@@ -45,7 +46,7 @@ class RelationGraphPage extends ConsumerWidget {
             child: relations.isEmpty
                 ? Center(
                     child: Text(
-                      '还没有关系，点击右下角添加',
+                      context.l10n.relationGraphEmpty,
                       style: TextStyle(color: context.paper.inkSoft),
                     ),
                   )
@@ -55,8 +56,11 @@ class RelationGraphPage extends ConsumerWidget {
                     itemBuilder: (context, index) {
                       final relation = relations[index];
                       final from =
-                          nameById[relation.fromCharacterId] ?? '已删除角色';
-                      final to = nameById[relation.toCharacterId] ?? '已删除角色';
+                          nameById[relation.fromCharacterId] ??
+                          context.l10n.relationGraphDeletedCharacter;
+                      final to =
+                          nameById[relation.toCharacterId] ??
+                          context.l10n.relationGraphDeletedCharacter;
                       return ListTile(
                         title: Text('$from → $to'),
                         subtitle: relation.label.isEmpty
@@ -69,7 +73,7 @@ class RelationGraphPage extends ConsumerWidget {
                           mainAxisSize: MainAxisSize.min,
                           children: <Widget>[
                             IconButton(
-                              tooltip: '编辑',
+                              tooltip: context.l10n.commonEdit,
                               icon: const Icon(Icons.edit_outlined),
                               onPressed: characters.length < 2
                                   ? null
@@ -81,7 +85,7 @@ class RelationGraphPage extends ConsumerWidget {
                                     ),
                             ),
                             IconButton(
-                              tooltip: '删除',
+                              tooltip: context.l10n.commonDelete,
                               icon: const Icon(Icons.delete_outline),
                               onPressed: () => ref
                                   .read(characterRepositoryProvider)
@@ -101,7 +105,7 @@ class RelationGraphPage extends ConsumerWidget {
               onPressed: () =>
                   _openEditor(context, ref, characters: characters),
               icon: const Icon(Icons.add),
-              label: const Text('添加关系'),
+              label: Text(context.l10n.relationGraphAdd),
             ),
     );
   }
@@ -133,7 +137,7 @@ class _EmptyGraphHint extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 40),
         child: Text(
-          '至少需要两个角色卡才能绘制关系图',
+          context.l10n.relationGraphMinCharacters,
           textAlign: TextAlign.center,
           style: TextStyle(color: context.paper.inkSoft),
         ),
@@ -278,13 +282,17 @@ class _RelationFormSheetState extends ConsumerState<_RelationFormSheet> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               Text(
-                _isEditing ? '编辑关系' : '添加关系',
+                _isEditing
+                    ? context.l10n.relationGraphEdit
+                    : context.l10n.relationGraphAdd,
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<int>(
                 initialValue: _fromId,
-                decoration: const InputDecoration(labelText: '角色 A'),
+                decoration: InputDecoration(
+                  labelText: context.l10n.relationGraphCharacterA,
+                ),
                 items: <DropdownMenuItem<int>>[
                   for (final c in widget.characters)
                     DropdownMenuItem<int>(value: c.id, child: Text(c.name)),
@@ -298,7 +306,7 @@ class _RelationFormSheetState extends ConsumerState<_RelationFormSheet> {
               DropdownButtonFormField<int>(
                 initialValue: _toId,
                 decoration: InputDecoration(
-                  labelText: '角色 B',
+                  labelText: context.l10n.relationGraphCharacterB,
                   errorText: _error,
                 ),
                 items: <DropdownMenuItem<int>>[
@@ -313,7 +321,9 @@ class _RelationFormSheetState extends ConsumerState<_RelationFormSheet> {
               const SizedBox(height: 12),
               TextField(
                 controller: _label,
-                decoration: const InputDecoration(labelText: '关系（如：师徒、宿敌）'),
+                decoration: InputDecoration(
+                  labelText: context.l10n.relationGraphLabelField,
+                ),
               ),
               const SizedBox(height: 20),
               Row(
@@ -323,12 +333,12 @@ class _RelationFormSheetState extends ConsumerState<_RelationFormSheet> {
                     onPressed: _saving
                         ? null
                         : () => Navigator.of(context).pop(),
-                    child: const Text('取消'),
+                    child: Text(context.l10n.commonCancel),
                   ),
                   const SizedBox(width: 8),
                   FilledButton(
                     onPressed: _saving ? null : _save,
-                    child: const Text('保存'),
+                    child: Text(context.l10n.commonSave),
                   ),
                 ],
               ),
@@ -343,7 +353,7 @@ class _RelationFormSheetState extends ConsumerState<_RelationFormSheet> {
     final from = _fromId;
     final to = _toId;
     if (from == null || to == null || from == to) {
-      setState(() => _error = '请选择两个不同的角色');
+      setState(() => _error = context.l10n.relationGraphSelectTwo);
       return;
     }
     setState(() {

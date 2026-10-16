@@ -7,6 +7,7 @@ import 'package:novelphone/data/db.dart';
 import 'package:novelphone/data/repositories/settings_repository.dart';
 import 'package:novelphone/data/secure_key_store.dart';
 import 'package:novelphone/features/settings/cloud_backup_page.dart';
+import 'package:novelphone/l10n/generated/app_localizations.dart';
 import 'package:novelphone/models/cloud_backup_config.dart';
 
 /// B-08：云备份设置页交互（默认关闭不联网，开启后展示并落库）。
@@ -24,6 +25,9 @@ void main() {
         ],
         child: MaterialApp(
           theme: buildPaperTheme(),
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: const CloudBackupPage(),
         ),
       ),
@@ -81,6 +85,9 @@ void main() {
         ],
         child: MaterialApp(
           theme: buildPaperTheme(),
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: const CloudBackupPage(),
         ),
       ),

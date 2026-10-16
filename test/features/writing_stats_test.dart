@@ -12,6 +12,7 @@ import 'package:novelphone/data/repositories/settings_repository.dart';
 import 'package:novelphone/data/repositories/work_repository.dart';
 import 'package:novelphone/data/secure_key_store.dart';
 import 'package:novelphone/features/stats/writing_stats_page.dart';
+import 'package:novelphone/l10n/generated/app_localizations.dart';
 
 /// B-07：每日字数目标、连击统计、番茄钟。
 void main() {
@@ -208,6 +209,9 @@ void main() {
         ],
         child: MaterialApp(
           theme: buildPaperTheme(),
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: const WritingStatsPage(),
         ),
       ),

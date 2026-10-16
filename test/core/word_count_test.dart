@@ -1,5 +1,7 @@
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:novelphone/core/word_count.dart';
+import 'package:novelphone/l10n/l10n.dart';
 
 void main() {
   group('countWords 中文字数统计', () {
@@ -27,14 +29,24 @@ void main() {
   });
 
   group('formatWordCount 字数展示', () {
-    test('一万以内显示原值', () {
-      expect(formatWordCount(0), '0 字');
-      expect(formatWordCount(9999), '9999 字');
+    final zh = lookupAppLocalizations(const Locale('zh'));
+    final en = lookupAppLocalizations(const Locale('en'));
+
+    test('中文一万以内显示原值', () {
+      expect(formatWordCount(0, zh), '0 字');
+      expect(formatWordCount(9999, zh), '9999 字');
     });
 
-    test('超过一万按万保留一位小数', () {
-      expect(formatWordCount(10000), '1.0 万字');
-      expect(formatWordCount(123456), '12.3 万字');
+    test('中文超过一万按万保留一位小数', () {
+      expect(formatWordCount(10000, zh), '1.0 万字');
+      expect(formatWordCount(123456, zh), '12.3 万字');
+    });
+
+    test('英文按 K / M 折算', () {
+      expect(formatWordCount(999, en), '999 words');
+      expect(formatWordCount(5800, en), '5.8K words');
+      expect(formatWordCount(123456, en), '123K words');
+      expect(formatWordCount(2500000, en), '2.5M words');
     });
   });
 }
