@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 
+import '../../core/text_search.dart';
 import '../../core/word_count.dart';
 import '../../data/repositories/chapter_repository.dart';
 
@@ -298,19 +299,12 @@ class EditorController extends ChangeNotifier {
 
   // ---------- 查找替换（PRD 5.3）----------
 
-  List<TextMatch> findMatches(String keyword, {bool caseSensitive = false}) {
-    if (keyword.isEmpty) return const <TextMatch>[];
-    final text = textController.text;
-    final haystack = caseSensitive ? text : text.toLowerCase();
-    final needle = caseSensitive ? keyword : keyword.toLowerCase();
-    final matches = <TextMatch>[];
-    var index = haystack.indexOf(needle);
-    while (index != -1) {
-      matches.add(TextMatch(index, index + needle.length));
-      index = haystack.indexOf(needle, index + needle.length);
-    }
-    return matches;
-  }
+  List<TextMatch> findMatches(String keyword, {bool caseSensitive = false}) =>
+      findTextMatches(
+        textController.text,
+        keyword,
+        caseSensitive: caseSensitive,
+      );
 
   int countMatches(String keyword, {bool caseSensitive = false}) =>
       findMatches(keyword, caseSensitive: caseSensitive).length;
@@ -469,12 +463,4 @@ class _Snapshot {
 
   final String text;
   final int cursor;
-}
-
-/// 文本命中的区间（正文中的起止下标）。
-class TextMatch {
-  const TextMatch(this.start, this.end);
-
-  final int start;
-  final int end;
 }

@@ -715,6 +715,30 @@ class AppLocalizationsZh extends AppLocalizations {
   String get findReplaceReplaceAll => '全部替换';
 
   @override
+  String get replaceTitle => '全书查找替换';
+
+  @override
+  String get replaceEmptyHint => '输入查找内容，预览全书章节的匹配结果';
+
+  @override
+  String replaceSummary(int matches, int chapters) {
+    return '共 $matches 处命中，涉及 $chapters 章';
+  }
+
+  @override
+  String get replaceConfirmTitle => '全部替换？';
+
+  @override
+  String replaceConfirmBody(int chapters, int matches) {
+    return '将在 $chapters 章中共替换 $matches 处文本。替换前会自动为受影响章节创建快照，可在版本历史中恢复。';
+  }
+
+  @override
+  String replaceDone(int chapters, int matches) {
+    return '已替换：$chapters 章共 $matches 处';
+  }
+
+  @override
   String aiErrorNetwork(String detail) {
     return '网络请求失败：$detail';
   }
@@ -900,6 +924,29 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get statsTrendEmpty => '最近还没有写作记录';
+
+  @override
+  String get statsHeatmapTitle => '写作热力图';
+
+  @override
+  String statsHeatmapActiveDays(int count) {
+    return '近一年共 $count 天有写作';
+  }
+
+  @override
+  String get statsHeatmapLess => '少';
+
+  @override
+  String get statsHeatmapMore => '多';
+
+  @override
+  String get statsHeatmapWeekMon => '一';
+
+  @override
+  String get statsHeatmapWeekWed => '三';
+
+  @override
+  String get statsHeatmapWeekFri => '五';
 
   @override
   String get statsPomodoroTitle => '番茄钟';
@@ -2000,4 +2047,53 @@ class AppLocalizationsZh extends AppLocalizations {
   String exportActionsShareFailed(String detail) {
     return '导出失败：$detail';
   }
+
+  @override
+  String get settingsSectionAbout => '关于';
+
+  @override
+  String get settingsAbout => '关于 NovelPhone';
+
+  @override
+  String get settingsAboutSubtitle => '版本、隐私说明与开源许可';
+
+  @override
+  String get aboutTagline => '本地优先的手机端 AI 小说写作工具';
+
+  @override
+  String aboutVersion(String version) {
+    return '版本 $version';
+  }
+
+  @override
+  String get aboutPrivacyTitle => '隐私说明';
+
+  @override
+  String get aboutPrivacyNoAccount => '默认不收集任何数据：无账号、无广告、无遥测。';
+
+  @override
+  String get aboutPrivacyLocal => '作品正文、设定、角色与写作统计全部保存在设备本地，离线可用。';
+
+  @override
+  String get aboutPrivacyKey =>
+      'API Key 与云备份凭证存放在系统安全区（keychain / keystore），不入数据库、不随备份导出。';
+
+  @override
+  String get aboutPrivacyNetwork =>
+      '联网仅发生在你主动使用 AI、MCP 工具服务或云备份时，直连你自行配置的服务商，不经过任何中转服务器。';
+
+  @override
+  String get aboutPrivacyOffline => '本地规则引擎的 AI 感检查完全离线，绝不联网扫描你的正文。';
+
+  @override
+  String get aboutPrivacyErase => '卸载应用即同时清除本地数据与安全区中的凭证。';
+
+  @override
+  String get aboutLicenses => '开源许可';
+
+  @override
+  String get aboutLicensesSubtitle => 'NovelPhone 使用以下第三方开源组件，保留其原始许可。';
+
+  @override
+  String get aboutLicensesAction => '查看许可清单';
 }

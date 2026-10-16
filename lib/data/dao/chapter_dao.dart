@@ -27,6 +27,24 @@ class ChapterDao {
     );
   }
 
+  /// 作品全部章节（含正文），按卷排序号 + 章节排序号排列（ENH-19 全书查找替换）。
+  Future<List<Chapter>> findByWork(int workId) async {
+    final query =
+        _db.select(_db.chapters).join([
+            innerJoin(
+              _db.volumes,
+              _db.volumes.id.equalsExp(_db.chapters.volumeId),
+            ),
+          ])
+          ..where(_db.volumes.workId.equals(workId))
+          ..orderBy([
+            OrderingTerm.asc(_db.volumes.sortOrder),
+            OrderingTerm.asc(_db.chapters.sortOrder),
+          ]);
+    final rows = await query.get();
+    return rows.map((r) => r.readTable(_db.chapters)).toList();
+  }
+
   /// 作品全部章节的元数据流（ENH-10，不含正文）：目录 / 大纲 / 检查范围只需
   /// 标题与字数，避免每次自动保存写 chapters 表都重发并重读全书正文。
   Stream<List<Chapter>> watchMetaByWork(int workId) {

@@ -12,6 +12,7 @@ import 'package:novelphone/data/repositories/chapter_repository.dart';
 import 'package:novelphone/data/repositories/settings_repository.dart';
 import 'package:novelphone/data/repositories/work_repository.dart';
 import 'package:novelphone/data/secure_key_store.dart';
+import 'package:novelphone/features/stats/writing_heatmap.dart';
 import 'package:novelphone/features/stats/writing_stats_page.dart';
 import 'package:novelphone/l10n/generated/app_localizations.dart';
 
@@ -76,6 +77,34 @@ void main() {
         ).map((e) => e.day),
         ['2025-12-31', '2026-01-01'],
       );
+    });
+
+    test('heatmapWeeks 生成 53 周网格，超出今天的格子为 null（ENH-19）', () {
+      final now = DateTime(2026, 3, 7); // 周六。
+      final grid = heatmapWeeks(<String, int>{
+        '2026-03-07': 300,
+        '2026-03-06': 100,
+      }, now: now);
+
+      expect(grid, hasLength(53));
+      expect(grid.every((column) => column.length == 7), isTrue);
+      expect(grid.first.first!.day, '2025-03-03');
+      expect(grid.first.first!.words, 0);
+
+      final last = grid.last;
+      expect(last[0]!.day, '2026-03-02');
+      expect(last[5]!.day, '2026-03-07');
+      expect(last[5]!.words, 300);
+      expect(last[6], isNull);
+    });
+
+    test('heatmapWeeks 周日为当周最后一天（ENH-19）', () {
+      final grid = heatmapWeeks(<String, int>{}, now: DateTime(2026, 3, 8));
+
+      final last = grid.last;
+      expect(last[0]!.day, '2026-03-02');
+      expect(last[6]!.day, '2026-03-08');
+      expect(last[6], isNotNull);
     });
   });
 
@@ -268,12 +297,13 @@ void main() {
 
     expect(find.text('今日写作'), findsOneWidget);
     expect(find.text('5 / 100 字', findRichText: true), findsOneWidget);
-    expect(find.text('1 天'), findsOneWidget);
 
-    // ENH-18 趋势图加入后番茄钟在首屏之下，滚动后再断言。
-    await tester.drag(find.byType(ListView), const Offset(0, -600));
+    // ENH-18 趋势图与 ENH-19 热力图加入后连击与番茄钟在首屏之下，滚动后再断言。
+    await tester.drag(find.byType(ListView), const Offset(0, -1200));
     await tester.pump();
 
+    expect(find.text('写作热力图'), findsOneWidget);
+    expect(find.text('1 天'), findsOneWidget);
     expect(find.text('25 分钟'), findsOneWidget);
     expect(find.text('今日已完成 0 个番茄钟'), findsOneWidget);
 
@@ -367,6 +397,33 @@ void main() {
     await tester.pump(const Duration(seconds: 2));
     await db.close();
   });
+
+  testWidgets('写作热力图：53 周网格、活跃天数与图例（ENH-19）', (tester) async {
+    final today = DateTime.now();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildPaperTheme(),
+        locale: const Locale('zh'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: WritingHeatmap(
+            wordsByDay: <String, int>{
+              writingDayKey(today): 300,
+              writingDayKey(today.subtract(const Duration(days: 1))): 100,
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('写作热力图'), findsOneWidget);
+    expect(find.text('近一年共 2 天有写作'), findsOneWidget);
+    expect(_heatCellCount(), 53 * 7);
+    expect(find.text('少'), findsOneWidget);
+    expect(find.text('多'), findsOneWidget);
+  });
 }
 
 /// 统计已渲染的趋势柱数量（key 形如 trend-bar-N）。
@@ -376,6 +433,18 @@ int _trendBarCount() {
         (widget) =>
             widget.key is ValueKey<String> &&
             (widget.key! as ValueKey<String>).value.startsWith('trend-bar-'),
+      )
+      .evaluate()
+      .length;
+}
+
+/// 统计已渲染的热力图格子数量（key 形如 heat-cell-W-R）。
+int _heatCellCount() {
+  return find
+      .byWidgetPredicate(
+        (widget) =>
+            widget.key is ValueKey<String> &&
+            (widget.key! as ValueKey<String>).value.startsWith('heat-cell-'),
       )
       .evaluate()
       .length;

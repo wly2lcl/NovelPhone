@@ -45,3 +45,38 @@ List<DayWords> recentDayWords(
   }
   return result;
 }
+
+/// 写作热力图（ENH-19）：近 [weeks] 周（含本周）的日历网格。
+/// 外层每项为一周（周一到周日，共 7 格）；早于起始周一或晚于今天的格子为 null。
+List<List<DayWords?>> heatmapWeeks(
+  Map<String, int> wordsByDay, {
+  required DateTime now,
+  int weeks = 53,
+}) {
+  final today = DateTime(now.year, now.month, now.day);
+  final thisMonday = DateTime(
+    today.year,
+    today.month,
+    today.day - (today.weekday - DateTime.monday),
+  );
+  final start = DateTime(
+    thisMonday.year,
+    thisMonday.month,
+    thisMonday.day - (weeks - 1) * 7,
+  );
+  final grid = <List<DayWords?>>[];
+  for (var w = 0; w < weeks; w++) {
+    final column = <DayWords?>[];
+    for (var d = 0; d < 7; d++) {
+      final date = DateTime(start.year, start.month, start.day + w * 7 + d);
+      if (date.isAfter(today)) {
+        column.add(null);
+      } else {
+        final key = writingDayKey(date);
+        column.add(DayWords(key, wordsByDay[key] ?? 0));
+      }
+    }
+    grid.add(column);
+  }
+  return grid;
+}

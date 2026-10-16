@@ -8,6 +8,7 @@ import '../../app/theme.dart';
 import '../../data/data_providers.dart';
 import '../../data/repositories/chapter_repository.dart';
 import '../../l10n/l10n.dart';
+import 'highlighted_text.dart';
 
 /// 全局搜索（B-06）：跨作品检索章节标题与正文，点击命中跳转编辑器并高亮。
 class SearchPage extends ConsumerStatefulWidget {
@@ -155,12 +156,12 @@ class _HitTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       isThreeLine: true,
-      title: _highlight(
-        context,
-        hit.chapterTitle.isEmpty
+      title: HighlightedText(
+        text: hit.chapterTitle.isEmpty
             ? context.l10n.commonUntitledChapter
             : hit.chapterTitle,
-        Theme.of(context).textTheme.titleSmall,
+        keyword: keyword,
+        style: Theme.of(context).textTheme.titleSmall,
       ),
       subtitle: Padding(
         padding: const EdgeInsets.only(top: 4),
@@ -172,10 +173,10 @@ class _HitTile extends StatelessWidget {
               style: TextStyle(fontSize: 12, color: context.paper.accent),
             ),
             const SizedBox(height: 2),
-            _highlight(
-              context,
-              hit.snippet,
-              TextStyle(
+            HighlightedText(
+              text: hit.snippet,
+              keyword: keyword,
+              style: TextStyle(
                 fontSize: 13,
                 color: context.paper.inkSoft,
                 height: 1.4,
@@ -186,35 +187,5 @@ class _HitTile extends StatelessWidget {
       ),
       onTap: onOpen,
     );
-  }
-
-  /// 命中关键词高亮（忽略大小写，与检索口径一致）。
-  Widget _highlight(BuildContext context, String text, TextStyle? base) {
-    if (keyword.isEmpty || text.isEmpty) return Text(text, style: base);
-    final lowerText = text.toLowerCase();
-    final lowerKeyword = keyword.toLowerCase();
-    final spans = <TextSpan>[];
-    var start = 0;
-    while (true) {
-      final index = lowerText.indexOf(lowerKeyword, start);
-      if (index < 0) {
-        spans.add(TextSpan(text: text.substring(start)));
-        break;
-      }
-      if (index > start) {
-        spans.add(TextSpan(text: text.substring(start, index)));
-      }
-      spans.add(
-        TextSpan(
-          text: text.substring(index, index + keyword.length),
-          style: TextStyle(
-            color: context.paper.accent,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      );
-      start = index + keyword.length;
-    }
-    return Text.rich(TextSpan(style: base, children: spans));
   }
 }

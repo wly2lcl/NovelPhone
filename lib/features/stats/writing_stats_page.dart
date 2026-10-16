@@ -9,6 +9,7 @@ import '../../data/data_providers.dart';
 import '../../data/db.dart';
 import '../../l10n/l10n.dart';
 import 'word_trend_chart.dart';
+import 'writing_heatmap.dart';
 
 /// 写作统计（B-07）：今日字数与每日目标进度、连续写作天数、番茄钟。
 class WritingStatsPage extends ConsumerStatefulWidget {
@@ -204,6 +205,8 @@ class _WritingStatsPageState extends ConsumerState<WritingStatsPage> {
           ),
           const SizedBox(height: 16),
           WordTrendChart(wordsByDay: wordsByDay),
+          const SizedBox(height: 16),
+          WritingHeatmap(wordsByDay: wordsByDay),
           const SizedBox(height: 16),
           _StatTile(
             icon: Icons.local_fire_department_outlined,

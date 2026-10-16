@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 启动闪屏底色：与 App 亮色纸张背景一致（theme.dart PaperPalette.light.background） -->
+    <color name="launch_background">#F4EDE1</color>
+</resources>

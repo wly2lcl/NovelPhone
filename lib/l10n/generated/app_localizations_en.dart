@@ -803,6 +803,60 @@ class AppLocalizationsEn extends AppLocalizations {
   String get findReplaceReplaceAll => 'Replace all';
 
   @override
+  String get replaceTitle => 'Find & replace in book';
+
+  @override
+  String get replaceEmptyHint => 'Type to preview matches across all chapters';
+
+  @override
+  String replaceSummary(int matches, int chapters) {
+    String _temp0 = intl.Intl.pluralLogic(
+      matches,
+      locale: localeName,
+      other: '$matches matches',
+      one: '1 match',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      chapters,
+      locale: localeName,
+      other: '$chapters chapters',
+      one: '1 chapter',
+    );
+    return '$_temp0 in $_temp1';
+  }
+
+  @override
+  String get replaceConfirmTitle => 'Replace all?';
+
+  @override
+  String replaceConfirmBody(int chapters, int matches) {
+    String _temp0 = intl.Intl.pluralLogic(
+      matches,
+      locale: localeName,
+      other: '$matches occurrences',
+      one: '1 occurrence',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      chapters,
+      locale: localeName,
+      other: '$chapters chapters',
+      one: '1 chapter',
+    );
+    return 'This will replace $_temp0 across $_temp1. A snapshot of each affected chapter is created first — you can restore it from version history.';
+  }
+
+  @override
+  String replaceDone(int chapters, int matches) {
+    String _temp0 = intl.Intl.pluralLogic(
+      chapters,
+      locale: localeName,
+      other: '$chapters chapters',
+      one: '1 chapter',
+    );
+    return 'Replaced $matches in $_temp0';
+  }
+
+  @override
   String aiErrorNetwork(String detail) {
     return 'Network request failed: $detail';
   }
@@ -1019,6 +1073,35 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get statsTrendEmpty => 'Nothing written in this range yet';
+
+  @override
+  String get statsHeatmapTitle => 'Writing heatmap';
+
+  @override
+  String statsHeatmapActiveDays(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count days with writing in the past year',
+      one: '1 day with writing in the past year',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get statsHeatmapLess => 'Less';
+
+  @override
+  String get statsHeatmapMore => 'More';
+
+  @override
+  String get statsHeatmapWeekMon => 'M';
+
+  @override
+  String get statsHeatmapWeekWed => 'W';
+
+  @override
+  String get statsHeatmapWeekFri => 'F';
 
   @override
   String get statsPomodoroTitle => 'Pomodoro';
@@ -2267,4 +2350,59 @@ class AppLocalizationsEn extends AppLocalizations {
   String exportActionsShareFailed(String detail) {
     return 'Export failed: $detail';
   }
+
+  @override
+  String get settingsSectionAbout => 'About';
+
+  @override
+  String get settingsAbout => 'About NovelPhone';
+
+  @override
+  String get settingsAboutSubtitle =>
+      'Version, privacy and open-source licenses';
+
+  @override
+  String get aboutTagline => 'A local-first AI novel-writing app for mobile';
+
+  @override
+  String aboutVersion(String version) {
+    return 'Version $version';
+  }
+
+  @override
+  String get aboutPrivacyTitle => 'Privacy';
+
+  @override
+  String get aboutPrivacyNoAccount =>
+      'No data is collected by default: no accounts, no ads, no telemetry.';
+
+  @override
+  String get aboutPrivacyLocal =>
+      'Manuscripts, story bible, characters and writing stats all live on your device and work offline.';
+
+  @override
+  String get aboutPrivacyKey =>
+      'API keys and cloud-backup credentials are kept in the OS secure store (keychain / keystore), never in the database and never in backups.';
+
+  @override
+  String get aboutPrivacyNetwork =>
+      'The app goes online only when you actively use AI, an MCP tool server or cloud backup, connecting straight to the provider you configured - no relay server in between.';
+
+  @override
+  String get aboutPrivacyOffline =>
+      'The built-in rule-engine AI-flavor check works fully offline and never scans your text over the network.';
+
+  @override
+  String get aboutPrivacyErase =>
+      'Uninstalling the app clears both the local data and the credentials in the secure store.';
+
+  @override
+  String get aboutLicenses => 'Open-source licenses';
+
+  @override
+  String get aboutLicensesSubtitle =>
+      'NovelPhone bundles the following third-party open-source components, retaining their original licenses.';
+
+  @override
+  String get aboutLicensesAction => 'View licenses';
 }

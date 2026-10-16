@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:novelphone/core/word_count.dart';
 import 'package:novelphone/data/db.dart';
 import 'package:novelphone/data/repositories/chapter_repository.dart';
 import 'package:novelphone/data/repositories/character_repository.dart';
@@ -531,6 +532,135 @@ void main() {
         driftRuntimeOptions.dontWarnAboutMultipleDatabases = previousWarn;
         if (dir.existsSync()) dir.deleteSync(recursive: true);
       }
+    });
+  });
+
+  group('全书查找替换（ENH-19）', () {
+    late int workId;
+    late int firstId;
+    late int secondId;
+
+    setUp(() async {
+      workId = await works.createWork(title: '长夜行');
+      firstId = await chapters.createChapter(workId: workId, title: '第一章');
+      secondId = await chapters.createChapter(workId: workId, title: '第二章');
+      await chapters.saveChapter(
+        chapterId: firstId,
+        title: '第一章',
+        content: '清晨的街道很安静。',
+      );
+      await chapters.saveChapter(
+        chapterId: secondId,
+        title: '第二章',
+        content: '街道尽头是海，另一条街道通向山谷。',
+      );
+    });
+
+    test('预览按目录顺序汇总各章命中数与首处片段', () async {
+      final hits = await chapters.findReplaceHits(workId, '街道');
+
+      expect(hits, hasLength(2));
+      expect(hits[0].chapterId, firstId);
+      expect(hits[0].chapterTitle, '第一章');
+      expect(hits[0].count, 1);
+      expect(hits[0].snippet, contains('街道'));
+      expect(hits[1].chapterId, secondId);
+      expect(hits[1].count, 2);
+    });
+
+    test('预览与替换的大小写口径', () async {
+      final enWork = await works.createWork(title: 'Sea');
+      final enChapter = await chapters.createChapter(
+        workId: enWork,
+        title: 'A',
+      );
+      await chapters.saveChapter(
+        chapterId: enChapter,
+        title: 'A',
+        content: 'Alice met alice.',
+      );
+
+      final loose = await chapters.findReplaceHits(enWork, 'alice');
+      expect(loose.single.count, 2);
+      final strict = await chapters.findReplaceHits(
+        enWork,
+        'alice',
+        caseSensitive: true,
+      );
+      expect(strict.single.count, 1);
+
+      final result = await chapters.replaceInWork(
+        enWork,
+        keyword: 'alice',
+        replacement: 'Bob',
+        caseSensitive: true,
+      );
+      expect(result.replaced, 1);
+      final chapter = await chapters.getChapter(enChapter);
+      expect(chapter!.content, 'Alice met Bob.');
+    });
+
+    test('替换更新正文与字数汇总，并为受影响章节留存原稿快照', () async {
+      final result = await chapters.replaceInWork(
+        workId,
+        keyword: '街道',
+        replacement: '小巷',
+      );
+
+      expect(result.chapters, 2);
+      expect(result.replaced, 3);
+
+      final first = await chapters.getChapter(firstId);
+      final second = await chapters.getChapter(secondId);
+      expect(first!.content, '清晨的小巷很安静。');
+      expect(second!.content, '小巷尽头是海，另一条小巷通向山谷。');
+
+      final aggregate = await works.getWork(workId);
+      expect(aggregate!.wordCount, first.wordCount + second.wordCount);
+
+      final snapshots = await chapters.listSnapshots(firstId);
+      expect(snapshots, hasLength(1));
+      expect(snapshots.single.content, '清晨的街道很安静。');
+    });
+
+    test('替换的字数净增计入当日写作统计', () async {
+      final baseline =
+          countWords('清晨的街道很安静。') + countWords('街道尽头是海，另一条街道通向山谷。');
+      // 基线来自 setUp 的两次保存，各章净增在替换后按 +1 / +2 继续累计。
+      final result = await chapters.replaceInWork(
+        workId,
+        keyword: '街道',
+        replacement: '街道口',
+      );
+      expect(result.replaced, 3);
+
+      final stats = await chapters.listDailyWritingStats();
+      expect(stats.single.words, baseline + 3);
+    });
+
+    test('无命中时不写入任何数据', () async {
+      final result = await chapters.replaceInWork(
+        workId,
+        keyword: '不存在',
+        replacement: 'x',
+      );
+
+      expect(result.chapters, 0);
+      expect(result.replaced, 0);
+      expect(await chapters.listSnapshots(firstId), isEmpty);
+      final first = await chapters.getChapter(firstId);
+      expect(first!.content, '清晨的街道很安静。');
+    });
+
+    test('空白关键词视为无命中', () async {
+      expect(await chapters.findReplaceHits(workId, '   '), isEmpty);
+
+      final result = await chapters.replaceInWork(
+        workId,
+        keyword: '  ',
+        replacement: 'x',
+      );
+      expect(result.replaced, 0);
     });
   });
 }

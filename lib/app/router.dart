@@ -1,6 +1,7 @@
 import 'package:go_router/go_router.dart';
 
 import '../features/editor/editor_page.dart';
+import '../features/settings/about_page.dart';
 import '../features/settings/appearance_page.dart';
 import '../features/settings/cloud_backup_page.dart';
 import '../features/settings/mcp_servers_page.dart';
@@ -14,6 +15,7 @@ import '../features/stats/writing_stats_page.dart';
 import '../features/work_detail/import_page.dart';
 import '../features/work_detail/inspirations_page.dart';
 import '../features/work_detail/relation_graph_page.dart';
+import '../features/work_detail/replace_page.dart';
 import '../features/work_detail/work_detail_page.dart';
 import '../features/works/new_work_page.dart';
 import '../features/works/works_page.dart';
@@ -101,6 +103,11 @@ final GoRouter appRouter = GoRouter(
           name: 'cloudBackup',
           builder: (context, state) => const CloudBackupPage(),
         ),
+        GoRoute(
+          path: 'about',
+          name: 'about',
+          builder: (context, state) => const AboutPage(),
+        ),
       ],
     ),
     GoRoute(
@@ -148,6 +155,13 @@ final GoRouter appRouter = GoRouter(
           path: 'relations',
           name: 'relations',
           builder: (context, state) => RelationGraphPage(
+            workId: int.parse(state.pathParameters['workId']!),
+          ),
+        ),
+        GoRoute(
+          path: 'replace',
+          name: 'workReplace',
+          builder: (context, state) => WorkReplacePage(
             workId: int.parse(state.pathParameters['workId']!),
           ),
         ),

@@ -110,6 +110,14 @@ class WorkDetailPage extends ConsumerWidget {
                 },
               ),
               ListTile(
+                leading: const Icon(Icons.find_replace),
+                title: Text(l10n.replaceTitle),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  context.push('/work/$workId/replace');
+                },
+              ),
+              ListTile(
                 leading: const Icon(Icons.lightbulb_outline),
                 title: Text(l10n.workDetailInspirationsTitle),
                 onTap: () {

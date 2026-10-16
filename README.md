@@ -13,7 +13,7 @@
 - **数据归你**——SQLite 本地存储、API Key 存系统安全区、备份导出到本地文件或你自己的对象存储；
 - **治理「AI 味」**——内置规则引擎与可选 LLM 深检标记套话、重复句式等问题，支持定位与一键替换；AI 续写默认并发生成多个候选，供你对照挑选。
 
-当前状态：MVP 功能范围（78 / 78）已收口，此后 18 项增强（ENH-01~18，含全 App 简体中文 / English 双语 UI）全部落地；Android release 签名与 GitHub Actions CI 就绪，iOS 无签名 release 构建通过，332 个自动化用例通过，真机验收记录见 [docs/TODO.md](docs/TODO.md)。
+当前状态：MVP 功能范围（78 / 78）已收口，此后 19 项增强（ENH-01~19，含全 App 简体中文 / English 双语 UI 与应用图标 / 启动闪屏品牌化）全部落地；Android release 签名与 GitHub Actions CI 就绪，iOS 无签名 release 构建通过，354 个自动化用例通过，真机验收记录见 [docs/TODO.md](docs/TODO.md)。
 
 ## 截图
 
@@ -34,6 +34,7 @@
 - 导入 txt / docx：自动探测编码（UTF-8 / GBK）、按「第X章」规则分章预览、「并入上一章」合并、单文件 10MB 上限
 - 编辑器：自动保存与「已保存」指示、专注模式（隐藏工具栏、光标行居中）、写作外观（夜间纸张 / 正文字号 / 行距）
 - 查找、段落移动、撤销 / 重做（100 步与累计 200 万字符双上限）
+- 全书查找替换：输入关键词即预览全书命中章节与片段，确认后一次性替换；受影响章节自动留存快照，可在版本历史中回滚
 - 章节快照（版本历史）：创建 / 预览 / 恢复 / 删除，可与当前文本对比（段落级差异高亮、改动计数、长未改动段折叠），随备份往返
 - 导出：单章 txt / markdown，整作 Word（.docx）与 EPUB 3
 
@@ -65,12 +66,13 @@
 
 - 界面语言：简体中文 / English 双语，默认跟随系统，可在设置 → 写作 → 语言内切换（即时生效并持久化）；AI 提示词与中文域数据保持中文
 - 全 App 深色模式：跟随系统 / 浅色 / 深色三态，暖色纸质调色板亮暗两套随主题切换
+- 品牌化外观：钢笔笔尖主题应用图标与暖色启动闪屏；「关于」页展示版本号、隐私说明要点与开源许可清单
 
 ### 数据、统计与隐私
 
 - 备份到文件：整库 zip（`data.json` + 每作品 markdown），恢复时可「合并为新增作品」或「覆盖并清空本地」
 - 云备份：用户自带的 S3 兼容对象存储（AWS S3 / 阿里云 OSS / 七牛 Kodo / 腾讯 COS / 华为 OBS），SigV4 直签、默认关闭，支持手动与按间隔自动备份
-- 写作统计：每日字数目标进度、连续写作天数、番茄钟、近 7 / 30 天字数趋势图
+- 写作统计：每日字数目标进度、连续写作天数、番茄钟、近 7 / 30 天字数趋势图与近一年写作热力图
 - Token 与采纳统计：按「任务 · 模型」分组，记录生成次数、token 用量与采纳率 / 忽略率
 - 隐私：API Key 存系统安全存储（keychain / keystore），不入库、不随备份导出；AI 功能首次联网前展示告知门控，详情见 [docs/COMPLIANCE.md](docs/COMPLIANCE.md)
 
@@ -123,7 +125,7 @@ dart run build_runner build --delete-conflicting-outputs
 ```bash
 dart format --output=none --set-exit-if-changed lib test
 flutter analyze
-flutter test    # 332 个用例：数据层 / 编辑器控制器 / AI 客户端与编排 / 检查引擎 / 页面 widget
+flutter test    # 354 个用例：数据层 / 编辑器控制器 / AI 客户端与编排 / 检查引擎 / 页面 widget
 ```
 
 GitHub Actions（[ci.yml](.github/workflows/ci.yml)）在 push 与 PR 上执行上述三项检查。
@@ -136,7 +138,7 @@ GitHub Actions（[ci.yml](.github/workflows/ci.yml)）在 push 与 PR 上执行�
 |---|---|
 | [docs/PRD.md](docs/PRD.md) | 产品定位、功能范围与验收标准 |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 技术选型、分层模块、数据模型与 AI 层设计 |
-| [docs/TODO.md](docs/TODO.md) | 任务清单、进度跟踪与真机验收记录（M1-M4 + ENH-01~18） |
+| [docs/TODO.md](docs/TODO.md) | 任务清单、进度跟踪与真机验收记录（M1-M4 + ENH-01~19） |
 | [docs/COMPLIANCE.md](docs/COMPLIANCE.md) | 隐私政策、数据安全说明与上架资料要点 |
 
 ## 许可证

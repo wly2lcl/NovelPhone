@@ -49,3 +49,9 @@ app.*.map.json
 /android/upload-keystore.jks
 *.jks
 *.keystore
+
+# 应用图标源图（各平台生成产物已入库，母版不入库）
+/vibe_images/
+
+# Trae IDE 工作区数据
+/.trae/

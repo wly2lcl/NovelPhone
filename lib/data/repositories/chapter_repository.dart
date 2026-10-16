@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 
+import '../../core/text_search.dart';
 import '../../core/word_count.dart';
 import '../../core/writing_stats.dart';
 import '../../models/chapter_status.dart';
@@ -43,6 +44,25 @@ class ChapterSearchHit {
   /// 正文中首个命中的起点；-1 表示仅标题命中。
   final int matchOffset;
   final int matchLength;
+}
+
+/// 全书替换的命中预览（ENH-19）：一个章节一条，含正文命中数与首处命中片段。
+class WorkReplaceHit {
+  const WorkReplaceHit({
+    required this.chapterId,
+    required this.chapterTitle,
+    required this.count,
+    required this.snippet,
+  });
+
+  final int chapterId;
+  final String chapterTitle;
+
+  /// 本章正文中的命中处数。
+  final int count;
+
+  /// 首处命中前留 12 字、后留 24 字的片段，两端按需补省略号。
+  final String snippet;
 }
 
 /// 卷与章节读写。保存章节时在同一事务内更新作品冗余汇总字段
@@ -485,6 +505,110 @@ class ChapterRepository {
     final prefix = offset > 12 ? '…' : '';
     final suffix = offset + keywordLength + 24 < contentLength ? '…' : '';
     return '$prefix$window$suffix';
+  }
+
+  // ---------- 全书查找替换（ENH-19）----------
+
+  /// 预览 [workId] 全部章节正文中 [keyword] 的命中（按目录顺序，每章一条）。
+  /// 口径与编辑器查找替换一致（非重叠命中；默认忽略大小写）。
+  Future<List<WorkReplaceHit>> findReplaceHits(
+    int workId,
+    String keyword, {
+    bool caseSensitive = false,
+  }) async {
+    final kw = keyword.trim();
+    if (kw.isEmpty) return const <WorkReplaceHit>[];
+    final chapters = await _chapters.findByWork(workId);
+    final hits = <WorkReplaceHit>[];
+    for (final chapter in chapters) {
+      final matches = findTextMatches(
+        chapter.content,
+        kw,
+        caseSensitive: caseSensitive,
+      );
+      if (matches.isEmpty) continue;
+      hits.add(
+        WorkReplaceHit(
+          chapterId: chapter.id,
+          chapterTitle: chapter.title,
+          count: matches.length,
+          snippet: _matchWindow(chapter.content, matches.first),
+        ),
+      );
+    }
+    return List.unmodifiable(hits);
+  }
+
+  /// 全书替换（ENH-19）：每个受影响章节先留存快照（可在版本历史找回），
+  /// 再替换正文并更新字数；写作统计按各章净增的正字数累计（与单章保存口径
+  /// 一致），作品汇总在同一事务内重算。返回受影响章节数与替换处数。
+  Future<({int chapters, int replaced})> replaceInWork(
+    int workId, {
+    required String keyword,
+    required String replacement,
+    bool caseSensitive = false,
+  }) {
+    final kw = keyword.trim();
+    if (kw.isEmpty) {
+      return Future<({int chapters, int replaced})>.value((
+        chapters: 0,
+        replaced: 0,
+      ));
+    }
+    return _db.transaction(() async {
+      final rows = await _chapters.findByWork(workId);
+      final now = DateTime.now();
+      var affected = 0;
+      var replaced = 0;
+      var statsDelta = 0;
+      for (final chapter in rows) {
+        final result = replaceTextMatches(
+          chapter.content,
+          kw,
+          replacement,
+          caseSensitive: caseSensitive,
+        );
+        if (result.count == 0) continue;
+        await _snapshots.insert(
+          ChapterSnapshotsCompanion.insert(
+            chapterId: chapter.id,
+            title: Value(chapter.title),
+            content: Value(chapter.content),
+            wordCount: Value(chapter.wordCount),
+            createdAt: now,
+          ),
+        );
+        await _snapshots.pruneBeyond(chapter.id, maxSnapshotsPerChapter);
+        final words = countWords(result.text);
+        await _chapters.updateChapter(
+          chapter.id,
+          ChaptersCompanion(
+            content: Value(result.text),
+            wordCount: Value(words),
+            updatedAt: Value(now),
+          ),
+        );
+        affected++;
+        replaced += result.count;
+        final delta = words - chapter.wordCount;
+        if (delta > 0) statsDelta += delta;
+      }
+      if (replaced == 0) return (chapters: 0, replaced: 0);
+      await _writingStats.addWords(writingDayKey(now), statsDelta);
+      await _syncWorkAggregate(workId, lastEditedAt: now);
+      return (chapters: affected, replaced: replaced);
+    });
+  }
+
+  /// 首处命中附近的预览片段：命中点前留 12 字、后留 24 字，两端按需补省略号。
+  static String _matchWindow(String content, TextMatch match) {
+    final start = match.start > 12 ? match.start - 12 : 0;
+    final end = match.end + 24 < content.length
+        ? match.end + 24
+        : content.length;
+    final prefix = start > 0 ? '…' : '';
+    final suffix = end < content.length ? '…' : '';
+    return '$prefix${content.substring(start, end)}$suffix';
   }
 
   // ---------- 导入 ----------

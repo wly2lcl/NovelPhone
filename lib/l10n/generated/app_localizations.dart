@@ -1346,6 +1346,42 @@ abstract class AppLocalizations {
   /// **'全部替换'**
   String get findReplaceReplaceAll;
 
+  /// No description provided for @replaceTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'全书查找替换'**
+  String get replaceTitle;
+
+  /// No description provided for @replaceEmptyHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'输入查找内容，预览全书章节的匹配结果'**
+  String get replaceEmptyHint;
+
+  /// No description provided for @replaceSummary.
+  ///
+  /// In zh, this message translates to:
+  /// **'共 {matches} 处命中，涉及 {chapters} 章'**
+  String replaceSummary(int matches, int chapters);
+
+  /// No description provided for @replaceConfirmTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'全部替换？'**
+  String get replaceConfirmTitle;
+
+  /// No description provided for @replaceConfirmBody.
+  ///
+  /// In zh, this message translates to:
+  /// **'将在 {chapters} 章中共替换 {matches} 处文本。替换前会自动为受影响章节创建快照，可在版本历史中恢复。'**
+  String replaceConfirmBody(int chapters, int matches);
+
+  /// No description provided for @replaceDone.
+  ///
+  /// In zh, this message translates to:
+  /// **'已替换：{chapters} 章共 {matches} 处'**
+  String replaceDone(int chapters, int matches);
+
   /// No description provided for @aiErrorNetwork.
   ///
   /// In zh, this message translates to:
@@ -1639,6 +1675,48 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'最近还没有写作记录'**
   String get statsTrendEmpty;
+
+  /// No description provided for @statsHeatmapTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'写作热力图'**
+  String get statsHeatmapTitle;
+
+  /// No description provided for @statsHeatmapActiveDays.
+  ///
+  /// In zh, this message translates to:
+  /// **'近一年共 {count} 天有写作'**
+  String statsHeatmapActiveDays(int count);
+
+  /// No description provided for @statsHeatmapLess.
+  ///
+  /// In zh, this message translates to:
+  /// **'少'**
+  String get statsHeatmapLess;
+
+  /// No description provided for @statsHeatmapMore.
+  ///
+  /// In zh, this message translates to:
+  /// **'多'**
+  String get statsHeatmapMore;
+
+  /// No description provided for @statsHeatmapWeekMon.
+  ///
+  /// In zh, this message translates to:
+  /// **'一'**
+  String get statsHeatmapWeekMon;
+
+  /// No description provided for @statsHeatmapWeekWed.
+  ///
+  /// In zh, this message translates to:
+  /// **'三'**
+  String get statsHeatmapWeekWed;
+
+  /// No description provided for @statsHeatmapWeekFri.
+  ///
+  /// In zh, this message translates to:
+  /// **'五'**
+  String get statsHeatmapWeekFri;
 
   /// No description provided for @statsPomodoroTitle.
   ///
@@ -3661,6 +3739,96 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'导出失败：{detail}'**
   String exportActionsShareFailed(String detail);
+
+  /// No description provided for @settingsSectionAbout.
+  ///
+  /// In zh, this message translates to:
+  /// **'关于'**
+  String get settingsSectionAbout;
+
+  /// No description provided for @settingsAbout.
+  ///
+  /// In zh, this message translates to:
+  /// **'关于 NovelPhone'**
+  String get settingsAbout;
+
+  /// No description provided for @settingsAboutSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'版本、隐私说明与开源许可'**
+  String get settingsAboutSubtitle;
+
+  /// No description provided for @aboutTagline.
+  ///
+  /// In zh, this message translates to:
+  /// **'本地优先的手机端 AI 小说写作工具'**
+  String get aboutTagline;
+
+  /// No description provided for @aboutVersion.
+  ///
+  /// In zh, this message translates to:
+  /// **'版本 {version}'**
+  String aboutVersion(String version);
+
+  /// No description provided for @aboutPrivacyTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'隐私说明'**
+  String get aboutPrivacyTitle;
+
+  /// No description provided for @aboutPrivacyNoAccount.
+  ///
+  /// In zh, this message translates to:
+  /// **'默认不收集任何数据：无账号、无广告、无遥测。'**
+  String get aboutPrivacyNoAccount;
+
+  /// No description provided for @aboutPrivacyLocal.
+  ///
+  /// In zh, this message translates to:
+  /// **'作品正文、设定、角色与写作统计全部保存在设备本地，离线可用。'**
+  String get aboutPrivacyLocal;
+
+  /// No description provided for @aboutPrivacyKey.
+  ///
+  /// In zh, this message translates to:
+  /// **'API Key 与云备份凭证存放在系统安全区（keychain / keystore），不入数据库、不随备份导出。'**
+  String get aboutPrivacyKey;
+
+  /// No description provided for @aboutPrivacyNetwork.
+  ///
+  /// In zh, this message translates to:
+  /// **'联网仅发生在你主动使用 AI、MCP 工具服务或云备份时，直连你自行配置的服务商，不经过任何中转服务器。'**
+  String get aboutPrivacyNetwork;
+
+  /// No description provided for @aboutPrivacyOffline.
+  ///
+  /// In zh, this message translates to:
+  /// **'本地规则引擎的 AI 感检查完全离线，绝不联网扫描你的正文。'**
+  String get aboutPrivacyOffline;
+
+  /// No description provided for @aboutPrivacyErase.
+  ///
+  /// In zh, this message translates to:
+  /// **'卸载应用即同时清除本地数据与安全区中的凭证。'**
+  String get aboutPrivacyErase;
+
+  /// No description provided for @aboutLicenses.
+  ///
+  /// In zh, this message translates to:
+  /// **'开源许可'**
+  String get aboutLicenses;
+
+  /// No description provided for @aboutLicensesSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'NovelPhone 使用以下第三方开源组件，保留其原始许可。'**
+  String get aboutLicensesSubtitle;
+
+  /// No description provided for @aboutLicensesAction.
+  ///
+  /// In zh, this message translates to:
+  /// **'查看许可清单'**
+  String get aboutLicensesAction;
 }
 
 class _AppLocalizationsDelegate

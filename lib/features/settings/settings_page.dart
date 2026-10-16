@@ -96,6 +96,15 @@ class SettingsPage extends ConsumerWidget {
             trailing: Icon(Icons.chevron_right, color: context.paper.inkSoft),
             onTap: () => context.push('/settings/cloud-backup'),
           ),
+          const Divider(),
+          _SectionTitle(l10n.settingsSectionAbout),
+          ListTile(
+            leading: const Icon(Icons.info_outline),
+            title: Text(l10n.settingsAbout),
+            subtitle: Text(l10n.settingsAboutSubtitle),
+            trailing: Icon(Icons.chevron_right, color: context.paper.inkSoft),
+            onTap: () => context.push('/settings/about'),
+          ),
         ],
       ),
     );

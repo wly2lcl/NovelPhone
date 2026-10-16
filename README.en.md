@@ -13,7 +13,7 @@ Two design principles:
 - **Your data stays yours** — SQLite storage on device, API keys in the OS secure store, backups to local files or your own object storage;
 - **Curating the "AI flavor"** — a built-in rule engine plus optional LLM deep-check flags clichés and repetitive sentence patterns with locate-and-replace actions; AI continuation generates multiple candidates in parallel for you to compare.
 
-Status: the MVP scope (78 / 78) is complete, followed by 18 enhancements (ENH-01~18, including a full Simplified-Chinese / English bilingual UI). Android release signing and GitHub Actions CI are in place; the iOS unsigned release build passes and 332 automated tests pass. Real-device acceptance records are in [docs/TODO.md](docs/TODO.md) (Chinese).
+Status: the MVP scope (78 / 78) is complete, followed by 19 enhancements (ENH-01~19, including a full Simplified-Chinese / English bilingual UI and a branded app icon / launch splash). Android release signing and GitHub Actions CI are in place; the iOS unsigned release build passes and 354 automated tests pass. Real-device acceptance records are in [docs/TODO.md](docs/TODO.md) (Chinese).
 
 ## Screenshots
 
@@ -34,6 +34,7 @@ Status: the MVP scope (78 / 78) is complete, followed by 18 enhancements (ENH-01
 - Import txt / docx: encoding auto-detection (UTF-8 / GBK), chapter splitting on「第X章」headings with preview, merge-into-previous, 10 MB file cap
 - Editor: autosave with a "saved" indicator, focus mode (toolbars hidden, caret line centered), writing appearance (night paper, font size, line height)
 - Find, paragraph move, undo / redo (double cap: 100 steps and 2M characters)
+- Find & replace across a whole work: preview every matching chapter and snippet, then replace all at once; affected chapters get automatic snapshots you can roll back from version history
 - Chapter snapshots (version history): create / preview / restore / delete, with paragraph-level diff against the current text (change counts, colored lines, long unchanged runs collapsed), carried through backups
 - Export: single chapter as txt / markdown; a whole work as Word (.docx) and EPUB 3
 
@@ -65,12 +66,13 @@ Status: the MVP scope (78 / 78) is complete, followed by 18 enhancements (ENH-01
 
 - Bilingual UI: Simplified Chinese / English, following the system locale by default and switchable in Settings → Writing → Language (effective immediately, persisted). AI prompts and Chinese domain data stay in Chinese
 - App-wide dark mode: follow-system / light / dark, with light and dark variants of the warm paper palette
+- Branded look: a fountain-pen-nib app icon and a warm launch splash; an About page with the version number, privacy highlights and the open-source license list
 
 ### Data, stats & privacy
 
 - Backup to file: whole-database zip (`data.json` + per-work markdown), restored either as "merge as new works" or "overwrite local data"
 - Cloud backup: bring your own S3-compatible storage (AWS S3 / Alibaba Cloud OSS / Qiniu Kodo / Tencent COS / Huawei OBS), SigV4 signed directly, off by default, manual and interval-based automatic backups
-- Writing stats: daily word-count goal progress, writing streak, pomodoro, and a 7 / 30-day word-count trend chart
+- Writing stats: daily word-count goal progress, writing streak, pomodoro, a 7 / 30-day word-count trend chart and a year-long writing heatmap
 - Token & adoption stats: grouped by task · model, tracking generations, token usage, adoption and ignore rates
 - Privacy: API keys live in the OS secure store (keychain / keystore), never in the database and never in backups; a first-network-use notice gates every AI feature. See [docs/COMPLIANCE.md](docs/COMPLIANCE.md) (Chinese)
 
@@ -123,7 +125,7 @@ dart run build_runner build --delete-conflicting-outputs
 ```bash
 dart format --output=none --set-exit-if-changed lib test
 flutter analyze
-flutter test    # 332 cases: data layer / editor controller / AI client & orchestration / check engine / widgets
+flutter test    # 354 cases: data layer / editor controller / AI client & orchestration / check engine / widgets
 ```
 
 GitHub Actions ([ci.yml](.github/workflows/ci.yml)) runs the three checks on pushes and pull requests.
@@ -136,7 +138,7 @@ Dev helper: [tool/fake_llm_server.dart](tool/fake_llm_server.dart) simulates Cha
 |---|---|
 | [docs/PRD.md](docs/PRD.md) | Product positioning, scope and acceptance criteria |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Tech choices, layering, data model and AI-layer design |
-| [docs/TODO.md](docs/TODO.md) | Task list, progress tracking and real-device acceptance records (M1-M4 + ENH-01~18) |
+| [docs/TODO.md](docs/TODO.md) | Task list, progress tracking and real-device acceptance records (M1-M4 + ENH-01~19) |
 | [docs/COMPLIANCE.md](docs/COMPLIANCE.md) | Privacy policy, data-security notes and store-listing points |
 
 (The docs above are written in Chinese.)
