@@ -13,7 +13,7 @@
 - **数据归你**——SQLite 本地存储、API Key 存系统安全区、备份导出到本地文件或你自己的对象存储；
 - **治理「AI 味」**——内置规则引擎与可选 LLM 深检标记套话、重复句式等问题，支持定位与一键替换；AI 续写默认并发生成多个候选，供你对照挑选。
 
-当前状态：MVP 功能范围（78 / 78）已收口，此后 19 项增强（ENH-01~19，含全 App 简体中文 / English 双语 UI 与应用图标 / 启动闪屏品牌化）全部落地；Android release 签名与 GitHub Actions CI 就绪，iOS 无签名 release 构建通过，354 个自动化用例通过，真机验收记录见 [docs/TODO.md](docs/TODO.md)。
+当前状态：MVP 功能范围（78 / 78）已收口，此后 20 项增强（ENH-01~20，含全 App 简体中文 / English 双语 UI、应用图标 / 启动闪屏品牌化与发布产物交付）全部落地；Android release 签名、AAB / 分 ABI APK 产物与 GitHub Actions CI 就绪，iOS 无签名 release 构建通过，354 个自动化用例通过，真机验收记录见 [docs/TODO.md](docs/TODO.md)。
 
 ## 截图
 
@@ -102,11 +102,20 @@ flutter pub get
 flutter run     # 连接 Android 设备或模拟器运行
 ```
 
-构建 release APK（需先配置签名：在 `android/key.properties` 指向你的 keystore；两者均不入库，请务必离线备份）：
+构建发布产物（需先配置签名：在 `android/key.properties` 指向你的 keystore；两者均不入库，请务必离线备份）：
 
 ```bash
+# AAB：Google Play 上架格式（首次上传必需）
+flutter build appbundle --release
+
+# 分 ABI APK：侧载 / 直接分发推荐（arm64-v8a / armeabi-v7a / x86_64 各一个）
+flutter build apk --release --split-per-abi
+
+# 通用 APK：单包兼容所有设备，体积较大
 flutter build apk --release
 ```
+
+产物路径：APK 在 `build/app/outputs/flutter-apk/`，AAB 在 `build/app/outputs/bundle/release/`。
 
 iOS 构建（需 Xcode 27+；Flutter 3.44 走 Swift Package Manager，不依赖 CocoaPods；未配置签名证书时用 `--no-codesign` 验证编译）：
 
@@ -138,7 +147,7 @@ GitHub Actions（[ci.yml](.github/workflows/ci.yml)）在 push 与 PR 上执行�
 |---|---|
 | [docs/PRD.md](docs/PRD.md) | 产品定位、功能范围与验收标准 |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 技术选型、分层模块、数据模型与 AI 层设计 |
-| [docs/TODO.md](docs/TODO.md) | 任务清单、进度跟踪与真机验收记录（M1-M4 + ENH-01~19） |
+| [docs/TODO.md](docs/TODO.md) | 任务清单、进度跟踪与真机验收记录（M1-M4 + ENH-01~20） |
 | [docs/COMPLIANCE.md](docs/COMPLIANCE.md) | 隐私政策、数据安全说明与上架资料要点 |
 
 ## 许可证

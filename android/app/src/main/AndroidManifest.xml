@@ -5,7 +5,14 @@
     <application
         android:label="NovelPhone"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules">
+        <!-- 隐私向备份策略（与 COMPLIANCE.md「数据只存本机」口径一致）：
+             allowBackup=false 关闭系统自动云备份（Google Drive）；
+             dataExtractionRules 在 Android 12+ 上再把 cloud-backup 的数据域全部显式排除（双保险），
+             device-transfer（换机设备直传，不经云端）保持默认开启。
+             应用侧备份能力收敛到「备份到文件 / 云备份（用户自持对象存储）」。 -->
         <activity
             android:name=".MainActivity"
             android:exported="true"

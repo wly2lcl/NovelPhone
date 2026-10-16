@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12+ 备份 / 迁移数据提取规则（与 manifest 的 allowBackup=false 配套，双保险）：
+     · cloud-backup：9 个数据域全部显式排除——作品与设置绝不进入 Google Drive 备份，
+       备份能力收敛到应用内「备份到文件 / 云备份（用户自持对象存储）」；
+     · device-transfer：刻意不声明——系统换机设备直传（D2D）保持默认开启，
+       数据仅在用户自己的两台设备之间直接迁移、不经过云端。 -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" path="." />
+        <exclude domain="file" path="." />
+        <exclude domain="database" path="." />
+        <exclude domain="sharedpref" path="." />
+        <exclude domain="external" path="." />
+        <exclude domain="device_root" path="." />
+        <exclude domain="device_file" path="." />
+        <exclude domain="device_database" path="." />
+        <exclude domain="device_sharedpref" path="." />
+    </cloud-backup>
+</data-extraction-rules>

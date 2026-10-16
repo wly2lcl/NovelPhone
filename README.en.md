@@ -13,7 +13,7 @@ Two design principles:
 - **Your data stays yours** — SQLite storage on device, API keys in the OS secure store, backups to local files or your own object storage;
 - **Curating the "AI flavor"** — a built-in rule engine plus optional LLM deep-check flags clichés and repetitive sentence patterns with locate-and-replace actions; AI continuation generates multiple candidates in parallel for you to compare.
 
-Status: the MVP scope (78 / 78) is complete, followed by 19 enhancements (ENH-01~19, including a full Simplified-Chinese / English bilingual UI and a branded app icon / launch splash). Android release signing and GitHub Actions CI are in place; the iOS unsigned release build passes and 354 automated tests pass. Real-device acceptance records are in [docs/TODO.md](docs/TODO.md) (Chinese).
+Status: the MVP scope (78 / 78) is complete, followed by 20 enhancements (ENH-01~20, including a full Simplified-Chinese / English bilingual UI, a branded app icon / launch splash and release-artifact delivery). Android release signing, AAB / split-ABI APKs and GitHub Actions CI are in place; the iOS unsigned release build passes and 354 automated tests pass. Real-device acceptance records are in [docs/TODO.md](docs/TODO.md) (Chinese).
 
 ## Screenshots
 
@@ -102,11 +102,20 @@ flutter pub get
 flutter run     # on a connected Android device or emulator
 ```
 
-Release APK (configure signing first: point `android/key.properties` at your keystore; neither file is committed — keep offline backups):
+Release artifacts (configure signing first: point `android/key.properties` at your keystore; neither file is committed — keep offline backups):
 
 ```bash
+# AAB: the Google Play upload format (required for the first submission)
+flutter build appbundle --release
+
+# Split-ABI APKs: recommended for sideloading / direct distribution (one per ABI)
+flutter build apk --release --split-per-abi
+
+# Universal APK: one package for all devices, larger size
 flutter build apk --release
 ```
+
+Artifact paths: APKs under `build/app/outputs/flutter-apk/`, AAB under `build/app/outputs/bundle/release/`.
 
 iOS build (requires Xcode 27+; Flutter 3.44 uses Swift Package Manager, no CocoaPods needed; use `--no-codesign` to verify compilation without a signing certificate):
 
@@ -138,7 +147,7 @@ Dev helper: [tool/fake_llm_server.dart](tool/fake_llm_server.dart) simulates Cha
 |---|---|
 | [docs/PRD.md](docs/PRD.md) | Product positioning, scope and acceptance criteria |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Tech choices, layering, data model and AI-layer design |
-| [docs/TODO.md](docs/TODO.md) | Task list, progress tracking and real-device acceptance records (M1-M4 + ENH-01~19) |
+| [docs/TODO.md](docs/TODO.md) | Task list, progress tracking and real-device acceptance records (M1-M4 + ENH-01~20) |
 | [docs/COMPLIANCE.md](docs/COMPLIANCE.md) | Privacy policy, data-security notes and store-listing points |
 
 (The docs above are written in Chinese.)

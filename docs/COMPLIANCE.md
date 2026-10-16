@@ -27,6 +27,7 @@
 
 - 卸载应用即清除本地数据库与安全区中的 Key。
 - 应用内提供作品导出（txt / docx / markdown）与整库 zip 备份（**备份不含 API Key**），你可自行保管与迁移。
+- **系统级自动云备份已关闭**：Android 侧声明 `android:allowBackup="false"`，并在 Android 12+ 由 `dataExtractionRules` 将 cloud-backup 的全部数据域显式排除——作品数据不会进入 Google Drive 等系统云备份，卸载后也不存在「云端恢复回来」的隐藏路径；Android 12+ 的换机设备直传（D2D）保留，数据仅在用户自己的两台设备之间直接迁移、不经过云端。
 
 ### 1.4 第三方
 
@@ -46,6 +47,7 @@
 | 备份文件 | zip 导出时过滤 Key 字段；恢复后需重新填写 Key |
 | 云备份凭证 | 与 API Key 同策略：AccessKey / SecretKey 仅存 flutter_secure_storage；配置 JSON（服务商 / endpoint / region / bucket / 前缀 / 保留份数）存 APP_SETTING，不含凭证、不随备份导出 |
 | 出网面 | 除用户配置的模型服务端点、MCP 服务地址（可选）与用户开启并触发时的云备份对象存储地址外，无任何出网请求（无更新检查、无遥测、无广告） |
+| 系统备份 | Android `allowBackup="false"` + Android 12+ `dataExtractionRules`（cloud-backup 全数据域排除）；换机设备直传（D2D）按系统默认保留、不经云端 |
 | 传输内容 | 最小可用上下文；本地规则引擎检查不联网 |
 
 ## 3. AI 功能首次联网前的告知文案
@@ -78,8 +80,10 @@
   - 收集/共享：**无**（应用不收集任何数据）；
   - 用户主动触发的 AI 请求会将被选中的上下文发送至用户自行配置的第三方模型服务商，此行为由用户主动发起且由其自持凭证；
   - 数据加密：API Key 使用平台安全存储加密保存；
-  - 数据删除：卸载应用即删除本地数据。
+  - 数据删除：卸载应用即删除本地数据（系统自动云备份已关闭，不存在经 Google Drive 的云端恢复）；
+  - 备份 / 迁移：系统云备份关闭；Android 12+ 换机设备直传（D2D）保留；应用内备份（文件导出 / 自持对象存储）均由用户主动触发。
 - 需要声明的权限：网络访问（仅用于用户主动触发的 AI 请求与用户开启并触发的云备份）。Android 侧须在 `android/app/src/main/AndroidManifest.xml` 声明 `android.permission.INTERNET`——Flutter 模板只在 debug/profile 清单里声明，release 构建若不补齐该权限，AI 与云备份的全部联网能力会被系统阻断。
+- 隐私政策 URL（商店必填）：本文档即隐私政策来源；可将本仓库（`wly2lcl/NovelPhone`）的 `docs/COMPLIANCE.md` 经 GitHub Pages 或任意静态托管发布为公网可达的 URL 后填入商店表单（内容须与应用内「关于」页的隐私说明保持一致）。
 
 ## 5. 与文档的关系
 
