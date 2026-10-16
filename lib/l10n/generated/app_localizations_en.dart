@@ -724,6 +724,48 @@ class AppLocalizationsEn extends AppLocalizations {
       'No snapshots yet. Tap \"Create snapshot\" while writing to keep a version.';
 
   @override
+  String get snapshotDiffAction => 'Compare with current';
+
+  @override
+  String get snapshotDiffTitle => 'Compare with current version';
+
+  @override
+  String get snapshotDiffNoChanges => 'No changes from the current version';
+
+  @override
+  String snapshotDiffAdded(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count paragraphs added',
+      one: '1 paragraph added',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String snapshotDiffRemoved(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count paragraphs removed',
+      one: '1 paragraph removed',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String snapshotDiffHidden(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '… $count unchanged lines hidden',
+      one: '… 1 unchanged line hidden',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String findReplaceReplacedCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -960,6 +1002,23 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get statsStreakStart => 'Write a little today to start a streak';
+
+  @override
+  String get statsTrendTitle => 'Writing trend';
+
+  @override
+  String get statsTrendRange7 => '7 days';
+
+  @override
+  String get statsTrendRange30 => '30 days';
+
+  @override
+  String statsTrendTotal(int days, int words) {
+    return 'Last $days days: $words words';
+  }
+
+  @override
+  String get statsTrendEmpty => 'Nothing written in this range yet';
 
   @override
   String get statsPomodoroTitle => 'Pomodoro';

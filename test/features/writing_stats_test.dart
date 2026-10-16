@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -38,6 +39,43 @@ void main() {
 
       // 昨天也没写 → 断连。
       expect(writingStreak(<String, int>{'2026-03-05': 50}, now: now), 0);
+    });
+
+    test('recentDayWords 补零并按时间从早到晚（ENH-18）', () {
+      final now = DateTime(2026, 3, 7);
+      final series = recentDayWords(
+        <String, int>{'2026-03-07': 50, '2026-03-04': 10},
+        5,
+        now: now,
+      );
+
+      expect(series.map((e) => e.day), [
+        '2026-03-03',
+        '2026-03-04',
+        '2026-03-05',
+        '2026-03-06',
+        '2026-03-07',
+      ]);
+      expect(series.map((e) => e.words), [0, 10, 0, 0, 50]);
+    });
+
+    test('recentDayWords 跨月与跨年边界', () {
+      expect(
+        recentDayWords(
+          <String, int>{},
+          3,
+          now: DateTime(2026, 3, 1),
+        ).map((e) => e.day),
+        ['2026-02-27', '2026-02-28', '2026-03-01'],
+      );
+      expect(
+        recentDayWords(
+          <String, int>{},
+          2,
+          now: DateTime(2026, 1, 1),
+        ).map((e) => e.day),
+        ['2025-12-31', '2026-01-01'],
+      );
     });
   });
 
@@ -231,6 +269,11 @@ void main() {
     expect(find.text('今日写作'), findsOneWidget);
     expect(find.text('5 / 100 字', findRichText: true), findsOneWidget);
     expect(find.text('1 天'), findsOneWidget);
+
+    // ENH-18 趋势图加入后番茄钟在首屏之下，滚动后再断言。
+    await tester.drag(find.byType(ListView), const Offset(0, -600));
+    await tester.pump();
+
     expect(find.text('25 分钟'), findsOneWidget);
     expect(find.text('今日已完成 0 个番茄钟'), findsOneWidget);
 
@@ -238,4 +281,102 @@ void main() {
     await tester.pump(const Duration(seconds: 2));
     await db.close();
   });
+
+  testWidgets('写作趋势图：7 天柱形、汇总与 30 天切换（ENH-18）', (tester) async {
+    final db = AppDatabase.memory();
+    for (var i = 0; i < 7; i++) {
+      final day = writingDayKey(DateTime.now().subtract(Duration(days: i)));
+      await db
+          .into(db.dailyWritingStats)
+          .insert(
+            DailyWritingStatsCompanion.insert(
+              day: day,
+              words: Value((i + 1) * 100),
+            ),
+          );
+    }
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          secureKeyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+        ],
+        child: MaterialApp(
+          theme: buildPaperTheme(),
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const WritingStatsPage(),
+        ),
+      ),
+    );
+
+    for (var i = 0; i < 60; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
+      await tester.pump();
+      if (find.text('近 7 天共 2800 字').evaluate().isNotEmpty) {
+        break;
+      }
+    }
+    await tester.pump();
+
+    expect(find.text('写作趋势'), findsOneWidget);
+    expect(find.text('近 7 天共 2800 字'), findsOneWidget);
+    expect(_trendBarCount(), 7);
+
+    // 切到 30 天：柱形补零扩展到 30 根，汇总随之更新。
+    await tester.tap(find.text('30 天'));
+    await tester.pumpAndSettle();
+    expect(find.text('近 30 天共 2800 字'), findsOneWidget);
+    expect(_trendBarCount(), 30);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(seconds: 2));
+    await db.close();
+  });
+
+  testWidgets('写作趋势图：无记录时展示空态', (tester) async {
+    final db = AppDatabase.memory();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          secureKeyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+        ],
+        child: MaterialApp(
+          theme: buildPaperTheme(),
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const WritingStatsPage(),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('写作趋势'), findsOneWidget);
+    expect(find.text('最近还没有写作记录'), findsOneWidget);
+    expect(find.text('近 7 天共 0 字'), findsOneWidget);
+    expect(_trendBarCount(), 0);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(seconds: 2));
+    await db.close();
+  });
+}
+
+/// 统计已渲染的趋势柱数量（key 形如 trend-bar-N）。
+int _trendBarCount() {
+  return find
+      .byWidgetPredicate(
+        (widget) =>
+            widget.key is ValueKey<String> &&
+            (widget.key! as ValueKey<String>).value.startsWith('trend-bar-'),
+      )
+      .evaluate()
+      .length;
 }

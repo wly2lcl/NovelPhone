@@ -13,7 +13,7 @@ Two design principles:
 - **Your data stays yours** — SQLite storage on device, API keys in the OS secure store, backups to local files or your own object storage;
 - **Curating the "AI flavor"** — a built-in rule engine plus optional LLM deep-check flags clichés and repetitive sentence patterns with locate-and-replace actions; AI continuation generates multiple candidates in parallel for you to compare.
 
-Status: the MVP scope (78 / 78) is complete, followed by 17 enhancements (ENH-01~17, including a full Simplified-Chinese / English bilingual UI). Android release signing and GitHub Actions CI are in place; 314 automated tests pass. Real-device acceptance records are in [docs/TODO.md](docs/TODO.md) (Chinese).
+Status: the MVP scope (78 / 78) is complete, followed by 18 enhancements (ENH-01~18, including a full Simplified-Chinese / English bilingual UI). Android release signing and GitHub Actions CI are in place; the iOS unsigned release build passes and 332 automated tests pass. Real-device acceptance records are in [docs/TODO.md](docs/TODO.md) (Chinese).
 
 ## Screenshots
 
@@ -34,7 +34,7 @@ Status: the MVP scope (78 / 78) is complete, followed by 17 enhancements (ENH-01
 - Import txt / docx: encoding auto-detection (UTF-8 / GBK), chapter splitting on「第X章」headings with preview, merge-into-previous, 10 MB file cap
 - Editor: autosave with a "saved" indicator, focus mode (toolbars hidden, caret line centered), writing appearance (night paper, font size, line height)
 - Find, paragraph move, undo / redo (double cap: 100 steps and 2M characters)
-- Chapter snapshots (version history): create / preview / restore / delete, carried through backups
+- Chapter snapshots (version history): create / preview / restore / delete, with paragraph-level diff against the current text (change counts, colored lines, long unchanged runs collapsed), carried through backups
 - Export: single chapter as txt / markdown; a whole work as Word (.docx) and EPUB 3
 
 ### Story assets
@@ -70,7 +70,7 @@ Status: the MVP scope (78 / 78) is complete, followed by 17 enhancements (ENH-01
 
 - Backup to file: whole-database zip (`data.json` + per-work markdown), restored either as "merge as new works" or "overwrite local data"
 - Cloud backup: bring your own S3-compatible storage (AWS S3 / Alibaba Cloud OSS / Qiniu Kodo / Tencent COS / Huawei OBS), SigV4 signed directly, off by default, manual and interval-based automatic backups
-- Writing stats: daily word-count goal progress, writing streak, pomodoro
+- Writing stats: daily word-count goal progress, writing streak, pomodoro, and a 7 / 30-day word-count trend chart
 - Token & adoption stats: grouped by task · model, tracking generations, token usage, adoption and ignore rates
 - Privacy: API keys live in the OS secure store (keychain / keystore), never in the database and never in backups; a first-network-use notice gates every AI feature. See [docs/COMPLIANCE.md](docs/COMPLIANCE.md) (Chinese)
 
@@ -83,7 +83,7 @@ Status: the MVP scope (78 / 78) is complete, followed by 17 enhancements (ENH-01
 | Secure storage | flutter_secure_storage (keychain / keystore) |
 | Network | http (SSE stream parsing), crypto (cloud-backup SigV4 signing) |
 | AI interop | three endpoint-protocol adapters, mcp_dart (remote MCP), custom-skill orchestration |
-| Platform | Single codebase; Android is currently the primary delivery and acceptance target |
+| Platform | Single codebase for iOS / Android; Android is currently the primary delivery and acceptance target (iOS has passed an unsigned release build check) |
 
 No server-side components: the app works offline; network is used only when you actively call AI or cloud backup, connecting straight to the provider you configured.
 
@@ -93,6 +93,7 @@ Requirements:
 
 - Flutter 3.44.x (CI baseline 3.44.3) / Dart ^3.12.2
 - Android SDK (to build the Android package)
+- Xcode 27+ (to build the iOS package, optional; no CocoaPods needed)
 
 ```bash
 flutter pub get
@@ -103,6 +104,12 @@ Release APK (configure signing first: point `android/key.properties` at your key
 
 ```bash
 flutter build apk --release
+```
+
+iOS build (requires Xcode 27+; Flutter 3.44 uses Swift Package Manager, no CocoaPods needed; use `--no-codesign` to verify compilation without a signing certificate):
+
+```bash
+flutter build ios --no-codesign --release
 ```
 
 Regenerate Drift code after changing table schemas:
@@ -116,7 +123,7 @@ dart run build_runner build --delete-conflicting-outputs
 ```bash
 dart format --output=none --set-exit-if-changed lib test
 flutter analyze
-flutter test    # 314 cases: data layer / editor controller / AI client & orchestration / check engine / widgets
+flutter test    # 332 cases: data layer / editor controller / AI client & orchestration / check engine / widgets
 ```
 
 GitHub Actions ([ci.yml](.github/workflows/ci.yml)) runs the three checks on pushes and pull requests.
@@ -129,7 +136,7 @@ Dev helper: [tool/fake_llm_server.dart](tool/fake_llm_server.dart) simulates Cha
 |---|---|
 | [docs/PRD.md](docs/PRD.md) | Product positioning, scope and acceptance criteria |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Tech choices, layering, data model and AI-layer design |
-| [docs/TODO.md](docs/TODO.md) | Task list, progress tracking and real-device acceptance records (M1-M4 + ENH-01~17) |
+| [docs/TODO.md](docs/TODO.md) | Task list, progress tracking and real-device acceptance records (M1-M4 + ENH-01~18) |
 | [docs/COMPLIANCE.md](docs/COMPLIANCE.md) | Privacy policy, data-security notes and store-listing points |
 
 (The docs above are written in Chinese.)

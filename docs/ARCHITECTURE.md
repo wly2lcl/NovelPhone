@@ -154,6 +154,7 @@ lib/
 │   │   └── tools/                # 内置工具：get_chapter、get_character 等
 │   ├── ai_flavor_rules.dart      # AI 味规则引擎（问题模型 + 句式模式 + 指标 + 纯函数检测）
 │   ├── flavor_lexicon.dart       # 套话词库（约 200 条，按权重分级）
+│   ├── text_diff.dart            # 段落级文本 diff（ENH-18）：快照与当前文本对比（LCS + 超限回退）
 │   ├── word_count.dart           # 中文字数统计
 │   ├── importer/                 # txt/docx 导入与分章
 │   ├── exporter/                 # 单章/整作导出（txt/md/docx/epub）、备份 zip 组装与分享
@@ -161,10 +162,10 @@ lib/
 └── features/
     ├── works/                    # 作品列表
     ├── work_detail/              # 作品详情（卷/章/角色卡/设定集/章纲/人物关系图/导入/导出）
-    ├── editor/                   # 编辑器 + AI 待确认面板 + AI 感检查面板
+    ├── editor/                   # 编辑器 + AI 待确认面板 + AI 感检查面板 + 版本历史（含快照差异对比，ENH-18）
     ├── ai/                       # 续写/灵感用例编排
     ├── search/                   # 全局搜索（B-06）：跨作品检索章节标题与正文
-    ├── stats/                    # 写作统计（B-07）：每日目标、连击与番茄钟
+    ├── stats/                    # 写作统计（B-07）：每日目标、连击、番茄钟与近 7/30 天字数趋势图（ENH-18）
     └── settings/                 # key 与模型配置、token 统计、本地备份与恢复、云备份（B-08）
 ```
 
@@ -172,7 +173,7 @@ lib/
 |---|---|---|---|---|---|
 | features/* | UI 与交互状态 | 用户操作、Repository 流 | 界面 | Repository、AI 用例接口 | 不直接访问数据库与 http |
 | features/search | 全局搜索（B-06）：关键词检索与命中高亮 | 关键词（输入 300ms 防抖，ENH-11） | 命中列表（作品/章节/片段） | ChapterRepository.search（autoDispose，关键词未变不重查；命中位置与片段在 SQL 内计算，ENH-14） | 不做索引与分词（本地 LIKE 直查，作品量级不构成瓶颈） |
-| features/stats | 写作统计（B-07）：每日字数目标进度、连续写作天数、番茄钟 | 每日统计流 + 设置 | 统计页 | ChapterRepository(watchDailyWritingStats)、SettingsRepository | 番茄钟为页面内计时，不后台常驻 |
+| features/stats | 写作统计（B-07）：每日字数目标进度、连续写作天数、番茄钟；近 7/30 天字数趋势图（ENH-18，自绘柱状图、无第三方依赖） | 每日统计流 + 设置 | 统计页 | ChapterRepository(watchDailyWritingStats)、SettingsRepository | 番茄钟为页面内计时，不后台常驻 |
 | features/work_detail（设定集/关系图） | 设定集（B-09）：世界观/地点/道具条目；人物关系图（B-09）：环形绘制角色关系并可增删改；txt/docx 导入（解析在 `Isolate.run` 执行，ENH-12）；txt/md/docx/epub 导出（docx/epub 构建在 `Isolate.run` 执行，ENH-14） | 设定/角色/关系流 + 用户编辑 + 文件 bytes | 设定集 Tab、关系图页、导入预览、导出文件 | SettingRepository、CharacterRepository(relations)、ChapterRepository(import) | 关系图为静态环形布局，不做自动布局与拖拽 |
 | data/repositories | 领域读写：作品/卷/章/角色/设定集/关系/章纲/统计 | DAO 结果 | 领域模型、响应式流 | drift | 不含业务编排（如分章策略在 importer） |
 | core/ai/ai_client | 屏蔽端点差异的统一调用 | ChatRequest | `Stream<ChatChunk>` | http | 不做 prompt 组装 |
@@ -185,7 +186,7 @@ lib/
 | core/exporter | 导出文本生成与备份 zip 组装/解析（组装与解析的重活经 isolate 执行，ENH-14 / ENH-15） | 章节数据、导出数据 Map | txt/md/docx bytes、zip bytes | archive | 不写库、不直接调分享面板（由 features 触发） |
 | core/cloud | 云备份（B-08）：S3 兼容对象存储读写（SigV4 签名）与备份/恢复编排（上传、列举、清理、下载） | 服务商配置（endpoint/region/bucket/凭证）+ zip bytes / 远端对象列表 | 远端对象列表、下载 bytes、操作结果 | http、core/exporter（zip 组装） | 不直接读写数据库（配置与编排由 features/settings 与 SettingsRepository 协作），不含中心化服务器与账号体系 |
 | features/settings | key/模型配置、token 累计、本地备份与恢复、云备份配置与触发（B-08）、语言设置（ENH-17） | 用户输入 | 经 Repository 落库、经安全存储存 key、经 core/cloud 上传下载 | SettingsRepository、TokenStatsRepository、AiUseCase(testConnection)、CloudBackupService | 不直接接触数据库、安全存储与网络 |
-| l10n | 国际化（ENH-17）：ARB 资源（zh 模板 + en 翻译，约 583 键）、`context.l10n` 读取扩展、错误文案展示时本地化（error_text.dart） | ARB 生成代码、结构化错误（kind/code/detail） | 本地化文案 | Flutter gen-l10n（编译期生成） | 不翻译 AI 提示词与中文语料域数据（flavor 词库/规则名/导出内容/DB 默认值） |
+| l10n | 国际化（ENH-17）：ARB 资源（zh 模板 + en 翻译，约 594 键）、`context.l10n` 读取扩展、错误文案展示时本地化（error_text.dart） | ARB 生成代码、结构化错误（kind/code/detail） | 本地化文案 | Flutter gen-l10n（编译期生成） | 不翻译 AI 提示词与中文语料域数据（flavor 词库/规则名/导出内容/DB 默认值） |
 
 依赖方向：features → repositories / ai 用例 → core/ai → ai_client；无环 `[Expert judgment]`。
 
@@ -647,3 +648,4 @@ Responses（OpenAI Responses 端点，B-01 已实现）：
 - CI（ENH-16）：`.github/workflows/ci.yml` 在 push / PR to main 上执行 `flutter pub get` → `dart format --output=none --set-exit-if-changed lib test` → `flutter analyze` → `flutter test`，Flutter 版本固定 3.44.3 与本地一致；格式校验只覆盖 `lib` / `test`（`tool/` 为开发工具，只参与 analyze）。
 - 假 LLM 服务（ENH-16，开发工具）：`tool/fake_llm_server.dart` 在本机回环模拟 Chat Completions / Messages 正常流与 429 / 5xx / 内容过滤错误（分场景路径，`GET /stats` 观测请求计数、`GET /stats/reset` 重置），`dart run tool/fake_llm_server.dart [port] [chunkDelayMs]` 启动；配合 `adb reverse tcp:8899 tcp:8899` 可在真机验证重试与错误分类路径，无需真实供应商 Key，不随应用产物发布。
 - 国际化（ENH-17）：`l10n.yaml` 配置 `arb-dir: lib/l10n`、`template-arb-file: app_zh.arb`（zh 为模板）、输出 `lib/l10n/generated/`、`nullable-getter: false`；`pubspec.yaml` 开启 `flutter: generate: true`，`flutter pub get` 自动重新生成（产物确定性、经 `dart format` 保持整洁）。UI 读取统一 `context.l10n.x`（`lib/l10n/l10n.dart` 扩展）；新增 UI 文案一律加键到两份 ARB，禁止硬编码中文（AI 提示词、`flavor_lexicon.dart` / `ai_flavor_rules.dart` 语料、导出内容与 DB 默认数据除外）；en 计数文案用 ICU plural，zh 模板值为原硬编码串（保证 zh 行为与全部既有测试断言不变）；iOS 侧 `Info.plist` 声明 `CFBundleLocalizations`。
+- iOS 构建基线（ENH-18）：`ios/Runner.xcodeproj/project.pbxproj` 的 `IPHONEOS_DEPLOYMENT_TARGET` 为 15.0（Xcode 27 最低支持的部署目标即 15.0，13.0 会被直接拒绝构建）；Flutter 3.44.3 走 Swift Package Manager（`ios/Flutter/ephemeral/Packages`），本机未安装 CocoaPods 也可 `flutter build ios --no-codesign --release` 构建通过。iOS 侧暂以无签名 release 构建为验证基线（本机无 Apple 签名证书，未做真机 / 模拟器安装），Android 仍为主要交付与真机验收目标。

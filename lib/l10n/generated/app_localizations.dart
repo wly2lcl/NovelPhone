@@ -1268,6 +1268,42 @@ abstract class AppLocalizations {
   /// **'还没有快照。写作途中点「创建快照」留存一个版本。'**
   String get snapshotEmptyHint;
 
+  /// No description provided for @snapshotDiffAction.
+  ///
+  /// In zh, this message translates to:
+  /// **'与原稿对比'**
+  String get snapshotDiffAction;
+
+  /// No description provided for @snapshotDiffTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'与当前版本对比'**
+  String get snapshotDiffTitle;
+
+  /// No description provided for @snapshotDiffNoChanges.
+  ///
+  /// In zh, this message translates to:
+  /// **'与当前版本一致，无改动'**
+  String get snapshotDiffNoChanges;
+
+  /// No description provided for @snapshotDiffAdded.
+  ///
+  /// In zh, this message translates to:
+  /// **'{count} 段新增'**
+  String snapshotDiffAdded(int count);
+
+  /// No description provided for @snapshotDiffRemoved.
+  ///
+  /// In zh, this message translates to:
+  /// **'{count} 段删除'**
+  String snapshotDiffRemoved(int count);
+
+  /// No description provided for @snapshotDiffHidden.
+  ///
+  /// In zh, this message translates to:
+  /// **'… 省略 {count} 行未改动'**
+  String snapshotDiffHidden(int count);
+
   /// No description provided for @findReplaceReplacedCount.
   ///
   /// In zh, this message translates to:
@@ -1573,6 +1609,36 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'今天写一点，开启连击'**
   String get statsStreakStart;
+
+  /// No description provided for @statsTrendTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'写作趋势'**
+  String get statsTrendTitle;
+
+  /// No description provided for @statsTrendRange7.
+  ///
+  /// In zh, this message translates to:
+  /// **'7 天'**
+  String get statsTrendRange7;
+
+  /// No description provided for @statsTrendRange30.
+  ///
+  /// In zh, this message translates to:
+  /// **'30 天'**
+  String get statsTrendRange30;
+
+  /// No description provided for @statsTrendTotal.
+  ///
+  /// In zh, this message translates to:
+  /// **'近 {days} 天共 {words} 字'**
+  String statsTrendTotal(int days, int words);
+
+  /// No description provided for @statsTrendEmpty.
+  ///
+  /// In zh, this message translates to:
+  /// **'最近还没有写作记录'**
+  String get statsTrendEmpty;
 
   /// No description provided for @statsPomodoroTitle.
   ///

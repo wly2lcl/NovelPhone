@@ -21,3 +21,27 @@ int writingStreak(Map<String, int> wordsByDay, {DateTime? now}) {
   }
   return streak;
 }
+
+/// 趋势图的一天：日期键 yyyy-MM-dd 与当日字数。
+class DayWords {
+  const DayWords(this.day, this.words);
+
+  final String day;
+  final int words;
+}
+
+/// 近 [days] 天（含今天）的每日字数，按时间从早到晚；无记录的天补 0（ENH-18）。
+List<DayWords> recentDayWords(
+  Map<String, int> wordsByDay,
+  int days, {
+  DateTime? now,
+}) {
+  final today = now ?? DateTime.now();
+  final result = <DayWords>[];
+  for (var offset = days - 1; offset >= 0; offset--) {
+    final date = DateTime(today.year, today.month, today.day - offset);
+    final key = writingDayKey(date);
+    result.add(DayWords(key, wordsByDay[key] ?? 0));
+  }
+  return result;
+}

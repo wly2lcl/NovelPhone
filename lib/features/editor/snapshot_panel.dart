@@ -9,6 +9,7 @@ import '../../data/db.dart';
 import '../../l10n/l10n.dart';
 import '../work_detail/work_detail_providers.dart';
 import 'editor_controller.dart';
+import 'snapshot_diff_dialog.dart';
 
 /// 章节版本历史面板（B-05）：创建快照、预览、恢复、删除。
 class SnapshotPanel extends ConsumerWidget {
@@ -113,6 +114,23 @@ class SnapshotPanel extends ConsumerWidget {
     ).showSnackBar(SnackBar(content: Text(context.l10n.snapshotRestored)));
   }
 
+  /// ENH-18：与编辑器当前内容做段落级对比（快照为基线，当前为对照）。
+  Future<void> _compare(
+    BuildContext context,
+    WidgetRef ref,
+    ChapterSnapshot snapshot,
+  ) async {
+    final full = await ref
+        .read(chapterRepositoryProvider)
+        .getSnapshot(snapshot.id);
+    if (full == null || !context.mounted) return;
+    await showSnapshotDiffDialog(
+      context,
+      oldText: full.content,
+      newText: controller.textController.text,
+    );
+  }
+
   /// 预览截断，避免超长章节（10 万字）在弹窗内渲染卡顿。
   static String _preview(AppLocalizations l10n, String content) {
     if (content.isEmpty) return l10n.snapshotEmptyChapter;
@@ -193,6 +211,11 @@ class SnapshotPanel extends ConsumerWidget {
                       ),
                     ),
                     onTap: () => _open(context, ref, snapshot),
+                    trailing: IconButton(
+                      tooltip: context.l10n.snapshotDiffAction,
+                      icon: const Icon(Icons.difference_outlined, size: 20),
+                      onPressed: () => _compare(context, ref, snapshot),
+                    ),
                   );
                 },
               ),

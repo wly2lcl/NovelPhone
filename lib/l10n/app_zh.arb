@@ -471,6 +471,33 @@
   "snapshotHistoryTitle": "版本历史",
   "snapshotCreate": "创建快照",
   "snapshotEmptyHint": "还没有快照。写作途中点「创建快照」留存一个版本。",
+  "snapshotDiffAction": "与原稿对比",
+  "snapshotDiffTitle": "与当前版本对比",
+  "snapshotDiffNoChanges": "与当前版本一致，无改动",
+  "snapshotDiffAdded": "{count} 段新增",
+  "@snapshotDiffAdded": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "snapshotDiffRemoved": "{count} 段删除",
+  "@snapshotDiffRemoved": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "snapshotDiffHidden": "… 省略 {count} 行未改动",
+  "@snapshotDiffHidden": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "findReplaceReplacedCount": "已替换 {count} 处",
   "@findReplaceReplacedCount": {
     "placeholders": {
@@ -668,6 +695,21 @@
   },
   "statsStreakKeepGoing": "保持下去，别断更",
   "statsStreakStart": "今天写一点，开启连击",
+  "statsTrendTitle": "写作趋势",
+  "statsTrendRange7": "7 天",
+  "statsTrendRange30": "30 天",
+  "statsTrendTotal": "近 {days} 天共 {words} 字",
+  "@statsTrendTotal": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      },
+      "words": {
+        "type": "int"
+      }
+    }
+  },
+  "statsTrendEmpty": "最近还没有写作记录",
   "statsPomodoroTitle": "番茄钟",
   "statsPomodoroMinutes": "{count} 分钟",
   "@statsPomodoroMinutes": {

@@ -666,6 +666,30 @@ class AppLocalizationsZh extends AppLocalizations {
   String get snapshotEmptyHint => '还没有快照。写作途中点「创建快照」留存一个版本。';
 
   @override
+  String get snapshotDiffAction => '与原稿对比';
+
+  @override
+  String get snapshotDiffTitle => '与当前版本对比';
+
+  @override
+  String get snapshotDiffNoChanges => '与当前版本一致，无改动';
+
+  @override
+  String snapshotDiffAdded(int count) {
+    return '$count 段新增';
+  }
+
+  @override
+  String snapshotDiffRemoved(int count) {
+    return '$count 段删除';
+  }
+
+  @override
+  String snapshotDiffHidden(int count) {
+    return '… 省略 $count 行未改动';
+  }
+
+  @override
   String findReplaceReplacedCount(int count) {
     return '已替换 $count 处';
   }
@@ -859,6 +883,23 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get statsStreakStart => '今天写一点，开启连击';
+
+  @override
+  String get statsTrendTitle => '写作趋势';
+
+  @override
+  String get statsTrendRange7 => '7 天';
+
+  @override
+  String get statsTrendRange30 => '30 天';
+
+  @override
+  String statsTrendTotal(int days, int words) {
+    return '近 $days 天共 $words 字';
+  }
+
+  @override
+  String get statsTrendEmpty => '最近还没有写作记录';
 
   @override
   String get statsPomodoroTitle => '番茄钟';

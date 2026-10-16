@@ -13,7 +13,7 @@
 - **数据归你**——SQLite 本地存储、API Key 存系统安全区、备份导出到本地文件或你自己的对象存储；
 - **治理「AI 味」**——内置规则引擎与可选 LLM 深检标记套话、重复句式等问题，支持定位与一键替换；AI 续写默认并发生成多个候选，供你对照挑选。
 
-当前状态：MVP 功能范围（78 / 78）已收口，此后 17 项增强（ENH-01~17，含全 App 简体中文 / English 双语 UI）全部落地；Android release 签名与 GitHub Actions CI 就绪，314 个自动化用例通过，真机验收记录见 [docs/TODO.md](docs/TODO.md)。
+当前状态：MVP 功能范围（78 / 78）已收口，此后 18 项增强（ENH-01~18，含全 App 简体中文 / English 双语 UI）全部落地；Android release 签名与 GitHub Actions CI 就绪，iOS 无签名 release 构建通过，332 个自动化用例通过，真机验收记录见 [docs/TODO.md](docs/TODO.md)。
 
 ## 截图
 
@@ -34,7 +34,7 @@
 - 导入 txt / docx：自动探测编码（UTF-8 / GBK）、按「第X章」规则分章预览、「并入上一章」合并、单文件 10MB 上限
 - 编辑器：自动保存与「已保存」指示、专注模式（隐藏工具栏、光标行居中）、写作外观（夜间纸张 / 正文字号 / 行距）
 - 查找、段落移动、撤销 / 重做（100 步与累计 200 万字符双上限）
-- 章节快照（版本历史）：创建 / 预览 / 恢复 / 删除，随备份往返
+- 章节快照（版本历史）：创建 / 预览 / 恢复 / 删除，可与当前文本对比（段落级差异高亮、改动计数、长未改动段折叠），随备份往返
 - 导出：单章 txt / markdown，整作 Word（.docx）与 EPUB 3
 
 ### 故事资产
@@ -70,7 +70,7 @@
 
 - 备份到文件：整库 zip（`data.json` + 每作品 markdown），恢复时可「合并为新增作品」或「覆盖并清空本地」
 - 云备份：用户自带的 S3 兼容对象存储（AWS S3 / 阿里云 OSS / 七牛 Kodo / 腾讯 COS / 华为 OBS），SigV4 直签、默认关闭，支持手动与按间隔自动备份
-- 写作统计：每日字数目标进度、连续写作天数、番茄钟
+- 写作统计：每日字数目标进度、连续写作天数、番茄钟、近 7 / 30 天字数趋势图
 - Token 与采纳统计：按「任务 · 模型」分组，记录生成次数、token 用量与采纳率 / 忽略率
 - 隐私：API Key 存系统安全存储（keychain / keystore），不入库、不随备份导出；AI 功能首次联网前展示告知门控，详情见 [docs/COMPLIANCE.md](docs/COMPLIANCE.md)
 
@@ -83,7 +83,7 @@
 | 安全存储 | flutter_secure_storage（keychain / keystore） |
 | 网络 | http（SSE 流式解析）、crypto（云备份 SigV4 直签） |
 | AI 互操作 | 三类端点协议适配、mcp_dart（远程 MCP）、自定义技能编排 |
-| 平台 | 单代码库交付，当前以 Android 为主要交付与真机验收目标 |
+| 平台 | 单代码库交付 iOS / Android；当前以 Android 为主要交付与真机验收目标（iOS 已通过无签名 release 构建验证） |
 
 无服务端组件：应用离线可用，联网仅发生在你主动使用 AI 或云备份时，且直连你自己配置的服务商。
 
@@ -93,6 +93,7 @@
 
 - Flutter 3.44.x（CI 基线 3.44.3）/ Dart ^3.12.2
 - Android SDK（构建 Android 安装包）
+- Xcode 27+（构建 iOS 包，可选；无需 CocoaPods）
 
 ```bash
 flutter pub get
@@ -103,6 +104,12 @@ flutter run     # 连接 Android 设备或模拟器运行
 
 ```bash
 flutter build apk --release
+```
+
+iOS 构建（需 Xcode 27+；Flutter 3.44 走 Swift Package Manager，不依赖 CocoaPods；未配置签名证书时用 `--no-codesign` 验证编译）：
+
+```bash
+flutter build ios --no-codesign --release
 ```
 
 修改 Drift 表结构后重新生成数据层代码：
@@ -116,7 +123,7 @@ dart run build_runner build --delete-conflicting-outputs
 ```bash
 dart format --output=none --set-exit-if-changed lib test
 flutter analyze
-flutter test    # 314 个用例：数据层 / 编辑器控制器 / AI 客户端与编排 / 检查引擎 / 页面 widget
+flutter test    # 332 个用例：数据层 / 编辑器控制器 / AI 客户端与编排 / 检查引擎 / 页面 widget
 ```
 
 GitHub Actions（[ci.yml](.github/workflows/ci.yml)）在 push 与 PR 上执行上述三项检查。
@@ -129,7 +136,7 @@ GitHub Actions（[ci.yml](.github/workflows/ci.yml)）在 push 与 PR 上执行�
 |---|---|
 | [docs/PRD.md](docs/PRD.md) | 产品定位、功能范围与验收标准 |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 技术选型、分层模块、数据模型与 AI 层设计 |
-| [docs/TODO.md](docs/TODO.md) | 任务清单、进度跟踪与真机验收记录（M1-M4 + ENH-01~17） |
+| [docs/TODO.md](docs/TODO.md) | 任务清单、进度跟踪与真机验收记录（M1-M4 + ENH-01~18） |
 | [docs/COMPLIANCE.md](docs/COMPLIANCE.md) | 隐私政策、数据安全说明与上架资料要点 |
 
 ## 许可证

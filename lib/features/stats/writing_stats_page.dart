@@ -8,6 +8,7 @@ import '../../core/writing_stats.dart';
 import '../../data/data_providers.dart';
 import '../../data/db.dart';
 import '../../l10n/l10n.dart';
+import 'word_trend_chart.dart';
 
 /// 写作统计（B-07）：今日字数与每日目标进度、连续写作天数、番茄钟。
 class WritingStatsPage extends ConsumerStatefulWidget {
@@ -185,10 +186,11 @@ class _WritingStatsPageState extends ConsumerState<WritingStatsPage> {
       data: (list) => _todayWords(list),
       orElse: () => 0,
     );
-    final streak = stats.maybeWhen(
-      data: (list) => writingStreak(_wordsByDay(list)),
-      orElse: () => 0,
+    final wordsByDay = stats.maybeWhen(
+      data: (list) => _wordsByDay(list),
+      orElse: () => const <String, int>{},
     );
+    final streak = writingStreak(wordsByDay);
 
     return Scaffold(
       appBar: AppBar(title: Text(context.l10n.statsTitle)),
@@ -200,6 +202,8 @@ class _WritingStatsPageState extends ConsumerState<WritingStatsPage> {
             words: todayWords,
             onEditTarget: _editTarget,
           ),
+          const SizedBox(height: 16),
+          WordTrendChart(wordsByDay: wordsByDay),
           const SizedBox(height: 16),
           _StatTile(
             icon: Icons.local_fire_department_outlined,
