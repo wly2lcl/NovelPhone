@@ -25,16 +25,16 @@ class _FakeSession implements McpToolSession {
 
   @override
   List<Tool> get tools => <Tool>[
-        Tool(
-          name: '${mcpToolPrefix}echo',
-          description: '远程回显',
-          inputSchema: const <String, dynamic>{'type': 'object'},
-          execute: (args) async {
-            calls.add(args);
-            return '远程结果：${args['q'] ?? ''}';
-          },
-        ),
-      ];
+    Tool(
+      name: '${mcpToolPrefix}echo',
+      description: '远程回显',
+      inputSchema: const <String, dynamic>{'type': 'object'},
+      execute: (args) async {
+        calls.add(args);
+        return '远程结果：${args['q'] ?? ''}';
+      },
+    ),
+  ];
 
   @override
   Future<void> close() async => closed = true;
@@ -109,8 +109,9 @@ void main() {
       expect(list.single.id, id);
       expect(list.single.allowedTools, <String>['echo']);
       expect(await settings.hasMcpAuthHeaders(id), isTrue);
-      expect(await settings.resolveMcpHeaders(id),
-          <String, String>{'Authorization': 'Bearer secret'});
+      expect(await settings.resolveMcpHeaders(id), <String, String>{
+        'Authorization': 'Bearer secret',
+      });
       // 配置 JSON 不得包含密钥本体
       final raw = await settings.getSetting(SettingsRepository.mcpServersKey);
       expect(raw, isNot(contains('secret')));

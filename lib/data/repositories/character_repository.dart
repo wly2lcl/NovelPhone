@@ -7,13 +7,14 @@ import '../db.dart';
 /// 角色卡读写（UI 在 M2 落地，接口在 M1 就位）。
 class CharacterRepository {
   CharacterRepository(AppDatabase db)
-      : _dao = CharacterDao(db),
-        _relations = RelationDao(db);
+    : _dao = CharacterDao(db),
+      _relations = RelationDao(db);
 
   final CharacterDao _dao;
   final RelationDao _relations;
 
-  Stream<List<Character>> watchCharacters(int workId) => _dao.watchByWork(workId);
+  Stream<List<Character>> watchCharacters(int workId) =>
+      _dao.watchByWork(workId);
 
   Future<List<Character>> listCharacters(int workId) => _dao.findByWork(workId);
 
@@ -28,15 +29,17 @@ class CharacterRepository {
     String relations = '',
     String arc = '',
   }) {
-    return _dao.insert(CharactersCompanion.insert(
-      workId: workId,
-      name: name,
-      identity: Value(identity),
-      personalityTags: Value(personalityTags),
-      appearance: Value(appearance),
-      relations: Value(relations),
-      arc: Value(arc),
-    ));
+    return _dao.insert(
+      CharactersCompanion.insert(
+        workId: workId,
+        name: name,
+        identity: Value(identity),
+        personalityTags: Value(personalityTags),
+        appearance: Value(appearance),
+        relations: Value(relations),
+        arc: Value(arc),
+      ),
+    );
   }
 
   Future<void> updateCharacter({
@@ -78,12 +81,14 @@ class CharacterRepository {
     required int toCharacterId,
     String label = '',
   }) {
-    return _relations.insert(CharacterRelationsCompanion.insert(
-      workId: workId,
-      fromCharacterId: fromCharacterId,
-      toCharacterId: toCharacterId,
-      label: Value(label),
-    ));
+    return _relations.insert(
+      CharacterRelationsCompanion.insert(
+        workId: workId,
+        fromCharacterId: fromCharacterId,
+        toCharacterId: toCharacterId,
+        label: Value(label),
+      ),
+    );
   }
 
   Future<void> updateRelation({

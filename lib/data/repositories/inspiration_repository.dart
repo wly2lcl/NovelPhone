@@ -14,11 +14,13 @@ class InspirationRepository {
       _dao.findByWork(workId);
 
   Future<int> createInspiration(int workId, String content) {
-    return _dao.insert(InspirationsCompanion.insert(
-      workId: workId,
-      content: content,
-      createdAt: DateTime.now(),
-    ));
+    return _dao.insert(
+      InspirationsCompanion.insert(
+        workId: workId,
+        content: content,
+        createdAt: DateTime.now(),
+      ),
+    );
   }
 
   Future<void> updateInspiration(int id, String content) =>

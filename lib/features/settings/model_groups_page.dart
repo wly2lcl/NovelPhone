@@ -163,11 +163,13 @@ class _ModelGroupTileState extends ConsumerState<_ModelGroupTile> {
       ),
     );
     if (ok != true) return;
-    await ref.read(settingsRepositoryProvider).deleteModelGroup(widget.group.id);
+    await ref
+        .read(settingsRepositoryProvider)
+        .deleteModelGroup(widget.group.id);
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('已删除模型组')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('已删除模型组')));
     }
   }
 }

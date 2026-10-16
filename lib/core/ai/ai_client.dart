@@ -36,12 +36,7 @@ class ToolCall {
 /// 一轮消息。role 取值：user / assistant / tool。
 /// assistant 可携带工具调用；role=tool 时 [toolCallId] 对应被回填的调用。
 class ChatMessage {
-  const ChatMessage(
-    this.role,
-    this.content, {
-    this.toolCalls,
-    this.toolCallId,
-  });
+  const ChatMessage(this.role, this.content, {this.toolCalls, this.toolCallId});
 
   final String role;
   final String content;
@@ -131,11 +126,7 @@ class ChatDone extends ChatChunk {
 }
 
 class ChatError extends ChatChunk {
-  const ChatError({
-    required this.kind,
-    required this.message,
-    this.statusCode,
-  });
+  const ChatError({required this.kind, required this.message, this.statusCode});
 
   final AiErrorKind kind;
   final String message;

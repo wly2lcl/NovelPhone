@@ -24,8 +24,7 @@ class _CloudBackupPageState extends ConsumerState<CloudBackupPage> {
   final _region = TextEditingController();
   final _bucket = TextEditingController();
   final _prefix = TextEditingController(text: kDefaultCloudBackupPrefix);
-  final _keepCount =
-      TextEditingController(text: '$kDefaultCloudKeepCount');
+  final _keepCount = TextEditingController(text: '$kDefaultCloudKeepCount');
   final _accessKey = TextEditingController();
   final _secretKey = TextEditingController();
 
@@ -81,17 +80,16 @@ class _CloudBackupPageState extends ConsumerState<CloudBackupPage> {
   }
 
   CloudBackupConfig _currentConfig() => CloudBackupConfig(
-        enabled: _enabled,
-        provider: _provider,
-        endpoint: _endpoint.text.trim(),
-        region: _region.text.trim(),
-        bucket: _bucket.text.trim(),
-        prefix: _prefix.text.trim(),
-        keepCount: int.tryParse(_keepCount.text.trim()) ??
-            kDefaultCloudKeepCount,
-        autoEnabled: _autoEnabled,
-        autoIntervalHours: _autoInterval.hours,
-      );
+    enabled: _enabled,
+    provider: _provider,
+    endpoint: _endpoint.text.trim(),
+    region: _region.text.trim(),
+    bucket: _bucket.text.trim(),
+    prefix: _prefix.text.trim(),
+    keepCount: int.tryParse(_keepCount.text.trim()) ?? kDefaultCloudKeepCount,
+    autoEnabled: _autoEnabled,
+    autoIntervalHours: _autoInterval.hours,
+  );
 
   void _showMessage(String message, {required bool ok}) {
     if (!mounted) return;
@@ -115,8 +113,9 @@ class _CloudBackupPageState extends ConsumerState<CloudBackupPage> {
     if (!mounted) return;
     setState(() {});
     if (announce) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('已保存')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('已保存')));
     }
   }
 
@@ -171,7 +170,9 @@ class _CloudBackupPageState extends ConsumerState<CloudBackupPage> {
     try {
       final result = await service.backupNow();
       // 记录成功时间，避免刚手动备份又被自动调度重复触发。
-      await ref.read(settingsRepositoryProvider).setCloudLastBackupAt(DateTime.now());
+      await ref
+          .read(settingsRepositoryProvider)
+          .setCloudLastBackupAt(DateTime.now());
       _showMessage(
         '备份成功：${result.key}（${_formatSize(result.bytes)}）'
         '${result.pruned > 0 ? '，已清理 ${result.pruned} 份旧备份' : ''}',
@@ -230,15 +231,18 @@ class _CloudBackupPageState extends ConsumerState<CloudBackupPage> {
           .read(backupRepositoryProvider)
           .restore(data, overwrite: overwrite);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(
-          '恢复完成：${report.works} 部作品、${report.chapters} 章、${report.characters} 个角色卡',
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '恢复完成：${report.works} 部作品、${report.chapters} 章、${report.characters} 个角色卡',
+          ),
         ),
-      ));
+      );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('恢复失败：$e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('恢复失败：$e')));
     }
   }
 
@@ -314,7 +318,9 @@ class _CloudBackupPageState extends ConsumerState<CloudBackupPage> {
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _bucket,
-                      decoration: const InputDecoration(labelText: '存储桶 Bucket'),
+                      decoration: const InputDecoration(
+                        labelText: '存储桶 Bucket',
+                      ),
                       validator: _required('桶名'),
                     ),
                     const SizedBox(height: 12),
@@ -369,7 +375,10 @@ class _CloudBackupPageState extends ConsumerState<CloudBackupPage> {
                         ),
                         FilledButton.icon(
                           onPressed: _busy ? null : _backupNow,
-                          icon: const Icon(Icons.cloud_upload_outlined, size: 18),
+                          icon: const Icon(
+                            Icons.cloud_upload_outlined,
+                            size: 18,
+                          ),
                           label: const Text('立即备份'),
                         ),
                         OutlinedButton.icon(
@@ -428,7 +437,10 @@ class _CloudBackupPageState extends ConsumerState<CloudBackupPage> {
                       const SizedBox(height: 8),
                     ],
                     const Divider(height: 24),
-                    Text('远端备份', style: TextStyle(color: context.paper.inkSoft)),
+                    Text(
+                      '远端备份',
+                      style: TextStyle(color: context.paper.inkSoft),
+                    ),
                     const SizedBox(height: 4),
                     _BackupList(
                       backups: _backups,
@@ -442,8 +454,8 @@ class _CloudBackupPageState extends ConsumerState<CloudBackupPage> {
     );
   }
 
-  FormFieldValidator<String> _required(String label) => (value) =>
-      (value ?? '').trim().isEmpty ? '请填写$label' : null;
+  FormFieldValidator<String> _required(String label) =>
+      (value) => (value ?? '').trim().isEmpty ? '请填写$label' : null;
 }
 
 /// 人类可读的文件大小。
@@ -528,7 +540,10 @@ class _BackupList extends StatelessWidget {
               '${object.lastModified == null ? '' : ' · ${object.lastModified}'}',
               style: TextStyle(fontSize: 12, color: context.paper.inkSoft),
             ),
-            trailing: Icon(Icons.download_outlined, color: context.paper.inkSoft),
+            trailing: Icon(
+              Icons.download_outlined,
+              color: context.paper.inkSoft,
+            ),
             enabled: !busy,
             onTap: () => onRestore(object),
           ),

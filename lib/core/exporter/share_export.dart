@@ -39,8 +39,10 @@ Future<void> shareExport({
   final dir = await getTemporaryDirectory();
   final file = File(p.join(dir.path, fileName));
   await file.writeAsBytes(bytes, flush: true);
-  await SharePlus.instance.share(ShareParams(
-    files: <XFile>[XFile(file.path, mimeType: mimeTypeForFileName(fileName))],
-    title: title,
-  ));
+  await SharePlus.instance.share(
+    ShareParams(
+      files: <XFile>[XFile(file.path, mimeType: mimeTypeForFileName(fileName))],
+      title: title,
+    ),
+  );
 }

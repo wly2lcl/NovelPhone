@@ -29,9 +29,15 @@ void main() {
 
   test('创建快照记录标题、正文与字数，最新的排在最前', () async {
     await chapters.createSnapshot(
-        chapterId: chapterId, title: '第一章', content: '初稿。');
+      chapterId: chapterId,
+      title: '第一章',
+      content: '初稿。',
+    );
     await chapters.createSnapshot(
-        chapterId: chapterId, title: '第一章 改', content: '二稿，加了一段。');
+      chapterId: chapterId,
+      title: '第一章 改',
+      content: '二稿，加了一段。',
+    );
 
     final list = await chapters.listSnapshots(chapterId);
 
@@ -43,7 +49,10 @@ void main() {
 
   test('快照元数据流不含正文，正文按 id 单取（ENH-10）', () async {
     final id = await chapters.createSnapshot(
-        chapterId: chapterId, title: '第一章', content: '留档正文。');
+      chapterId: chapterId,
+      title: '第一章',
+      content: '留档正文。',
+    );
 
     final metas = await chapters.watchSnapshots(chapterId).first;
 
@@ -58,7 +67,10 @@ void main() {
     final limit = ChapterRepository.maxSnapshotsPerChapter;
     for (var i = 0; i < limit + 2; i++) {
       await chapters.createSnapshot(
-          chapterId: chapterId, title: '第 $i 版', content: '内容 $i');
+        chapterId: chapterId,
+        title: '第 $i 版',
+        content: '内容 $i',
+      );
     }
 
     final list = await chapters.listSnapshots(chapterId);
@@ -70,7 +82,10 @@ void main() {
 
   test('删除章节时快照随外键级联删除', () async {
     await chapters.createSnapshot(
-        chapterId: chapterId, title: '第一章', content: '正文');
+      chapterId: chapterId,
+      title: '第一章',
+      content: '正文',
+    );
     await chapters.deleteChapter(chapterId);
 
     expect(await chapters.listSnapshots(chapterId), isEmpty);
@@ -78,7 +93,10 @@ void main() {
 
   test('删除指定快照', () async {
     final id = await chapters.createSnapshot(
-        chapterId: chapterId, title: '第一章', content: '正文');
+      chapterId: chapterId,
+      title: '第一章',
+      content: '正文',
+    );
 
     await chapters.deleteSnapshot(id);
 
@@ -87,18 +105,29 @@ void main() {
 
   test('恢复版本写回标题与正文并落库，且可撤销', () async {
     await chapters.saveChapter(
-        chapterId: chapterId, title: '第一章', content: '当前正文。');
+      chapterId: chapterId,
+      title: '第一章',
+      content: '当前正文。',
+    );
     await chapters.createSnapshot(
-        chapterId: chapterId, title: '旧标题', content: '旧正文。');
+      chapterId: chapterId,
+      title: '旧标题',
+      content: '旧正文。',
+    );
     final target = (await chapters.listSnapshots(chapterId)).single;
 
     final controller = EditorController(
-        repository: chapters, workId: workId, chapterId: chapterId);
+      repository: chapters,
+      workId: workId,
+      chapterId: chapterId,
+    );
     await controller.load();
     expect(controller.textController.text, '当前正文。');
 
     await controller.restoreVersion(
-        title: target.title, content: target.content);
+      title: target.title,
+      content: target.content,
+    );
 
     expect(controller.title, '旧标题');
     expect(controller.textController.text, '旧正文。');
@@ -112,7 +141,10 @@ void main() {
 
   test('备份导出与覆盖恢复保留快照并重映射章节外键', () async {
     await chapters.createSnapshot(
-        chapterId: chapterId, title: '第一章', content: '留档正文。');
+      chapterId: chapterId,
+      title: '第一章',
+      content: '留档正文。',
+    );
     final data = await backup.exportData();
     expect((data['tables'] as Map)['chapterSnapshots'], hasLength(1));
 

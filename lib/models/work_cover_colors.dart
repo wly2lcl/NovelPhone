@@ -16,7 +16,8 @@ class WorkCoverColors {
   ];
 
   /// 随机取一个预设色（转换为 ARGB 存储值）。
-  static int random() => palette[DateTime.now().microsecond % palette.length].toARGB32();
+  static int random() =>
+      palette[DateTime.now().microsecond % palette.length].toARGB32();
 
   static Color of(int argb) => Color(argb);
 }

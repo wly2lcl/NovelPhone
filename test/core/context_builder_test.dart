@@ -119,10 +119,14 @@ void main() {
     );
 
     final labels = context.sections.map((s) => s.label).toList();
-    expect(labels, containsAll(<String>['本章章纲', '前文摘要', '相关角色卡', '本章已写内容（尾部）']));
+    expect(
+      labels,
+      containsAll(<String>['本章章纲', '前文摘要', '相关角色卡', '本章已写内容（尾部）']),
+    );
 
-    final charactersSection =
-        context.sections.firstWhere((s) => s.label == '相关角色卡');
+    final charactersSection = context.sections.firstWhere(
+      (s) => s.label == '相关角色卡',
+    );
     expect(charactersSection.content, contains('沈砚'));
     expect(charactersSection.content, contains('苏晚'));
     // 未在本章出现的角色不进入上下文
@@ -163,8 +167,7 @@ void main() {
     // 优先级最低的卷级大纲最先被丢弃
     expect(context.sections.map((s) => s.label), isNot(contains('卷级大纲')));
     // 预算已被高优先级内容占满时，尾部整段丢弃
-    expect(context.sections.map((s) => s.label),
-        isNot(contains('本章已写内容（尾部）')));
+    expect(context.sections.map((s) => s.label), isNot(contains('本章已写内容（尾部）')));
   });
 
   test('本章正文超过尾部保留量时只取尾部并标记省略', () async {
@@ -185,8 +188,7 @@ void main() {
       contextWindow: 32000,
     );
 
-    final tail =
-        context.sections.firstWhere((s) => s.label == '本章已写内容（尾部）');
+    final tail = context.sections.firstWhere((s) => s.label == '本章已写内容（尾部）');
     expect(tail.truncated, isTrue);
     expect(tail.content, startsWith('（前文略）'));
     expect(tail.content, endsWith('尾部标记'));
@@ -202,7 +204,11 @@ void main() {
       cursorOffset: 0,
       scrollOffset: 0,
     );
-    await characters.createCharacter(workId: workId, name: '沈砚', identity: '游侠');
+    await characters.createCharacter(
+      workId: workId,
+      name: '沈砚',
+      identity: '游侠',
+    );
     await settings.createEntry(
       workId: workId,
       type: SettingType.worldview,
@@ -244,7 +250,11 @@ void main() {
       cursorOffset: 0,
       scrollOffset: 0,
     );
-    await characters.createCharacter(workId: workId, name: '沈砚', identity: '游侠');
+    await characters.createCharacter(
+      workId: workId,
+      name: '沈砚',
+      identity: '游侠',
+    );
 
     final context = await builder.buildRewrite(
       workId: workId,
@@ -255,17 +265,16 @@ void main() {
     );
 
     // 选中原文是主材料，追加在 messages 末尾。
-    expect(context.messages.single.content,
-        endsWith('【待改写原文】\n沈砚握紧了刀。'));
+    expect(context.messages.single.content, endsWith('【待改写原文】\n沈砚握紧了刀。'));
     // 不注入本章尾部，避免与原文重复。
-    expect(context.sections.map((s) => s.label),
-        isNot(contains('本章已写内容（尾部）')));
+    expect(context.sections.map((s) => s.label), isNot(contains('本章已写内容（尾部）')));
     // 改写专用 system，不再是续写 system。
     expect(context.system, contains('改稿助手'));
     expect(context.system, isNot(contains('续写')));
     // 角色卡按选中原文匹配。
-    final charactersSection =
-        context.sections.firstWhere((s) => s.label == '相关角色卡');
+    final charactersSection = context.sections.firstWhere(
+      (s) => s.label == '相关角色卡',
+    );
     expect(charactersSection.content, contains('沈砚'));
   });
 
@@ -303,31 +312,28 @@ void main() {
   });
 
   test('角色卡匹配按出现次数排序', () {
-    final matched = matchCharacters(
-      <Character>[
-        Character(
-          id: 1,
-          workId: 1,
-          name: '沈砚',
-          identity: '',
-          personalityTags: '',
-          appearance: '',
-          relations: '',
-          arc: '',
-        ),
-        Character(
-          id: 2,
-          workId: 1,
-          name: '苏晚',
-          identity: '',
-          personalityTags: '',
-          appearance: '',
-          relations: '',
-          arc: '',
-        ),
-      ],
-      '沈砚说。沈砚走了。苏晚点头。',
-    );
+    final matched = matchCharacters(<Character>[
+      Character(
+        id: 1,
+        workId: 1,
+        name: '沈砚',
+        identity: '',
+        personalityTags: '',
+        appearance: '',
+        relations: '',
+        arc: '',
+      ),
+      Character(
+        id: 2,
+        workId: 1,
+        name: '苏晚',
+        identity: '',
+        personalityTags: '',
+        appearance: '',
+        relations: '',
+        arc: '',
+      ),
+    ], '沈砚说。沈砚走了。苏晚点头。');
     expect(matched.map((c) => c.name).toList(), <String>['沈砚', '苏晚']);
   });
 
@@ -335,10 +341,7 @@ void main() {
     final workId = await seedWork();
     final ordered = await chapters.watchChapters(workId).first;
     // 为第一章写入 AI 摘要：续写第三章时前文摘要应直接采用缓存内容。
-    await chapters.saveChapterSummary(
-      ordered.first.id,
-      'AI 摘要：沈砚离乡，风从山口灌下。',
-    );
+    await chapters.saveChapterSummary(ordered.first.id, 'AI 摘要：沈砚离乡，风从山口灌下。');
 
     final third = await chapters.createChapter(workId: workId, title: '第三章');
     await chapters.saveChapter(
@@ -355,8 +358,9 @@ void main() {
       contextWindow: 32000,
     );
 
-    final summarySection =
-        context.sections.firstWhere((s) => s.label == '前文摘要');
+    final summarySection = context.sections.firstWhere(
+      (s) => s.label == '前文摘要',
+    );
     expect(summarySection.content, contains('AI 摘要：沈砚离乡，风从山口灌下。'));
   });
 
@@ -421,19 +425,24 @@ void main() {
 
     // 未生成本卷前情回顾：输出与旧版逐字一致，无【本卷前情】前缀。
     final plain = await builder.buildContinue(
-        workId: workId, chapterId: third, contextWindow: 32000);
-    final plainSummary =
-        plain.sections.firstWhere((s) => s.label == '前文摘要');
+      workId: workId,
+      chapterId: third,
+      contextWindow: 32000,
+    );
+    final plainSummary = plain.sections.firstWhere((s) => s.label == '前文摘要');
     expect(plainSummary.content, startsWith('《第一章》'));
     expect(plainSummary.content, isNot(contains('【本卷前情】')));
 
     // 生成后：本卷前情回顾前置，最近章摘要随后。
-    await chapters.saveVolumeSummary(
-        ordered.first.volumeId, '本卷：沈砚离乡，苏晚登场。');
+    await chapters.saveVolumeSummary(ordered.first.volumeId, '本卷：沈砚离乡，苏晚登场。');
     final withRecap = await builder.buildContinue(
-        workId: workId, chapterId: third, contextWindow: 32000);
-    final recapSummary =
-        withRecap.sections.firstWhere((s) => s.label == '前文摘要');
+      workId: workId,
+      chapterId: third,
+      contextWindow: 32000,
+    );
+    final recapSummary = withRecap.sections.firstWhere(
+      (s) => s.label == '前文摘要',
+    );
     expect(recapSummary.content, startsWith('【本卷前情】本卷：沈砚离乡，苏晚登场。'));
     expect(recapSummary.content, contains('《第一章》'));
   });
@@ -453,12 +462,18 @@ void main() {
     );
 
     final context = await builder.buildVolumeSummary(
-        workId: workId, chapterId: third, contextWindow: 32000);
+      workId: workId,
+      chapterId: third,
+      contextWindow: 32000,
+    );
 
-    expect(context.sections.map((s) => s.label),
-        contains('本卷素材（上一版回顾 + 新增章节）'));
-    final material = context.sections
-        .firstWhere((s) => s.label == '本卷素材（上一版回顾 + 新增章节）');
+    expect(
+      context.sections.map((s) => s.label),
+      contains('本卷素材（上一版回顾 + 新增章节）'),
+    );
+    final material = context.sections.firstWhere(
+      (s) => s.label == '本卷素材（上一版回顾 + 新增章节）',
+    );
     expect(material.content, contains('第一章摘要：沈砚离乡。'));
     expect(material.content, contains('第二章摘要：苏晚登场。'));
     // 当前章也在素材内。
@@ -467,7 +482,10 @@ void main() {
 
     // 极小预算：素材按预算截断并标记。
     final tight = await builder.buildVolumeSummary(
-        workId: workId, chapterId: third, contextWindow: 40);
+      workId: workId,
+      chapterId: third,
+      contextWindow: 40,
+    );
     expect(tight.truncated, isTrue);
     expect(tight.messages.single.content, isNot(contains('第二章摘要：苏晚登场。')));
   });
@@ -477,10 +495,14 @@ void main() {
     final ordered = await chapters.watchChapters(workId).first;
 
     final context = await builder.buildVolumeSummary(
-        workId: workId, chapterId: ordered.first.id, contextWindow: 32000);
+      workId: workId,
+      chapterId: ordered.first.id,
+      contextWindow: 32000,
+    );
 
-    final material = context.sections
-        .firstWhere((s) => s.label == '本卷素材（上一版回顾 + 新增章节）');
+    final material = context.sections.firstWhere(
+      (s) => s.label == '本卷素材（上一版回顾 + 新增章节）',
+    );
     expect(material.content, contains('《第一章》'));
     expect(material.content, isNot(contains('《第二章》')));
   });
@@ -510,15 +532,19 @@ void main() {
       );
 
       final context = await localBuilder.buildContinue(
-          workId: workId, chapterId: third, contextWindow: 32000);
+        workId: workId,
+        chapterId: third,
+        contextWindow: 32000,
+      );
 
       // 顺序与摘要都取自元数据流，不再为一段回顾把整部作品正文读进内存。
       expect(counting.fullWorkReads, 0);
       // 正文只取当前章与「没有 AI 摘要的第二章」。
       expect(counting.contentReads.toSet(), <int>{third, ordered[1].id});
 
-      final summarySection =
-          context.sections.firstWhere((s) => s.label == '前文摘要');
+      final summarySection = context.sections.firstWhere(
+        (s) => s.label == '前文摘要',
+      );
       // 有 AI 摘要的章节直接用摘要。
       expect(summarySection.content, contains('第一章摘要：沈砚离乡。'));
       // 无摘要的章节回退本地抽句，行为与旧版一致。
@@ -538,7 +564,9 @@ void main() {
       final third = await chapters.createChapter(workId: workId, title: '第三章');
 
       final recap = await localBuilder.buildInspireContext(
-          workId: workId, chapterId: third);
+        workId: workId,
+        chapterId: third,
+      );
 
       expect(counting.fullWorkReads, 0);
       expect(recap.previousSummary, contains('《第二章》沈砚在雨里走了很久'));
@@ -569,15 +597,19 @@ void main() {
       );
 
       final context = await localBuilder.buildVolumeSummary(
-          workId: workId, chapterId: third, contextWindow: 32000);
+        workId: workId,
+        chapterId: third,
+        contextWindow: 32000,
+      );
 
       // 顺序与摘要取自元数据流，不再为一段卷回顾读整部作品正文。
       expect(counting.fullWorkReads, 0);
       // 正文只取当前章与「没有 AI 摘要的第二章」。
       expect(counting.contentReads.toSet(), <int>{third, ordered[1].id});
 
-      final material = context.sections
-          .firstWhere((s) => s.label == '本卷素材（上一版回顾 + 新增章节）');
+      final material = context.sections.firstWhere(
+        (s) => s.label == '本卷素材（上一版回顾 + 新增章节）',
+      );
       expect(material.content, contains('第一章摘要：沈砚离乡。'));
       expect(material.content, contains('《第二章》沈砚在雨里走了很久'));
     });
@@ -596,10 +628,15 @@ void main() {
     );
     // 长本卷前情（> 120 字），确保触发压缩分支。
     await chapters.saveVolumeSummary(
-        ordered.first.volumeId, '本卷：${'沈砚离乡，苏晚同行。' * 20}');
+      ordered.first.volumeId,
+      '本卷：${'沈砚离乡，苏晚同行。' * 20}',
+    );
 
     final context = await builder.buildContinue(
-        workId: workId, chapterId: third, contextWindow: 400);
+      workId: workId,
+      chapterId: third,
+      contextWindow: 400,
+    );
 
     expect(context.truncated, isTrue);
     final summary = context.sections.firstWhere((s) => s.label == '前文摘要');
@@ -613,7 +650,10 @@ void main() {
     await chapters.saveVolumeSummary(firstVolume.id, '第一卷：沈砚离乡。');
     final secondVolume = await chapters.createVolume(workId, '第二卷 风起');
     final head = await chapters.createChapter(
-        workId: workId, volumeId: secondVolume, title: '第二卷 第一章');
+      workId: workId,
+      volumeId: secondVolume,
+      title: '第二卷 第一章',
+    );
     await chapters.saveChapter(
       chapterId: head,
       title: '第二卷 第一章',
@@ -624,13 +664,19 @@ void main() {
 
     // 跨卷首章：注入上一卷回顾。
     final cross = await builder.buildContinue(
-        workId: workId, chapterId: head, contextWindow: 32000);
+      workId: workId,
+      chapterId: head,
+      contextWindow: 32000,
+    );
     final crossSummary = cross.sections.firstWhere((s) => s.label == '前文摘要');
     expect(crossSummary.content, contains('【前卷前情】第一卷：沈砚离乡。'));
 
     // 同卷非首章：只有本卷前情，没有前卷前情。
     final same = await builder.buildContinue(
-        workId: workId, chapterId: ordered[1].id, contextWindow: 32000);
+      workId: workId,
+      chapterId: ordered[1].id,
+      contextWindow: 32000,
+    );
     final sameSummary = same.sections.firstWhere((s) => s.label == '前文摘要');
     expect(sameSummary.content, contains('【本卷前情】第一卷：沈砚离乡。'));
     expect(sameSummary.content, isNot(contains('【前卷前情】')));
@@ -645,22 +691,33 @@ void main() {
 
     // 首次全量归并：无上一版回顾，素材为全部章节摘要。
     final full = await builder.buildVolumeSummary(
-        workId: workId, chapterId: ordered[1].id, contextWindow: 32000);
-    final fullMaterial = full.sections
-        .firstWhere((s) => s.label == '本卷素材（上一版回顾 + 新增章节）');
+      workId: workId,
+      chapterId: ordered[1].id,
+      contextWindow: 32000,
+    );
+    final fullMaterial = full.sections.firstWhere(
+      (s) => s.label == '本卷素材（上一版回顾 + 新增章节）',
+    );
     expect(fullMaterial.content, isNot(contains('【上一版本卷回顾】')));
     expect(fullMaterial.content, contains('第一章摘要：沈砚离乡。'));
 
     // 记录覆盖到第二章后，新增第三章 → 增量素材 = 上一版回顾 + 新增第三章。
-    await chapters.saveVolumeSummary(volumeId, '本卷：沈砚离乡，苏晚登场。',
-        coveredChapterId: ordered[1].id);
+    await chapters.saveVolumeSummary(
+      volumeId,
+      '本卷：沈砚离乡，苏晚登场。',
+      coveredChapterId: ordered[1].id,
+    );
     final third = await chapters.createChapter(workId: workId, title: '第三章');
     await chapters.saveChapterSummary(third, '第三章摘要：刀光乍起。');
 
     final inc = await builder.buildVolumeSummary(
-        workId: workId, chapterId: third, contextWindow: 32000);
-    final incMaterial = inc.sections
-        .firstWhere((s) => s.label == '本卷素材（上一版回顾 + 新增章节）');
+      workId: workId,
+      chapterId: third,
+      contextWindow: 32000,
+    );
+    final incMaterial = inc.sections.firstWhere(
+      (s) => s.label == '本卷素材（上一版回顾 + 新增章节）',
+    );
     expect(incMaterial.content, contains('【上一版本卷回顾】'));
     expect(incMaterial.content, contains('本卷：沈砚离乡，苏晚登场。'));
     expect(incMaterial.content, contains('【新增章节摘要】'));
@@ -683,8 +740,10 @@ void main() {
     expect(none.previousSummary, isEmpty);
     expect(none.chapterOutline, isEmpty);
 
-    final ctx =
-        await builder.buildInspireContext(workId: workId, chapterId: third);
+    final ctx = await builder.buildInspireContext(
+      workId: workId,
+      chapterId: third,
+    );
     // 前文摘要取第三章之前的最近章节（本地抽句）。
     expect(ctx.previousSummary, contains('《第一章》'));
     expect(ctx.previousSummary, contains('《第二章》'));

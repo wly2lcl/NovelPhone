@@ -24,18 +24,15 @@ class CharactersTab extends ConsumerWidget {
           ? const _EmptyCharactersHint()
           : GridView.builder(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
-              gridDelegate:
-                  const SliverGridDelegateWithFixedCrossAxisCount(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
                 mainAxisSpacing: 12,
                 crossAxisSpacing: 12,
                 childAspectRatio: 0.92,
               ),
               itemCount: characters.length,
-              itemBuilder: (context, index) => _CharacterCard(
-                workId: workId,
-                character: characters[index],
-              ),
+              itemBuilder: (context, index) =>
+                  _CharacterCard(workId: workId, character: characters[index]),
             ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openEditor(context, ref),
@@ -45,8 +42,11 @@ class CharactersTab extends ConsumerWidget {
     );
   }
 
-  Future<void> _openEditor(BuildContext context, WidgetRef ref,
-      {Character? character}) async {
+  Future<void> _openEditor(
+    BuildContext context,
+    WidgetRef ref, {
+    Character? character,
+  }) async {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -66,8 +66,7 @@ class _EmptyCharactersHint extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Icon(Icons.groups_outlined,
-                size: 64, color: context.paper.inkSoft),
+            Icon(Icons.groups_outlined, size: 64, color: context.paper.inkSoft),
             const SizedBox(height: 12),
             Text('还没有角色卡', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 6),
@@ -110,13 +109,15 @@ class _CharacterCard extends StatelessWidget {
                 children: <Widget>[
                   CircleAvatar(
                     radius: 16,
-                    backgroundColor:
-                        context.paper.accent.withValues(alpha: 0.14),
+                    backgroundColor: context.paper.accent.withValues(
+                      alpha: 0.14,
+                    ),
                     child: Text(
                       character.name.characters.first,
                       style: TextStyle(
-                          color: context.paper.accent,
-                          fontWeight: FontWeight.w600),
+                        color: context.paper.accent,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -207,7 +208,8 @@ class _CharacterFormSheetState extends ConsumerState<_CharacterFormSheet> {
     _name = TextEditingController(text: c?.name ?? '');
     _identity = TextEditingController(text: c?.identity ?? '');
     _tags = TextEditingController(
-        text: c == null ? '' : decodeTags(c.personalityTags).join(' '));
+      text: c == null ? '' : decodeTags(c.personalityTags).join(' '),
+    );
     _appearance = TextEditingController(text: c?.appearance ?? '');
     _relations = TextEditingController(text: c?.relations ?? '');
     _arc = TextEditingController(text: c?.arc ?? '');
@@ -235,8 +237,10 @@ class _CharacterFormSheetState extends ConsumerState<_CharacterFormSheet> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Text(_isEditing ? '编辑角色卡' : '新建角色卡',
-                  style: Theme.of(context).textTheme.titleLarge),
+              Text(
+                _isEditing ? '编辑角色卡' : '新建角色卡',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
               const SizedBox(height: 16),
               TextField(
                 controller: _name,
@@ -282,14 +286,20 @@ class _CharacterFormSheetState extends ConsumerState<_CharacterFormSheet> {
                   if (_isEditing)
                     TextButton.icon(
                       onPressed: _saving ? null : _confirmDelete,
-                      icon: const Icon(Icons.delete_outline,
-                          color: Color(0xFFB3261E)),
-                      label: const Text('删除',
-                          style: TextStyle(color: Color(0xFFB3261E))),
+                      icon: const Icon(
+                        Icons.delete_outline,
+                        color: Color(0xFFB3261E),
+                      ),
+                      label: const Text(
+                        '删除',
+                        style: TextStyle(color: Color(0xFFB3261E)),
+                      ),
                     ),
                   const Spacer(),
                   TextButton(
-                    onPressed: _saving ? null : () => Navigator.of(context).pop(),
+                    onPressed: _saving
+                        ? null
+                        : () => Navigator.of(context).pop(),
                     child: const Text('取消'),
                   ),
                   const SizedBox(width: 8),

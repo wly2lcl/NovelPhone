@@ -84,7 +84,8 @@ class _ModelGroupEditPageState extends ConsumerState<ModelGroupEditPage> {
     });
   }
 
-  static String _presetBaseUrl(String provider) => provider == AiProvider.anthropic
+  static String _presetBaseUrl(String provider) =>
+      provider == AiProvider.anthropic
       ? 'https://api.anthropic.com/v1'
       : 'https://api.openai.com/v1';
 
@@ -129,9 +130,9 @@ class _ModelGroupEditPageState extends ConsumerState<ModelGroupEditPage> {
       );
     }
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('已保存')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('已保存')));
     Navigator.of(context).pop();
   }
 
@@ -147,7 +148,12 @@ class _ModelGroupEditPageState extends ConsumerState<ModelGroupEditPage> {
     }
     final apiKey = _apiKey.text.trim().isNotEmpty
         ? _apiKey.text.trim()
-        : (_isNew ? '' : await ref.read(settingsRepositoryProvider).readApiKey(widget.groupId!) ?? '');
+        : (_isNew
+              ? ''
+              : await ref
+                        .read(settingsRepositoryProvider)
+                        .readApiKey(widget.groupId!) ??
+                    '');
     if (apiKey.isEmpty) {
       setState(() {
         _testOk = false;
@@ -208,8 +214,7 @@ class _ModelGroupEditPageState extends ConsumerState<ModelGroupEditPage> {
                       labelText: '名称',
                       hintText: '例如：DeepSeek 官方',
                     ),
-                    validator: (v) =>
-                        (v ?? '').trim().isEmpty ? '请填写名称' : null,
+                    validator: (v) => (v ?? '').trim().isEmpty ? '请填写名称' : null,
                   ),
                   const SizedBox(height: 16),
                   const _FieldLabel('协议类型'),
@@ -293,7 +298,9 @@ class _ModelGroupEditPageState extends ConsumerState<ModelGroupEditPage> {
                         child: TextFormField(
                           controller: _maxTokens,
                           keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(labelText: '输出上限 token'),
+                          decoration: const InputDecoration(
+                            labelText: '输出上限 token',
+                          ),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -327,7 +334,9 @@ class _ModelGroupEditPageState extends ConsumerState<ModelGroupEditPage> {
                             ? const SizedBox(
                                 width: 14,
                                 height: 14,
-                                child: CircularProgressIndicator(strokeWidth: 1.6),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 1.6,
+                                ),
                               )
                             : const Icon(Icons.wifi_tethering, size: 18),
                         label: const Text('测试连接'),

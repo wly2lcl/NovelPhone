@@ -1,12 +1,6 @@
 /// 云备份服务商（B-08）：五家均走 S3 兼容协议，差异由配置吸收
 /// （见 ARCHITECTURE 9.1）。
-enum CloudProvider {
-  awsS3,
-  aliyunOss,
-  qiniuKodo,
-  tencentCos,
-  huaweiObs,
-}
+enum CloudProvider { awsS3, aliyunOss, qiniuKodo, tencentCos, huaweiObs }
 
 extension CloudProviderMeta on CloudProvider {
   /// 展示名。
@@ -80,10 +74,8 @@ extension CloudProviderMeta on CloudProvider {
 }
 
 /// 按落库标识解析服务商，未知值回落 AWS S3（容忍历史脏数据）。
-CloudProvider cloudProviderFromId(String? id) => CloudProvider.values.firstWhere(
-      (p) => p.name == id,
-      orElse: () => CloudProvider.awsS3,
-    );
+CloudProvider cloudProviderFromId(String? id) => CloudProvider.values
+    .firstWhere((p) => p.name == id, orElse: () => CloudProvider.awsS3);
 
 /// 默认路径前缀。
 const String kDefaultCloudBackupPrefix = 'novelphone/backups/';
@@ -106,9 +98,10 @@ enum CloudAutoInterval {
   final String label;
 
   /// 按落库小时数解析，未知值回落「每天」。
-  static CloudAutoInterval fromHours(int? hours) =>
-      values.firstWhere((i) => i.hours == hours,
-          orElse: () => CloudAutoInterval.daily);
+  static CloudAutoInterval fromHours(int? hours) => values.firstWhere(
+    (i) => i.hours == hours,
+    orElse: () => CloudAutoInterval.daily,
+  );
 }
 
 /// 默认自动备份间隔（小时）。
@@ -191,16 +184,16 @@ class CloudBackupConfig {
   }
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'enabled': enabled,
-        'provider': provider.name,
-        'endpoint': endpoint,
-        'region': region,
-        'bucket': bucket,
-        'prefix': prefix,
-        'keepCount': keepCount,
-        'autoEnabled': autoEnabled,
-        'autoIntervalHours': autoIntervalHours,
-      };
+    'enabled': enabled,
+    'provider': provider.name,
+    'endpoint': endpoint,
+    'region': region,
+    'bucket': bucket,
+    'prefix': prefix,
+    'keepCount': keepCount,
+    'autoEnabled': autoEnabled,
+    'autoIntervalHours': autoIntervalHours,
+  };
 
   /// 容忍脏数据的反序列化。
   factory CloudBackupConfig.fromJson(Map<String, dynamic> json) {

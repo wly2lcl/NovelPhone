@@ -55,12 +55,14 @@ CheckScope buildCheckScope(List<Chapter> chapters) {
   final buffer = StringBuffer();
   final segments = <CheckScopeSegment>[];
   for (final chapter in chapters) {
-    segments.add(CheckScopeSegment(
-      chapterId: chapter.id,
-      title: chapter.title,
-      start: buffer.length,
-      text: chapter.content,
-    ));
+    segments.add(
+      CheckScopeSegment(
+        chapterId: chapter.id,
+        title: chapter.title,
+        start: buffer.length,
+        text: chapter.content,
+      ),
+    );
     buffer.write(chapter.content);
     buffer.write('\n');
   }
@@ -182,31 +184,41 @@ FlavorDeepCheckOutcome parseDeepCheckResponse(
   final seen = <String>{};
   for (final item in rawItems) {
     if (item is! Map) continue;
-    final type = _normalizeType(_readString(item, const ['type', '类型', '问题类型']));
+    final type = _normalizeType(
+      _readString(item, const ['type', '类型', '问题类型']),
+    );
     final quote = _readString(item, const ['quote', '原文', '片段', '原文片段']);
     final suggestion = _readString(item, const ['suggestion', '建议', '修改建议']);
     if (type.isEmpty && quote.isEmpty) continue;
-    final severity = _normalizeSeverity(_readString(item, const ['severity', '严重度']));
+    final severity = _normalizeSeverity(
+      _readString(item, const ['severity', '严重度']),
+    );
 
     var start = segmentText.indexOf(quote);
     if (start == -1 && quote.isNotEmpty) {
-      start = segmentText.indexOf(quote.replaceAll('“', '').replaceAll('”', ''));
+      start = segmentText.indexOf(
+        quote.replaceAll('“', '').replaceAll('”', ''),
+      );
     }
     final absoluteStart = start == -1 ? segmentOffset : segmentOffset + start;
-    final absoluteEnd = start == -1 ? absoluteStart : absoluteStart + quote.length;
+    final absoluteEnd = start == -1
+        ? absoluteStart
+        : absoluteStart + quote.length;
     final key = '$type|$absoluteStart|$absoluteEnd|$quote';
     if (!seen.add(key)) continue;
 
-    issues.add(FlavorIssue(
-      type: type.isEmpty ? FlavorType.cliche : type,
-      severity: severity,
-      start: absoluteStart,
-      end: absoluteEnd,
-      excerpt: quote,
-      message: type.isEmpty ? '深检问题' : type,
-      suggestion: suggestion.isEmpty ? null : suggestion,
-      source: FlavorSource.llm,
-    ));
+    issues.add(
+      FlavorIssue(
+        type: type.isEmpty ? FlavorType.cliche : type,
+        severity: severity,
+        start: absoluteStart,
+        end: absoluteEnd,
+        excerpt: quote,
+        message: type.isEmpty ? '深检问题' : type,
+        suggestion: suggestion.isEmpty ? null : suggestion,
+        source: FlavorSource.llm,
+      ),
+    );
   }
   return FlavorDeepCheckOutcome(issues: issues);
 }

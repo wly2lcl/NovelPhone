@@ -29,8 +29,11 @@ class CloudStorageException implements Exception {
 /// 对象存储读写抽象（B-08），仅依赖 http。
 abstract interface class CloudStorageClient {
   /// 上传对象。
-  Future<void> putObject(String key, Uint8List bytes,
-      {String contentType = 'application/zip'});
+  Future<void> putObject(
+    String key,
+    Uint8List bytes, {
+    String contentType = 'application/zip',
+  });
 
   /// 下载对象。
   Future<Uint8List> getObject(String key);
@@ -57,15 +60,15 @@ class S3CompatibleClient implements CloudStorageClient {
     required String secretAccessKey,
     http.Client? httpClient,
     DateTime Function()? clock,
-  })  : _config = config,
-        _signer = S3Signer(
-          accessKeyId: accessKeyId,
-          secretAccessKey: secretAccessKey,
-          region: config.region.trim(),
-          clock: clock,
-        ),
-        _http = httpClient ?? http.Client(),
-        _ownsHttp = httpClient == null;
+  }) : _config = config,
+       _signer = S3Signer(
+         accessKeyId: accessKeyId,
+         secretAccessKey: secretAccessKey,
+         region: config.region.trim(),
+         clock: clock,
+       ),
+       _http = httpClient ?? http.Client(),
+       _ownsHttp = httpClient == null;
 
   final CloudBackupConfig _config;
   final S3Signer _signer;
@@ -73,18 +76,25 @@ class S3CompatibleClient implements CloudStorageClient {
   final bool _ownsHttp;
 
   /// OSS 兼容头（阿里云 OSS 走 S3 V4 签名时必须附加）。
-  Map<String, String> get _compatHeaders => _config.provider.needsOssCompatHeader
+  Map<String, String> get _compatHeaders =>
+      _config.provider.needsOssCompatHeader
       ? const <String, String>{'x-oss-s3-compat': 'true'}
       : const <String, String>{};
 
   @override
-  Future<void> putObject(String key, Uint8List bytes,
-      {String contentType = 'application/zip'}) async {
+  Future<void> putObject(
+    String key,
+    Uint8List bytes, {
+    String contentType = 'application/zip',
+  }) async {
     final uri = _objectUri(key);
     final headers = _sign(
       'PUT',
       uri,
-      extraHeaders: <String, String>{'content-type': contentType, ..._compatHeaders},
+      extraHeaders: <String, String>{
+        'content-type': contentType,
+        ..._compatHeaders,
+      },
       payload: bytes,
     );
     final response = await _send(
@@ -138,7 +148,10 @@ class S3CompatibleClient implements CloudStorageClient {
 
   @override
   Future<void> checkConnection() async {
-    final uri = _bucketUri(const <String, String>{'list-type': '2', 'max-keys': '1'});
+    final uri = _bucketUri(const <String, String>{
+      'list-type': '2',
+      'max-keys': '1',
+    });
     final headers = _sign('GET', uri, extraHeaders: _compatHeaders);
     final response = await _send(
       () => _http.get(uri, headers: _requestHeaders(headers)),
@@ -156,13 +169,12 @@ class S3CompatibleClient implements CloudStorageClient {
     Uri uri, {
     Map<String, String> extraHeaders = const <String, String>{},
     List<int> payload = const <int>[],
-  }) =>
-      _signer.sign(
-        method: method,
-        uri: uri,
-        extraHeaders: extraHeaders,
-        payload: payload,
-      );
+  }) => _signer.sign(
+    method: method,
+    uri: uri,
+    extraHeaders: extraHeaders,
+    payload: payload,
+  );
 
   /// 发送时去掉 `host`：签名已含 host，实际由 HTTP 层按同一值自动补上，
   /// 避免与底层对受限头的处理冲突。
@@ -183,8 +195,9 @@ class S3CompatibleClient implements CloudStorageClient {
     }
     if (!base.contains('://')) base = 'https://$base';
     final parsed = Uri.parse(base);
-    final authority =
-        parsed.hasPort ? '${parsed.host}:${parsed.port}' : parsed.host;
+    final authority = parsed.hasPort
+        ? '${parsed.host}:${parsed.port}'
+        : parsed.host;
     // 按 AWS 规则预编码 path/query 后再交给 Uri.parse：
     // 使实际请求路径与 S3Signer 的 canonical URI 完全一致
     // （Dart 的 Uri 对 `$`、`&` 等子分隔符不会编码，会导致签名不匹配）。
@@ -207,8 +220,10 @@ class S3CompatibleClient implements CloudStorageClient {
   static String _encodeQuery(Map<String, String> query) {
     final names = query.keys.toList()..sort();
     return names
-        .map((n) =>
-            '${S3Signer.awsUriEncode(n)}=${S3Signer.awsUriEncode(query[n] ?? '')}')
+        .map(
+          (n) =>
+              '${S3Signer.awsUriEncode(n)}=${S3Signer.awsUriEncode(query[n] ?? '')}',
+        )
         .join('&');
   }
 
@@ -275,11 +290,15 @@ class S3CompatibleClient implements CloudStorageClient {
     for (final element in doc.findAllElements('Contents')) {
       final key = _childText(element, 'Key');
       if (key == null) continue;
-      objects.add(CloudObject(
-        key: key,
-        size: int.tryParse(_childText(element, 'Size') ?? '') ?? 0,
-        lastModified: DateTime.tryParse(_childText(element, 'LastModified') ?? ''),
-      ));
+      objects.add(
+        CloudObject(
+          key: key,
+          size: int.tryParse(_childText(element, 'Size') ?? '') ?? 0,
+          lastModified: DateTime.tryParse(
+            _childText(element, 'LastModified') ?? '',
+          ),
+        ),
+      );
     }
     final truncated = _docText(doc, 'IsTruncated') == 'true';
     final next = truncated ? _docText(doc, 'NextContinuationToken') : null;

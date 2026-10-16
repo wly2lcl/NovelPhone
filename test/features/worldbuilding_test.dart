@@ -147,16 +147,19 @@ void main() {
       await BackupRepository(target).restore(data, overwrite: false);
 
       final targetWorkId = (await WorkRepository(target).listWorks()).single.id;
-      final restoredEntries =
-          await SettingRepository(target).listEntries(targetWorkId);
+      final restoredEntries = await SettingRepository(
+        target,
+      ).listEntries(targetWorkId);
       expect(restoredEntries.single.name, '灵气复苏');
 
       final targetCharacters = CharacterRepository(target);
-      final restoredCharacters =
-          await targetCharacters.listCharacters(targetWorkId);
+      final restoredCharacters = await targetCharacters.listCharacters(
+        targetWorkId,
+      );
       final idSet = restoredCharacters.map((c) => c.id).toSet();
-      final restoredRelations =
-          await targetCharacters.listRelations(targetWorkId);
+      final restoredRelations = await targetCharacters.listRelations(
+        targetWorkId,
+      );
       expect(restoredRelations.single.label, '师徒');
       expect(idSet.contains(restoredRelations.single.fromCharacterId), isTrue);
       expect(idSet.contains(restoredRelations.single.toCharacterId), isTrue);
@@ -180,19 +183,22 @@ void main() {
       name: '断水剑',
     );
 
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        databaseProvider.overrideWithValue(db),
-        secureKeyStoreProvider.overrideWithValue(InMemoryKeyStore()),
-      ],
-      child: MaterialApp(
-        theme: buildPaperTheme(),
-        home: WorldbuildingTab(workId: workId),
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          secureKeyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+        ],
+        child: MaterialApp(
+          theme: buildPaperTheme(),
+          home: WorldbuildingTab(workId: workId),
+        ),
       ),
-    ));
+    );
     for (var i = 0; i < 60; i++) {
       await tester.runAsync(
-          () => Future<void>.delayed(const Duration(milliseconds: 10)));
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
       await tester.pump();
       if (find.text('青云城').evaluate().isNotEmpty) break;
     }
@@ -215,7 +221,10 @@ void main() {
     final db = AppDatabase.memory();
     final characters = CharacterRepository(db);
     final workId = await WorkRepository(db).createWork(title: '长夜行');
-    final zhangId = await characters.createCharacter(workId: workId, name: '张三');
+    final zhangId = await characters.createCharacter(
+      workId: workId,
+      name: '张三',
+    );
     final liId = await characters.createCharacter(workId: workId, name: '李四');
     await characters.createRelation(
       workId: workId,
@@ -224,19 +233,22 @@ void main() {
       label: '师徒',
     );
 
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        databaseProvider.overrideWithValue(db),
-        secureKeyStoreProvider.overrideWithValue(InMemoryKeyStore()),
-      ],
-      child: MaterialApp(
-        theme: buildPaperTheme(),
-        home: RelationGraphPage(workId: workId),
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          secureKeyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+        ],
+        child: MaterialApp(
+          theme: buildPaperTheme(),
+          home: RelationGraphPage(workId: workId),
+        ),
       ),
-    ));
+    );
     for (var i = 0; i < 60; i++) {
       await tester.runAsync(
-          () => Future<void>.delayed(const Duration(milliseconds: 10)));
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
       await tester.pump();
       if (find.text('张三 → 李四').evaluate().isNotEmpty) break;
     }

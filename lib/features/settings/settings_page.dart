@@ -149,8 +149,7 @@ class _ThemeModeTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final mode =
-        ref.watch(appThemeModeProvider).value ?? AppThemeMode.system;
+    final mode = ref.watch(appThemeModeProvider).value ?? AppThemeMode.system;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       child: Column(
@@ -170,10 +169,7 @@ class _ThemeModeTile extends ConsumerWidget {
               showSelectedIcon: false,
               segments: <ButtonSegment<AppThemeMode>>[
                 for (final m in AppThemeMode.values)
-                  ButtonSegment<AppThemeMode>(
-                    value: m,
-                    label: Text(m.label),
-                  ),
+                  ButtonSegment<AppThemeMode>(value: m, label: Text(m.label)),
               ],
               selected: <AppThemeMode>{mode},
               onSelectionChanged: (selection) async {

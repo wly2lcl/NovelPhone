@@ -64,7 +64,8 @@ class TokenStats {
 
   int get promptTokens => rows.fold(0, (sum, r) => sum + r.promptTokens);
 
-  int get completionTokens => rows.fold(0, (sum, r) => sum + r.completionTokens);
+  int get completionTokens =>
+      rows.fold(0, (sum, r) => sum + r.completionTokens);
 
   int get totalTokens => promptTokens + completionTokens;
 
@@ -101,17 +102,19 @@ class TokenStatsRepository {
     int outputChars = 0,
     String outcome = AiOutcome.pending,
   }) {
-    return _dao.insert(AiUsagesCompanion.insert(
-      task: task,
-      model: model,
-      createdAt: DateTime.now(),
-      workId: Value(workId),
-      chapterId: Value(chapterId),
-      promptTokens: Value(promptTokens),
-      completionTokens: Value(completionTokens),
-      outputChars: Value(outputChars),
-      outcome: Value(outcome),
-    ));
+    return _dao.insert(
+      AiUsagesCompanion.insert(
+        task: task,
+        model: model,
+        createdAt: DateTime.now(),
+        workId: Value(workId),
+        chapterId: Value(chapterId),
+        promptTokens: Value(promptTokens),
+        completionTokens: Value(completionTokens),
+        outputChars: Value(outputChars),
+        outcome: Value(outcome),
+      ),
+    );
   }
 
   Future<void> updateOutcome(int id, String outcome) =>
@@ -129,23 +132,24 @@ class TokenStatsRepository {
 
   /// 分组小计已在 SQL 内算好（ENH-15），这里只做排序与类型映射。
   TokenStats _toStats(List<UsageAggregate> aggregated) {
-    final rows = <TokenStatRow>[
-      for (final a in aggregated)
-        TokenStatRow(
-          model: a.model,
-          task: a.task,
-          calls: a.calls,
-          promptTokens: a.promptTokens,
-          completionTokens: a.completionTokens,
-          outputChars: a.outputChars,
-          adoptedChars: a.adoptedChars,
-          adopted: a.adopted,
-          ignored: a.ignored,
-        ),
-    ]..sort((a, b) {
-        final byTask = a.task.compareTo(b.task);
-        return byTask != 0 ? byTask : a.model.compareTo(b.model);
-      });
+    final rows =
+        <TokenStatRow>[
+          for (final a in aggregated)
+            TokenStatRow(
+              model: a.model,
+              task: a.task,
+              calls: a.calls,
+              promptTokens: a.promptTokens,
+              completionTokens: a.completionTokens,
+              outputChars: a.outputChars,
+              adoptedChars: a.adoptedChars,
+              adopted: a.adopted,
+              ignored: a.ignored,
+            ),
+        ]..sort((a, b) {
+          final byTask = a.task.compareTo(b.task);
+          return byTask != 0 ? byTask : a.model.compareTo(b.model);
+        });
     return TokenStats(rows: rows);
   }
 }

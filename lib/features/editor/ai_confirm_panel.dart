@@ -88,7 +88,8 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
   /// 当前展示 / 采纳的候选下标（非多候选时恒为 0）。
   int _selected = 0;
 
-  List<StreamSubscription<AiEvent>> _subs = const <StreamSubscription<AiEvent>>[];
+  List<StreamSubscription<AiEvent>> _subs =
+      const <StreamSubscription<AiEvent>>[];
 
   bool _streaming = false;
 
@@ -208,7 +209,9 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
     // ENH-09：多候选三路上下文一致，先组装一次供三路共用。
     _prebuilt = null;
     if (_mode == AiPanelMode.continueWriting && count > 1) {
-      _prebuilt = await ref.read(aiServiceProvider).prebuildContinue(
+      _prebuilt = await ref
+          .read(aiServiceProvider)
+          .prebuildContinue(
             workId: widget.workId,
             chapterId: widget.chapterId,
             direction: _lastDirection.isEmpty ? null : _lastDirection,
@@ -281,7 +284,9 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
         // 多候选共享同一上下文，取首个即可。
         if (_context == null) setState(() => _context = event.context);
       case AiTextChunk():
-        setState(() => _results[index].text = _results[index].text + event.text);
+        setState(
+          () => _results[index].text = _results[index].text + event.text,
+        );
       case AiFinished():
         _usageIds[index] = event.usageId < 0 ? null : event.usageId;
         _finishOne();
@@ -327,9 +332,7 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
           onChanged: (value) => text = value,
           autofocus: true,
           maxLines: 3,
-          decoration: const InputDecoration(
-            hintText: '补充一句方向指令，例如：让两人在此摊牌',
-          ),
+          decoration: const InputDecoration(hintText: '补充一句方向指令，例如：让两人在此摊牌'),
         ),
         actions: <Widget>[
           TextButton(
@@ -439,9 +442,9 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
         .createInspiration(widget.workId, text);
     await _markAdoption(text.length);
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('已存入灵感箱')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('已存入灵感箱')));
     widget.onClose();
   }
 
@@ -464,7 +467,9 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
       child: Container(
         decoration: BoxDecoration(
           color: context.paper.surface,
-          border: Border(top: BorderSide(color: context.paper.divider, width: 2)),
+          border: Border(
+            top: BorderSide(color: context.paper.divider, width: 2),
+          ),
         ),
         child: SafeArea(
           top: false,
@@ -514,8 +519,10 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
         // ENH-07 O9：生成耗时反馈（流式期间每秒刷新，结束后保留最后一次秒数）。
         if (_elapsedSeconds > 0) ...<Widget>[
           const SizedBox(width: 6),
-          Text('$_elapsedSeconds 秒',
-              style: TextStyle(fontSize: 12, color: context.paper.inkSoft)),
+          Text(
+            '$_elapsedSeconds 秒',
+            style: TextStyle(fontSize: 12, color: context.paper.inkSoft),
+          ),
         ],
         const Spacer(),
         IconButton(
@@ -601,8 +608,10 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
     if (_mode != AiPanelMode.continueWriting) return const SizedBox.shrink();
     return Row(
       children: <Widget>[
-        Text('篇幅 ${_length.round()} 字',
-            style: TextStyle(fontSize: 12, color: context.paper.inkSoft)),
+        Text(
+          '篇幅 ${_length.round()} 字',
+          style: TextStyle(fontSize: 12, color: context.paper.inkSoft),
+        ),
         Expanded(
           child: Slider(
             value: _length,
@@ -612,7 +621,8 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
             activeColor: context.paper.accent,
             onChanged: _streaming
                 ? null
-                : (value) => setState(() => _length = (value / 50).round() * 50.0),
+                : (value) =>
+                      setState(() => _length = (value / 50).round() * 50.0),
           ),
         ),
       ],
@@ -677,8 +687,10 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
             style: TextStyle(fontSize: 12, color: context.paper.inkSoft),
           ),
           subtitle: built.truncated
-              ? Text('已省略较早前文',
-                  style: TextStyle(fontSize: 11, color: context.paper.accent))
+              ? Text(
+                  '已省略较早前文',
+                  style: TextStyle(fontSize: 11, color: context.paper.accent),
+                )
               : null,
           // ENH-07 O1：详情区限高并内部滚动，展开后无需与外层 / 输出框抢滚动手势。
           children: <Widget>[
@@ -690,23 +702,31 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: built.sections
-                      .map((section) => Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: <Widget>[
-                                Text(section.label,
-                                    style: const TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600)),
-                                const SizedBox(height: 2),
-                                Text(section.content,
-                                    style: TextStyle(
-                                        fontSize: 12,
-                                        color: context.paper.inkSoft)),
-                              ],
-                            ),
-                          ))
+                      .map(
+                        (section) => Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              Text(
+                                section.label,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                section.content,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: context.paper.inkSoft,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
                       .toList(),
                 ),
               ),
@@ -734,7 +754,8 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
   }
 
   Widget _buildError() {
-    final canGoSettings = _errorKind == AiErrorKind.auth || _errorKind == AiErrorKind.badRequest;
+    final canGoSettings =
+        _errorKind == AiErrorKind.auth || _errorKind == AiErrorKind.badRequest;
     return Container(
       margin: const EdgeInsets.only(top: 6),
       padding: const EdgeInsets.all(10),
@@ -748,8 +769,10 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
           const Icon(Icons.error_outline, size: 18, color: Color(0xFFB3261E)),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(_activeError!,
-                style: const TextStyle(fontSize: 12, color: Color(0xFFB3261E))),
+            child: Text(
+              _activeError!,
+              style: const TextStyle(fontSize: 12, color: Color(0xFFB3261E)),
+            ),
           ),
           if (canGoSettings)
             TextButton(onPressed: _goSettings, child: const Text('去设置')),
@@ -763,8 +786,10 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
       return Row(
         children: <Widget>[
           Expanded(
-            child: Text('尚未配置可用的模型与 API Key',
-                style: TextStyle(fontSize: 13, color: context.paper.inkSoft)),
+            child: Text(
+              '尚未配置可用的模型与 API Key',
+              style: TextStyle(fontSize: 13, color: context.paper.inkSoft),
+            ),
           ),
           FilledButton(onPressed: _goSettings, child: const Text('去设置')),
         ],
@@ -772,7 +797,8 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
     }
 
     final hasText = _activeResult.text.trim().isNotEmpty;
-    final isInspire = _mode == AiPanelMode.inspireIdeas ||
+    final isInspire =
+        _mode == AiPanelMode.inspireIdeas ||
         _mode == AiPanelMode.inspireOpening;
     final isRewrite = _mode == AiPanelMode.rewrite;
     final isSummarize = _mode == AiPanelMode.summarize;
@@ -782,22 +808,22 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
     final String primaryLabel = isRewrite
         ? '替换原文'
         : isSummarize
-            ? '保存摘要'
-            : isOutlineExpand
-                ? '保存到章纲'
-                : isVolumeSummary
-                    ? '保存前情回顾'
-                    : '插入光标处';
+        ? '保存摘要'
+        : isOutlineExpand
+        ? '保存到章纲'
+        : isVolumeSummary
+        ? '保存前情回顾'
+        : '插入光标处';
     final VoidCallback? onPrimary = hasText && !_streaming
         ? (isRewrite
-            ? _replace
-            : isSummarize
-                ? _saveSummary
-                : isOutlineExpand
-                    ? _saveOutline
-                    : isVolumeSummary
-                        ? _saveVolumeSummary
-                        : _insert)
+              ? _replace
+              : isSummarize
+              ? _saveSummary
+              : isOutlineExpand
+              ? _saveOutline
+              : isVolumeSummary
+              ? _saveVolumeSummary
+              : _insert)
         : null;
     return Row(
       children: <Widget>[
@@ -813,13 +839,13 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
             child: const Text('停止'),
           )
         else ...<Widget>[
-          TextButton(
-            onPressed: () => _start(),
-            child: const Text('重新生成'),
-          ),
+          TextButton(onPressed: () => _start(), child: const Text('重新生成')),
           // 改写用「补充指令」输入框替代方向弹窗（ENH-04）；
           // 摘要 / 章纲扩写 / 卷回顾目标明确，无需「换个方向」（ENH-05 / ENH-06）。
-          if (!isRewrite && !isSummarize && !isOutlineExpand && !isVolumeSummary)
+          if (!isRewrite &&
+              !isSummarize &&
+              !isOutlineExpand &&
+              !isVolumeSummary)
             TextButton(
               onPressed: _retryWithDirection,
               child: const Text('换个方向'),
@@ -831,15 +857,9 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
             onPressed: hasText && !_streaming ? _saveToInspiration : null,
             child: const Text('存入灵感箱'),
           ),
-        TextButton(
-          onPressed: _abandon,
-          child: const Text('放弃'),
-        ),
+        TextButton(onPressed: _abandon, child: const Text('放弃')),
         const SizedBox(width: 4),
-        FilledButton(
-          onPressed: onPrimary,
-          child: Text(primaryLabel),
-        ),
+        FilledButton(onPressed: onPrimary, child: Text(primaryLabel)),
       ],
     );
   }

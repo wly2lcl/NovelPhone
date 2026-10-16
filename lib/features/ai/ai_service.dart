@@ -117,7 +117,10 @@ class CheckRuleResult extends CheckEvent {
 
 /// 深检开始：分段数与预估 token（PRD 5.7：面板显示预估与实测）。
 class CheckDeepStarted extends CheckEvent {
-  const CheckDeepStarted({required this.segments, required this.estimatedTokens});
+  const CheckDeepStarted({
+    required this.segments,
+    required this.estimatedTokens,
+  });
 
   final int segments;
   final int estimatedTokens;
@@ -235,7 +238,9 @@ class AiService {
     // ENH-09：多候选共用的预组装上下文（见 prebuildContinue）；为空时现组装。
     BuiltContext? prebuilt,
   }) async* {
-    final resolved = await settings.resolveTaskModelWithKey(AiTask.continueWriting);
+    final resolved = await settings.resolveTaskModelWithKey(
+      AiTask.continueWriting,
+    );
     if (resolved == null) {
       yield const AiNeedsConfig();
       return;
@@ -249,7 +254,8 @@ class AiService {
 
     // ENH-09：多候选续写三路只在温度上不同、上下文完全一致，由 prebuildContinue
     // 预先组装好传入，避免每个候选重复取数与组装。
-    final injected = prebuilt ??
+    final injected =
+        prebuilt ??
         _withSkills(
           await contexts.buildContinue(
             workId: workId,
@@ -293,7 +299,9 @@ class AiService {
     String? direction,
     int? length,
   }) async {
-    final resolved = await settings.resolveTaskModelWithKey(AiTask.continueWriting);
+    final resolved = await settings.resolveTaskModelWithKey(
+      AiTask.continueWriting,
+    );
     if (resolved == null) return null;
     final group = resolved.group;
     if (_firstModel(group) == null) return null;
@@ -381,26 +389,28 @@ class AiService {
       chapterOutline: extra.chapterOutline,
     );
     final system = composeSkillSystem(_ideasSystem, skills);
-    yield AiContextBuilt(BuiltContext(
-      system: system,
-      messages: <ChatMessage>[ChatMessage.user(prompt)],
-      sections: <ContextSection>[
-        ContextSection(label: '任务模式', content: '桥段点子（AI 可按需调用工具取数）'),
-        if (extra.previousSummary.isNotEmpty)
-          ContextSection(label: '前文摘要', content: extra.previousSummary),
-        if (extra.chapterOutline.isNotEmpty)
-          ContextSection(label: '本章章纲', content: extra.chapterOutline),
-        ContextSection(label: '生成要求', content: prompt),
-        if (skills.isNotEmpty)
-          ContextSection(
-            label: '用户技能',
-            content: skills.map((s) => s.name).join('、'),
-          ),
-      ],
-      truncated: false,
-      estimatedTokens: estimateTokens(system) + estimateTokens(prompt),
-      budgetTokens: (group.contextWindow * 0.5).round(),
-    ));
+    yield AiContextBuilt(
+      BuiltContext(
+        system: system,
+        messages: <ChatMessage>[ChatMessage.user(prompt)],
+        sections: <ContextSection>[
+          ContextSection(label: '任务模式', content: '桥段点子（AI 可按需调用工具取数）'),
+          if (extra.previousSummary.isNotEmpty)
+            ContextSection(label: '前文摘要', content: extra.previousSummary),
+          if (extra.chapterOutline.isNotEmpty)
+            ContextSection(label: '本章章纲', content: extra.chapterOutline),
+          ContextSection(label: '生成要求', content: prompt),
+          if (skills.isNotEmpty)
+            ContextSection(
+              label: '用户技能',
+              content: skills.map((s) => s.name).join('、'),
+            ),
+        ],
+        truncated: false,
+        estimatedTokens: estimateTokens(system) + estimateTokens(prompt),
+        budgetTokens: (group.contextWindow * 0.5).round(),
+      ),
+    );
     final agent = AgentCore(client: client);
     final request = ChatRequest(
       model: model,
@@ -719,7 +729,8 @@ class AiService {
 
     final system = buildDeepCheckSystem();
     final segments = splitDeepCheckSegments(scope.text);
-    final estimatedTokens = estimateTokens(system) +
+    final estimatedTokens =
+        estimateTokens(system) +
         segments.fold<int>(0, (sum, s) => sum + estimateTokens(s.text));
     yield CheckDeepStarted(
       segments: segments.length,
@@ -835,7 +846,9 @@ class AiService {
   }) async {
     final model = _firstModel(group);
     if (model == null) return const TestResult(ok: false, message: '请先填写模型名');
-    if (apiKey.isEmpty) return const TestResult(ok: false, message: '请先填写 API Key');
+    if (apiKey.isEmpty) {
+      return const TestResult(ok: false, message: '请先填写 API Key');
+    }
 
     final client = buildAiClient(
       provider: group.provider,
@@ -866,7 +879,11 @@ class AiService {
 
   // ---------- 统计回写 ----------
 
-  Future<void> markOutcome(int usageId, String outcome, {int adoptedChars = 0}) {
+  Future<void> markOutcome(
+    int usageId,
+    String outcome, {
+    int adoptedChars = 0,
+  }) {
     if (outcome == AiOutcome.adopted) {
       return stats.markAdopted(usageId, adoptedChars);
     }
@@ -961,7 +978,9 @@ class AiService {
     if (anchorChapterId != null) {
       final chapter = await chapters.getChapter(anchorChapterId);
       if (chapter != null) {
-        buffer.writeln('当前进度所在章节：${chapter.title.isEmpty ? '未命名章节' : chapter.title}（章节 id=$anchorChapterId）');
+        buffer.writeln(
+          '当前进度所在章节：${chapter.title.isEmpty ? '未命名章节' : chapter.title}（章节 id=$anchorChapterId）',
+        );
       }
     }
     // ENH-07 O7：把前文摘要与本章章纲直接写进 prompt，点子更贴合剧情。

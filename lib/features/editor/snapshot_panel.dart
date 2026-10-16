@@ -22,14 +22,17 @@ class SnapshotPanel extends ConsumerWidget {
   final VoidCallback onClose;
 
   Future<void> _create(BuildContext context, WidgetRef ref) async {
-    await ref.read(chapterRepositoryProvider).createSnapshot(
+    await ref
+        .read(chapterRepositoryProvider)
+        .createSnapshot(
           chapterId: chapterId,
           title: controller.title,
           content: controller.textController.text,
         );
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text('已创建快照')));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('已创建快照')));
   }
 
   Future<void> _open(
@@ -54,8 +57,7 @@ class SnapshotPanel extends ConsumerWidget {
               children: <Widget>[
                 Text(
                   '${formatRelativeTime(full.createdAt)} · ${full.wordCount} 字',
-                  style:
-                      TextStyle(fontSize: 12, color: context.paper.inkSoft),
+                  style: TextStyle(fontSize: 12, color: context.paper.inkSoft),
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -70,8 +72,7 @@ class SnapshotPanel extends ConsumerWidget {
           TextButton(
             onPressed: () =>
                 Navigator.of(dialogContext).pop(_SnapshotAction.delete),
-            child: const Text('删除',
-                style: TextStyle(color: Color(0xFFB3261E))),
+            child: const Text('删除', style: TextStyle(color: Color(0xFFB3261E))),
           ),
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
@@ -96,14 +97,12 @@ class SnapshotPanel extends ConsumerWidget {
       title: controller.title,
       content: controller.textController.text,
     );
-    await controller.restoreVersion(
-      title: full.title,
-      content: full.content,
-    );
+    await controller.restoreVersion(title: full.title, content: full.content);
     if (!context.mounted) return;
     onClose();
-    ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text('已恢复到该版本')));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('已恢复到该版本')));
   }
 
   /// 预览截断，避免超长章节（10 万字）在弹窗内渲染卡顿。
@@ -115,7 +114,8 @@ class SnapshotPanel extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final snapshots =
-        ref.watch(snapshotsProvider(chapterId)).value ?? const <ChapterSnapshot>[];
+        ref.watch(snapshotsProvider(chapterId)).value ??
+        const <ChapterSnapshot>[];
     return Container(
       color: context.paper.surface,
       padding: const EdgeInsets.fromLTRB(12, 4, 8, 8),
@@ -125,9 +125,10 @@ class SnapshotPanel extends ConsumerWidget {
           Row(
             children: <Widget>[
               const Expanded(
-                child: Text('版本历史',
-                    style:
-                        TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                child: Text(
+                  '版本历史',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                ),
               ),
               TextButton.icon(
                 onPressed: () => _create(context, ref),
@@ -144,8 +145,10 @@ class SnapshotPanel extends ConsumerWidget {
           if (snapshots.isEmpty)
             Padding(
               padding: EdgeInsets.symmetric(vertical: 16),
-              child: Text('还没有快照。写作途中点「创建快照」留存一个版本。',
-                  style: TextStyle(fontSize: 13, color: context.paper.inkSoft)),
+              child: Text(
+                '还没有快照。写作途中点「创建快照」留存一个版本。',
+                style: TextStyle(fontSize: 13, color: context.paper.inkSoft),
+              ),
             )
           else
             ConstrainedBox(
@@ -158,8 +161,11 @@ class SnapshotPanel extends ConsumerWidget {
                   return ListTile(
                     dense: true,
                     contentPadding: EdgeInsets.zero,
-                    leading: Icon(Icons.history,
-                        size: 20, color: context.paper.inkSoft),
+                    leading: Icon(
+                      Icons.history,
+                      size: 20,
+                      color: context.paper.inkSoft,
+                    ),
                     title: Text(
                       snapshot.title.isEmpty ? '未命名章节' : snapshot.title,
                       maxLines: 1,
@@ -168,7 +174,9 @@ class SnapshotPanel extends ConsumerWidget {
                     subtitle: Text(
                       '${formatRelativeTime(snapshot.createdAt)} · ${snapshot.wordCount} 字',
                       style: TextStyle(
-                          fontSize: 12, color: context.paper.inkSoft),
+                        fontSize: 12,
+                        color: context.paper.inkSoft,
+                      ),
                     ),
                     onTap: () => _open(context, ref, snapshot),
                   );

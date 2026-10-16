@@ -197,8 +197,9 @@ class EditorController extends ChangeNotifier {
     return textController.text.length;
   }
 
-  int get _currentScroll =>
-      scrollController.hasClients ? scrollController.offset.round() : initialScrollOffset;
+  int get _currentScroll => scrollController.hasClients
+      ? scrollController.offset.round()
+      : initialScrollOffset;
 
   // ---------- 撤销 / 重做（编辑器独立历史栈，与输入法隔离）----------
 
@@ -315,8 +316,11 @@ class EditorController extends ChangeNotifier {
       findMatches(keyword, caseSensitive: caseSensitive).length;
 
   /// 替换光标之后的第一个命中（无光标之后的命中时替换首个）。
-  bool replaceNext(String keyword, String replacement,
-      {bool caseSensitive = false}) {
+  bool replaceNext(
+    String keyword,
+    String replacement, {
+    bool caseSensitive = false,
+  }) {
     final matches = findMatches(keyword, caseSensitive: caseSensitive);
     if (matches.isEmpty) return false;
     final cursor = textController.selection.baseOffset;
@@ -330,14 +334,19 @@ class EditorController extends ChangeNotifier {
     textController.value = TextEditingValue(
       text: newText,
       selection: TextSelection.collapsed(
-          offset: (target.start + replacement.length).clamp(0, newText.length)),
+        offset: (target.start + replacement.length).clamp(0, newText.length),
+      ),
     );
     _commitHistoryNow();
     return true;
   }
 
   /// 全部替换，返回替换处数。
-  int replaceAll(String keyword, String replacement, {bool caseSensitive = false}) {
+  int replaceAll(
+    String keyword,
+    String replacement, {
+    bool caseSensitive = false,
+  }) {
     final matches = findMatches(keyword, caseSensitive: caseSensitive);
     if (matches.isEmpty) return 0;
     final text = textController.text;
@@ -368,8 +377,10 @@ class EditorController extends ChangeNotifier {
     final to = end.clamp(from, text.length);
     focusNode.requestFocus();
     _commitHistoryNow();
-    textController.selection =
-        TextSelection(baseOffset: from, extentOffset: to);
+    textController.selection = TextSelection(
+      baseOffset: from,
+      extentOffset: to,
+    );
     // 选中后不改变正文，历史栈保持原样。
     notifyListeners();
   }
@@ -383,7 +394,8 @@ class EditorController extends ChangeNotifier {
     textController.value = TextEditingValue(
       text: newText,
       selection: TextSelection.collapsed(
-          offset: (start + replacement.length).clamp(0, newText.length)),
+        offset: (start + replacement.length).clamp(0, newText.length),
+      ),
     );
     _commitHistoryNow();
     return true;
@@ -409,8 +421,9 @@ class EditorController extends ChangeNotifier {
   void insertAtCursor(String text) {
     if (text.isEmpty) return;
     final raw = textController.selection.baseOffset;
-    final offset =
-        raw >= 0 ? raw.clamp(0, textController.text.length) : textController.text.length;
+    final offset = raw >= 0
+        ? raw.clamp(0, textController.text.length)
+        : textController.text.length;
     final newText = textController.text.replaceRange(offset, offset, text);
     _commitHistoryNow();
     textController.value = TextEditingValue(

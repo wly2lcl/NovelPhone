@@ -318,24 +318,20 @@ class ContextBuilder {
     final title = (chapter?.title ?? '').trim();
     final content = chapter?.content ?? '';
     final system = _summarySystem();
-    final header = '作品：《${work?.title ?? ''}》\n'
+    final header =
+        '作品：《${work?.title ?? ''}》\n'
         '本章：${title.isEmpty ? '未命名章节' : title}\n\n'
         '【本章正文】\n';
-    final room =
-        (budget - estimateTokens(system) - estimateTokens(header)).clamp(0, budget);
-    final body =
-        content.length > room ? content.substring(0, room) : content;
+    final room = (budget - estimateTokens(system) - estimateTokens(header))
+        .clamp(0, budget);
+    final body = content.length > room ? content.substring(0, room) : content;
     final truncated = body.length < content.length;
     final payload = '$header$body';
     return BuiltContext(
       system: system,
       messages: <ChatMessage>[ChatMessage.user(payload)],
       sections: <ContextSection>[
-        ContextSection(
-          label: '本章正文',
-          content: body,
-          truncated: truncated,
-        ),
+        ContextSection(label: '本章正文', content: body, truncated: truncated),
         const ContextSection(label: '任务模式', content: '生成本章摘要（直接产出摘要正文，非对话）'),
       ],
       truncated: truncated,
@@ -356,7 +352,8 @@ class ContextBuilder {
     final chapter = await chapters.getChapter(chapterId);
     final title = (chapter?.title ?? '').trim();
     final system = _outlineSystem();
-    final payload = '作品：《${work?.title ?? ''}》\n'
+    final payload =
+        '作品：《${work?.title ?? ''}》\n'
         '本章：${title.isEmpty ? '未命名章节' : title}\n\n'
         '【本章一句话梗概】\n${seed.trim()}';
     return BuiltContext(
@@ -440,12 +437,15 @@ class ContextBuilder {
     final material = blocks.join('\n\n');
 
     final system = _volumeSummarySystem();
-    final header = '作品：《${work?.title ?? ''}》\n'
+    final header =
+        '作品：《${work?.title ?? ''}》\n'
         '本卷：${volume?.name ?? ''}\n\n'
         '【本卷素材】\n';
     final room = (budget - estimateTokens(system) - estimateTokens(header))
         .clamp(0, budget);
-    final body = material.length > room ? material.substring(0, room) : material;
+    final body = material.length > room
+        ? material.substring(0, room)
+        : material;
     final truncated = body.length < material.length;
     final payload = '$header$body';
     return BuiltContext(
@@ -467,10 +467,8 @@ class ContextBuilder {
 
   /// 灵感上下文补丁（ENH-07 O7）：桥段点子为工具模式（不经过 _assemble），
   /// 这里额外提供「前文摘要（含卷 / 前卷前情）」与「本章章纲」，让点子贴合剧情。
-  Future<({String previousSummary, String chapterOutline})> buildInspireContext({
-    required int workId,
-    int? chapterId,
-  }) async {
+  Future<({String previousSummary, String chapterOutline})>
+  buildInspireContext({required int workId, int? chapterId}) async {
     if (chapterId == null) {
       return (previousSummary: '', chapterOutline: '');
     }
@@ -515,8 +513,7 @@ class ContextBuilder {
     final system = systemOverride ?? _systemPrompt(workTitle);
 
     var volumeText = volumeOutline;
-    var charactersText =
-        matchedCharacters.map(formatCharacter).join('\n');
+    var charactersText = matchedCharacters.map(formatCharacter).join('\n');
     var settingsBlock = settingsText;
     var summaryText = previousSummary;
     var tailText = tail;
@@ -543,10 +540,11 @@ class ContextBuilder {
       settingsBlock = '';
       truncated = true;
     }
-    if (total() > budget &&
-        matchedCharacters.length > minCharacters) {
-      charactersText =
-          matchedCharacters.take(minCharacters).map(formatCharacter).join('\n');
+    if (total() > budget && matchedCharacters.length > minCharacters) {
+      charactersText = matchedCharacters
+          .take(minCharacters)
+          .map(formatCharacter)
+          .join('\n');
       truncated = true;
     }
     if (total() > budget && summaryText.length > 120) {
@@ -554,7 +552,8 @@ class ContextBuilder {
       truncated = true;
     }
     if (total() > budget) {
-      final others = estimateTokens(system) +
+      final others =
+          estimateTokens(system) +
           estimateTokens(task) +
           estimateTokens(outlineText) +
           estimateTokens(volumeText) +
@@ -578,7 +577,11 @@ class ContextBuilder {
       if (summaryText.isNotEmpty)
         ContextSection(label: '前文摘要', content: summaryText),
       if (charactersText.isNotEmpty)
-        ContextSection(label: '相关角色卡', content: charactersText, truncated: matchedCharacters.length > minCharacters && truncated),
+        ContextSection(
+          label: '相关角色卡',
+          content: charactersText,
+          truncated: matchedCharacters.length > minCharacters && truncated,
+        ),
       if (settingsBlock.isNotEmpty)
         ContextSection(label: '设定集', content: settingsBlock),
       if (outlineText.isNotEmpty)
@@ -609,7 +612,9 @@ class ContextBuilder {
 
   String _systemPrompt(String workTitle) {
     final buffer = StringBuffer()
-      ..writeln('你是一位中文网络小说写作助手，正在协助作者续写作品${workTitle.isEmpty ? '' : '《$workTitle》'}。')
+      ..writeln(
+        '你是一位中文网络小说写作助手，正在协助作者续写作品${workTitle.isEmpty ? '' : '《$workTitle》'}。',
+      )
       ..writeln('写作要求：')
       ..writeln('1. 严格延续已有内容的人物设定、称谓、语气与叙事视角。')
       ..writeln('2. 不复述、不总结已有内容，直接接续往下写。')
@@ -758,20 +763,25 @@ class ContextBuilder {
     final index = ordered.indexWhere((c) => c.id == chapterId);
     if (index > 0) {
       final start = (index - previousChapters).clamp(0, index);
-      parts.addAll(ordered.sublist(start, index)
-          .where((c) =>
-              (fallbackContents[c.id] ?? c.content).trim().isNotEmpty ||
-              c.summary.trim().isNotEmpty)
-          .map((c) {
-        final title = c.title.isEmpty ? '未命名章节' : c.title;
-        // ENH-05：优先使用 AI 生成的章节摘要（信息密度更高），
-        // 未生成摘要的章节回退到本地抽句，行为与旧版一致。
-        final cached = c.summary.trim();
-        final digest = cached.isEmpty
-            ? summarizeText(fallbackContents[c.id] ?? c.content)
-            : cached;
-        return '《$title》$digest';
-      }));
+      parts.addAll(
+        ordered
+            .sublist(start, index)
+            .where(
+              (c) =>
+                  (fallbackContents[c.id] ?? c.content).trim().isNotEmpty ||
+                  c.summary.trim().isNotEmpty,
+            )
+            .map((c) {
+              final title = c.title.isEmpty ? '未命名章节' : c.title;
+              // ENH-05：优先使用 AI 生成的章节摘要（信息密度更高），
+              // 未生成摘要的章节回退到本地抽句，行为与旧版一致。
+              final cached = c.summary.trim();
+              final digest = cached.isEmpty
+                  ? summarizeText(fallbackContents[c.id] ?? c.content)
+                  : cached;
+              return '《$title》$digest';
+            }),
+      );
     }
     return parts.join('\n');
   }
@@ -780,7 +790,7 @@ class ContextBuilder {
   /// 含 `summary` 列），只有「没有 AI 摘要的近期章」才需要正文做本地抽句兜底，
   /// 因此按 id 单取那 1-2 章，避免为一段回顾把整部作品正文读进内存。
   Future<({List<Chapter> ordered, Map<int, String> fallbackContents})>
-      _recapSource(int workId, int chapterId) async {
+  _recapSource(int workId, int chapterId) async {
     final ordered = await chapters.watchChapterMetas(workId).first;
     final contents = <int, String>{};
     final index = ordered.indexWhere((c) => c.id == chapterId);
@@ -824,9 +834,11 @@ class ContextBuilder {
     final entries = await repository.listEntries(workId);
     final buffer = StringBuffer();
     for (final type in SettingType.values) {
-      final group = entries.where((e) =>
-          e.type == type.value &&
-          (e.name.trim().isNotEmpty || e.content.trim().isNotEmpty));
+      final group = entries.where(
+        (e) =>
+            e.type == type.value &&
+            (e.name.trim().isNotEmpty || e.content.trim().isNotEmpty),
+      );
       if (group.isEmpty) continue;
       if (buffer.isNotEmpty) buffer.writeln();
       buffer.writeln('${type.label}：');

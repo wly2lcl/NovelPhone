@@ -51,17 +51,19 @@ class AiUsageDao {
       ])
       ..groupBy(<Expression<Object>>[t.model, t.task]);
     // map 返回新的 Selectable，不能写进级联里。
-    return query.map((row) => (
-          model: row.read(t.model) ?? '',
-          task: row.read(t.task) ?? '',
-          calls: row.read(calls) ?? 0,
-          promptTokens: row.read(promptTokens) ?? 0,
-          completionTokens: row.read(completionTokens) ?? 0,
-          outputChars: row.read(outputChars) ?? 0,
-          adoptedChars: row.read(adoptedChars) ?? 0,
-          adopted: row.read(adopted) ?? 0,
-          ignored: row.read(ignored) ?? 0,
-        ));
+    return query.map(
+      (row) => (
+        model: row.read(t.model) ?? '',
+        task: row.read(t.task) ?? '',
+        calls: row.read(calls) ?? 0,
+        promptTokens: row.read(promptTokens) ?? 0,
+        completionTokens: row.read(completionTokens) ?? 0,
+        outputChars: row.read(outputChars) ?? 0,
+        adoptedChars: row.read(adoptedChars) ?? 0,
+        adopted: row.read(adopted) ?? 0,
+        ignored: row.read(ignored) ?? 0,
+      ),
+    );
   }
 
   Stream<List<UsageAggregate>> watchAggregated() => aggregateQuery().watch();
@@ -73,8 +75,9 @@ class AiUsageDao {
   }
 
   Future<void> updateOutcome(int id, String outcome) {
-    return (_db.update(_db.aiUsages)..where((t) => t.id.equals(id)))
-        .write(AiUsagesCompanion(outcome: Value(outcome)));
+    return (_db.update(_db.aiUsages)..where((t) => t.id.equals(id))).write(
+      AiUsagesCompanion(outcome: Value(outcome)),
+    );
   }
 
   Future<void> updateAdoptedChars(int id, int adoptedChars, String outcome) {

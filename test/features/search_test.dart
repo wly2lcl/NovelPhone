@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:novelphone/app/theme.dart';
 import 'package:novelphone/data/data_providers.dart';
 import 'package:novelphone/data/db.dart';
@@ -84,6 +85,36 @@ void main() {
     expect(hits.single.snippet.length, 12 + 2 + 24 + 2);
   });
 
+  test('findMatchOffset 校正 emoji 章节的偏移（ENH-16）', () async {
+    final workId = await works.createWork(title: '长夜行');
+    final content = '🙂${'甲' * 10}街道${'乙' * 10}';
+    final chapterId = await seedChapter(workId, '第一章', content);
+
+    final hits = await chapters.search('街道');
+
+    expect(hits, hasLength(1));
+    // SQL 侧 INSTR/substr 按码点计数（emoji 记 1 个字符）：1 + 10 = 11。
+    expect(hits.single.matchOffset, 11);
+    // Dart 侧为 UTF-16 偏移（emoji 记 2 个代码单元）：2 + 10 = 12。
+    expect(await chapters.findMatchOffset(chapterId, '街道'), 12);
+  });
+
+  test('findMatchOffset：ASCII 大小写折叠与 SQL lower() 口径一致（ENH-16）', () async {
+    final workId = await works.createWork(title: 'Long Night');
+    final chapterId = await seedChapter(workId, 'Chapter One', 'zz Hello zz');
+
+    expect(await chapters.findMatchOffset(chapterId, 'hello'), 3);
+  });
+
+  test('findMatchOffset：关键词/章节不存在或关键词为空时返回 null（ENH-16）', () async {
+    final workId = await works.createWork(title: '长夜行');
+    final chapterId = await seedChapter(workId, '第一章', '雨下了一整夜。');
+
+    expect(await chapters.findMatchOffset(chapterId, '月光'), isNull);
+    expect(await chapters.findMatchOffset(chapterId, '   '), isNull);
+    expect(await chapters.findMatchOffset(999999, '雨'), isNull);
+  });
+
   test('LIKE 通配符被转义，不会误匹配全部章节', () async {
     final workId = await works.createWork(title: '长夜行');
     await seedChapter(workId, '第一章', '普通的正文。');
@@ -103,13 +134,15 @@ void main() {
     final workId = await works.createWork(title: '长夜行');
     await seedChapter(workId, '第一章 雨', '雨下了一整夜，街道上没有人。');
 
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        databaseProvider.overrideWithValue(db),
-        secureKeyStoreProvider.overrideWithValue(InMemoryKeyStore()),
-      ],
-      child: MaterialApp(theme: buildPaperTheme(), home: const SearchPage()),
-    ));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          secureKeyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+        ],
+        child: MaterialApp(theme: buildPaperTheme(), home: const SearchPage()),
+      ),
+    );
     await tester.pump();
 
     await tester.enterText(find.byType(TextField), '街道');
@@ -117,7 +150,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 350));
     for (var i = 0; i < 40; i++) {
       await tester.runAsync(
-          () => Future<void>.delayed(const Duration(milliseconds: 10)));
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
       await tester.pump();
       if (find.byType(ListTile).evaluate().isNotEmpty) break;
     }
@@ -133,20 +167,23 @@ void main() {
     final workId = await works.createWork(title: '长夜行');
     await seedChapter(workId, '第一章', '雨下了一整夜，街道上没有人。');
 
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        databaseProvider.overrideWithValue(db),
-        secureKeyStoreProvider.overrideWithValue(InMemoryKeyStore()),
-      ],
-      child: MaterialApp(theme: buildPaperTheme(), home: const SearchPage()),
-    ));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          secureKeyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+        ],
+        child: MaterialApp(theme: buildPaperTheme(), home: const SearchPage()),
+      ),
+    );
     await tester.pump();
 
     await tester.enterText(find.byType(TextField), '街道');
     // 未到防抖间隔：即使给足真实异步时间，也不应产生检索结果。
     for (var i = 0; i < 10; i++) {
       await tester.runAsync(
-          () => Future<void>.delayed(const Duration(milliseconds: 10)));
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
       await tester.pump();
     }
     expect(find.byType(ListTile), findsNothing);
@@ -155,11 +192,69 @@ void main() {
     await tester.pump(const Duration(milliseconds: 350));
     for (var i = 0; i < 40; i++) {
       await tester.runAsync(
-          () => Future<void>.delayed(const Duration(milliseconds: 10)));
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
       await tester.pump();
       if (find.byType(ListTile).evaluate().isNotEmpty) break;
     }
     expect(find.byType(ListTile), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(seconds: 2));
+  });
+
+  testWidgets('点击命中跳转编辑器时使用校正后的 UTF-16 偏移（ENH-16）', (tester) async {
+    final workId = await works.createWork(title: '长夜行');
+    final content = '🙂${'甲' * 10}街道${'乙' * 10}';
+    await seedChapter(workId, '第一章', content);
+
+    final router = GoRouter(
+      routes: [
+        GoRoute(path: '/', builder: (context, state) => const SearchPage()),
+        GoRoute(
+          path: '/work/:workId/chapter/:chapterId',
+          builder: (context, state) => Text('EDITOR?${state.uri.query}'),
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          secureKeyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+        ],
+        child: MaterialApp.router(
+          theme: buildPaperTheme(),
+          routerConfig: router,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.enterText(find.byType(TextField), '街道');
+    await tester.pump(const Duration(milliseconds: 350));
+    for (var i = 0; i < 40; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
+      await tester.pump();
+      if (find.byType(ListTile).evaluate().isNotEmpty) break;
+    }
+    expect(find.byType(ListTile), findsOneWidget);
+
+    // 点击后需读该章正文做偏移校正（真实异步），沿用 runAsync 循环等待跳转。
+    await tester.tap(find.byType(ListTile));
+    for (var i = 0; i < 40; i++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
+      await tester.pump();
+      if (find.textContaining('EDITOR').evaluate().isNotEmpty) break;
+    }
+
+    // 校正后的 UTF-16 偏移为 12（SQL 的码点偏移 11 + emoji 的 1 个额外代码单元）。
+    expect(find.text('EDITOR?checkStart=12&checkEnd=14'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(seconds: 2));

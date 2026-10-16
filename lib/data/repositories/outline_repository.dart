@@ -9,11 +9,13 @@ class OutlineRepository {
 
   final OutlineDao _dao;
 
-  Stream<List<OutlineEntry>> watchOutline(int workId) => _dao.watchByWork(workId);
+  Stream<List<OutlineEntry>> watchOutline(int workId) =>
+      _dao.watchByWork(workId);
 
   Future<List<OutlineEntry>> listOutline(int workId) => _dao.findByWork(workId);
 
-  Future<OutlineEntry?> findByChapter(int chapterId) => _dao.findByChapter(chapterId);
+  Future<OutlineEntry?> findByChapter(int chapterId) =>
+      _dao.findByChapter(chapterId);
 
   Future<int> createEntry({
     required int workId,
@@ -21,12 +23,14 @@ class OutlineRepository {
     int? chapterId,
     String summary = '',
   }) {
-    return _dao.insert(OutlineEntriesCompanion.insert(
-      workId: workId,
-      volumeId: Value(volumeId),
-      chapterId: Value(chapterId),
-      summary: Value(summary),
-    ));
+    return _dao.insert(
+      OutlineEntriesCompanion.insert(
+        workId: workId,
+        volumeId: Value(volumeId),
+        chapterId: Value(chapterId),
+        summary: Value(summary),
+      ),
+    );
   }
 
   /// 按章节写入梗概：已有则更新，无则新建。
@@ -56,7 +60,10 @@ class OutlineRepository {
   }
 
   Future<void> updateSummary(int id, String summary) {
-    return _dao.updateEntry(id, OutlineEntriesCompanion(summary: Value(summary)));
+    return _dao.updateEntry(
+      id,
+      OutlineEntriesCompanion(summary: Value(summary)),
+    );
   }
 
   Future<void> deleteEntry(int id) => _dao.deleteById(id);

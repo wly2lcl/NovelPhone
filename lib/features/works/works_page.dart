@@ -65,13 +65,18 @@ class _EmptyWorks extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          Icon(Icons.menu_book_outlined,
-              size: 72, color: context.paper.inkSoft),
+          Icon(
+            Icons.menu_book_outlined,
+            size: 72,
+            color: context.paper.inkSoft,
+          ),
           const SizedBox(height: 16),
           Text('还没有作品', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 8),
-          Text('把脑中的故事写下来，从第一部作品开始。',
-              style: TextStyle(color: context.paper.inkSoft)),
+          Text(
+            '把脑中的故事写下来，从第一部作品开始。',
+            style: TextStyle(color: context.paper.inkSoft),
+          ),
           const SizedBox(height: 24),
           FilledButton.icon(
             onPressed: () => context.push('/new-work'),
@@ -114,8 +119,11 @@ class _WorkCard extends ConsumerWidget {
                     Row(
                       children: <Widget>[
                         if (work.pinned) ...<Widget>[
-                          Icon(Icons.push_pin,
-                              size: 15, color: context.paper.accent),
+                          Icon(
+                            Icons.push_pin,
+                            size: 15,
+                            color: context.paper.accent,
+                          ),
                           const SizedBox(width: 6),
                         ],
                         Expanded(
@@ -132,13 +140,17 @@ class _WorkCard extends ConsumerWidget {
                     Text(
                       '${formatWordCount(work.wordCount)} · ${work.chapterCount} 章',
                       style: TextStyle(
-                          fontSize: 13, color: context.paper.inkSoft),
+                        fontSize: 13,
+                        color: context.paper.inkSoft,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       '最后编辑 ${formatRelativeTime(work.lastEditedAt)}',
                       style: TextStyle(
-                          fontSize: 12, color: context.paper.inkSoft),
+                        fontSize: 12,
+                        color: context.paper.inkSoft,
+                      ),
                     ),
                   ],
                 ),
@@ -151,7 +163,10 @@ class _WorkCard extends ConsumerWidget {
   }
 
   Future<void> _showActions(
-      BuildContext context, WidgetRef ref, Work work) async {
+    BuildContext context,
+    WidgetRef ref,
+    Work work,
+  ) async {
     final repository = ref.read(workRepositoryProvider);
     await showModalBottomSheet<void>(
       context: context,
@@ -160,9 +175,9 @@ class _WorkCard extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             ListTile(
-              leading: Icon(work.pinned
-                  ? Icons.push_pin_outlined
-                  : Icons.push_pin),
+              leading: Icon(
+                work.pinned ? Icons.push_pin_outlined : Icons.push_pin,
+              ),
               title: Text(work.pinned ? '取消置顶' : '置顶'),
               onTap: () async {
                 Navigator.of(sheetContext).pop();
@@ -170,10 +185,14 @@ class _WorkCard extends ConsumerWidget {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.delete_outline,
-                  color: Color(0xFFB3261E)),
-              title: const Text('删除作品',
-                  style: TextStyle(color: Color(0xFFB3261E))),
+              leading: const Icon(
+                Icons.delete_outline,
+                color: Color(0xFFB3261E),
+              ),
+              title: const Text(
+                '删除作品',
+                style: TextStyle(color: Color(0xFFB3261E)),
+              ),
               onTap: () async {
                 Navigator.of(sheetContext).pop();
                 await _confirmDelete(context, ref, work);
@@ -186,7 +205,10 @@ class _WorkCard extends ConsumerWidget {
   }
 
   Future<void> _confirmDelete(
-      BuildContext context, WidgetRef ref, Work work) async {
+    BuildContext context,
+    WidgetRef ref,
+    Work work,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(

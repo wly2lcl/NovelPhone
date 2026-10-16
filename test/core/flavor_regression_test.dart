@@ -33,11 +33,7 @@ void main() {
     final recall = truePositive / (truePositive + falseNegative);
     final falsePositiveRate = falsePositive / (falsePositive + trueNegative);
 
-    expect(
-      recall,
-      greaterThanOrEqualTo(0.8),
-      reason: '召回不达标，漏检样本：$missed',
-    );
+    expect(recall, greaterThanOrEqualTo(0.8), reason: '召回不达标，漏检样本：$missed');
     expect(
       falsePositiveRate,
       lessThanOrEqualTo(0.2),

@@ -34,7 +34,7 @@ class CloudBackupScheduler {
   final SettingsRepository settings;
   final BackupRepository backups;
   final CloudStorageClient Function(CloudBackupConfig, String, String)?
-      clientFactory;
+  clientFactory;
   final DateTime Function() _clock;
 
   /// 防重入：一次检查未结束时忽略新的触发。

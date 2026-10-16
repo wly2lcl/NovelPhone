@@ -43,7 +43,10 @@ List<Tool> buildLocalTools({
       inputSchema: const <String, dynamic>{
         'type': 'object',
         'properties': <String, dynamic>{
-          'workId': <String, dynamic>{'type': 'integer', 'description': '作品 id'},
+          'workId': <String, dynamic>{
+            'type': 'integer',
+            'description': '作品 id',
+          },
         },
         'required': <String>['workId'],
       },
@@ -52,16 +55,18 @@ List<Tool> buildLocalTools({
         if (workId == null) return '错误：缺少有效的作品 id';
         final list = await characters.listCharacters(workId);
         if (list.isEmpty) return '该作品暂无角色卡。';
-        return list.map((c) {
-          final parts = <String>[
-            if (c.identity.isNotEmpty) '身份：${c.identity}',
-            if (c.personalityTags.isNotEmpty) '性格：${c.personalityTags}',
-            if (c.appearance.isNotEmpty) '外貌：${c.appearance}',
-            if (c.relations.isNotEmpty) '人际关系：${c.relations}',
-            if (c.arc.isNotEmpty) '弧光：${c.arc}',
-          ];
-          return '- ${c.name}${parts.isEmpty ? '' : '（${parts.join('；')}）'}';
-        }).join('\n');
+        return list
+            .map((c) {
+              final parts = <String>[
+                if (c.identity.isNotEmpty) '身份：${c.identity}',
+                if (c.personalityTags.isNotEmpty) '性格：${c.personalityTags}',
+                if (c.appearance.isNotEmpty) '外貌：${c.appearance}',
+                if (c.relations.isNotEmpty) '人际关系：${c.relations}',
+                if (c.arc.isNotEmpty) '弧光：${c.arc}',
+              ];
+              return '- ${c.name}${parts.isEmpty ? '' : '（${parts.join('；')}）'}';
+            })
+            .join('\n');
       },
     ),
     Tool(
@@ -70,7 +75,10 @@ List<Tool> buildLocalTools({
       inputSchema: const <String, dynamic>{
         'type': 'object',
         'properties': <String, dynamic>{
-          'workId': <String, dynamic>{'type': 'integer', 'description': '作品 id'},
+          'workId': <String, dynamic>{
+            'type': 'integer',
+            'description': '作品 id',
+          },
         },
         'required': <String>['workId'],
       },
@@ -78,8 +86,9 @@ List<Tool> buildLocalTools({
         final workId = _asInt(args['workId']);
         if (workId == null) return '错误：缺少有效的作品 id';
         final entries = await outline.listOutline(workId);
-        final withSummary =
-            entries.where((e) => e.summary.trim().isNotEmpty).toList();
+        final withSummary = entries
+            .where((e) => e.summary.trim().isNotEmpty)
+            .toList();
         if (withSummary.isEmpty) return '该作品暂无章纲。';
         // 只需章节标题映射：走元数据流，不为一张 id→标题表读入整部作品正文（ENH-12）。
         final chapterList = await chapters.watchChapterMetas(workId).first;

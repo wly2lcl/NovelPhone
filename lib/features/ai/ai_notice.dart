@@ -9,7 +9,8 @@ import '../../data/data_providers.dart';
 /// 返回 false 表示用户取消，调用方应中止本次 AI 操作。
 const String aiNoticeTitle = '使用 AI 前请知悉';
 
-const String aiNoticeBody = '你的作品正文与设定默认只保存在本机。'
+const String aiNoticeBody =
+    '你的作品正文与设定默认只保存在本机。'
     '当你使用 AI 功能时，应用会把你自行配置的模型服务商所需的最小上下文'
     '（当前章节内容、章纲、相关角色卡等）通过网络直接发送给你配置的服务商，'
     '不会经过 NovelPhone 的服务器。\n\n'

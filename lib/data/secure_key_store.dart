@@ -13,7 +13,7 @@ abstract interface class SecureKeyStore {
 /// 默认实现：flutter_secure_storage。
 class FlutterSecureKeyStore implements SecureKeyStore {
   FlutterSecureKeyStore([FlutterSecureStorage? storage])
-      : _storage = storage ?? const FlutterSecureStorage();
+    : _storage = storage ?? const FlutterSecureStorage();
 
   final FlutterSecureStorage _storage;
 

@@ -32,13 +32,15 @@ void main() {
     final db = AppDatabase.memory();
     addTearDown(db.close);
     var reads = 0;
-    final container = ProviderContainer(overrides: [
-      databaseProvider.overrideWithValue(db),
-      httpClientProvider.overrideWith((ref) {
-        reads++;
-        return _StubClient();
-      }),
-    ]);
+    final container = ProviderContainer(
+      overrides: [
+        databaseProvider.overrideWithValue(db),
+        httpClientProvider.overrideWith((ref) {
+          reads++;
+          return _StubClient();
+        }),
+      ],
+    );
     addTearDown(container.dispose);
 
     container.read(aiServiceProvider);

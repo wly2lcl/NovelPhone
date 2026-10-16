@@ -46,18 +46,24 @@ void main() {
 
   test('搜索 provider 无人监听后释放（ENH-11）', () async {
     final repo = _CountingChapterRepository(db);
-    final container = ProviderContainer(overrides: [
-      chapterRepositoryProvider.overrideWithValue(repo),
-    ]);
+    final container = ProviderContainer(
+      overrides: [chapterRepositoryProvider.overrideWithValue(repo)],
+    );
     addTearDown(container.dispose);
 
-    final sub =
-        container.listen(searchProvider('街道'), (_, _) {}, fireImmediately: true);
+    final sub = container.listen(
+      searchProvider('街道'),
+      (_, _) {},
+      fireImmediately: true,
+    );
     await container.read(searchProvider('街道').future);
     expect(repo.searched, <String>['街道']);
 
-    final sub2 =
-        container.listen(searchProvider('雾'), (_, _) {}, fireImmediately: true);
+    final sub2 = container.listen(
+      searchProvider('雾'),
+      (_, _) {},
+      fireImmediately: true,
+    );
     await container.read(searchProvider('雾').future);
     expect(repo.searched, <String>['街道', '雾']);
 
@@ -67,8 +73,11 @@ void main() {
     await Future<void>.delayed(Duration.zero);
     expect(container.exists(searchProvider('街道')), isFalse);
 
-    final sub3 =
-        container.listen(searchProvider('街道'), (_, _) {}, fireImmediately: true);
+    final sub3 = container.listen(
+      searchProvider('街道'),
+      (_, _) {},
+      fireImmediately: true,
+    );
     await container.read(searchProvider('街道').future);
     expect(repo.searched, <String>['街道', '雾', '街道']);
     sub3.close();
@@ -76,14 +85,17 @@ void main() {
 
   test('作品详情流无人监听后释放（ENH-11）', () async {
     final repo = _CountingWorkRepository(db);
-    final container = ProviderContainer(overrides: [
-      workRepositoryProvider.overrideWithValue(repo),
-    ]);
+    final container = ProviderContainer(
+      overrides: [workRepositoryProvider.overrideWithValue(repo)],
+    );
     addTearDown(container.dispose);
     final workId = await repo.createWork(title: '长夜行');
 
-    final sub = container.listen(workProvider(workId), (_, _) {},
-        fireImmediately: true);
+    final sub = container.listen(
+      workProvider(workId),
+      (_, _) {},
+      fireImmediately: true,
+    );
     await Future<void>.delayed(Duration.zero);
     expect(repo.workStreams, 1);
 
@@ -91,8 +103,11 @@ void main() {
     await Future<void>.delayed(Duration.zero);
     expect(container.exists(workProvider(workId)), isFalse);
 
-    final sub2 = container.listen(workProvider(workId), (_, _) {},
-        fireImmediately: true);
+    final sub2 = container.listen(
+      workProvider(workId),
+      (_, _) {},
+      fireImmediately: true,
+    );
     await Future<void>.delayed(Duration.zero);
     expect(repo.workStreams, 2);
     sub2.close();

@@ -88,51 +88,51 @@ class _McpServersPageState extends ConsumerState<McpServersPage> {
       body: servers == null
           ? const Center(child: CircularProgressIndicator())
           : servers.isEmpty
-              ? const _EmptyHint()
-              : ListView.separated(
-                  itemCount: servers.length,
-                  separatorBuilder: (_, _) => const Divider(height: 1),
-                  itemBuilder: (context, index) {
-                    final server = servers[index];
-                    return ListTile(
-                      leading: Icon(
-                        _withAuth.contains(server.id)
-                            ? Icons.vpn_key
-                            : Icons.vpn_key_off_outlined,
-                        color: _withAuth.contains(server.id)
-                            ? context.paper.accent
-                            : context.paper.inkSoft,
+          ? const _EmptyHint()
+          : ListView.separated(
+              itemCount: servers.length,
+              separatorBuilder: (_, _) => const Divider(height: 1),
+              itemBuilder: (context, index) {
+                final server = servers[index];
+                return ListTile(
+                  leading: Icon(
+                    _withAuth.contains(server.id)
+                        ? Icons.vpn_key
+                        : Icons.vpn_key_off_outlined,
+                    color: _withAuth.contains(server.id)
+                        ? context.paper.accent
+                        : context.paper.inkSoft,
+                  ),
+                  title: Text(server.name),
+                  subtitle: Text(
+                    '${server.url}\n'
+                    '${server.allowedTools.isEmpty ? '全部工具可用' : '白名单：${server.allowedTools.join('、')}'}',
+                    maxLines: 3,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: context.paper.inkSoft,
+                    ),
+                  ),
+                  isThreeLine: true,
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Switch(
+                        value: server.enabled,
+                        activeTrackColor: context.paper.accent,
+                        onChanged: (value) => _toggle(server, value),
                       ),
-                      title: Text(server.name),
-                      subtitle: Text(
-                        '${server.url}\n'
-                        '${server.allowedTools.isEmpty ? '全部工具可用' : '白名单：${server.allowedTools.join('、')}'}',
-                        maxLines: 3,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: context.paper.inkSoft,
-                        ),
-                      ),
-                      isThreeLine: true,
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          Switch(
-                            value: server.enabled,
-                            activeTrackColor: context.paper.accent,
-                            onChanged: (value) => _toggle(server, value),
-                          ),
-                          PopupMenuButton<String>(
-                            onSelected: (value) async {
-                              switch (value) {
-                                case 'edit':
-                                  await _openEdit(server.id);
-                                case 'delete':
-                                  await _confirmDelete(server);
-                              }
-                            },
-                            itemBuilder: (context) =>
-                                const <PopupMenuEntry<String>>[
+                      PopupMenuButton<String>(
+                        onSelected: (value) async {
+                          switch (value) {
+                            case 'edit':
+                              await _openEdit(server.id);
+                            case 'delete':
+                              await _confirmDelete(server);
+                          }
+                        },
+                        itemBuilder: (context) =>
+                            const <PopupMenuEntry<String>>[
                               PopupMenuItem<String>(
                                 value: 'edit',
                                 child: Text('编辑'),
@@ -142,13 +142,13 @@ class _McpServersPageState extends ConsumerState<McpServersPage> {
                                 child: Text('删除'),
                               ),
                             ],
-                          ),
-                        ],
                       ),
-                      onTap: () => _openEdit(server.id),
-                    );
-                  },
-                ),
+                    ],
+                  ),
+                  onTap: () => _openEdit(server.id),
+                );
+              },
+            ),
     );
   }
 }
@@ -299,9 +299,9 @@ class _McpServerEditPageState extends ConsumerState<McpServerEditPage> {
       );
     }
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('已保存')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('已保存')));
     Navigator.of(context).pop();
   }
 
@@ -334,7 +334,9 @@ class _McpServerEditPageState extends ConsumerState<McpServerEditPage> {
         headers: parseAuthHeaders(await _effectiveAuth()),
       );
       ok = true;
-      message = names.isEmpty ? '连接成功，但该服务未暴露工具' : '连接成功，${names.length} 个工具：${names.join('、')}';
+      message = names.isEmpty
+          ? '连接成功，但该服务未暴露工具'
+          : '连接成功，${names.length} 个工具：${names.join('、')}';
     } catch (e) {
       message = '连接失败：$e';
     }
@@ -372,15 +374,15 @@ class _McpServerEditPageState extends ConsumerState<McpServerEditPage> {
                       labelText: '名称',
                       hintText: '例如：我的本地 MCP 服务',
                     ),
-                    validator: (v) =>
-                        (v ?? '').trim().isEmpty ? '请填写名称' : null,
+                    validator: (v) => (v ?? '').trim().isEmpty ? '请填写名称' : null,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _url,
                     decoration: const InputDecoration(
                       labelText: 'MCP 端点地址',
-                      helperText: 'Streamable HTTP 完整地址，例如 https://example.com/mcp',
+                      helperText:
+                          'Streamable HTTP 完整地址，例如 https://example.com/mcp',
                     ),
                     validator: (v) {
                       final value = (v ?? '').trim();
@@ -433,8 +435,9 @@ class _McpServerEditPageState extends ConsumerState<McpServerEditPage> {
                             ? const SizedBox(
                                 width: 14,
                                 height: 14,
-                                child:
-                                    CircularProgressIndicator(strokeWidth: 1.6),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 1.6,
+                                ),
                               )
                             : const Icon(Icons.wifi_tethering, size: 18),
                         label: const Text('测试连接'),

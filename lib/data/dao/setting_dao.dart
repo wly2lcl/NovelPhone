@@ -9,7 +9,8 @@ class SettingDao {
   final AppDatabase _db;
 
   SimpleSelectStatement<$SettingEntriesTable, SettingEntry> _selectByWork(
-      int workId) {
+    int workId,
+  ) {
     return _db.select(_db.settingEntries)
       ..where((t) => t.workId.equals(workId))
       ..orderBy([(t) => OrderingTerm(expression: t.id)]);
@@ -26,8 +27,9 @@ class SettingDao {
   }
 
   Future<void> updateEntry(int id, SettingEntriesCompanion patch) {
-    return (_db.update(_db.settingEntries)..where((t) => t.id.equals(id)))
-        .write(patch);
+    return (_db.update(
+      _db.settingEntries,
+    )..where((t) => t.id.equals(id))).write(patch);
   }
 
   Future<void> deleteById(int id) {

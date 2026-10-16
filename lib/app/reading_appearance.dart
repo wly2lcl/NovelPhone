@@ -32,7 +32,11 @@ class ReadingAppearance {
   static const double minLineHeight = 1.4;
   static const double maxLineHeight = 2.4;
 
-  ReadingAppearance copyWith({bool? dark, double? fontSize, double? lineHeight}) {
+  ReadingAppearance copyWith({
+    bool? dark,
+    double? fontSize,
+    double? lineHeight,
+  }) {
     return ReadingAppearance(
       dark: dark ?? this.dark,
       fontSize: fontSize ?? this.fontSize,
@@ -41,10 +45,10 @@ class ReadingAppearance {
   }
 
   String encode() => jsonEncode(<String, dynamic>{
-        'dark': dark,
-        'fontSize': fontSize,
-        'lineHeight': lineHeight,
-      });
+    'dark': dark,
+    'fontSize': fontSize,
+    'lineHeight': lineHeight,
+  });
 
   /// 解析设置值；缺失或脏数据一律回落到默认外观，并把数值夹到合法区间。
   factory ReadingAppearance.decode(String? raw) {
@@ -55,12 +59,7 @@ class ReadingAppearance {
         final map = decoded.cast<String, dynamic>();
         return ReadingAppearance(
           dark: map['dark'] as bool? ?? false,
-          fontSize: _clampDouble(
-            map['fontSize'],
-            17,
-            minFontSize,
-            maxFontSize,
-          ),
+          fontSize: _clampDouble(map['fontSize'], 17, minFontSize, maxFontSize),
           lineHeight: _clampDouble(
             map['lineHeight'],
             1.8,
@@ -122,12 +121,13 @@ class ReadingPalette {
   static ReadingPalette of(
     ReadingAppearance appearance, {
     bool globalDark = false,
-  }) =>
-      (appearance.dark || globalDark) ? night : paper;
+  }) => (appearance.dark || globalDark) ? night : paper;
 }
 
 /// 当前写作外观（设置页写入后 `ref.invalidate` 使编辑器立即生效）。
-final readingAppearanceProvider = FutureProvider<ReadingAppearance>((ref) async {
+final readingAppearanceProvider = FutureProvider<ReadingAppearance>((
+  ref,
+) async {
   final raw = await ref
       .watch(settingsRepositoryProvider)
       .getSetting(ReadingAppearance.settingKey);

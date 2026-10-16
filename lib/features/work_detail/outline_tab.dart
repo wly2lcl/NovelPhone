@@ -15,7 +15,8 @@ class OutlineTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final volumes = ref.watch(volumesProvider(workId)).value ?? const <Volume>[];
+    final volumes =
+        ref.watch(volumesProvider(workId)).value ?? const <Volume>[];
     final chapters =
         ref.watch(chaptersProvider(workId)).value ?? const <Chapter>[];
     final outline =
@@ -25,8 +26,9 @@ class OutlineTab extends ConsumerWidget {
       for (final entry in outline)
         if (entry.chapterId != null) entry.chapterId!: entry,
     };
-    final orphans =
-        outline.where((e) => e.chapterId == null).toList(growable: false);
+    final orphans = outline
+        .where((e) => e.chapterId == null)
+        .toList(growable: false);
 
     if (chapters.isEmpty && orphans.isEmpty) {
       return const _EmptyOutlineHint();
@@ -55,8 +57,10 @@ class OutlineTab extends ConsumerWidget {
         if (orphans.isNotEmpty) ...<Widget>[
           Padding(
             padding: EdgeInsets.only(top: 16, bottom: 4),
-            child: Text('未关联章节的梗概',
-                style: TextStyle(color: context.paper.inkSoft)),
+            child: Text(
+              '未关联章节的梗概',
+              style: TextStyle(color: context.paper.inkSoft),
+            ),
           ),
           for (final entry in orphans)
             ListTile(
@@ -69,10 +73,12 @@ class OutlineTab extends ConsumerWidget {
               ),
               trailing: IconButton(
                 tooltip: '删除',
-                icon: const Icon(Icons.delete_outline, color: Color(0xFFB3261E)),
-                onPressed: () => ref
-                    .read(outlineRepositoryProvider)
-                    .deleteEntry(entry.id),
+                icon: const Icon(
+                  Icons.delete_outline,
+                  color: Color(0xFFB3261E),
+                ),
+                onPressed: () =>
+                    ref.read(outlineRepositoryProvider).deleteEntry(entry.id),
               ),
               onTap: () => showSummaryEditor(
                 context,
@@ -99,8 +105,11 @@ class _EmptyOutlineHint extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Icon(Icons.list_alt_outlined,
-                size: 64, color: context.paper.inkSoft),
+            Icon(
+              Icons.list_alt_outlined,
+              size: 64,
+              color: context.paper.inkSoft,
+            ),
             const SizedBox(height: 12),
             Text('还没有章纲', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 6),
@@ -151,7 +160,9 @@ class _OutlineTile extends ConsumerWidget {
       onTap: () => showSummaryEditor(
         context,
         initial: summary,
-        onSave: (text) => ref.read(outlineRepositoryProvider).saveChapterSummary(
+        onSave: (text) => ref
+            .read(outlineRepositoryProvider)
+            .saveChapterSummary(
               workId: workId,
               volumeId: volumeId,
               chapterId: chapter.id,

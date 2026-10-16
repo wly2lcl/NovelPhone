@@ -49,12 +49,12 @@ class ChapterSearchHit {
 /// （ARCHITECTURE 4.3：杜绝"正文新、字数旧"）。
 class ChapterRepository {
   ChapterRepository(this._db)
-      : _chapters = ChapterDao(_db),
-        _volumes = VolumeDao(_db),
-        _works = WorkDao(_db),
-        _outline = OutlineDao(_db),
-        _snapshots = SnapshotDao(_db),
-        _writingStats = WritingStatsDao(_db);
+    : _chapters = ChapterDao(_db),
+      _volumes = VolumeDao(_db),
+      _works = WorkDao(_db),
+      _outline = OutlineDao(_db),
+      _snapshots = SnapshotDao(_db),
+      _writingStats = WritingStatsDao(_db);
 
   /// 单章最多保留的快照数（B-05），超出后清理最旧的。
   static const int maxSnapshotsPerChapter = 50;
@@ -73,13 +73,15 @@ class ChapterRepository {
 
   Future<List<Volume>> listVolumes(int workId) => _volumes.findByWork(workId);
 
-  Stream<List<Chapter>> watchChapters(int workId) => _chapters.watchByWork(workId);
+  Stream<List<Chapter>> watchChapters(int workId) =>
+      _chapters.watchByWork(workId);
 
   /// 目录 / 大纲等 UI 只需章节元数据（ENH-10）：不读取正文，避免自动保存时重读全书。
   Stream<List<Chapter>> watchChapterMetas(int workId) =>
       _chapters.watchMetaByWork(workId);
 
-  Stream<Chapter?> watchChapter(int chapterId) => _chapters.watchById(chapterId);
+  Stream<Chapter?> watchChapter(int chapterId) =>
+      _chapters.watchById(chapterId);
 
   Future<Chapter?> getChapter(int chapterId) => _chapters.findById(chapterId);
 
@@ -90,13 +92,14 @@ class ChapterRepository {
   Future<int> createVolume(int workId, String name) {
     return _db.transaction(() async {
       final volumes = await _volumes.findByWork(workId);
-      final nextOrder =
-          volumes.isEmpty ? 0 : volumes.last.sortOrder + 1;
-      return _volumes.insert(VolumesCompanion.insert(
-        workId: workId,
-        name: name,
-        sortOrder: nextOrder,
-      ));
+      final nextOrder = volumes.isEmpty ? 0 : volumes.last.sortOrder + 1;
+      return _volumes.insert(
+        VolumesCompanion.insert(
+          workId: workId,
+          name: name,
+          sortOrder: nextOrder,
+        ),
+      );
     });
   }
 
@@ -132,10 +135,14 @@ class ChapterRepository {
       final target = up ? index - 1 : index + 1;
       if (index < 0 || target < 0 || target >= list.length) return;
       final other = list[target];
-      await _volumes.updateVolume(volumeId,
-          VolumesCompanion(sortOrder: Value(other.sortOrder)));
-      await _volumes.updateVolume(other.id,
-          VolumesCompanion(sortOrder: Value(volume.sortOrder)));
+      await _volumes.updateVolume(
+        volumeId,
+        VolumesCompanion(sortOrder: Value(other.sortOrder)),
+      );
+      await _volumes.updateVolume(
+        other.id,
+        VolumesCompanion(sortOrder: Value(volume.sortOrder)),
+      );
     });
   }
 
@@ -166,12 +173,14 @@ class ChapterRepository {
     return _db.transaction(() async {
       final targetVolume = await _resolveVolume(workId, volumeId);
       final sortOrder = await _chapters.nextSortOrder(targetVolume.id);
-      final chapterId = await _chapters.insert(ChaptersCompanion.insert(
-        volumeId: targetVolume.id,
-        title: title,
-        sortOrder: sortOrder,
-        updatedAt: DateTime.now(),
-      ));
+      final chapterId = await _chapters.insert(
+        ChaptersCompanion.insert(
+          volumeId: targetVolume.id,
+          title: title,
+          sortOrder: sortOrder,
+          updatedAt: DateTime.now(),
+        ),
+      );
       await _syncWorkAggregate(workId);
       return chapterId;
     });
@@ -179,12 +188,16 @@ class ChapterRepository {
 
   Future<void> renameChapter(int chapterId, String title) {
     return _chapters.updateChapter(
-        chapterId, ChaptersCompanion(title: Value(title)));
+      chapterId,
+      ChaptersCompanion(title: Value(title)),
+    );
   }
 
   Future<void> setChapterStatus(int chapterId, ChapterStatus status) {
     return _chapters.updateChapter(
-        chapterId, ChaptersCompanion(status: Value(status.value)));
+      chapterId,
+      ChaptersCompanion(status: Value(status.value)),
+    );
   }
 
   /// 自动保存正文：字数、光标与滚动位置、作品汇总在同一事务内落库。
@@ -208,10 +221,12 @@ class ChapterRepository {
           title: Value(title),
           content: Value(content),
           wordCount: Value(words),
-          cursorOffset:
-              cursorOffset == null ? const Value.absent() : Value(cursorOffset),
-          scrollOffset:
-              scrollOffset == null ? const Value.absent() : Value(scrollOffset),
+          cursorOffset: cursorOffset == null
+              ? const Value.absent()
+              : Value(cursorOffset),
+          scrollOffset: scrollOffset == null
+              ? const Value.absent()
+              : Value(scrollOffset),
           updatedAt: Value(now),
         ),
       );
@@ -274,9 +289,13 @@ class ChapterRepository {
       if (index < 0 || target < 0 || target >= list.length) return;
       final other = list[target];
       await _chapters.updateChapter(
-          chapterId, ChaptersCompanion(sortOrder: Value(other.sortOrder)));
+        chapterId,
+        ChaptersCompanion(sortOrder: Value(other.sortOrder)),
+      );
       await _chapters.updateChapter(
-          other.id, ChaptersCompanion(sortOrder: Value(chapter.sortOrder)));
+        other.id,
+        ChaptersCompanion(sortOrder: Value(chapter.sortOrder)),
+      );
     });
   }
 
@@ -315,13 +334,15 @@ class ChapterRepository {
     required String content,
   }) {
     return _db.transaction(() async {
-      final id = await _snapshots.insert(ChapterSnapshotsCompanion.insert(
-        chapterId: chapterId,
-        title: Value(title),
-        content: Value(content),
-        wordCount: Value(countWords(content)),
-        createdAt: DateTime.now(),
-      ));
+      final id = await _snapshots.insert(
+        ChapterSnapshotsCompanion.insert(
+          chapterId: chapterId,
+          title: Value(title),
+          content: Value(content),
+          wordCount: Value(countWords(content)),
+          createdAt: DateTime.now(),
+        ),
+      );
       await _snapshots.pruneBeyond(chapterId, maxSnapshotsPerChapter);
       return id;
     });
@@ -342,36 +363,30 @@ class ChapterRepository {
   // ---------- 全局搜索（B-06）----------
 
   /// 在全部作品的章节标题与正文中检索关键词，按章节更新时间倒序返回。
-  Future<List<ChapterSearchHit>> search(String keyword, {int limit = 100}) async {
+  Future<List<ChapterSearchHit>> search(
+    String keyword, {
+    int limit = 100,
+  }) async {
     final kw = keyword.trim();
     if (kw.isEmpty) return const <ChapterSearchHit>[];
     final pattern = '%${_escapeLike(kw)}%';
     final content = _db.chapters.content;
     // ENH-14：命中位置与摘要片段直接在 SQL 里算好，避免把命中章节的整篇正文读回 Dart。
     // INSTR 为 1-based（0 表示正文未命中）；lower() 让 ASCII 大小写口径与 LIKE 保持一致。
-    final hitIndex = FunctionCallExpression<int>(
-      'INSTR',
-      <Expression<Object>>[
-        content.lower(),
-        Variable<String>(kw.toLowerCase()),
-      ],
-    );
+    final hitIndex = FunctionCallExpression<int>('INSTR', <Expression<Object>>[
+      content.lower(),
+      Variable<String>(kw.toLowerCase()),
+    ]);
     final contentLength = content.length;
     // 与原 _snippet 等价：命中点前留 12 字、后留 24 字（超界由 substr 自然截断）。
-    final startExpr = FunctionCallExpression<int>(
-      'MAX',
-      <Expression<Object>>[
-        const Constant<int>(1),
-        hitIndex - Variable<int>(12),
-      ],
-    );
-    final endExpr = FunctionCallExpression<int>(
-      'MIN',
-      <Expression<Object>>[
-        hitIndex + Variable<int>(kw.length + 23),
-        contentLength,
-      ],
-    );
+    final startExpr = FunctionCallExpression<int>('MAX', <Expression<Object>>[
+      const Constant<int>(1),
+      hitIndex - Variable<int>(12),
+    ]);
+    final endExpr = FunctionCallExpression<int>('MIN', <Expression<Object>>[
+      hitIndex + Variable<int>(kw.length + 23),
+      contentLength,
+    ]);
     final hitSnippet = content.substrExpr(
       startExpr,
       endExpr - startExpr + const Constant<int>(1),
@@ -379,43 +394,77 @@ class ChapterRepository {
     // 正文未命中（仅标题命中）时回退到正文开头 40 字。
     final headSnippet = content.substr(1, 40);
 
-    final query = _db.selectOnly(_db.chapters).join([
-      innerJoin(_db.volumes, _db.volumes.id.equalsExp(_db.chapters.volumeId)),
-      innerJoin(_db.works, _db.works.id.equalsExp(_db.volumes.workId)),
-    ])
-      ..addColumns(<Expression<Object>>[
-        _db.chapters.id,
-        _db.chapters.title,
-        _db.works.id,
-        _db.works.title,
-        hitIndex,
-        contentLength,
-        hitSnippet,
-        headSnippet,
-      ])
-      ..where(_db.chapters.title.like(pattern, escapeChar: '\\') |
-          content.like(pattern, escapeChar: '\\'))
-      ..orderBy(<OrderingTerm>[OrderingTerm.desc(_db.chapters.updatedAt)])
-      ..limit(limit);
+    final query =
+        _db.selectOnly(_db.chapters).join([
+            innerJoin(
+              _db.volumes,
+              _db.volumes.id.equalsExp(_db.chapters.volumeId),
+            ),
+            innerJoin(_db.works, _db.works.id.equalsExp(_db.volumes.workId)),
+          ])
+          ..addColumns(<Expression<Object>>[
+            _db.chapters.id,
+            _db.chapters.title,
+            _db.works.id,
+            _db.works.title,
+            hitIndex,
+            contentLength,
+            hitSnippet,
+            headSnippet,
+          ])
+          ..where(
+            _db.chapters.title.like(pattern, escapeChar: '\\') |
+                content.like(pattern, escapeChar: '\\'),
+          )
+          ..orderBy(<OrderingTerm>[OrderingTerm.desc(_db.chapters.updatedAt)])
+          ..limit(limit);
     final rows = await query.get();
-    return rows.map((row) {
-      final hit = row.read(hitIndex) ?? 0;
-      final length = row.read(contentLength) ?? 0;
-      final offset = hit <= 0 ? -1 : hit - 1;
-      return ChapterSearchHit(
-        workId: row.read(_db.works.id)!,
-        workTitle: row.read(_db.works.title)!,
-        chapterId: row.read(_db.chapters.id)!,
-        chapterTitle: row.read(_db.chapters.title)!,
-        snippet: offset < 0
-            ? _headSnippet(row.read(headSnippet) ?? '', length)
-            : _windowSnippet(
-                row.read(hitSnippet) ?? '', offset, kw.length, length),
-        matchOffset: offset,
-        matchLength: offset < 0 ? 0 : kw.length,
-      );
-    }).toList(growable: false);
+    return rows
+        .map((row) {
+          final hit = row.read(hitIndex) ?? 0;
+          final length = row.read(contentLength) ?? 0;
+          final offset = hit <= 0 ? -1 : hit - 1;
+          return ChapterSearchHit(
+            workId: row.read(_db.works.id)!,
+            workTitle: row.read(_db.works.title)!,
+            chapterId: row.read(_db.chapters.id)!,
+            chapterTitle: row.read(_db.chapters.title)!,
+            snippet: offset < 0
+                ? _headSnippet(row.read(headSnippet) ?? '', length)
+                : _windowSnippet(
+                    row.read(hitSnippet) ?? '',
+                    offset,
+                    kw.length,
+                    length,
+                  ),
+            matchOffset: offset,
+            matchLength: offset < 0 ? 0 : kw.length,
+          );
+        })
+        .toList(growable: false);
   }
+
+  /// 命中位置的精确 UTF-16 偏移，供搜索页点击跳转前校正高亮范围（ENH-16）。
+  /// [search] 的偏移来自 SQLite 的 INSTR/substr，按码点计数，而编辑器定位用 Dart 的
+  /// UTF-16 偏移，命中点之前存在 emoji 等代理对时两者会相差前者的个数。这里只读该章
+  /// 正文一次（点击后即将打开的编辑器本就要读同一章），用与 SQL 相同的 lower() 口径
+  /// 重新定位；检索后正文已改动导致关键词不存在时返回 null，由调用方沿用 SQL 偏移。
+  Future<int?> findMatchOffset(int chapterId, String keyword) async {
+    final kw = keyword.trim();
+    if (kw.isEmpty) return null;
+    final chapter = await getChapter(chapterId);
+    if (chapter == null) return null;
+    final index = _asciiLower(chapter.content).indexOf(_asciiLower(kw));
+    return index < 0 ? null : index;
+  }
+
+  /// SQLite 内置 lower() 只折叠 ASCII 字母，Dart 的 toLowerCase() 做完整 Unicode
+  /// 折叠；为与 [search] 的 LIKE/INSTR 口径一致，这里手工只映射 A-Z。
+  static String _asciiLower(String value) => String.fromCharCodes(
+    value.codeUnits.map(
+      (unit) => unit >= 0x41 && unit <= 0x5A ? unit + 0x20 : unit,
+    ),
+  );
 
   static String _escapeLike(String value) => value
       .replaceAll('\\', '\\\\')
@@ -456,11 +505,13 @@ class ChapterRepository {
       } else {
         final volumes = await _volumes.findByWork(workId);
         final nextOrder = volumes.isEmpty ? 0 : volumes.last.sortOrder + 1;
-        final id = await _volumes.insert(VolumesCompanion.insert(
-          workId: workId,
-          name: trimmed.length > 30 ? trimmed.substring(0, 30) : trimmed,
-          sortOrder: nextOrder,
-        ));
+        final id = await _volumes.insert(
+          VolumesCompanion.insert(
+            workId: workId,
+            name: trimmed.length > 30 ? trimmed.substring(0, 30) : trimmed,
+            sortOrder: nextOrder,
+          ),
+        );
         volume = (await _volumes.findById(id))!;
       }
 
@@ -471,14 +522,16 @@ class ChapterRepository {
         final title = draft.title.length > 50
             ? draft.title.substring(0, 50)
             : draft.title;
-        await _chapters.insert(ChaptersCompanion.insert(
-          volumeId: volume.id,
-          title: title,
-          content: Value(content),
-          wordCount: Value(countWords(content)),
-          sortOrder: sortOrder,
-          updatedAt: now,
-        ));
+        await _chapters.insert(
+          ChaptersCompanion.insert(
+            volumeId: volume.id,
+            title: title,
+            content: Value(content),
+            wordCount: Value(countWords(content)),
+            sortOrder: sortOrder,
+            updatedAt: now,
+          ),
+        );
         sortOrder++;
       }
       await _syncWorkAggregate(workId, lastEditedAt: now);
@@ -496,8 +549,10 @@ class ChapterRepository {
     }
     final existing = await _volumes.findFirst(workId);
     if (existing != null) return existing;
-    final createdId =
-        await createVolume(workId, WorkRepository.defaultVolumeName);
+    final createdId = await createVolume(
+      workId,
+      WorkRepository.defaultVolumeName,
+    );
     return (await _volumes.findById(createdId))!;
   }
 

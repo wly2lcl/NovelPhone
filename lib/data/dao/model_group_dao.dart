@@ -9,25 +9,27 @@ class ModelGroupDao {
   final AppDatabase _db;
 
   Stream<List<ModelGroup>> watchAll() {
-    return (_db.select(_db.modelGroups)
-          ..orderBy([(t) => OrderingTerm(expression: t.id)]))
-        .watch();
+    return (_db.select(
+      _db.modelGroups,
+    )..orderBy([(t) => OrderingTerm(expression: t.id)])).watch();
   }
 
   Future<List<ModelGroup>> findAll() {
-    return (_db.select(_db.modelGroups)
-          ..orderBy([(t) => OrderingTerm(expression: t.id)]))
-        .get();
+    return (_db.select(
+      _db.modelGroups,
+    )..orderBy([(t) => OrderingTerm(expression: t.id)])).get();
   }
 
   Future<ModelGroup?> findById(int id) {
-    return (_db.select(_db.modelGroups)..where((t) => t.id.equals(id)))
-        .getSingleOrNull();
+    return (_db.select(
+      _db.modelGroups,
+    )..where((t) => t.id.equals(id))).getSingleOrNull();
   }
 
   Stream<ModelGroup?> watchById(int id) {
-    return (_db.select(_db.modelGroups)..where((t) => t.id.equals(id)))
-        .watchSingleOrNull();
+    return (_db.select(
+      _db.modelGroups,
+    )..where((t) => t.id.equals(id))).watchSingleOrNull();
   }
 
   Future<int> insert(ModelGroupsCompanion row) {
@@ -35,7 +37,9 @@ class ModelGroupDao {
   }
 
   Future<void> updateGroup(int id, ModelGroupsCompanion patch) {
-    return (_db.update(_db.modelGroups)..where((t) => t.id.equals(id))).write(patch);
+    return (_db.update(
+      _db.modelGroups,
+    )..where((t) => t.id.equals(id))).write(patch);
   }
 
   Future<void> deleteById(int id) {

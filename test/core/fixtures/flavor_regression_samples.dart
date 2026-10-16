@@ -21,7 +21,8 @@ const List<FlavorSample> flavorRegressionSamples = <FlavorSample>[
   FlavorSample(
     aiFlavored: true,
     note: '强套话密集',
-    text: '她不禁愣了一下，仿佛整个世界都安静了。心中涌起一股难以言喻的情绪，五味杂陈。'
+    text:
+        '她不禁愣了一下，仿佛整个世界都安静了。心中涌起一股难以言喻的情绪，五味杂陈。'
         '她深吸一口气，缓缓开口：“我明白了。”',
   ),
   FlavorSample(
@@ -62,7 +63,8 @@ const List<FlavorSample> flavorRegressionSamples = <FlavorSample>[
   FlavorSample(
     aiFlavored: true,
     note: '对话 + 感悟收尾',
-    text: '他缓缓说道：“有些事情，总要有人去做。”说完，他意味深长地看了她一眼，转身离去。'
+    text:
+        '他缓缓说道：“有些事情，总要有人去做。”说完，他意味深长地看了她一眼，转身离去。'
         '也许，这就是命运。',
   ),
   FlavorSample(
@@ -78,13 +80,15 @@ const List<FlavorSample> flavorRegressionSamples = <FlavorSample>[
   FlavorSample(
     aiFlavored: true,
     note: '惊悚模板',
-    text: '就在这时，一道身影如同鬼魅般出现。他下意识地屏住呼吸，心跳漏了一拍，'
+    text:
+        '就在这时，一道身影如同鬼魅般出现。他下意识地屏住呼吸，心跳漏了一拍，'
         '冷汗瞬间浸湿后背。',
   ),
   FlavorSample(
     aiFlavored: true,
     note: '神态套路组合',
-    text: '他挑了挑眉，嘴角勾起一抹意味不明的弧度，似笑非笑地看着她。'
+    text:
+        '他挑了挑眉，嘴角勾起一抹意味不明的弧度，似笑非笑地看着她。'
         '她莫名其妙地感到一阵寒意。',
   ),
   FlavorSample(
@@ -95,7 +99,8 @@ const List<FlavorSample> flavorRegressionSamples = <FlavorSample>[
   FlavorSample(
     aiFlavored: true,
     note: '低声 + 沉默模板',
-    text: '他低声道：“对不起。”声音里带着一丝颤抖。沉默片刻后，他缓缓转身，'
+    text:
+        '他低声道：“对不起。”声音里带着一丝颤抖。沉默片刻后，他缓缓转身，'
         '消失在夜色中。',
   ),
   FlavorSample(
@@ -106,13 +111,15 @@ const List<FlavorSample> flavorRegressionSamples = <FlavorSample>[
   FlavorSample(
     aiFlavored: true,
     note: '压抑情绪模板',
-    text: '她深吸一口气，压下心中的慌乱，尽量让自己的语气平静：“我没事。”'
+    text:
+        '她深吸一口气，压下心中的慌乱，尽量让自己的语气平静：“我没事。”'
         '然而指尖依旧微微发抖。',
   ),
   FlavorSample(
     aiFlavored: true,
     note: '结尾说教',
-    text: '这是一个关于选择的故事。人生就是这样，总要面对无数的岔路。'
+    text:
+        '这是一个关于选择的故事。人生就是这样，总要面对无数的岔路。'
         '或许，答案早已写在时间里。',
   ),
   FlavorSample(
@@ -123,7 +130,8 @@ const List<FlavorSample> flavorRegressionSamples = <FlavorSample>[
   FlavorSample(
     aiFlavored: true,
     note: '夜色 + 孤独升华',
-    text: '她轻轻点头，却没有说话。那一刻，她忽然明白，有些孤独只能自己承受。'
+    text:
+        '她轻轻点头，却没有说话。那一刻，她忽然明白，有些孤独只能自己承受。'
         '夜风拂过，带着几分凉意。',
   ),
 
@@ -156,10 +164,7 @@ const List<FlavorSample> flavorRegressionSamples = <FlavorSample>[
     aiFlavored: false,
     text: '手术室外的走廊很长，灯管有一根在闪。父亲坐在塑料椅上，指节一下一下地敲着膝盖。',
   ),
-  FlavorSample(
-    aiFlavored: false,
-    text: '田埂上的草被露水压弯了，他赤脚踩过去，凉意从脚底一直窜到小腿。',
-  ),
+  FlavorSample(aiFlavored: false, text: '田埂上的草被露水压弯了，他赤脚踩过去，凉意从脚底一直窜到小腿。'),
   FlavorSample(
     aiFlavored: false,
     text: '拆迁办的牌子挂在巷口，红底白字，边角卷了起来。卖豆腐的老王每天路过都要抬头看一眼。',
@@ -180,14 +185,8 @@ const List<FlavorSample> flavorRegressionSamples = <FlavorSample>[
     aiFlavored: false,
     text: '早市收摊时下起小雨，卖鱼的女人把剩下的两条鲫鱼装进塑料袋，塞给旁边卖菜的老太太。',
   ),
-  FlavorSample(
-    aiFlavored: false,
-    text: '工地的探照灯亮起来，塔吊的影子铺过半个村子。狗叫了两声，又趴下了。',
-  ),
-  FlavorSample(
-    aiFlavored: false,
-    text: '他把药盒倒扣在桌上，数了数剩下的片数，又按日期一排排码回去。',
-  ),
+  FlavorSample(aiFlavored: false, text: '工地的探照灯亮起来，塔吊的影子铺过半个村子。狗叫了两声，又趴下了。'),
+  FlavorSample(aiFlavored: false, text: '他把药盒倒扣在桌上，数了数剩下的片数，又按日期一排排码回去。'),
   FlavorSample(
     aiFlavored: false,
     text: '教室里最后一排放着两盆绿萝，叶子被暖气烤得发黄。值日生用矿泉水瓶给它们浇了水。',
@@ -196,14 +195,8 @@ const List<FlavorSample> flavorRegressionSamples = <FlavorSample>[
     aiFlavored: false,
     text: '山路的雾还没散，摩托车的远光灯只能照出四五米。他放慢速度，跟着前面的尾灯走。',
   ),
-  FlavorSample(
-    aiFlavored: false,
-    text: '她把手写的稿子摊在膝上，用铅笔在行间改字，橡皮屑落在裤子上，她随手掸掉。',
-  ),
-  FlavorSample(
-    aiFlavored: false,
-    text: '灶膛里的柴烧得噼啪响，锅盖边缘冒出白气。奶奶揭开盖子，用筷子戳了戳馒头。',
-  ),
+  FlavorSample(aiFlavored: false, text: '她把手写的稿子摊在膝上，用铅笔在行间改字，橡皮屑落在裤子上，她随手掸掉。'),
+  FlavorSample(aiFlavored: false, text: '灶膛里的柴烧得噼啪响，锅盖边缘冒出白气。奶奶揭开盖子，用筷子戳了戳馒头。'),
   FlavorSample(
     aiFlavored: false,
     text: '楼道口贴了张寻猫启事，复印件上猫的眼睛被墨点糊住了一半。下面又有人添了一行小字：找到了，谢谢。',

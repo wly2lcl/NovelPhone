@@ -31,9 +31,7 @@ void main() {
   /// M4-14 主链路回归：导入 → 写作保存 → AI 感检查（规则层，不联网）→ 导出。
   test('主链路无阻断：导入 → 续写保存 → 规则检查 → 导出 markdown（M4-14）', () async {
     // 1. 导入：按「第 X 章」自动分章后写入。
-    final drafts = splitIntoChapters(
-      '第1章 起风\n\n他走进房间。\n\n第2章 落雨\n\n她不禁笑了。\n',
-    );
+    final drafts = splitIntoChapters('第1章 起风\n\n他走进房间。\n\n第2章 落雨\n\n她不禁笑了。\n');
     expect(drafts, hasLength(2));
     final workId = await works.createWork(title: '长夜行');
     final imported = await chapters.importChapters(
@@ -167,7 +165,9 @@ void main() {
 
     final work = await works.getWork(workId);
     expect(work!.chapterCount, 20);
-    expect(work.wordCount,
-        drafts.fold<int>(0, (sum, draft) => sum + draft.wordCount));
+    expect(
+      work.wordCount,
+      drafts.fold<int>(0, (sum, draft) => sum + draft.wordCount),
+    );
   });
 }

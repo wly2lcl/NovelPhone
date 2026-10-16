@@ -55,7 +55,10 @@ void main() {
   test('载入超过正文长度的光标位置时收敛到结尾', () async {
     await chapters.saveChapter(chapterId: chapterId, title: '', content: '短句。');
     await chapters.saveCursorPosition(
-        chapterId: chapterId, cursorOffset: 999, scrollOffset: 0);
+      chapterId: chapterId,
+      cursorOffset: 999,
+      scrollOffset: 0,
+    );
 
     await controller.load();
 
@@ -71,10 +74,13 @@ void main() {
     expect(controller.chapterWords, 0);
 
     await Future<void>.delayed(
-        EditorController.wordCountDebounce + const Duration(milliseconds: 100));
+      EditorController.wordCountDebounce + const Duration(milliseconds: 100),
+    );
     expect(controller.chapterWords, 12);
 
-    await Future<void>.delayed(EditorController.autosaveDelay + const Duration(milliseconds: 300));
+    await Future<void>.delayed(
+      EditorController.autosaveDelay + const Duration(milliseconds: 300),
+    );
 
     expect(controller.saveStatus, SaveStatus.saved);
     expect(controller.lastSavedAt, isNotNull);
@@ -217,11 +223,13 @@ void main() {
 
   test('超过单章上限时提示但不阻断保存', () async {
     await controller.load();
-    controller.textController.text = '字' * (EditorController.maxChapterWords + 1);
+    controller.textController.text =
+        '字' * (EditorController.maxChapterWords + 1);
 
     // ENH-10：字数停顿后重算。
     await Future<void>.delayed(
-        EditorController.wordCountDebounce + const Duration(milliseconds: 100));
+      EditorController.wordCountDebounce + const Duration(milliseconds: 100),
+    );
     expect(controller.chapterWords, EditorController.maxChapterWords + 1);
     expect(controller.overWordLimit, isTrue);
 
@@ -329,13 +337,15 @@ void main() {
     expect(before!.cursorOffset, 0);
 
     // 只挪光标（选区变化）：不应被当成正文改动。
-    controller.textController.selection =
-        const TextSelection.collapsed(offset: 3);
+    controller.textController.selection = const TextSelection.collapsed(
+      offset: 3,
+    );
 
     expect(controller.saveStatus, SaveStatus.saved);
 
     await Future<void>.delayed(
-        EditorController.autosaveDelay + const Duration(milliseconds: 300));
+      EditorController.autosaveDelay + const Duration(milliseconds: 300),
+    );
 
     final after = await chapters.getChapter(chapterId);
     // 未走 saveChapter：正文与 updatedAt 都没变。

@@ -72,9 +72,9 @@ class ResolvedModel {
 /// API key 只经 [SecureKeyStore] 读写，库中仅存 apiKeyRef 引用。
 class SettingsRepository {
   SettingsRepository(AppDatabase db, SecureKeyStore keyStore)
-      : _groups = ModelGroupDao(db),
-        _settings = AppSettingDao(db),
-        _keyStore = keyStore;
+    : _groups = ModelGroupDao(db),
+      _settings = AppSettingDao(db),
+      _keyStore = keyStore;
 
   final ModelGroupDao _groups;
   final AppSettingDao _settings;
@@ -102,16 +102,18 @@ class SettingsRepository {
     bool enabled = true,
     String? apiKey,
   }) async {
-    final id = await _groups.insert(ModelGroupsCompanion.insert(
-      name: name,
-      baseUrl: baseUrl,
-      provider: Value(_normalizeProvider(provider)),
-      models: Value(encodeModels(models)),
-      temperature: Value(temperature),
-      maxTokens: Value(maxTokens),
-      contextWindow: Value(contextWindow),
-      enabled: Value(enabled),
-    ));
+    final id = await _groups.insert(
+      ModelGroupsCompanion.insert(
+        name: name,
+        baseUrl: baseUrl,
+        provider: Value(_normalizeProvider(provider)),
+        models: Value(encodeModels(models)),
+        temperature: Value(temperature),
+        maxTokens: Value(maxTokens),
+        contextWindow: Value(contextWindow),
+        enabled: Value(enabled),
+      ),
+    );
     final ref = keyRefFor(id);
     await _groups.updateGroup(id, ModelGroupsCompanion(apiKeyRef: Value(ref)));
     if (apiKey != null && apiKey.isNotEmpty) {
@@ -151,7 +153,10 @@ class SettingsRepository {
   }
 
   Future<void> setModelGroupEnabled(int id, bool enabled) {
-    return _groups.updateGroup(id, ModelGroupsCompanion(enabled: Value(enabled)));
+    return _groups.updateGroup(
+      id,
+      ModelGroupsCompanion(enabled: Value(enabled)),
+    );
   }
 
   /// 删除模型组：同时清除安全存储中的 key 与引用该组的任务映射。
@@ -233,7 +238,8 @@ class SettingsRepository {
 
   Future<({int total, int handled})> readCheckStats() async {
     final total = int.tryParse(await getSetting(checkStatTotalKey) ?? '') ?? 0;
-    final handled = int.tryParse(await getSetting(checkStatHandledKey) ?? '') ?? 0;
+    final handled =
+        int.tryParse(await getSetting(checkStatHandledKey) ?? '') ?? 0;
     return (total: total, handled: handled);
   }
 
@@ -281,9 +287,9 @@ class SettingsRepository {
   }
 
   Future<void> saveMcpServers(List<McpServerConfig> servers) => setSetting(
-        mcpServersKey,
-        jsonEncode(servers.map((s) => s.toJson()).toList()),
-      );
+    mcpServersKey,
+    jsonEncode(servers.map((s) => s.toJson()).toList()),
+  );
 
   /// 新增 server，返回分配到的 id。
   Future<int> createMcpServer({
@@ -297,12 +303,14 @@ class SettingsRepository {
     for (final server in servers) {
       if (server.id >= nextId) nextId = server.id + 1;
     }
-    servers.add(McpServerConfig(
-      id: nextId,
-      name: name,
-      url: url,
-      allowedTools: allowedTools,
-    ));
+    servers.add(
+      McpServerConfig(
+        id: nextId,
+        name: name,
+        url: url,
+        allowedTools: allowedTools,
+      ),
+    );
     await saveMcpServers(servers);
     if (authHeaders != null && authHeaders.trim().isNotEmpty) {
       await _keyStore.write(mcpAuthRef(nextId), authHeaders);
@@ -377,10 +385,8 @@ class SettingsRepository {
         .toList(growable: false);
   }
 
-  Future<void> saveSkills(List<Skill> skills) => setSetting(
-        skillsKey,
-        jsonEncode(skills.map((s) => s.toJson()).toList()),
-      );
+  Future<void> saveSkills(List<Skill> skills) =>
+      setSetting(skillsKey, jsonEncode(skills.map((s) => s.toJson()).toList()));
 
   /// 新增技能，返回分配到的 id。
   Future<int> createSkill({
@@ -394,13 +400,15 @@ class SettingsRepository {
     for (final skill in skills) {
       if (skill.id >= nextId) nextId = skill.id + 1;
     }
-    skills.add(Skill(
-      id: nextId,
-      name: name,
-      instruction: instruction,
-      allowedTools: allowedTools,
-      parameters: parameters,
-    ));
+    skills.add(
+      Skill(
+        id: nextId,
+        name: name,
+        instruction: instruction,
+        allowedTools: allowedTools,
+        parameters: parameters,
+      ),
+    );
     await saveSkills(skills);
     return nextId;
   }
@@ -449,8 +457,9 @@ class SettingsRepository {
   Future<void> setDailyWordTarget(int target) =>
       setSetting(dailyWordTargetKey, '${target < 0 ? 0 : target}');
 
-  Future<int> pomodoroMinutes() async =>
-      _clampPomodoro(int.tryParse(await getSetting(pomodoroMinutesKey) ?? '') ?? 25);
+  Future<int> pomodoroMinutes() async => _clampPomodoro(
+    int.tryParse(await getSetting(pomodoroMinutesKey) ?? '') ?? 25,
+  );
 
   Future<void> setPomodoroMinutes(int minutes) =>
       setSetting(pomodoroMinutesKey, '${_clampPomodoro(minutes)}');
@@ -458,7 +467,8 @@ class SettingsRepository {
   /// 今日已完成的番茄钟数量。
   Future<int> pomodoroDoneToday({DateTime? now}) async =>
       int.tryParse(
-          await getSetting(pomodoroDoneKey(now ?? DateTime.now())) ?? '') ??
+        await getSetting(pomodoroDoneKey(now ?? DateTime.now())) ?? '',
+      ) ??
       0;
 
   /// 记录一个完成的番茄钟，返回今日累计数。
@@ -502,7 +512,10 @@ class SettingsRepository {
   Future<String?> readCloudSecretKey() => _keyStore.read(cloudSecretKeyRef);
 
   /// 保存云凭证：空值表示保持原有（不落库、不进备份、不上传）。
-  Future<void> saveCloudCredentials({String? accessKey, String? secretKey}) async {
+  Future<void> saveCloudCredentials({
+    String? accessKey,
+    String? secretKey,
+  }) async {
     if (accessKey != null && accessKey.trim().isNotEmpty) {
       await _keyStore.write(cloudAccessKeyRef, accessKey.trim());
     }
@@ -534,7 +547,8 @@ class SettingsRepository {
 
   Future<String?> getSetting(String key) => _settings.get(key);
 
-  Future<void> setSetting(String key, String value) => _settings.set(key, value);
+  Future<void> setSetting(String key, String value) =>
+      _settings.set(key, value);
 
   static String _normalizeProvider(String provider) {
     if (provider == AiProvider.anthropic) return AiProvider.anthropic;
@@ -553,6 +567,7 @@ class SettingsRepository {
     return const <String>[];
   }
 
-  static String encodeModels(List<String> models) =>
-      jsonEncode(models.where((m) => m.trim().isNotEmpty).map((m) => m.trim()).toList());
+  static String encodeModels(List<String> models) => jsonEncode(
+    models.where((m) => m.trim().isNotEmpty).map((m) => m.trim()).toList(),
+  );
 }

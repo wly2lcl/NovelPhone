@@ -100,9 +100,11 @@ class _FlavorCheckPanelState extends ConsumerState<FlavorCheckPanel> {
     _statsPersisted = true;
     if (_seenKeys.isEmpty && _sessionHandled == 0) return;
     // 计数写入失败不影响使用（如页面销毁时数据库已关闭）。
-    unawaited(_settingsRepo
-        .addCheckStats(total: _seenKeys.length, handled: _sessionHandled)
-        .catchError((Object _) {}));
+    unawaited(
+      _settingsRepo
+          .addCheckStats(total: _seenKeys.length, handled: _sessionHandled)
+          .catchError((Object _) {}),
+    );
   }
 
   List<FlavorIssue> get _merged =>
@@ -134,7 +136,9 @@ class _FlavorCheckPanelState extends ConsumerState<FlavorCheckPanel> {
       _typeFilter.clear();
     });
 
-    final stream = ref.read(aiServiceProvider).checkFlavor(
+    final stream = ref
+        .read(aiServiceProvider)
+        .checkFlavor(
           workId: widget.workId,
           chapterId: _scope == _wholeWork ? null : _scope,
           deep: deep,
@@ -209,16 +213,16 @@ class _FlavorCheckPanelState extends ConsumerState<FlavorCheckPanel> {
       : '${issue.type}|${issue.start}|${issue.end}';
 
   FlavorIssue _withRange(FlavorIssue issue, int start, int end) => FlavorIssue(
-        type: issue.type,
-        severity: issue.severity,
-        start: start,
-        end: end,
-        message: issue.message,
-        excerpt: issue.excerpt,
-        suggestion: issue.suggestion,
-        replacement: issue.replacement,
-        source: issue.source,
-      );
+    type: issue.type,
+    severity: issue.severity,
+    start: start,
+    end: end,
+    message: issue.message,
+    excerpt: issue.excerpt,
+    suggestion: issue.suggestion,
+    replacement: issue.replacement,
+    source: issue.source,
+  );
 
   void _removeIssue(FlavorIssue issue) {
     final key = _issueKey(issue);
@@ -299,7 +303,10 @@ class _FlavorCheckPanelState extends ConsumerState<FlavorCheckPanel> {
     final length = issue.end - issue.start;
     final controller = widget.controller;
     if (controller != null && controller.chapterId == target.chapterId) {
-      controller.revealRange(target.offsetInChapter, target.offsetInChapter + length);
+      controller.revealRange(
+        target.offsetInChapter,
+        target.offsetInChapter + length,
+      );
       return;
     }
     context.push(
@@ -312,7 +319,9 @@ class _FlavorCheckPanelState extends ConsumerState<FlavorCheckPanel> {
   void _goSettings() => context.push('/settings');
 
   void _snack(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _close() {
@@ -338,7 +347,9 @@ class _FlavorCheckPanelState extends ConsumerState<FlavorCheckPanel> {
       child: Container(
         decoration: BoxDecoration(
           color: context.paper.surface,
-          border: Border(top: BorderSide(color: context.paper.divider, width: 2)),
+          border: Border(
+            top: BorderSide(color: context.paper.divider, width: 2),
+          ),
         ),
         child: SafeArea(
           top: false,
@@ -373,7 +384,9 @@ class _FlavorCheckPanelState extends ConsumerState<FlavorCheckPanel> {
                         child: Text(
                           '仅显示前 ${shown.length} 条，共 ${visible.length} 条',
                           style: TextStyle(
-                              fontSize: 12, color: context.paper.inkSoft),
+                            fontSize: 12,
+                            color: context.paper.inkSoft,
+                          ),
                         ),
                       ),
                   ],
@@ -393,8 +406,10 @@ class _FlavorCheckPanelState extends ConsumerState<FlavorCheckPanel> {
         const SizedBox(width: 6),
         const Text('AI 感检查', style: TextStyle(fontWeight: FontWeight.w600)),
         const SizedBox(width: 8),
-        Text('$count 处',
-            style: TextStyle(fontSize: 12, color: context.paper.inkSoft)),
+        Text(
+          '$count 处',
+          style: TextStyle(fontSize: 12, color: context.paper.inkSoft),
+        ),
         if (_deepRunning) ...<Widget>[
           const SizedBox(width: 8),
           const SizedBox(
@@ -403,8 +418,10 @@ class _FlavorCheckPanelState extends ConsumerState<FlavorCheckPanel> {
             child: CircularProgressIndicator(strokeWidth: 1.6),
           ),
           const SizedBox(width: 6),
-          Text('深检 $_deepDone/$_deepTotal',
-              style: TextStyle(fontSize: 12, color: context.paper.inkSoft)),
+          Text(
+            '深检 $_deepDone/$_deepTotal',
+            style: TextStyle(fontSize: 12, color: context.paper.inkSoft),
+          ),
         ],
         const Spacer(),
         IconButton(
@@ -417,13 +434,18 @@ class _FlavorCheckPanelState extends ConsumerState<FlavorCheckPanel> {
   }
 
   Widget _buildScopeRow() {
-    final chapters = ref.watch(chaptersProvider(widget.workId)).value ??
-        const <Chapter>[];
+    final chapters =
+        ref.watch(chaptersProvider(widget.workId)).value ?? const <Chapter>[];
     final ids = chapters.map((c) => c.id).toSet();
-    final value = _scope == _wholeWork || ids.contains(_scope) ? _scope : _wholeWork;
+    final value = _scope == _wholeWork || ids.contains(_scope)
+        ? _scope
+        : _wholeWork;
     return Row(
       children: <Widget>[
-        Text('范围', style: TextStyle(fontSize: 12, color: context.paper.inkSoft)),
+        Text(
+          '范围',
+          style: TextStyle(fontSize: 12, color: context.paper.inkSoft),
+        ),
         const SizedBox(width: 8),
         Expanded(
           child: DropdownButton<int>(
@@ -455,8 +477,10 @@ class _FlavorCheckPanelState extends ConsumerState<FlavorCheckPanel> {
             ],
           ),
         ),
-        Text(formatWordCount(_scopeInfo?.wordCount ?? 0),
-            style: TextStyle(fontSize: 12, color: context.paper.inkSoft)),
+        Text(
+          formatWordCount(_scopeInfo?.wordCount ?? 0),
+          style: TextStyle(fontSize: 12, color: context.paper.inkSoft),
+        ),
       ],
     );
   }
@@ -489,8 +513,10 @@ class _FlavorCheckPanelState extends ConsumerState<FlavorCheckPanel> {
         ),
         const Spacer(),
         if (!_scopeEmpty && !_canReplaceInPlace && widget.controller == null)
-          Text('修改请在编辑器中完成',
-              style: TextStyle(fontSize: 11, color: context.paper.inkSoft)),
+          Text(
+            '修改请在编辑器中完成',
+            style: TextStyle(fontSize: 11, color: context.paper.inkSoft),
+          ),
       ],
     );
   }
@@ -501,8 +527,10 @@ class _FlavorCheckPanelState extends ConsumerState<FlavorCheckPanel> {
       parts.add('预估 ~${formatTokenCount(_estimatedTokens!)} token');
     }
     if (_promptTokens != null && _completionTokens != null) {
-      parts.add('实测 输入 ${formatTokenCount(_promptTokens!)} + '
-          '输出 ${formatTokenCount(_completionTokens!)}');
+      parts.add(
+        '实测 输入 ${formatTokenCount(_promptTokens!)} + '
+        '输出 ${formatTokenCount(_completionTokens!)}',
+      );
     }
     return Text(
       parts.join(' · '),
@@ -555,8 +583,10 @@ class _FlavorCheckPanelState extends ConsumerState<FlavorCheckPanel> {
           Expanded(
             child: Padding(
               padding: const EdgeInsets.only(top: 4),
-              child: Text(message,
-                  style: const TextStyle(fontSize: 12, color: color)),
+              child: Text(
+                message,
+                style: const TextStyle(fontSize: 12, color: color),
+              ),
             ),
           ),
           TextButton(onPressed: onAction, child: Text(actionLabel)),
@@ -576,11 +606,15 @@ class _FlavorCheckPanelState extends ConsumerState<FlavorCheckPanel> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text('模型未返回结构化结果，原文如下：',
-              style: TextStyle(fontSize: 12, color: context.paper.accent)),
+          Text(
+            '模型未返回结构化结果，原文如下：',
+            style: TextStyle(fontSize: 12, color: context.paper.accent),
+          ),
           const SizedBox(height: 4),
-          Text(text,
-              style: TextStyle(fontSize: 12, color: context.paper.inkSoft)),
+          Text(
+            text,
+            style: TextStyle(fontSize: 12, color: context.paper.inkSoft),
+          ),
         ],
       ),
     );
@@ -621,16 +655,20 @@ class _FlavorCheckPanelState extends ConsumerState<FlavorCheckPanel> {
   Widget _buildEmptyHint() {
     return Padding(
       padding: EdgeInsets.symmetric(vertical: 12),
-      child: Text('该范围没有正文，无可检查内容',
-          style: TextStyle(fontSize: 13, color: context.paper.inkSoft)),
+      child: Text(
+        '该范围没有正文，无可检查内容',
+        style: TextStyle(fontSize: 13, color: context.paper.inkSoft),
+      ),
     );
   }
 
   Widget _buildCleanHint() {
     return Padding(
       padding: EdgeInsets.symmetric(vertical: 12),
-      child: Text('未发现明显的 AI 味问题',
-          style: TextStyle(fontSize: 13, color: context.paper.inkSoft)),
+      child: Text(
+        '未发现明显的 AI 味问题',
+        style: TextStyle(fontSize: 13, color: context.paper.inkSoft),
+      ),
     );
   }
 
@@ -651,17 +689,22 @@ class _FlavorCheckPanelState extends ConsumerState<FlavorCheckPanel> {
             children: <Widget>[
               _severityDot(issue.severity),
               const SizedBox(width: 6),
-              Text(FlavorSeverity.label(issue.severity),
-                  style: TextStyle(
-                      fontSize: 11, color: _severityColor(issue.severity))),
+              Text(
+                FlavorSeverity.label(issue.severity),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: _severityColor(issue.severity),
+                ),
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   '${issue.type}${issue.source == FlavorSource.llm ? ' · 深检' : ''}',
                   style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: context.paper.ink),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: context.paper.ink,
+                  ),
                 ),
               ),
               PopupMenuButton<String>(
@@ -682,16 +725,22 @@ class _FlavorCheckPanelState extends ConsumerState<FlavorCheckPanel> {
                 itemBuilder: (context) => <PopupMenuEntry<String>>[
                   if (canLocate)
                     const PopupMenuItem<String>(
-                        value: 'locate', child: Text('定位到原文')),
+                      value: 'locate',
+                      child: Text('定位到原文'),
+                    ),
                   if (canReplace)
                     PopupMenuItem<String>(
                       value: 'replace',
-                      child: Text(issue.replacement!.isEmpty
-                          ? '一键删除该词'
-                          : '一键替换为「${issue.replacement}」'),
+                      child: Text(
+                        issue.replacement!.isEmpty
+                            ? '一键删除该词'
+                            : '一键替换为「${issue.replacement}」',
+                      ),
                     ),
                   const PopupMenuItem<String>(
-                      value: 'ignore', child: Text('忽略这条')),
+                    value: 'ignore',
+                    child: Text('忽略这条'),
+                  ),
                   PopupMenuItem<String>(
                     value: 'ignoreType',
                     child: Text('忽略全部「${issue.type}」'),
@@ -703,19 +752,25 @@ class _FlavorCheckPanelState extends ConsumerState<FlavorCheckPanel> {
           if (issue.excerpt.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(left: 2, right: 8),
-              child: Text('原文：${issue.excerpt}',
-                  style: TextStyle(fontSize: 12, color: context.paper.ink)),
+              child: Text(
+                '原文：${issue.excerpt}',
+                style: TextStyle(fontSize: 12, color: context.paper.ink),
+              ),
             ),
           Padding(
             padding: const EdgeInsets.only(left: 2, right: 8, top: 2),
-            child: Text(issue.message,
-                style: TextStyle(fontSize: 12, color: context.paper.inkSoft)),
+            child: Text(
+              issue.message,
+              style: TextStyle(fontSize: 12, color: context.paper.inkSoft),
+            ),
           ),
           if (issue.suggestion != null)
             Padding(
               padding: const EdgeInsets.only(left: 2, right: 8, top: 2),
-              child: Text('建议：${issue.suggestion}',
-                  style: TextStyle(fontSize: 12, color: context.paper.accent)),
+              child: Text(
+                '建议：${issue.suggestion}',
+                style: TextStyle(fontSize: 12, color: context.paper.accent),
+              ),
             ),
           Row(
             children: <Widget>[

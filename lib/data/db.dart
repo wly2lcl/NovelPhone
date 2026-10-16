@@ -92,10 +92,16 @@ class OutlineEntries extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get workId =>
       integer().references(Works, #id, onDelete: KeyAction.cascade)();
-  IntColumn get volumeId =>
-      integer().nullable().references(Volumes, #id, onDelete: KeyAction.setNull)();
-  IntColumn get chapterId =>
-      integer().nullable().references(Chapters, #id, onDelete: KeyAction.setNull)();
+  IntColumn get volumeId => integer().nullable().references(
+    Volumes,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+  IntColumn get chapterId => integer().nullable().references(
+    Chapters,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
   TextColumn get summary => text().withDefault(const Constant(''))();
 }
 
@@ -113,11 +119,16 @@ class Inspirations extends Table {
 /// workId / chapterId 可空，作品或章节删除时置空而非级联，统计不随作品消失。
 class AiUsages extends Table {
   IntColumn get id => integer().autoIncrement()();
-  IntColumn get workId =>
-      integer().nullable().references(Works, #id, onDelete: KeyAction.setNull)();
-  IntColumn get chapterId => integer()
-      .nullable()
-      .references(Chapters, #id, onDelete: KeyAction.setNull)();
+  IntColumn get workId => integer().nullable().references(
+    Works,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+  IntColumn get chapterId => integer().nullable().references(
+    Chapters,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
   TextColumn get task => text()(); // continue / inspire / check
   TextColumn get model => text()();
   IntColumn get promptTokens => integer().withDefault(const Constant(0))();
@@ -126,8 +137,9 @@ class AiUsages extends Table {
   /// AI 生成的总字数与最终被插入正文字数，支撑 PRD 2.2 的字符口径采纳率。
   IntColumn get outputChars => integer().withDefault(const Constant(0))();
   IntColumn get adoptedChars => integer().withDefault(const Constant(0))();
-  TextColumn get outcome =>
-      text().withDefault(const Constant('pending'))(); // adopted/ignored/regenerated/aborted/pending
+  TextColumn get outcome => text().withDefault(
+    const Constant('pending'),
+  )(); // adopted/ignored/regenerated/aborted/pending
   DateTimeColumn get createdAt => dateTime()();
 }
 
@@ -135,11 +147,13 @@ class AiUsages extends Table {
 /// apiKeyRef 仅为 flutter_secure_storage 引用，key 本体不落库（ARCHITECTURE 4.1）。
 class ModelGroups extends Table {
   IntColumn get id => integer().autoIncrement()();
-  TextColumn get provider => text().withDefault(const Constant('openai_compat'))();
+  TextColumn get provider =>
+      text().withDefault(const Constant('openai_compat'))();
   TextColumn get name => text().withLength(min: 1, max: 30)();
   TextColumn get baseUrl => text()();
   TextColumn get apiKeyRef => text().withDefault(const Constant(''))();
-  TextColumn get models => text().withDefault(const Constant(''))(); // JSON 数组字符串
+  TextColumn get models =>
+      text().withDefault(const Constant(''))(); // JSON 数组字符串
   RealColumn get temperature => real().withDefault(const Constant(0.8))();
   IntColumn get maxTokens => integer().withDefault(const Constant(1024))();
   IntColumn get contextWindow => integer().withDefault(const Constant(32000))();
@@ -191,21 +205,23 @@ class CharacterRelations extends Table {
   TextColumn get label => text().withDefault(const Constant(''))();
 }
 
-@DriftDatabase(tables: [
-  Works,
-  Volumes,
-  Chapters,
-  ChapterSnapshots,
-  Characters,
-  OutlineEntries,
-  Inspirations,
-  AiUsages,
-  ModelGroups,
-  AppSettings,
-  DailyWritingStats,
-  SettingEntries,
-  CharacterRelations,
-])
+@DriftDatabase(
+  tables: [
+    Works,
+    Volumes,
+    Chapters,
+    ChapterSnapshots,
+    Characters,
+    OutlineEntries,
+    Inspirations,
+    AiUsages,
+    ModelGroups,
+    AppSettings,
+    DailyWritingStats,
+    SettingEntries,
+    CharacterRelations,
+  ],
+)
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
@@ -217,60 +233,60 @@ class AppDatabase extends _$AppDatabase {
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-        onUpgrade: (m, from, to) async {
-          // v2（M3）：追加 AI_USAGE / MODEL_GROUP / APP_SETTING 三表。
-          if (from < 2) {
-            await m.createTable(aiUsages);
-            await m.createTable(modelGroups);
-            await m.createTable(appSettings);
-          }
-          // v3（B-05）：追加 CHAPTER_SNAPSHOT 表（章节版本历史）。
-          if (from < 3) {
-            await m.createTable(chapterSnapshots);
-          }
-          // v4（B-07）：追加 DAILY_WRITING_STAT 表（每日写作字数）。
-          if (from < 4) {
-            await m.createTable(dailyWritingStats);
-          }
-          // v5（B-09）：追加 SETTING_ENTRY（设定集）与 CHARACTER_RELATION（人物关系）表。
-          if (from < 5) {
-            await m.createTable(settingEntries);
-            await m.createTable(characterRelations);
-          }
-          // v6（ENH-05）：CHAPTER 追加 AI 摘要列（前情回顾）。
-          if (from < 6) {
-            await m.addColumn(chapters, chapters.summary);
-          }
-          // v7（ENH-06）：VOLUME 追加本卷前情回顾摘要列。
-          if (from < 7) {
-            await m.addColumn(volumes, volumes.summary);
-          }
-          // v8（ENH-07）：CHAPTER 追加摘要更新时间列；VOLUME 追加归并覆盖章节 id 列
-          // （支撑摘要过期提示与卷回顾滚动增量归并）。
-          if (from < 8) {
-            await m.addColumn(chapters, chapters.summaryUpdatedAt);
-            await m.addColumn(volumes, volumes.summaryChapterId);
-          }
-          // v9（ENH-08）：为热点外键列补索引（作品/卷维度列表查询的全表扫描）。
-          if (from < 9) {
-            await m.createIndex(volumesWorkId);
-            await m.createIndex(chaptersVolumeId);
-            await m.createIndex(chapterSnapshotsChapterId);
-            await m.createIndex(charactersWorkId);
-            await m.createIndex(outlineEntriesWorkId);
-            await m.createIndex(inspirationsWorkId);
-          }
-          // v10（ENH-13）：设定集 / 角色关系表补 workId 索引（作品维度查询）。
-          if (from < 10) {
-            await m.createIndex(settingEntriesWorkId);
-            await m.createIndex(characterRelationsWorkId);
-          }
-        },
-        beforeOpen: (details) async {
-          // 级联删除依赖外键约束，SQLite 默认关闭，需每连接开启。
-          await customStatement('PRAGMA foreign_keys = ON');
-        },
-      );
+    onUpgrade: (m, from, to) async {
+      // v2（M3）：追加 AI_USAGE / MODEL_GROUP / APP_SETTING 三表。
+      if (from < 2) {
+        await m.createTable(aiUsages);
+        await m.createTable(modelGroups);
+        await m.createTable(appSettings);
+      }
+      // v3（B-05）：追加 CHAPTER_SNAPSHOT 表（章节版本历史）。
+      if (from < 3) {
+        await m.createTable(chapterSnapshots);
+      }
+      // v4（B-07）：追加 DAILY_WRITING_STAT 表（每日写作字数）。
+      if (from < 4) {
+        await m.createTable(dailyWritingStats);
+      }
+      // v5（B-09）：追加 SETTING_ENTRY（设定集）与 CHARACTER_RELATION（人物关系）表。
+      if (from < 5) {
+        await m.createTable(settingEntries);
+        await m.createTable(characterRelations);
+      }
+      // v6（ENH-05）：CHAPTER 追加 AI 摘要列（前情回顾）。
+      if (from < 6) {
+        await m.addColumn(chapters, chapters.summary);
+      }
+      // v7（ENH-06）：VOLUME 追加本卷前情回顾摘要列。
+      if (from < 7) {
+        await m.addColumn(volumes, volumes.summary);
+      }
+      // v8（ENH-07）：CHAPTER 追加摘要更新时间列；VOLUME 追加归并覆盖章节 id 列
+      // （支撑摘要过期提示与卷回顾滚动增量归并）。
+      if (from < 8) {
+        await m.addColumn(chapters, chapters.summaryUpdatedAt);
+        await m.addColumn(volumes, volumes.summaryChapterId);
+      }
+      // v9（ENH-08）：为热点外键列补索引（作品/卷维度列表查询的全表扫描）。
+      if (from < 9) {
+        await m.createIndex(volumesWorkId);
+        await m.createIndex(chaptersVolumeId);
+        await m.createIndex(chapterSnapshotsChapterId);
+        await m.createIndex(charactersWorkId);
+        await m.createIndex(outlineEntriesWorkId);
+        await m.createIndex(inspirationsWorkId);
+      }
+      // v10（ENH-13）：设定集 / 角色关系表补 workId 索引（作品维度查询）。
+      if (from < 10) {
+        await m.createIndex(settingEntriesWorkId);
+        await m.createIndex(characterRelationsWorkId);
+      }
+    },
+    beforeOpen: (details) async {
+      // 级联删除依赖外键约束，SQLite 默认关闭，需每连接开启。
+      await customStatement('PRAGMA foreign_keys = ON');
+    },
+  );
 }
 
 /// 打开设备上的应用数据库（应用私有目录，随 app 卸载删除）。

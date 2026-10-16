@@ -13,8 +13,10 @@ class ChapterDraft {
   /// 避免对整章正文反复扫描。
   int get wordCount => _wordCount ??= countWords(content);
 
-  ChapterDraft copyWith({String? title, String? content}) =>
-      ChapterDraft(title: title ?? this.title, content: content ?? this.content);
+  ChapterDraft copyWith({String? title, String? content}) => ChapterDraft(
+    title: title ?? this.title,
+    content: content ?? this.content,
+  );
 }
 
 /// 章节标题上限，与 CHAPTER.title 字段约束一致。
@@ -85,10 +87,12 @@ List<ChapterDraft> splitIntoChapters(String text, {String fallbackTitle = ''}) {
   for (var i = 0; i < headings.length; i++) {
     final start = headings[i];
     final end = i + 1 < headings.length ? headings[i + 1] : lines.length;
-    drafts.add(ChapterDraft(
-      title: _headingTitle(lines[start]) ?? '',
-      content: lines.sublist(start + 1, end).join('\n').trim(),
-    ));
+    drafts.add(
+      ChapterDraft(
+        title: _headingTitle(lines[start]) ?? '',
+        content: lines.sublist(start + 1, end).join('\n').trim(),
+      ),
+    );
   }
   return drafts;
 }

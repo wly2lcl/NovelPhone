@@ -45,8 +45,8 @@ class S3Signer {
     };
     final names = signed.keys.toList()..sort();
 
-    final canonicalHeaders =
-        StringBuffer()..writeAll(names.map((n) => '$n:${signed[n]}\n'));
+    final canonicalHeaders = StringBuffer()
+      ..writeAll(names.map((n) => '$n:${signed[n]}\n'));
     final signedHeaders = names.join(';');
 
     final canonicalRequest = <String>[
@@ -67,12 +67,14 @@ class S3Signer {
     ].join('\n');
 
     final signature = _hex(
-      Hmac(sha256, _signingKey(dateStamp))
-          .convert(utf8.encode(stringToSign))
-          .bytes,
+      Hmac(
+        sha256,
+        _signingKey(dateStamp),
+      ).convert(utf8.encode(stringToSign)).bytes,
     );
 
-    final authorization = 'AWS4-HMAC-SHA256 '
+    final authorization =
+        'AWS4-HMAC-SHA256 '
         'Credential=$accessKeyId/$scope, '
         'SignedHeaders=$signedHeaders, '
         'Signature=$signature';
@@ -87,9 +89,10 @@ class S3Signer {
   }
 
   List<int> _signingKey(String dateStamp) {
-    final kDate = Hmac(sha256, utf8.encode('AWS4$secretAccessKey'))
-        .convert(utf8.encode(dateStamp))
-        .bytes;
+    final kDate = Hmac(
+      sha256,
+      utf8.encode('AWS4$secretAccessKey'),
+    ).convert(utf8.encode(dateStamp)).bytes;
     final kRegion = Hmac(sha256, kDate).convert(utf8.encode(region)).bytes;
     final kService = Hmac(sha256, kRegion).convert(utf8.encode(service)).bytes;
     return Hmac(sha256, kService).convert(utf8.encode('aws4_request')).bytes;
@@ -108,14 +111,18 @@ class S3Signer {
     if (uri.queryParameters.isEmpty) return '';
     final names = uri.queryParameters.keys.toList()..sort();
     return names
-        .map((n) =>
-            '${awsUriEncode(n)}=${awsUriEncode(uri.queryParameters[n] ?? '')}')
+        .map(
+          (n) =>
+              '${awsUriEncode(n)}=${awsUriEncode(uri.queryParameters[n] ?? '')}',
+        )
         .join('&');
   }
 
   static String _hostHeader(Uri uri) {
     final defaultPort = uri.scheme == 'http' ? 80 : 443;
-    if (uri.hasPort && uri.port != defaultPort) return '${uri.host}:${uri.port}';
+    if (uri.hasPort && uri.port != defaultPort) {
+      return '${uri.host}:${uri.port}';
+    }
     return uri.host;
   }
 
@@ -140,7 +147,9 @@ class S3Signer {
       if (byte < 128 && unreserved.contains(String.fromCharCode(byte))) {
         buffer.writeCharCode(byte);
       } else {
-        buffer.write('%${byte.toRadixString(16).toUpperCase().padLeft(2, '0')}');
+        buffer.write(
+          '%${byte.toRadixString(16).toUpperCase().padLeft(2, '0')}',
+        );
       }
     }
     return buffer.toString();

@@ -79,7 +79,10 @@ class WorkDetailPage extends ConsumerWidget {
   }
 
   Future<void> _showWorkActions(
-      BuildContext context, WidgetRef ref, int workId) async {
+    BuildContext context,
+    WidgetRef ref,
+    int workId,
+  ) async {
     await showModalBottomSheet<void>(
       context: context,
       builder: (sheetContext) => SafeArea(
@@ -93,9 +96,9 @@ class WorkDetailPage extends ConsumerWidget {
                 Navigator.of(sheetContext).pop();
                 final count = await context.push<int>('/work/$workId/import');
                 if (count != null && count > 0 && context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('已导入 $count 章')),
-                  );
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text('已导入 $count 章')));
                 }
               },
             ),
@@ -146,7 +149,10 @@ class WorkDetailPage extends ConsumerWidget {
   }
 
   Future<void> _renameWork(
-      BuildContext context, WidgetRef ref, int workId) async {
+    BuildContext context,
+    WidgetRef ref,
+    int workId,
+  ) async {
     final work = await ref.read(workRepositoryProvider).getWork(workId);
     if (work == null || !context.mounted) return;
     // 不使用外部 TextEditingController：弹窗退场动画期间 builder 会再次执行，

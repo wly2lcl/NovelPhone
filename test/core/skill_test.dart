@@ -18,11 +18,11 @@ import 'package:novelphone/data/secure_key_store.dart';
 import 'package:novelphone/features/ai/ai_service.dart';
 
 Tool _tool(String name) => Tool(
-      name: name,
-      description: name,
-      inputSchema: const <String, dynamic>{'type': 'object'},
-      execute: (_) async => '',
-    );
+  name: name,
+  description: name,
+  inputSchema: const <String, dynamic>{'type': 'object'},
+  execute: (_) async => '',
+);
 
 void main() {
   group('Skill 模型', () {
@@ -92,8 +92,18 @@ void main() {
         tools,
       );
       final filtered = filterToolsBySkills(tools, const <Skill>[
-        Skill(id: 1, name: 'a', instruction: 'x', allowedTools: <String>['get_chapter']),
-        Skill(id: 2, name: 'b', instruction: 'y', allowedTools: <String>['mcp_foo']),
+        Skill(
+          id: 1,
+          name: 'a',
+          instruction: 'x',
+          allowedTools: <String>['get_chapter'],
+        ),
+        Skill(
+          id: 2,
+          name: 'b',
+          instruction: 'y',
+          allowedTools: <String>['mcp_foo'],
+        ),
       ]);
       expect(filtered.map((t) => t.name), <String>['get_chapter']);
     });
@@ -112,7 +122,10 @@ void main() {
         section: const ContextSection(label: '用户技能', content: '冷硬短句'),
       );
       expect(injected.system, '旧system加长一段');
-      expect(injected.estimatedTokens, 100 + '旧system加长一段'.length - '旧system'.length);
+      expect(
+        injected.estimatedTokens,
+        100 + '旧system加长一段'.length - '旧system'.length,
+      );
       expect(injected.sections.first.label, '用户技能');
       expect(injected.sections, hasLength(2));
     });
@@ -214,7 +227,10 @@ void main() {
                 'finish_reason': 'stop',
               },
             ],
-            'usage': <String, dynamic>{'prompt_tokens': 10, 'completion_tokens': 4},
+            'usage': <String, dynamic>{
+              'prompt_tokens': 10,
+              'completion_tokens': 4,
+            },
           });
           return http.Response.bytes(
             utf8.encode('data: $payload\n\ndata: [DONE]\n\n'),
@@ -228,10 +244,7 @@ void main() {
     tearDown(() async => db.close());
 
     test('启用的技能指令进入 system，并出现在上下文详情', () async {
-      await settings.createSkill(
-        name: '冷硬短句',
-        instruction: '只用短句，避免解释性旁白。',
-      );
+      await settings.createSkill(name: '冷硬短句', instruction: '只用短句，避免解释性旁白。');
 
       final events = await service
           .continueWriting(workId: workId, chapterId: chapterId)
@@ -240,7 +253,9 @@ void main() {
       final built = events.whereType<AiContextBuilt>().single.context;
       expect(built.system, contains('只用短句，避免解释性旁白。'));
       expect(
-        built.sections.any((s) => s.label == '用户技能' && s.content.contains('冷硬短句')),
+        built.sections.any(
+          (s) => s.label == '用户技能' && s.content.contains('冷硬短句'),
+        ),
         isTrue,
       );
       expect(requestBodies.single, contains('只用短句，避免解释性旁白。'));

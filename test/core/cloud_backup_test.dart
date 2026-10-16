@@ -46,8 +46,7 @@ void main() {
     });
 
     test('awsUriEncode 按 AWS 规则编码保留字符（GET 向量未覆盖的点）', () {
-      expect(S3Signer.awsUriEncode('a b\$c/中'),
-          'a%20b%24c%2F%E4%B8%AD');
+      expect(S3Signer.awsUriEncode('a b\$c/中'), 'a%20b%24c%2F%E4%B8%AD');
       expect(S3Signer.awsUriEncode('a-b_c.d~e'), 'a-b_c.d~e');
       expect(S3Signer.awsUriEncode('a&b=c'), 'a%26b%3Dc');
     });
@@ -68,8 +67,10 @@ void main() {
     });
 
     test('服务商 endpoint 模板与 OSS 兼容头', () {
-      expect(CloudProvider.huaweiObs.endpointFor('cn-north-4'),
-          'obs.cn-north-4.myhuaweicloud.com');
+      expect(
+        CloudProvider.huaweiObs.endpointFor('cn-north-4'),
+        'obs.cn-north-4.myhuaweicloud.com',
+      );
       expect(CloudProvider.aliyunOss.needsOssCompatHeader, isTrue);
       expect(CloudProvider.awsS3.needsOssCompatHeader, isFalse);
     });
@@ -100,23 +101,29 @@ void main() {
         CloudBackupConfig.fromJson(config.toJson()).autoIntervalHours,
         168,
       );
-      expect(CloudBackupConfig.fromJson(<String, dynamic>{})
-          .autoInterval, CloudAutoInterval.daily);
+      expect(
+        CloudBackupConfig.fromJson(<String, dynamic>{}).autoInterval,
+        CloudAutoInterval.daily,
+      );
     });
 
     test('endpointHint 示例随服务商变化', () {
-      expect(CloudProvider.awsS3.endpointHint, contains('s3.us-east-1.amazonaws.com'));
+      expect(
+        CloudProvider.awsS3.endpointHint,
+        contains('s3.us-east-1.amazonaws.com'),
+      );
       expect(CloudProvider.aliyunOss.endpointHint, contains('aliyuncs.com'));
       expect(CloudProvider.qiniuKodo.endpointHint, contains('qiniucs.com'));
       expect(CloudProvider.tencentCos.endpointHint, contains('myqcloud.com'));
       expect(
-          CloudProvider.huaweiObs.endpointHint, contains('myhuaweicloud.com'));
+        CloudProvider.huaweiObs.endpointHint,
+        contains('myhuaweicloud.com'),
+      );
     });
   });
 
   group('S3CompatibleClient', () {
-    CloudBackupConfig config(
-            {CloudProvider provider = CloudProvider.awsS3}) =>
+    CloudBackupConfig config({CloudProvider provider = CloudProvider.awsS3}) =>
         CloudBackupConfig(
           enabled: true,
           provider: provider,
@@ -129,24 +136,20 @@ void main() {
     S3CompatibleClient clientWith(
       Future<http.Response> Function(http.Request) handler, {
       CloudProvider provider = CloudProvider.awsS3,
-    }) =>
-        S3CompatibleClient(
-          config: config(provider: provider),
-          accessKeyId: 'ak',
-          secretAccessKey: 'sk',
-          httpClient: MockClient(handler),
-          clock: () => DateTime.utc(2026, 10, 8, 7, 30, 0),
-        );
+    }) => S3CompatibleClient(
+      config: config(provider: provider),
+      accessKeyId: 'ak',
+      secretAccessKey: 'sk',
+      httpClient: MockClient(handler),
+      clock: () => DateTime.utc(2026, 10, 8, 7, 30, 0),
+    );
 
     test('putObject 使用 path-style 寻址并附签名与 OSS 兼容头', () async {
       late http.Request captured;
-      final client = clientWith(
-        (request) async {
-          captured = request;
-          return http.Response('', 200);
-        },
-        provider: CloudProvider.aliyunOss,
-      );
+      final client = clientWith((request) async {
+        captured = request;
+        return http.Response('', 200);
+      }, provider: CloudProvider.aliyunOss);
       await client.putObject(
         'novelphone/backups/20261008T153000.zip',
         Uint8List.fromList(utf8.encode('zip')),
@@ -159,8 +162,10 @@ void main() {
       );
       expect(headerOf(captured, 'x-oss-s3-compat'), 'true');
       expect(headerOf(captured, 'x-amz-date'), '20261008T073000Z');
-      expect(headerOf(captured, 'Authorization'),
-          startsWith('AWS4-HMAC-SHA256 '));
+      expect(
+        headerOf(captured, 'Authorization'),
+        startsWith('AWS4-HMAC-SHA256 '),
+      );
       // host 交由 HTTP 层补，避免与受限头处理冲突。
       expect(headerOf(captured, 'host'), isNull);
     });
@@ -171,17 +176,16 @@ void main() {
         captured = request;
         return http.Response('', 200);
       });
-      await client.putObject(
-        'p/a b\$c/中.zip',
-        Uint8List.fromList(<int>[1]),
-      );
+      await client.putObject('p/a b\$c/中.zip', Uint8List.fromList(<int>[1]));
 
       expect(
         captured.url.toString(),
         'https://s3.example.com/my-bucket/p/a%20b%24c/%E4%B8%AD.zip',
       );
-      expect(headerOf(captured, 'Authorization'),
-          startsWith('AWS4-HMAC-SHA256 '));
+      expect(
+        headerOf(captured, 'Authorization'),
+        startsWith('AWS4-HMAC-SHA256 '),
+      );
     });
 
     test('listObjects 解析 XML 并按续页拉取', () async {
@@ -227,13 +231,23 @@ void main() {
 
       expect(
         () => client.getObject('k'),
-        throwsA(isA<CloudStorageException>()
-            .having((e) => e.message, 'message', contains('签名校验失败'))),
+        throwsA(
+          isA<CloudStorageException>().having(
+            (e) => e.message,
+            'message',
+            contains('签名校验失败'),
+          ),
+        ),
       );
       expect(
         () => client.deleteObject('k'),
-        throwsA(isA<CloudStorageException>()
-            .having((e) => e.message, 'message', contains('404'))),
+        throwsA(
+          isA<CloudStorageException>().having(
+            (e) => e.message,
+            'message',
+            contains('404'),
+          ),
+        ),
       );
     });
 
@@ -260,10 +274,7 @@ void main() {
 
     tearDown(() async => db.close());
 
-    CloudBackupService serviceWith(
-      List<DateTime> times, {
-      int keepCount = 2,
-    }) {
+    CloudBackupService serviceWith(List<DateTime> times, {int keepCount = 2}) {
       var index = 0;
       return CloudBackupService(
         backupRepository: BackupRepository(db),
@@ -306,15 +317,19 @@ void main() {
     test('listBackups 只返回前缀内的 zip，下载与测试连接可用', () async {
       final service = serviceWith(<DateTime>[DateTime(2026, 10, 8, 10, 0, 0)]);
       await service.backupNow();
-      storage.objects['novelphone/backups/note.txt'] = Uint8List.fromList(<int>[1]);
+      storage.objects['novelphone/backups/note.txt'] = Uint8List.fromList(<int>[
+        1,
+      ]);
       storage.objects['other/keep.zip'] = Uint8List.fromList(<int>[2]);
 
       final backups = await service.listBackups();
-      expect(backups.map((o) => o.key),
-          <String>['novelphone/backups/20261008T100000.zip']);
+      expect(backups.map((o) => o.key), <String>[
+        'novelphone/backups/20261008T100000.zip',
+      ]);
 
-      final bytes =
-          await service.download('novelphone/backups/20261008T100000.zip');
+      final bytes = await service.download(
+        'novelphone/backups/20261008T100000.zip',
+      );
       expect(bytes, isNotEmpty);
 
       await service.testConnection();
@@ -322,13 +337,10 @@ void main() {
     });
 
     test('保留份数最小为 1', () async {
-      final service = serviceWith(
-        <DateTime>[
-          DateTime(2026, 10, 8, 10, 0, 0),
-          DateTime(2026, 10, 8, 11, 0, 0),
-        ],
-        keepCount: 0,
-      );
+      final service = serviceWith(<DateTime>[
+        DateTime(2026, 10, 8, 10, 0, 0),
+        DateTime(2026, 10, 8, 11, 0, 0),
+      ], keepCount: 0);
       await service.backupNow();
       final second = await service.backupNow();
       expect(second.pruned, 1);
@@ -352,44 +364,56 @@ void main() {
     CloudBackupScheduler scheduler(
       DateTime now, {
       CloudStorageClient Function(CloudBackupConfig, String, String)? factory,
-    }) =>
-        CloudBackupScheduler(
-          settings: settings,
-          backups: BackupRepository(db),
-          clientFactory: factory ?? (c, ak, sk) => storage,
-          clock: () => now,
-        );
+    }) => CloudBackupScheduler(
+      settings: settings,
+      backups: BackupRepository(db),
+      clientFactory: factory ?? (c, ak, sk) => storage,
+      clock: () => now,
+    );
 
     Future<void> enableAuto({int intervalHours = 24}) async {
-      await settings.saveCloudBackupConfig(CloudBackupConfig(
-        enabled: true,
-        endpoint: 's3.example.com',
-        region: 'us-east-1',
-        bucket: 'bk',
-        autoEnabled: true,
-        autoIntervalHours: intervalHours,
-      ));
-      await settings
-          .saveCloudCredentials(accessKey: 'ak', secretKey: 'sk');
+      await settings.saveCloudBackupConfig(
+        CloudBackupConfig(
+          enabled: true,
+          endpoint: 's3.example.com',
+          region: 'us-east-1',
+          bucket: 'bk',
+          autoEnabled: true,
+          autoIntervalHours: intervalHours,
+        ),
+      );
+      await settings.saveCloudCredentials(accessKey: 'ak', secretKey: 'sk');
     }
 
     test('isCloudBackupDue：无记录到期，满足间隔才到期', () {
       final now = DateTime(2026, 10, 8, 10);
-      expect(isCloudBackupDue(lastAt: null, intervalHours: 24, now: now), isTrue);
+      expect(
+        isCloudBackupDue(lastAt: null, intervalHours: 24, now: now),
+        isTrue,
+      );
       expect(
         isCloudBackupDue(
-            lastAt: DateTime(2026, 10, 8, 9), intervalHours: 24, now: now),
+          lastAt: DateTime(2026, 10, 8, 9),
+          intervalHours: 24,
+          now: now,
+        ),
         isFalse,
       );
       expect(
         isCloudBackupDue(
-            lastAt: DateTime(2026, 10, 7, 10), intervalHours: 24, now: now),
+          lastAt: DateTime(2026, 10, 7, 10),
+          intervalHours: 24,
+          now: now,
+        ),
         isTrue,
       );
       // 间隔夹紧为最小 1 小时。
       expect(
         isCloudBackupDue(
-            lastAt: DateTime(2026, 10, 8, 9), intervalHours: 0, now: now),
+          lastAt: DateTime(2026, 10, 8, 9),
+          intervalHours: 0,
+          now: now,
+        ),
         isTrue,
       );
     });
@@ -401,24 +425,28 @@ void main() {
       expect(storage.objects, isEmpty);
 
       // 只开总开关、未开自动
-      await settings.saveCloudBackupConfig(const CloudBackupConfig(
-        enabled: true,
-        endpoint: 's3.example.com',
-        region: 'us-east-1',
-        bucket: 'bk',
-      ));
+      await settings.saveCloudBackupConfig(
+        const CloudBackupConfig(
+          enabled: true,
+          endpoint: 's3.example.com',
+          region: 'us-east-1',
+          bucket: 'bk',
+        ),
+      );
       await settings.saveCloudCredentials(accessKey: 'ak', secretKey: 'sk');
       await scheduler(DateTime(2026, 10, 8, 10)).checkAndRun();
       expect(storage.objects, isEmpty);
 
       // 开自动但缺凭证
-      await settings.saveCloudBackupConfig(CloudBackupConfig(
-        enabled: true,
-        endpoint: 's3.example.com',
-        region: 'us-east-1',
-        bucket: 'bk',
-        autoEnabled: true,
-      ));
+      await settings.saveCloudBackupConfig(
+        CloudBackupConfig(
+          enabled: true,
+          endpoint: 's3.example.com',
+          region: 'us-east-1',
+          bucket: 'bk',
+          autoEnabled: true,
+        ),
+      );
       await settings.clearCloudCredentials();
       await scheduler(DateTime(2026, 10, 8, 10)).checkAndRun();
       expect(storage.objects, isEmpty);
@@ -458,15 +486,20 @@ void main() {
 
       expect((await settings.cloudBackupConfig()).enabled, isFalse);
 
-      await settings.saveCloudBackupConfig(const CloudBackupConfig(
-        enabled: true,
-        provider: CloudProvider.tencentCos,
-        endpoint: 'cos.ap-guangzhou.myqcloud.com',
-        region: 'ap-guangzhou',
-        bucket: 'bk',
-        keepCount: 3,
-      ));
-      await settings.saveCloudCredentials(accessKey: 'AKID', secretKey: 'SECRET');
+      await settings.saveCloudBackupConfig(
+        const CloudBackupConfig(
+          enabled: true,
+          provider: CloudProvider.tencentCos,
+          endpoint: 'cos.ap-guangzhou.myqcloud.com',
+          region: 'ap-guangzhou',
+          bucket: 'bk',
+          keepCount: 3,
+        ),
+      );
+      await settings.saveCloudCredentials(
+        accessKey: 'AKID',
+        secretKey: 'SECRET',
+      );
 
       final restored = await settings.cloudBackupConfig();
       expect(restored.provider, CloudProvider.tencentCos);
@@ -475,8 +508,9 @@ void main() {
       expect(await settings.readCloudAccessKey(), 'AKID');
       expect(await settings.readCloudSecretKey(), 'SECRET');
 
-      final raw =
-          await settings.getSetting(SettingsRepository.cloudBackupConfigKey);
+      final raw = await settings.getSetting(
+        SettingsRepository.cloudBackupConfigKey,
+      );
       expect(raw, isNot(contains('AKID')));
       expect(raw, isNot(contains('SECRET')));
 
@@ -504,9 +538,11 @@ class _FakeStorageModel implements CloudStorageClient {
   bool connectionChecked = false;
 
   @override
-  Future<void> putObject(String key, Uint8List bytes,
-          {String contentType = 'application/zip'}) async =>
-      objects[key] = bytes;
+  Future<void> putObject(
+    String key,
+    Uint8List bytes, {
+    String contentType = 'application/zip',
+  }) async => objects[key] = bytes;
 
   @override
   Future<Uint8List> getObject(String key) async =>
@@ -531,9 +567,11 @@ class _FakeStorageModel implements CloudStorageClient {
 /// 上传即失败的对象存储，用于验证自动备份静默失败。
 class _FailingStorage implements CloudStorageClient {
   @override
-  Future<void> putObject(String key, Uint8List bytes,
-          {String contentType = 'application/zip'}) async =>
-      throw const CloudStorageException('模拟上传失败');
+  Future<void> putObject(
+    String key,
+    Uint8List bytes, {
+    String contentType = 'application/zip',
+  }) async => throw const CloudStorageException('模拟上传失败');
 
   @override
   Future<Uint8List> getObject(String key) async =>
@@ -543,8 +581,7 @@ class _FailingStorage implements CloudStorageClient {
   Future<void> deleteObject(String key) async {}
 
   @override
-  Future<List<CloudObject>> listObjects(String prefix) async =>
-      <CloudObject>[];
+  Future<List<CloudObject>> listObjects(String prefix) async => <CloudObject>[];
 
   @override
   Future<void> checkConnection() async {}

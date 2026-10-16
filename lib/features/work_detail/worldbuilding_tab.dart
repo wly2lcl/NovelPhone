@@ -55,8 +55,7 @@ class _WorldbuildingTabState extends ConsumerState<WorldbuildingTab> {
                     itemCount: entries.length,
                     itemBuilder: (context, index) => _SettingCard(
                       entry: entries[index],
-                      onTap: () => _openEditor(
-                          context, entry: entries[index]),
+                      onTap: () => _openEditor(context, entry: entries[index]),
                     ),
                   ),
           ),
@@ -100,10 +99,16 @@ class _EmptySettingsHint extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Icon(Icons.auto_stories_outlined,
-                size: 64, color: context.paper.inkSoft),
+            Icon(
+              Icons.auto_stories_outlined,
+              size: 64,
+              color: context.paper.inkSoft,
+            ),
             const SizedBox(height: 12),
-            Text('还没有${type.label}', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              '还没有${type.label}',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 6),
             Text(
               '记录作品的${type.label}设定，方便写作时随时查阅。',
@@ -147,8 +152,7 @@ class _SettingCard extends StatelessWidget {
                   ),
                   Text(
                     SettingType.fromValue(entry.type).label,
-                    style: TextStyle(
-                        color: context.paper.accent, fontSize: 12),
+                    style: TextStyle(color: context.paper.accent, fontSize: 12),
                   ),
                 ],
               ),
@@ -158,8 +162,7 @@ class _SettingCard extends StatelessWidget {
                   entry.content,
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                      color: context.paper.inkSoft, fontSize: 13),
+                  style: TextStyle(color: context.paper.inkSoft, fontSize: 13),
                 ),
               ],
             ],
@@ -222,8 +225,10 @@ class _SettingFormSheetState extends ConsumerState<_SettingFormSheet> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Text(_isEditing ? '编辑设定' : '新建设定',
-                  style: Theme.of(context).textTheme.titleLarge),
+              Text(
+                _isEditing ? '编辑设定' : '新建设定',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
               const SizedBox(height: 16),
               Wrap(
                 spacing: 8,
@@ -257,14 +262,20 @@ class _SettingFormSheetState extends ConsumerState<_SettingFormSheet> {
                   if (_isEditing)
                     TextButton.icon(
                       onPressed: _saving ? null : _confirmDelete,
-                      icon: const Icon(Icons.delete_outline,
-                          color: Color(0xFFB3261E)),
-                      label: const Text('删除',
-                          style: TextStyle(color: Color(0xFFB3261E))),
+                      icon: const Icon(
+                        Icons.delete_outline,
+                        color: Color(0xFFB3261E),
+                      ),
+                      label: const Text(
+                        '删除',
+                        style: TextStyle(color: Color(0xFFB3261E)),
+                      ),
                     ),
                   const Spacer(),
                   TextButton(
-                    onPressed: _saving ? null : () => Navigator.of(context).pop(),
+                    onPressed: _saving
+                        ? null
+                        : () => Navigator.of(context).pop(),
                     child: const Text('取消'),
                   ),
                   const SizedBox(width: 8),

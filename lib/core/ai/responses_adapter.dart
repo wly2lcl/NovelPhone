@@ -24,7 +24,9 @@ class ResponsesAdapter implements AiClient {
   Uri get _uri {
     final trimmed = _trimSlash(baseUrl);
     // 兼容用户把 baseUrl 直接填成 .../v1 的情况，避免出现 /v1/v1/responses。
-    final path = trimmed.endsWith('/v1') ? '$trimmed/responses' : '$trimmed/v1/responses';
+    final path = trimmed.endsWith('/v1')
+        ? '$trimmed/responses'
+        : '$trimmed/v1/responses';
     return Uri.parse(path);
   }
 
@@ -41,12 +43,14 @@ class ResponsesAdapter implements AiClient {
       'max_output_tokens': req.maxTokens,
       if (req.tools.isNotEmpty)
         'tools': req.tools
-            .map((t) => <String, dynamic>{
-                  'type': 'function',
-                  'name': t.name,
-                  'description': t.description,
-                  'parameters': t.inputSchema,
-                })
+            .map(
+              (t) => <String, dynamic>{
+                'type': 'function',
+                'name': t.name,
+                'description': t.description,
+                'parameters': t.inputSchema,
+              },
+            )
             .toList(),
     };
 
@@ -97,14 +101,17 @@ class ResponsesAdapter implements AiClient {
         } else if (type == 'response.function_call_arguments.delta') {
           final key = _itemKey(decoded);
           final delta = decoded['delta'];
-          if (key != null && delta is String) calls[key]?.arguments.write(delta);
+          if (key != null && delta is String) {
+            calls[key]?.arguments.write(delta);
+          }
         } else if (type == 'response.output_item.done') {
           final item = decoded['item'];
           if (item is Map && item['type'] == 'function_call') {
             // 完成帧携带完整 arguments，以其为准（覆盖增量累积结果）。
             _upsert(calls, item, overrideArguments: true);
           }
-        } else if (type == 'response.completed' || type == 'response.incomplete') {
+        } else if (type == 'response.completed' ||
+            type == 'response.incomplete') {
           final payload = decoded['response'];
           if (payload is Map) {
             final usage = payload['usage'];
@@ -144,15 +151,20 @@ class ResponsesAdapter implements AiClient {
     }
 
     if (usageSeen) {
-      yield ChatUsage(promptTokens: inputTokens, completionTokens: outputTokens);
+      yield ChatUsage(
+        promptTokens: inputTokens,
+        completionTokens: outputTokens,
+      );
     }
     final resolved = calls.values
         .where((c) => c.name.isNotEmpty)
-        .map((c) => ToolCall(
-              id: c.callId.isEmpty ? c.itemId : c.callId,
-              name: c.name,
-              arguments: c.arguments.toString(),
-            ))
+        .map(
+          (c) => ToolCall(
+            id: c.callId.isEmpty ? c.itemId : c.callId,
+            name: c.name,
+            arguments: c.arguments.toString(),
+          ),
+        )
         .toList();
     if (resolved.isNotEmpty) yield ChatToolCalls(resolved);
     yield ChatDone(finishReason: finishReason);
@@ -170,16 +182,20 @@ class ResponsesAdapter implements AiClient {
       ];
     }
     final toolCalls = message.toolCalls;
-    if (message.role == 'assistant' && toolCalls != null && toolCalls.isNotEmpty) {
+    if (message.role == 'assistant' &&
+        toolCalls != null &&
+        toolCalls.isNotEmpty) {
       return <Map<String, dynamic>>[
         if (message.content.isNotEmpty)
           <String, dynamic>{'role': 'assistant', 'content': message.content},
-        ...toolCalls.map((c) => <String, dynamic>{
-              'type': 'function_call',
-              'call_id': c.id,
-              'name': c.name,
-              'arguments': c.arguments,
-            }),
+        ...toolCalls.map(
+          (c) => <String, dynamic>{
+            'type': 'function_call',
+            'call_id': c.id,
+            'name': c.name,
+            'arguments': c.arguments,
+          },
+        ),
       ];
     }
     return <Map<String, dynamic>>[
@@ -232,16 +248,21 @@ String _errorText(Map<String, dynamic> decoded) {
   final message = decoded['message'];
   if (message is String && message.isNotEmpty) return message;
   final error = decoded['error'];
-  if (error is Map && error['message'] is String) return error['message'] as String;
+  if (error is Map && error['message'] is String) {
+    return error['message'] as String;
+  }
   final payload = decoded['response'];
   if (payload is Map) {
     final error = payload['error'];
-    if (error is Map && error['message'] is String) return error['message'] as String;
+    if (error is Map && error['message'] is String) {
+      return error['message'] as String;
+    }
   }
   return '未知错误';
 }
 
-String _trimSlash(String url) => url.endsWith('/') ? url.substring(0, url.length - 1) : url;
+String _trimSlash(String url) =>
+    url.endsWith('/') ? url.substring(0, url.length - 1) : url;
 
 Map<String, dynamic>? _tryDecode(String data) {
   try {

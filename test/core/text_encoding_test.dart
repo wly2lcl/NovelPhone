@@ -15,7 +15,9 @@ void main() {
 
   test('剥离 UTF-8 BOM', () {
     final bytes = Uint8List.fromList(<int>[
-      0xEF, 0xBB, 0xBF,
+      0xEF,
+      0xBB,
+      0xBF,
       ...utf8.encode('正文'),
     ]);
     final decoded = decodeTextBytes(bytes);

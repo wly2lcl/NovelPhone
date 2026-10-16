@@ -9,7 +9,7 @@ class RelationDao {
   final AppDatabase _db;
 
   SimpleSelectStatement<$CharacterRelationsTable, CharacterRelation>
-      _selectByWork(int workId) {
+  _selectByWork(int workId) {
     return _db.select(_db.characterRelations)
       ..where((t) => t.workId.equals(workId))
       ..orderBy([(t) => OrderingTerm(expression: t.id)]);
@@ -26,12 +26,14 @@ class RelationDao {
   }
 
   Future<void> updateRelation(int id, CharacterRelationsCompanion patch) {
-    return (_db.update(_db.characterRelations)..where((t) => t.id.equals(id)))
-        .write(patch);
+    return (_db.update(
+      _db.characterRelations,
+    )..where((t) => t.id.equals(id))).write(patch);
   }
 
   Future<void> deleteById(int id) {
-    return (_db.delete(_db.characterRelations)..where((t) => t.id.equals(id)))
-        .go();
+    return (_db.delete(
+      _db.characterRelations,
+    )..where((t) => t.id.equals(id))).go();
   }
 }

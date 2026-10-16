@@ -52,8 +52,10 @@ class _NewWorkPageState extends ConsumerState<NewWorkPage> {
         });
         return;
       }
-      final workId =
-          await repository.createWork(title: title, coverColor: _coverColor);
+      final workId = await repository.createWork(
+        title: title,
+        coverColor: _coverColor,
+      );
       if (!mounted) return;
       context.pushReplacement('/work/$workId');
     } catch (error) {
@@ -78,10 +80,7 @@ class _NewWorkPageState extends ConsumerState<NewWorkPage> {
             controller: _titleController,
             autofocus: true,
             maxLength: 50,
-            decoration: InputDecoration(
-              hintText: '例如：长夜行',
-              errorText: _error,
-            ),
+            decoration: InputDecoration(hintText: '例如：长夜行', errorText: _error),
             onSubmitted: (_) => _submit(),
           ),
           const SizedBox(height: 8),

@@ -66,19 +66,22 @@ class BackupRepository {
     final volumes = await _db.select(_db.volumes).get();
     final chapters = await _db.select(_db.chapters).get();
 
-    return works.map((work) {
-      final workVolumes =
-          volumes.where((v) => v.workId == work.id).toList(growable: false);
-      final volumeIds = workVolumes.map((v) => v.id).toSet();
-      final workChapters =
-          chapters.where((c) => volumeIds.contains(c.volumeId)).toList()
-            ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
-      return BackupWorkBundle(
-        title: work.title,
-        volumes: workVolumes,
-        chapters: workChapters,
-      );
-    }).toList(growable: false);
+    return works
+        .map((work) {
+          final workVolumes = volumes
+              .where((v) => v.workId == work.id)
+              .toList(growable: false);
+          final volumeIds = workVolumes.map((v) => v.id).toSet();
+          final workChapters =
+              chapters.where((c) => volumeIds.contains(c.volumeId)).toList()
+                ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+          return BackupWorkBundle(
+            title: work.title,
+            volumes: workVolumes,
+            chapters: workChapters,
+          );
+        })
+        .toList(growable: false);
   }
 
   /// 恢复备份。[overwrite] 为 true 时先清空本地数据（覆盖），
@@ -119,16 +122,20 @@ class BackupRepository {
       var workCount = 0;
       for (final raw in _asList(tables['works'])) {
         final work = Work.fromJson(raw);
-        final newId = await _db.into(_db.works).insert(WorksCompanion.insert(
-              title: work.title,
-              coverColor: work.coverColor,
-              lastEditedAt: work.lastEditedAt,
-              createdAt: work.createdAt,
-              id: overwrite ? Value(work.id) : const Value.absent(),
-              wordCount: Value(work.wordCount),
-              chapterCount: Value(work.chapterCount),
-              pinned: Value(work.pinned),
-            ));
+        final newId = await _db
+            .into(_db.works)
+            .insert(
+              WorksCompanion.insert(
+                title: work.title,
+                coverColor: work.coverColor,
+                lastEditedAt: work.lastEditedAt,
+                createdAt: work.createdAt,
+                id: overwrite ? Value(work.id) : const Value.absent(),
+                wordCount: Value(work.wordCount),
+                chapterCount: Value(work.chapterCount),
+                pinned: Value(work.pinned),
+              ),
+            );
         workIdMap[work.id] = newId;
         workCount++;
       }
@@ -143,14 +150,18 @@ class BackupRepository {
         final volume = Volume.fromJson(json);
         final workId = workIdMap[volume.workId];
         if (workId == null) continue;
-        final newId = await _db.into(_db.volumes).insert(VolumesCompanion.insert(
-              workId: workId,
-              name: volume.name,
-              sortOrder: volume.sortOrder,
-              id: overwrite ? Value(volume.id) : const Value.absent(),
-              summary: Value(volume.summary),
-              summaryChapterId: Value(volume.summaryChapterId),
-            ));
+        final newId = await _db
+            .into(_db.volumes)
+            .insert(
+              VolumesCompanion.insert(
+                workId: workId,
+                name: volume.name,
+                sortOrder: volume.sortOrder,
+                id: overwrite ? Value(volume.id) : const Value.absent(),
+                summary: Value(volume.summary),
+                summaryChapterId: Value(volume.summaryChapterId),
+              ),
+            );
         volumeIdMap[volume.id] = newId;
       }
 
@@ -166,20 +177,24 @@ class BackupRepository {
         final chapter = Chapter.fromJson(json);
         final volumeId = volumeIdMap[chapter.volumeId];
         if (volumeId == null) continue;
-        final newId = await _db.into(_db.chapters).insert(ChaptersCompanion.insert(
-              volumeId: volumeId,
-              title: chapter.title,
-              sortOrder: chapter.sortOrder,
-              updatedAt: chapter.updatedAt,
-              id: overwrite ? Value(chapter.id) : const Value.absent(),
-              content: Value(chapter.content),
-              wordCount: Value(chapter.wordCount),
-              status: Value(chapter.status),
-              cursorOffset: Value(chapter.cursorOffset),
-              scrollOffset: Value(chapter.scrollOffset),
-              summary: Value(chapter.summary),
-              summaryUpdatedAt: Value(chapter.summaryUpdatedAt),
-            ));
+        final newId = await _db
+            .into(_db.chapters)
+            .insert(
+              ChaptersCompanion.insert(
+                volumeId: volumeId,
+                title: chapter.title,
+                sortOrder: chapter.sortOrder,
+                updatedAt: chapter.updatedAt,
+                id: overwrite ? Value(chapter.id) : const Value.absent(),
+                content: Value(chapter.content),
+                wordCount: Value(chapter.wordCount),
+                status: Value(chapter.status),
+                cursorOffset: Value(chapter.cursorOffset),
+                scrollOffset: Value(chapter.scrollOffset),
+                summary: Value(chapter.summary),
+                summaryUpdatedAt: Value(chapter.summaryUpdatedAt),
+              ),
+            );
         chapterIdMap[chapter.id] = newId;
         chapterCount++;
       }
@@ -192,14 +207,16 @@ class BackupRepository {
         final snapshot = ChapterSnapshot.fromJson(raw);
         final chapterId = chapterIdMap[snapshot.chapterId];
         if (chapterId == null) continue;
-        snapshotRows.add(ChapterSnapshotsCompanion.insert(
-          chapterId: chapterId,
-          createdAt: snapshot.createdAt,
-          id: overwrite ? Value(snapshot.id) : const Value.absent(),
-          title: Value(snapshot.title),
-          content: Value(snapshot.content),
-          wordCount: Value(snapshot.wordCount),
-        ));
+        snapshotRows.add(
+          ChapterSnapshotsCompanion.insert(
+            chapterId: chapterId,
+            createdAt: snapshot.createdAt,
+            id: overwrite ? Value(snapshot.id) : const Value.absent(),
+            title: Value(snapshot.title),
+            content: Value(snapshot.content),
+            wordCount: Value(snapshot.wordCount),
+          ),
+        );
       }
       if (snapshotRows.isNotEmpty) {
         await _db.chapterSnapshots.insertAll(snapshotRows);
@@ -209,14 +226,18 @@ class BackupRepository {
       for (final raw in _asList(tables['dailyWritingStats'])) {
         final stat = DailyWritingStat.fromJson(raw);
         // 无外键，按日期主键合并；已有日期保留本机数据（合并模式下不覆盖）。
-        statRows.add(DailyWritingStatsCompanion.insert(
-          day: stat.day,
-          words: Value(stat.words),
-        ));
+        statRows.add(
+          DailyWritingStatsCompanion.insert(
+            day: stat.day,
+            words: Value(stat.words),
+          ),
+        );
       }
       if (statRows.isNotEmpty) {
-        await _db.dailyWritingStats
-            .insertAll(statRows, mode: InsertMode.insertOrIgnore);
+        await _db.dailyWritingStats.insertAll(
+          statRows,
+          mode: InsertMode.insertOrIgnore,
+        );
       }
 
       var characterCount = 0;
@@ -225,7 +246,9 @@ class BackupRepository {
         final character = Character.fromJson(raw);
         final workId = workIdMap[character.workId];
         if (workId == null) continue;
-        final newId = await _db.into(_db.characters).insert(
+        final newId = await _db
+            .into(_db.characters)
+            .insert(
               CharactersCompanion.insert(
                 workId: workId,
                 name: character.name,
@@ -246,14 +269,16 @@ class BackupRepository {
         final entry = SettingEntry.fromJson(raw);
         final workId = workIdMap[entry.workId];
         if (workId == null) continue;
-        settingRows.add(SettingEntriesCompanion.insert(
-          workId: workId,
-          name: entry.name,
-          createdAt: entry.createdAt,
-          id: overwrite ? Value(entry.id) : const Value.absent(),
-          type: Value(entry.type),
-          content: Value(entry.content),
-        ));
+        settingRows.add(
+          SettingEntriesCompanion.insert(
+            workId: workId,
+            name: entry.name,
+            createdAt: entry.createdAt,
+            id: overwrite ? Value(entry.id) : const Value.absent(),
+            type: Value(entry.type),
+            content: Value(entry.content),
+          ),
+        );
       }
       if (settingRows.isNotEmpty) {
         await _db.settingEntries.insertAll(settingRows);
@@ -266,13 +291,15 @@ class BackupRepository {
         final fromId = characterIdMap[relation.fromCharacterId];
         final toId = characterIdMap[relation.toCharacterId];
         if (workId == null || fromId == null || toId == null) continue;
-        relationRows.add(CharacterRelationsCompanion.insert(
-          workId: workId,
-          fromCharacterId: fromId,
-          toCharacterId: toId,
-          id: overwrite ? Value(relation.id) : const Value.absent(),
-          label: Value(relation.label),
-        ));
+        relationRows.add(
+          CharacterRelationsCompanion.insert(
+            workId: workId,
+            fromCharacterId: fromId,
+            toCharacterId: toId,
+            id: overwrite ? Value(relation.id) : const Value.absent(),
+            label: Value(relation.label),
+          ),
+        );
       }
       if (relationRows.isNotEmpty) {
         await _db.characterRelations.insertAll(relationRows);
@@ -284,14 +311,17 @@ class BackupRepository {
         final chapterId = entry.chapterId == null
             ? null
             : chapterIdMap[entry.chapterId!];
-        outlineRows.add(OutlineEntriesCompanion.insert(
-          workId: workIdMap[entry.workId] ?? 0,
-          summary: Value(entry.summary),
-          id: overwrite ? Value(entry.id) : const Value.absent(),
-          volumeId: Value(
-              entry.volumeId == null ? null : volumeIdMap[entry.volumeId!]),
-          chapterId: Value(chapterId),
-        ));
+        outlineRows.add(
+          OutlineEntriesCompanion.insert(
+            workId: workIdMap[entry.workId] ?? 0,
+            summary: Value(entry.summary),
+            id: overwrite ? Value(entry.id) : const Value.absent(),
+            volumeId: Value(
+              entry.volumeId == null ? null : volumeIdMap[entry.volumeId!],
+            ),
+            chapterId: Value(chapterId),
+          ),
+        );
       }
       if (outlineRows.isNotEmpty) {
         await _db.outlineEntries.insertAll(outlineRows);
@@ -302,12 +332,14 @@ class BackupRepository {
         final inspiration = Inspiration.fromJson(raw);
         final workId = workIdMap[inspiration.workId];
         if (workId == null) continue;
-        inspirationRows.add(InspirationsCompanion.insert(
-          workId: workId,
-          content: inspiration.content,
-          createdAt: inspiration.createdAt,
-          id: overwrite ? Value(inspiration.id) : const Value.absent(),
-        ));
+        inspirationRows.add(
+          InspirationsCompanion.insert(
+            workId: workId,
+            content: inspiration.content,
+            createdAt: inspiration.createdAt,
+            id: overwrite ? Value(inspiration.id) : const Value.absent(),
+          ),
+        );
       }
       if (inspirationRows.isNotEmpty) {
         await _db.inspirations.insertAll(inspirationRows);

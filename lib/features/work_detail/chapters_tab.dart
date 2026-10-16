@@ -52,31 +52,31 @@ class ChaptersTab extends ConsumerWidget {
         final row = rows[index];
         return switch (row) {
           _RowVolumeHeader() => _VolumeHeader(
-              workId: workId,
-              volume: row.volume,
-              chapterCount: row.chapterCount,
-            ),
+            workId: workId,
+            volume: row.volume,
+            chapterCount: row.chapterCount,
+          ),
           _RowChapter() => _ChapterTile(
-              workId: workId,
-              chapter: row.chapter,
-              chaptersInVolume: row.siblings,
-            ),
+            workId: workId,
+            chapter: row.chapter,
+            chaptersInVolume: row.siblings,
+          ),
           _RowAddChapter() => _AddChapterButton(
-              workId: workId,
-              volumeId: row.volumeId,
-            ),
+            workId: workId,
+            volumeId: row.volumeId,
+          ),
           _RowDivider() => const Divider(),
           _RowEmptyHint() => const _EmptyChaptersHint(),
           _RowFooter() => Padding(
-              padding: const EdgeInsets.only(top: 16),
-              child: Center(
-                child: OutlinedButton.icon(
-                  onPressed: () => _createVolume(context, ref),
-                  icon: const Icon(Icons.create_new_folder_outlined),
-                  label: const Text('新建卷'),
-                ),
+            padding: const EdgeInsets.only(top: 16),
+            child: Center(
+              child: OutlinedButton.icon(
+                onPressed: () => _createVolume(context, ref),
+                icon: const Icon(Icons.create_new_folder_outlined),
+                label: const Text('新建卷'),
               ),
             ),
+          ),
         };
       },
     );
@@ -122,13 +122,18 @@ class _EmptyChaptersHint extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 40),
       child: Column(
         children: <Widget>[
-          Icon(Icons.edit_note_outlined,
-              size: 64, color: context.paper.inkSoft),
+          Icon(
+            Icons.edit_note_outlined,
+            size: 64,
+            color: context.paper.inkSoft,
+          ),
           const SizedBox(height: 12),
           Text('还没有章节', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 6),
-          Text('在下方「新建卷」后即可开始写第一章。',
-              style: TextStyle(color: context.paper.inkSoft)),
+          Text(
+            '在下方「新建卷」后即可开始写第一章。',
+            style: TextStyle(color: context.paper.inkSoft),
+          ),
         ],
       ),
     );
@@ -247,9 +252,14 @@ class _VolumeHeader extends ConsumerWidget {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.delete_outline, color: Color(0xFFB3261E)),
-              title: const Text('删除卷',
-                  style: TextStyle(color: Color(0xFFB3261E))),
+              leading: const Icon(
+                Icons.delete_outline,
+                color: Color(0xFFB3261E),
+              ),
+              title: const Text(
+                '删除卷',
+                style: TextStyle(color: Color(0xFFB3261E)),
+              ),
               onTap: () async {
                 Navigator.of(sheetContext).pop();
                 await _confirmDeleteVolume(context, ref);
@@ -297,8 +307,9 @@ class _VolumeHeader extends ConsumerWidget {
       title: '本卷前情回顾',
       maxLines: 10,
       hintText: 'AI 生成或手写的本卷前情回顾，用于后续章节的剧情衔接',
-      onSave: (text) =>
-          ref.read(chapterRepositoryProvider).saveVolumeSummary(volume.id, text),
+      onSave: (text) => ref
+          .read(chapterRepositoryProvider)
+          .saveVolumeSummary(volume.id, text),
     );
   }
 
@@ -307,9 +318,11 @@ class _VolumeHeader extends ConsumerWidget {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text('删除「${volume.name}」？'),
-        content: Text(chapterCount == 0
-            ? '该卷下没有章节。'
-            : '该卷下的 $chapterCount 个章节会一并删除，此操作不可恢复。'),
+        content: Text(
+          chapterCount == 0
+              ? '该卷下没有章节。'
+              : '该卷下的 $chapterCount 个章节会一并删除，此操作不可恢复。',
+        ),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -347,8 +360,10 @@ class _AddChapterButton extends ConsumerWidget {
 
   Future<void> _createChapter(BuildContext context, WidgetRef ref) async {
     final repository = ref.read(chapterRepositoryProvider);
-    final chapterId =
-        await repository.createChapter(workId: workId, volumeId: volumeId);
+    final chapterId = await repository.createChapter(
+      workId: workId,
+      volumeId: volumeId,
+    );
     if (!context.mounted) return;
     context.push('/work/$workId/chapter/$chapterId');
   }
@@ -389,7 +404,9 @@ class _ChapterTile extends ConsumerWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        subtitle: Text('${formatWordCount(chapter.wordCount)} · ${status.label}'),
+        subtitle: Text(
+          '${formatWordCount(chapter.wordCount)} · ${status.label}',
+        ),
         trailing: Icon(Icons.chevron_right, color: context.paper.inkSoft),
         onTap: () => context.push('/work/$workId/chapter/${chapter.id}'),
         onLongPress: () => _showChapterActions(context, ref),
@@ -466,9 +483,14 @@ class _ChapterTile extends ConsumerWidget {
             ),
             const Divider(height: 1),
             ListTile(
-              leading: const Icon(Icons.delete_outline, color: Color(0xFFB3261E)),
-              title: const Text('删除章节',
-                  style: TextStyle(color: Color(0xFFB3261E))),
+              leading: const Icon(
+                Icons.delete_outline,
+                color: Color(0xFFB3261E),
+              ),
+              title: const Text(
+                '删除章节',
+                style: TextStyle(color: Color(0xFFB3261E)),
+              ),
               onTap: () async {
                 Navigator.of(sheetContext).pop();
                 await _confirmDeleteChapter(context, ref);
@@ -509,12 +531,15 @@ class _ChapterTile extends ConsumerWidget {
   }
 
   Future<void> _moveToVolume(BuildContext context, WidgetRef ref) async {
-    final volumes = await ref.read(chapterRepositoryProvider).listVolumes(workId);
+    final volumes = await ref
+        .read(chapterRepositoryProvider)
+        .listVolumes(workId);
     final candidates = volumes.where((v) => v.id != chapter.volumeId).toList();
     if (candidates.isEmpty || !context.mounted) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('没有其他卷可移动')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('没有其他卷可移动')));
       }
       return;
     }
@@ -542,7 +567,10 @@ class _ChapterTile extends ConsumerWidget {
     );
   }
 
-  Future<void> _confirmDeleteChapter(BuildContext context, WidgetRef ref) async {
+  Future<void> _confirmDeleteChapter(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(

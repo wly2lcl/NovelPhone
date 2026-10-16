@@ -38,7 +38,10 @@ void main() {
   /// 建一部带完整关联数据的作品，返回作品 id。
   Future<int> seedWork({String title = '长夜行'}) async {
     final workId = await works.createWork(title: title, coverColor: 0xFFB4654A);
-    final chapterId = await chapters.createChapter(workId: workId, title: '第一章 雨');
+    final chapterId = await chapters.createChapter(
+      workId: workId,
+      title: '第一章 雨',
+    );
     await chapters.saveChapter(
       chapterId: chapterId,
       title: '第一章 雨',
@@ -131,7 +134,10 @@ void main() {
     final workId = await seedWork();
     final chapterId = (await chapters.watchChapters(workId).first).single.id;
     await chapters.createSnapshot(
-        chapterId: chapterId, title: '第一章 雨', content: '雨下了一整夜，街道上没有人。');
+      chapterId: chapterId,
+      title: '第一章 雨',
+      content: '雨下了一整夜，街道上没有人。',
+    );
     await settings.createEntry(
       workId: workId,
       type: SettingType.location,
@@ -139,7 +145,10 @@ void main() {
       content: '终年多雾的港口城市。',
     );
     final characterId = (await characters.listCharacters(workId)).single.id;
-    final otherId = await characters.createCharacter(workId: workId, name: '阿七');
+    final otherId = await characters.createCharacter(
+      workId: workId,
+      name: '阿七',
+    );
     await characters.createRelation(
       workId: workId,
       fromCharacterId: characterId,

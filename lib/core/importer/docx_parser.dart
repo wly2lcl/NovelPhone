@@ -34,12 +34,14 @@ List<ChapterDraft> parseDocx(Uint8List bytes, {String fallbackTitle = ''}) {
     final text = _paragraphText(paragraph);
     if (_isHeadingParagraph(paragraph)) {
       hasHeading = true;
-      drafts.add(ChapterDraft(
-        title: text.length > kMaxChapterTitleLength
-            ? text.substring(0, kMaxChapterTitleLength)
-            : text,
-        content: '',
-      ));
+      drafts.add(
+        ChapterDraft(
+          title: text.length > kMaxChapterTitleLength
+              ? text.substring(0, kMaxChapterTitleLength)
+              : text,
+          content: '',
+        ),
+      );
       continue;
     }
     if (drafts.isEmpty) {
@@ -75,9 +77,9 @@ List<ChapterDraft> parseDocx(Uint8List bytes, {String fallbackTitle = ''}) {
 
 /// docx 的 XML 声明通常为 UTF-8；极少数工具导出为 GBK，复用统一的编码探测。
 Iterable<XmlElement> _elementsByLocalName(XmlNode node, String local) {
-  return node.descendants
-      .whereType<XmlElement>()
-      .where((e) => e.name.local == local);
+  return node.descendants.whereType<XmlElement>().where(
+    (e) => e.name.local == local,
+  );
 }
 
 String _paragraphText(XmlElement paragraph) {
@@ -92,7 +94,8 @@ String _paragraphText(XmlElement paragraph) {
 
 bool _isHeadingParagraph(XmlElement paragraph) {
   for (final style in _elementsByLocalName(paragraph, 'pStyle')) {
-    final value = style.getAttribute('val') ?? style.getAttribute('w:val') ?? '';
+    final value =
+        style.getAttribute('val') ?? style.getAttribute('w:val') ?? '';
     final normalized = value.toLowerCase();
     if (normalized == 'title' ||
         normalized.startsWith('heading') ||

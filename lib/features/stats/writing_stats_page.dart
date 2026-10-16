@@ -82,16 +82,18 @@ class _WritingStatsPageState extends ConsumerState<WritingStatsPage> {
   }
 
   Future<void> _finishPomodoro() async {
-    final done =
-        await ref.read(settingsRepositoryProvider).incrementPomodoroDone();
+    final done = await ref
+        .read(settingsRepositoryProvider)
+        .incrementPomodoroDone();
     if (!mounted) return;
     setState(() {
       _running = false;
       _remainingSeconds = (_pomodoroMinutes ?? 25) * 60;
       _pomodoroDone = done;
     });
-    ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text('番茄钟完成，休息一下吧')));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('番茄钟完成，休息一下吧')));
   }
 
   // ---------- 编辑弹窗 ----------
@@ -119,8 +121,9 @@ class _WritingStatsPageState extends ConsumerState<WritingStatsPage> {
             child: const Text('取消'),
           ),
           FilledButton(
-            onPressed: () => Navigator.of(dialogContext)
-                .pop(int.tryParse(input.trim()) ?? 0),
+            onPressed: () => Navigator.of(
+              dialogContext,
+            ).pop(int.tryParse(input.trim()) ?? 0),
             child: const Text('保存'),
           ),
         ],
@@ -154,8 +157,9 @@ class _WritingStatsPageState extends ConsumerState<WritingStatsPage> {
             child: const Text('取消'),
           ),
           FilledButton(
-            onPressed: () => Navigator.of(dialogContext)
-                .pop(int.tryParse(input.trim()) ?? 25),
+            onPressed: () => Navigator.of(
+              dialogContext,
+            ).pop(int.tryParse(input.trim()) ?? 25),
             child: const Text('保存'),
           ),
         ],
@@ -163,8 +167,9 @@ class _WritingStatsPageState extends ConsumerState<WritingStatsPage> {
     );
     if (result == null) return;
     await ref.read(settingsRepositoryProvider).setPomodoroMinutes(result);
-    final minutes =
-        await ref.read(settingsRepositoryProvider).pomodoroMinutes();
+    final minutes = await ref
+        .read(settingsRepositoryProvider)
+        .pomodoroMinutes();
     if (!mounted) return;
     setState(() {
       _pomodoroMinutes = minutes;
@@ -225,8 +230,9 @@ class _WritingStatsPageState extends ConsumerState<WritingStatsPage> {
     return 0;
   }
 
-  Map<String, int> _wordsByDay(List<DailyWritingStat> list) =>
-      <String, int>{for (final stat in list) stat.day: stat.words};
+  Map<String, int> _wordsByDay(List<DailyWritingStat> list) => <String, int>{
+    for (final stat in list) stat.day: stat.words,
+  };
 }
 
 /// 今日字数与目标进度。
@@ -259,10 +265,7 @@ class _TodayCard extends StatelessWidget {
             children: <Widget>[
               Text('今日写作', style: TextStyle(color: context.paper.inkSoft)),
               const Spacer(),
-              TextButton(
-                onPressed: onEditTarget,
-                child: const Text('设定目标'),
-              ),
+              TextButton(onPressed: onEditTarget, child: const Text('设定目标')),
             ],
           ),
           const SizedBox(height: 8),
@@ -352,10 +355,7 @@ class _PomodoroCard extends StatelessWidget {
             const SizedBox(width: 8),
             const Text('番茄钟', style: TextStyle(fontWeight: FontWeight.w600)),
             const Spacer(),
-            TextButton(
-              onPressed: onEditMinutes,
-              child: Text('$minutes 分钟'),
-            ),
+            TextButton(onPressed: onEditMinutes, child: Text('$minutes 分钟')),
           ],
         ),
         const SizedBox(height: 8),

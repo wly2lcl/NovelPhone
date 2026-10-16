@@ -77,11 +77,16 @@ class AgentCore {
 
       messages.add(ChatMessage.assistant('', toolCalls: pendingCalls));
       for (final call in pendingCalls) {
-        messages.add(ChatMessage.toolResult(call.id, await _execute(tools, call)));
+        messages.add(
+          ChatMessage.toolResult(call.id, await _execute(tools, call)),
+        );
       }
     }
 
-    yield const ChatError(kind: AiErrorKind.unknown, message: 'AI 工具调用轮次超限，已停止');
+    yield const ChatError(
+      kind: AiErrorKind.unknown,
+      message: 'AI 工具调用轮次超限，已停止',
+    );
   }
 
   Future<String> _execute(List<Tool> tools, ToolCall call) async {
@@ -105,6 +110,8 @@ class AgentCore {
 
   Map<String, dynamic> _decode(String arguments) {
     final decoded = jsonDecode(arguments);
-    return decoded is Map ? decoded.cast<String, dynamic>() : <String, dynamic>{};
+    return decoded is Map
+        ? decoded.cast<String, dynamic>()
+        : <String, dynamic>{};
   }
 }

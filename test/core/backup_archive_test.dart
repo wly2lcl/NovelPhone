@@ -52,9 +52,15 @@ void main() {
     final works = WorkRepository(db);
     final chapters = ChapterRepository(db);
     final workId = await works.createWork(title: '长夜行');
-    final chapterId = await chapters.createChapter(workId: workId, title: '第一章');
+    final chapterId = await chapters.createChapter(
+      workId: workId,
+      title: '第一章',
+    );
     await chapters.saveChapter(
-        chapterId: chapterId, title: '第一章', content: '雨下了一整夜。');
+      chapterId: chapterId,
+      title: '第一章',
+      content: '雨下了一整夜。',
+    );
 
     final bytes = await exportBackupZipBytes(BackupRepository(db));
 
@@ -64,8 +70,10 @@ void main() {
 
     // ENH-15：markdown 全文拼接也移入 isolate，条目名与内容都应在产物里。
     final archive = ZipDecoder().decodeBytes(bytes);
-    final entry = archive.files
-        .firstWhere((f) => f.name == 'works/长夜行.md', orElse: () => throw StateError('缺少 markdown 条目'));
+    final entry = archive.files.firstWhere(
+      (f) => f.name == 'works/长夜行.md',
+      orElse: () => throw StateError('缺少 markdown 条目'),
+    );
     expect(utf8.decode(entry.readBytes()!), contains('雨下了一整夜。'));
   });
 

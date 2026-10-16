@@ -4,18 +4,18 @@ import 'package:novelphone/core/ai_flavor_rules.dart';
 import 'package:novelphone/data/db.dart';
 
 Chapter _chapter(int id, String title, String content) => Chapter(
-      id: id,
-      volumeId: 1,
-      title: title,
-      content: content,
-      wordCount: content.length,
-      status: 'draft',
-      sortOrder: id,
-      cursorOffset: 0,
-      scrollOffset: 0,
-      updatedAt: DateTime(2026, 9, 30),
-      summary: '',
-    );
+  id: id,
+  volumeId: 1,
+  title: title,
+  content: content,
+  wordCount: content.length,
+  status: 'draft',
+  sortOrder: id,
+  cursorOffset: 0,
+  scrollOffset: 0,
+  updatedAt: DateTime(2026, 9, 30),
+  summary: '',
+);
 
 void main() {
   group('检查范围（M4-06）', () {
@@ -52,9 +52,10 @@ void main() {
 
   group('分段送检（M4-06）', () {
     test('分段覆盖全文且不超长', () {
-      final text =
-          List<String>.generate(50, (i) => '第 $i 段：他走进屋子，看了她一眼，没有说话。')
-              .join('\n');
+      final text = List<String>.generate(
+        50,
+        (i) => '第 $i 段：他走进屋子，看了她一眼，没有说话。',
+      ).join('\n');
       final segments = splitDeepCheckSegments(text, maxChars: 60);
       expect(segments.length, greaterThan(1));
 

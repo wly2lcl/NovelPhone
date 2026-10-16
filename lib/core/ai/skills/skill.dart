@@ -55,13 +55,13 @@ class Skill {
   }
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'id': id,
-        'name': name,
-        'instruction': instruction,
-        'enabled': enabled,
-        'allowedTools': allowedTools,
-        'parameters': parameters,
-      };
+    'id': id,
+    'name': name,
+    'instruction': instruction,
+    'enabled': enabled,
+    'allowedTools': allowedTools,
+    'parameters': parameters,
+  };
 
   factory Skill.fromJson(Map<String, dynamic> json) {
     return Skill(
@@ -71,12 +71,12 @@ class Skill {
       enabled: json['enabled'] as bool? ?? true,
       allowedTools:
           (json['allowedTools'] as List?)?.whereType<String>().toList() ??
-              const <String>[],
+          const <String>[],
       parameters:
           (json['parameters'] as Map?)?.map(
-                (k, v) => MapEntry(k.toString(), v?.toString() ?? ''),
-              ) ??
-              const <String, String>{},
+            (k, v) => MapEntry(k.toString(), v?.toString() ?? ''),
+          ) ??
+          const <String, String>{},
     );
   }
 }

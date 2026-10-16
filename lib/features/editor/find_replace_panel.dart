@@ -57,8 +57,9 @@ class _FindReplacePanelState extends State<FindReplacePanel> {
     );
     _refreshCount();
     if (replaced > 0) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('已替换 $replaced 处')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('已替换 $replaced 处')));
     }
   }
 
@@ -87,8 +88,10 @@ class _FindReplacePanelState extends State<FindReplacePanel> {
                 tooltip: '区分大小写',
                 isSelected: _caseSensitive,
                 icon: const Icon(Icons.text_fields),
-                selectedIcon: Icon(Icons.text_fields,
-                    color: context.paper.accent),
+                selectedIcon: Icon(
+                  Icons.text_fields,
+                  color: context.paper.accent,
+                ),
                 onPressed: () {
                   setState(() => _caseSensitive = !_caseSensitive);
                   _refreshCount();
@@ -108,7 +111,10 @@ class _FindReplacePanelState extends State<FindReplacePanel> {
               Expanded(
                 child: TextField(
                   controller: _replacement,
-                  decoration: const InputDecoration(hintText: '替换为', isDense: true),
+                  decoration: const InputDecoration(
+                    hintText: '替换为',
+                    isDense: true,
+                  ),
                 ),
               ),
               const SizedBox(width: 8),

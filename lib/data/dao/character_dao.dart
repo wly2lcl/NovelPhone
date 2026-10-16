@@ -14,13 +14,15 @@ class CharacterDao {
       ..orderBy([(t) => OrderingTerm(expression: t.id)]);
   }
 
-  Stream<List<Character>> watchByWork(int workId) => _selectByWork(workId).watch();
+  Stream<List<Character>> watchByWork(int workId) =>
+      _selectByWork(workId).watch();
 
   Future<List<Character>> findByWork(int workId) => _selectByWork(workId).get();
 
   Future<Character?> findById(int id) {
-    return (_db.select(_db.characters)..where((t) => t.id.equals(id)))
-        .getSingleOrNull();
+    return (_db.select(
+      _db.characters,
+    )..where((t) => t.id.equals(id))).getSingleOrNull();
   }
 
   Future<int> insert(CharactersCompanion row) {
@@ -28,7 +30,9 @@ class CharacterDao {
   }
 
   Future<void> updateCharacter(int id, CharactersCompanion patch) {
-    return (_db.update(_db.characters)..where((t) => t.id.equals(id))).write(patch);
+    return (_db.update(
+      _db.characters,
+    )..where((t) => t.id.equals(id))).write(patch);
   }
 
   Future<void> deleteById(int id) {

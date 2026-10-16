@@ -30,8 +30,7 @@ void main() {
 
   group('parseTagInput', () {
     test('支持空格、逗号、顿号分隔', () {
-      expect(parseTagInput('冷静，腹黑、多疑 隐忍'),
-          <String>['冷静', '腹黑', '多疑', '隐忍']);
+      expect(parseTagInput('冷静，腹黑、多疑 隐忍'), <String>['冷静', '腹黑', '多疑', '隐忍']);
     });
 
     test('超过上限时截断', () {

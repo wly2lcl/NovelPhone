@@ -10,45 +10,55 @@ class ChapterDao {
 
   /// 作品全部章节，按卷排序号 + 章节排序号排列。
   Stream<List<Chapter>> watchByWork(int workId) {
-    final query = _db.select(_db.chapters).join([
-      innerJoin(_db.volumes, _db.volumes.id.equalsExp(_db.chapters.volumeId)),
-    ])
-      ..where(_db.volumes.workId.equals(workId))
-      ..orderBy([
-        OrderingTerm.asc(_db.volumes.sortOrder),
-        OrderingTerm.asc(_db.chapters.sortOrder),
-      ]);
-    return query
-        .watch()
-        .map((rows) => rows.map((r) => r.readTable(_db.chapters)).toList());
+    final query =
+        _db.select(_db.chapters).join([
+            innerJoin(
+              _db.volumes,
+              _db.volumes.id.equalsExp(_db.chapters.volumeId),
+            ),
+          ])
+          ..where(_db.volumes.workId.equals(workId))
+          ..orderBy([
+            OrderingTerm.asc(_db.volumes.sortOrder),
+            OrderingTerm.asc(_db.chapters.sortOrder),
+          ]);
+    return query.watch().map(
+      (rows) => rows.map((r) => r.readTable(_db.chapters)).toList(),
+    );
   }
 
   /// 作品全部章节的元数据流（ENH-10，不含正文）：目录 / 大纲 / 检查范围只需
   /// 标题与字数，避免每次自动保存写 chapters 表都重发并重读全书正文。
   Stream<List<Chapter>> watchMetaByWork(int workId) {
-    final query = _db.selectOnly(_db.chapters).join([
-      innerJoin(_db.volumes, _db.volumes.id.equalsExp(_db.chapters.volumeId)),
-    ])
-      ..addColumns(<Expression<Object>>[
-        _db.chapters.id,
-        _db.chapters.volumeId,
-        _db.chapters.title,
-        _db.chapters.wordCount,
-        _db.chapters.status,
-        _db.chapters.sortOrder,
-        _db.chapters.cursorOffset,
-        _db.chapters.scrollOffset,
-        _db.chapters.updatedAt,
-        _db.chapters.summary,
-        _db.chapters.summaryUpdatedAt,
-      ])
-      ..where(_db.volumes.workId.equals(workId))
-      ..orderBy([
-        OrderingTerm.asc(_db.volumes.sortOrder),
-        OrderingTerm.asc(_db.chapters.sortOrder),
-      ]);
-    return query.watch().map((rows) => rows
-        .map((row) => Chapter(
+    final query =
+        _db.selectOnly(_db.chapters).join([
+            innerJoin(
+              _db.volumes,
+              _db.volumes.id.equalsExp(_db.chapters.volumeId),
+            ),
+          ])
+          ..addColumns(<Expression<Object>>[
+            _db.chapters.id,
+            _db.chapters.volumeId,
+            _db.chapters.title,
+            _db.chapters.wordCount,
+            _db.chapters.status,
+            _db.chapters.sortOrder,
+            _db.chapters.cursorOffset,
+            _db.chapters.scrollOffset,
+            _db.chapters.updatedAt,
+            _db.chapters.summary,
+            _db.chapters.summaryUpdatedAt,
+          ])
+          ..where(_db.volumes.workId.equals(workId))
+          ..orderBy([
+            OrderingTerm.asc(_db.volumes.sortOrder),
+            OrderingTerm.asc(_db.chapters.sortOrder),
+          ]);
+    return query.watch().map(
+      (rows) => rows
+          .map(
+            (row) => Chapter(
               id: row.read(_db.chapters.id)!,
               volumeId: row.read(_db.chapters.volumeId)!,
               title: row.read(_db.chapters.title)!,
@@ -61,8 +71,10 @@ class ChapterDao {
               updatedAt: row.read(_db.chapters.updatedAt)!,
               summary: row.read(_db.chapters.summary)!,
               summaryUpdatedAt: row.read(_db.chapters.summaryUpdatedAt),
-            ))
-        .toList());
+            ),
+          )
+          .toList(),
+    );
   }
 
   /// 卷内章节的轻量元数据（ENH-10，不含正文）：删除卷 / 章节排序只需 id 与 sortOrder。
@@ -76,15 +88,19 @@ class ChapterDao {
       ..orderBy(<OrderingTerm>[OrderingTerm.asc(_db.chapters.sortOrder)]);
     final rows = await query.get();
     return rows
-        .map((row) => (
-              id: row.read(_db.chapters.id)!,
-              sortOrder: row.read(_db.chapters.sortOrder)!,
-            ))
+        .map(
+          (row) => (
+            id: row.read(_db.chapters.id)!,
+            sortOrder: row.read(_db.chapters.sortOrder)!,
+          ),
+        )
         .toList();
   }
 
   Future<Chapter?> findById(int id) {
-    return (_db.select(_db.chapters)..where((t) => t.id.equals(id))).getSingleOrNull();
+    return (_db.select(
+      _db.chapters,
+    )..where((t) => t.id.equals(id))).getSingleOrNull();
   }
 
   /// 章节的字数与所属作品（ENH-14，不含正文）：自动保存只需旧字数与作品 id
@@ -92,18 +108,24 @@ class ChapterDao {
   Future<({int wordCount, int workId})?> findLightById(int id) async {
     final wordCount = _db.chapters.wordCount;
     final workId = _db.volumes.workId;
-    final query = _db.selectOnly(_db.chapters).join([
-      innerJoin(_db.volumes, _db.volumes.id.equalsExp(_db.chapters.volumeId)),
-    ])
-      ..addColumns(<Expression<Object>>[wordCount, workId])
-      ..where(_db.chapters.id.equals(id));
+    final query =
+        _db.selectOnly(_db.chapters).join([
+            innerJoin(
+              _db.volumes,
+              _db.volumes.id.equalsExp(_db.chapters.volumeId),
+            ),
+          ])
+          ..addColumns(<Expression<Object>>[wordCount, workId])
+          ..where(_db.chapters.id.equals(id));
     final row = await query.getSingleOrNull();
     if (row == null) return null;
     return (wordCount: row.read(wordCount) ?? 0, workId: row.read(workId) ?? 0);
   }
 
   Stream<Chapter?> watchById(int id) {
-    return (_db.select(_db.chapters)..where((t) => t.id.equals(id))).watchSingleOrNull();
+    return (_db.select(
+      _db.chapters,
+    )..where((t) => t.id.equals(id))).watchSingleOrNull();
   }
 
   /// 卷内下一个排序号。
@@ -120,13 +142,20 @@ class ChapterDao {
   Future<({int words, int chapters})> aggregateByWork(int workId) async {
     final wordSum = _db.chapters.wordCount.sum();
     final chapterCount = _db.chapters.id.count();
-    final query = _db.selectOnly(_db.chapters).join([
-      innerJoin(_db.volumes, _db.volumes.id.equalsExp(_db.chapters.volumeId)),
-    ])
-      ..addColumns([wordSum, chapterCount])
-      ..where(_db.volumes.workId.equals(workId));
+    final query =
+        _db.selectOnly(_db.chapters).join([
+            innerJoin(
+              _db.volumes,
+              _db.volumes.id.equalsExp(_db.chapters.volumeId),
+            ),
+          ])
+          ..addColumns([wordSum, chapterCount])
+          ..where(_db.volumes.workId.equals(workId));
     final row = await query.getSingle();
-    return (words: row.read(wordSum) ?? 0, chapters: row.read(chapterCount) ?? 0);
+    return (
+      words: row.read(wordSum) ?? 0,
+      chapters: row.read(chapterCount) ?? 0,
+    );
   }
 
   Future<int> insert(ChaptersCompanion row) {
@@ -134,7 +163,9 @@ class ChapterDao {
   }
 
   Future<void> updateChapter(int id, ChaptersCompanion patch) {
-    return (_db.update(_db.chapters)..where((t) => t.id.equals(id))).write(patch);
+    return (_db.update(
+      _db.chapters,
+    )..where((t) => t.id.equals(id))).write(patch);
   }
 
   Future<void> deleteById(int id) {
@@ -142,6 +173,8 @@ class ChapterDao {
   }
 
   Future<void> deleteByVolume(int volumeId) {
-    return (_db.delete(_db.chapters)..where((t) => t.volumeId.equals(volumeId))).go();
+    return (_db.delete(
+      _db.chapters,
+    )..where((t) => t.volumeId.equals(volumeId))).go();
   }
 }

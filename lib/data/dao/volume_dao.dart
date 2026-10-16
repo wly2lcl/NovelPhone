@@ -19,7 +19,9 @@ class VolumeDao {
   Future<List<Volume>> findByWork(int workId) => _selectByWork(workId).get();
 
   Future<Volume?> findById(int id) {
-    return (_db.select(_db.volumes)..where((t) => t.id.equals(id))).getSingleOrNull();
+    return (_db.select(
+      _db.volumes,
+    )..where((t) => t.id.equals(id))).getSingleOrNull();
   }
 
   Future<Volume?> findFirst(int workId) {
@@ -33,7 +35,9 @@ class VolumeDao {
   }
 
   Future<void> updateVolume(int id, VolumesCompanion patch) {
-    return (_db.update(_db.volumes)..where((t) => t.id.equals(id))).write(patch);
+    return (_db.update(
+      _db.volumes,
+    )..where((t) => t.id.equals(id))).write(patch);
   }
 
   Future<void> deleteById(int id) {

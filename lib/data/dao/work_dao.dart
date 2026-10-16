@@ -9,11 +9,10 @@ class WorkDao {
   final AppDatabase _db;
 
   SimpleSelectStatement<$WorksTable, Work> _selectAll() {
-    return _db.select(_db.works)
-      ..orderBy([
-        (t) => OrderingTerm(expression: t.pinned, mode: OrderingMode.desc),
-        (t) => OrderingTerm(expression: t.lastEditedAt, mode: OrderingMode.desc),
-      ]);
+    return _db.select(_db.works)..orderBy([
+      (t) => OrderingTerm(expression: t.pinned, mode: OrderingMode.desc),
+      (t) => OrderingTerm(expression: t.lastEditedAt, mode: OrderingMode.desc),
+    ]);
   }
 
   Stream<List<Work>> watchAll() => _selectAll().watch();
@@ -21,11 +20,15 @@ class WorkDao {
   Future<List<Work>> findAll() => _selectAll().get();
 
   Future<Work?> findById(int id) {
-    return (_db.select(_db.works)..where((t) => t.id.equals(id))).getSingleOrNull();
+    return (_db.select(
+      _db.works,
+    )..where((t) => t.id.equals(id))).getSingleOrNull();
   }
 
   Stream<Work?> watchById(int id) {
-    return (_db.select(_db.works)..where((t) => t.id.equals(id))).watchSingleOrNull();
+    return (_db.select(
+      _db.works,
+    )..where((t) => t.id.equals(id))).watchSingleOrNull();
   }
 
   Future<int> insert(WorksCompanion row) {
@@ -41,7 +44,9 @@ class WorkDao {
   }
 
   Future<int> count() async {
-    final row = await _db.customSelect('SELECT COUNT(*) AS c FROM works').getSingle();
+    final row = await _db
+        .customSelect('SELECT COUNT(*) AS c FROM works')
+        .getSingle();
     return row.read<int>('c');
   }
 }

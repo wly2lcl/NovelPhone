@@ -34,17 +34,18 @@ class CloudBackupService {
     required String secretAccessKey,
     CloudStorageClient? client,
     DateTime Function()? clock,
-  })  : _repository = backupRepository,
-        _config = config,
-        _clock = clock ?? DateTime.now,
-        _client = client ??
-            S3CompatibleClient(
-              config: config,
-              accessKeyId: accessKeyId,
-              secretAccessKey: secretAccessKey,
-              clock: clock,
-            ),
-        _ownsClient = client == null;
+  }) : _repository = backupRepository,
+       _config = config,
+       _clock = clock ?? DateTime.now,
+       _client =
+           client ??
+           S3CompatibleClient(
+             config: config,
+             accessKeyId: accessKeyId,
+             secretAccessKey: secretAccessKey,
+             clock: clock,
+           ),
+       _ownsClient = client == null;
 
   final BackupRepository _repository;
   final CloudBackupConfig _config;
@@ -65,10 +66,11 @@ class CloudBackupService {
   Future<List<CloudObject>> listBackups() async {
     final prefix = _config.normalizedPrefix;
     final objects = await _client.listObjects(prefix);
-    final backups = objects
-        .where((o) => o.key.startsWith(prefix) && o.key.endsWith('.zip'))
-        .toList()
-      ..sort((a, b) => b.key.compareTo(a.key));
+    final backups =
+        objects
+            .where((o) => o.key.startsWith(prefix) && o.key.endsWith('.zip'))
+            .toList()
+          ..sort((a, b) => b.key.compareTo(a.key));
     return backups;
   }
 

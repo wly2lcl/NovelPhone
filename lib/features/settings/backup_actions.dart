@@ -58,11 +58,13 @@ Future<void> restoreBackup(BuildContext context, WidgetRef ref) async {
     final report = await ref
         .read(backupRepositoryProvider)
         .restore(data, overwrite: overwrite);
-    messenger.showSnackBar(SnackBar(
-      content: Text(
-        '恢复完成：${report.works} 部作品、${report.chapters} 章、${report.characters} 个角色卡',
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          '恢复完成：${report.works} 部作品、${report.chapters} 章、${report.characters} 个角色卡',
+        ),
       ),
-    ));
+    );
   } catch (e) {
     messenger.showSnackBar(SnackBar(content: Text('恢复失败：$e')));
   }

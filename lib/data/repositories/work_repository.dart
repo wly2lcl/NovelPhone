@@ -7,9 +7,7 @@ import '../db.dart';
 
 /// 作品读写：领域操作的唯一入口（ARCHITECTURE 6.1）。
 class WorkRepository {
-  WorkRepository(this._db)
-      : _works = WorkDao(_db),
-        _volumes = VolumeDao(_db);
+  WorkRepository(this._db) : _works = WorkDao(_db), _volumes = VolumeDao(_db);
 
   final AppDatabase _db;
   final WorkDao _works;
@@ -35,17 +33,21 @@ class WorkRepository {
   Future<int> createWork({required String title, int? coverColor}) {
     return _db.transaction(() async {
       final now = DateTime.now();
-      final workId = await _works.insert(WorksCompanion.insert(
-        title: title,
-        coverColor: coverColor ?? WorkCoverColors.random(),
-        lastEditedAt: now,
-        createdAt: now,
-      ));
-      await _volumes.insert(VolumesCompanion.insert(
-        workId: workId,
-        name: defaultVolumeName,
-        sortOrder: 0,
-      ));
+      final workId = await _works.insert(
+        WorksCompanion.insert(
+          title: title,
+          coverColor: coverColor ?? WorkCoverColors.random(),
+          lastEditedAt: now,
+          createdAt: now,
+        ),
+      );
+      await _volumes.insert(
+        VolumesCompanion.insert(
+          workId: workId,
+          name: defaultVolumeName,
+          sortOrder: 0,
+        ),
+      );
       return workId;
     });
   }
@@ -61,13 +63,23 @@ class WorkRepository {
   /// 删除作品：单事务删除其全部关联行（PRD 5.1，不可恢复）。
   Future<void> deleteWork(int id) {
     return _db.transaction(() async {
-      final volumeIds = (await _volumes.findByWork(id)).map((v) => v.id).toList();
+      final volumeIds = (await _volumes.findByWork(
+        id,
+      )).map((v) => v.id).toList();
       if (volumeIds.isNotEmpty) {
-        await (_db.delete(_db.chapters)..where((t) => t.volumeId.isIn(volumeIds))).go();
+        await (_db.delete(
+          _db.chapters,
+        )..where((t) => t.volumeId.isIn(volumeIds))).go();
       }
-      await (_db.delete(_db.outlineEntries)..where((t) => t.workId.equals(id))).go();
-      await (_db.delete(_db.characters)..where((t) => t.workId.equals(id))).go();
-      await (_db.delete(_db.inspirations)..where((t) => t.workId.equals(id))).go();
+      await (_db.delete(
+        _db.outlineEntries,
+      )..where((t) => t.workId.equals(id))).go();
+      await (_db.delete(
+        _db.characters,
+      )..where((t) => t.workId.equals(id))).go();
+      await (_db.delete(
+        _db.inspirations,
+      )..where((t) => t.workId.equals(id))).go();
       await (_db.delete(_db.volumes)..where((t) => t.workId.equals(id))).go();
       await _works.deleteById(id);
     });

@@ -11,8 +11,10 @@ import 'package:novelphone/features/work_detail/import_page.dart';
 /// 用例直接调用生产入口 `parseImportFileAsync`，避免测试与真实接线各写一份。
 void main() {
   test('txt 解析经 isolate 执行，与同步分章一致（ENH-12）', () async {
-    final text =
-        List.generate(40, (i) => '第${i + 1}章 标题$i\n${'雨' * 200}').join('\n');
+    final text = List.generate(
+      40,
+      (i) => '第${i + 1}章 标题$i\n${'雨' * 200}',
+    ).join('\n');
     final bytes = Uint8List.fromList(utf8.encode(text));
 
     final parsed = await parseImportFileAsync('novel.txt', bytes);

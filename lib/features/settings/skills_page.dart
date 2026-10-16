@@ -35,7 +35,9 @@ class _SkillsPageState extends ConsumerState<SkillsPage> {
   }
 
   Future<void> _toggle(Skill skill, bool enabled) async {
-    await ref.read(settingsRepositoryProvider).setSkillEnabled(skill.id, enabled);
+    await ref
+        .read(settingsRepositoryProvider)
+        .setSkillEnabled(skill.id, enabled);
     await _load();
   }
 
@@ -75,51 +77,51 @@ class _SkillsPageState extends ConsumerState<SkillsPage> {
       body: skills == null
           ? const Center(child: CircularProgressIndicator())
           : skills.isEmpty
-              ? const _EmptyHint()
-              : ListView.separated(
-                  itemCount: skills.length,
-                  separatorBuilder: (_, _) => const Divider(height: 1),
-                  itemBuilder: (context, index) {
-                    final skill = skills[index];
-                    return ListTile(
-                      leading: Icon(
-                        skill.enabled
-                            ? Icons.auto_awesome
-                            : Icons.auto_awesome_outlined,
-                        color: skill.enabled
-                            ? context.paper.accent
-                            : context.paper.inkSoft,
+          ? const _EmptyHint()
+          : ListView.separated(
+              itemCount: skills.length,
+              separatorBuilder: (_, _) => const Divider(height: 1),
+              itemBuilder: (context, index) {
+                final skill = skills[index];
+                return ListTile(
+                  leading: Icon(
+                    skill.enabled
+                        ? Icons.auto_awesome
+                        : Icons.auto_awesome_outlined,
+                    color: skill.enabled
+                        ? context.paper.accent
+                        : context.paper.inkSoft,
+                  ),
+                  title: Text(skill.name),
+                  subtitle: Text(
+                    '${skill.instruction.trim()}\n'
+                    '${skill.allowedTools.isEmpty ? '工具：不限制' : '工具白名单：${skill.allowedTools.join('、')}'}',
+                    maxLines: 3,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: context.paper.inkSoft,
+                    ),
+                  ),
+                  isThreeLine: true,
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Switch(
+                        value: skill.enabled,
+                        activeTrackColor: context.paper.accent,
+                        onChanged: (value) => _toggle(skill, value),
                       ),
-                      title: Text(skill.name),
-                      subtitle: Text(
-                        '${skill.instruction.trim()}\n'
-                        '${skill.allowedTools.isEmpty ? '工具：不限制' : '工具白名单：${skill.allowedTools.join('、')}'}',
-                        maxLines: 3,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: context.paper.inkSoft,
-                        ),
-                      ),
-                      isThreeLine: true,
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          Switch(
-                            value: skill.enabled,
-                            activeTrackColor: context.paper.accent,
-                            onChanged: (value) => _toggle(skill, value),
-                          ),
-                          PopupMenuButton<String>(
-                            onSelected: (value) async {
-                              switch (value) {
-                                case 'edit':
-                                  await _openEdit(skill.id);
-                                case 'delete':
-                                  await _confirmDelete(skill);
-                              }
-                            },
-                            itemBuilder: (context) =>
-                                const <PopupMenuEntry<String>>[
+                      PopupMenuButton<String>(
+                        onSelected: (value) async {
+                          switch (value) {
+                            case 'edit':
+                              await _openEdit(skill.id);
+                            case 'delete':
+                              await _confirmDelete(skill);
+                          }
+                        },
+                        itemBuilder: (context) =>
+                            const <PopupMenuEntry<String>>[
                               PopupMenuItem<String>(
                                 value: 'edit',
                                 child: Text('编辑'),
@@ -129,13 +131,13 @@ class _SkillsPageState extends ConsumerState<SkillsPage> {
                                 child: Text('删除'),
                               ),
                             ],
-                          ),
-                        ],
                       ),
-                      onTap: () => _openEdit(skill.id),
-                    );
-                  },
-                ),
+                    ],
+                  ),
+                  onTap: () => _openEdit(skill.id),
+                );
+              },
+            ),
     );
   }
 }
@@ -279,19 +281,21 @@ class _SkillEditPageState extends ConsumerState<SkillEditPage> {
         parameters: parameters,
       );
     } else {
-      await repo.updateSkill(Skill(
-        id: widget.skillId!,
-        name: name,
-        instruction: instruction,
-        enabled: _enabled,
-        allowedTools: tools,
-        parameters: parameters,
-      ));
+      await repo.updateSkill(
+        Skill(
+          id: widget.skillId!,
+          name: name,
+          instruction: instruction,
+          enabled: _enabled,
+          allowedTools: tools,
+          parameters: parameters,
+        ),
+      );
     }
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('已保存')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('已保存')));
     Navigator.of(context).pop();
   }
 
@@ -357,7 +361,8 @@ class _SkillEditPageState extends ConsumerState<SkillEditPage> {
                     decoration: const InputDecoration(
                       labelText: '工具白名单（可选）',
                       hintText: '每行一个工具名，例如 get_chapter',
-                      helperText: '留空表示不限制；内置工具 get_chapter / get_characters / '
+                      helperText:
+                          '留空表示不限制；内置工具 get_chapter / get_characters / '
                           'get_outline，MCP 工具以 mcp_ 开头',
                     ),
                   ),

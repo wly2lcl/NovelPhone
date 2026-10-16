@@ -47,14 +47,14 @@ void main() {
   const chapterText = '她不禁笑了。';
 
   AiService serviceWith(http.Client client) => AiService(
-        settings: settings,
-        works: works,
-        chapters: chapters,
-        characters: CharacterRepository(db),
-        outline: OutlineRepository(db),
-        stats: stats,
-        httpClient: client,
-      );
+    settings: settings,
+    works: works,
+    chapters: chapters,
+    characters: CharacterRepository(db),
+    outline: OutlineRepository(db),
+    stats: stats,
+    httpClient: client,
+  );
 
   http.Response sseResponse(String content) {
     final payload = jsonEncode(<String, dynamic>{
@@ -123,10 +123,7 @@ void main() {
     expect(events, hasLength(1));
     final rule = events.single as CheckRuleResult;
     expect(rule.scope.segments.single.chapterId, chapterId);
-    expect(
-      rule.result.issues.any((i) => i.excerpt == '不禁'),
-      isTrue,
-    );
+    expect(rule.result.issues.any((i) => i.excerpt == '不禁'), isTrue);
   });
 
   test('规则层经 isolate 执行，结果与同步调用一致（ENH-11）', () async {
@@ -157,8 +154,9 @@ void main() {
       httpClient: MockClient((req) async => throw StateError('不应发起网络请求')),
     );
 
-    final single =
-        await service.checkFlavor(workId: workId, chapterId: chapterId).toList();
+    final single = await service
+        .checkFlavor(workId: workId, chapterId: chapterId)
+        .toList();
     final rule = single.single as CheckRuleResult;
     expect(rule.scope.segments.single.chapterId, chapterId);
     // 单章检查不应整部读作品正文，只按 id 取该章。
@@ -171,9 +169,9 @@ void main() {
   });
 
   test('未配置检查模型时给出引导事件且保留规则结果', () async {
-    final events = await serviceWith(MockClient((req) async => sseResponse('')))
-        .checkFlavor(workId: workId, chapterId: chapterId, deep: true)
-        .toList();
+    final events = await serviceWith(
+      MockClient((req) async => sseResponse('')),
+    ).checkFlavor(workId: workId, chapterId: chapterId, deep: true).toList();
 
     expect(events.first, isA<CheckRuleResult>());
     expect(events.last, isA<CheckNeedsConfig>());
@@ -181,11 +179,12 @@ void main() {
 
   test('深检成功：解析 JSON、回写 token 统计', () async {
     await configureCheckModel();
-    final response = '{"issues":[{"type":"套话","severity":"高","quote":"不禁",'
+    final response =
+        '{"issues":[{"type":"套话","severity":"高","quote":"不禁",'
         '"suggestion":"删除该词"}]}';
-    final events = await serviceWith(MockClient((req) async => sseResponse(response)))
-        .checkFlavor(workId: workId, chapterId: chapterId, deep: true)
-        .toList();
+    final events = await serviceWith(
+      MockClient((req) async => sseResponse(response)),
+    ).checkFlavor(workId: workId, chapterId: chapterId, deep: true).toList();
 
     expect(events.first, isA<CheckRuleResult>());
     expect(events.whereType<CheckDeepStarted>().single.segments, 1);
@@ -221,7 +220,10 @@ void main() {
   test('LLM 检测失败时保留规则结果并提示', () async {
     await configureCheckModel();
     final events = await serviceWith(
-      MockClient((req) async => http.Response('{"error":{"message":"invalid key"}}', 401)),
+      MockClient(
+        (req) async =>
+            http.Response('{"error":{"message":"invalid key"}}', 401),
+      ),
     ).checkFlavor(workId: workId, chapterId: chapterId, deep: true).toList();
 
     expect(events.first, isA<CheckRuleResult>());
@@ -233,7 +235,9 @@ void main() {
   test('弱网中断时映射为网络错误并保留规则结果（M4-14）', () async {
     await configureCheckModel();
     final events = await serviceWith(
-      MockClient((req) async => throw http.ClientException('connection aborted')),
+      MockClient(
+        (req) async => throw http.ClientException('connection aborted'),
+      ),
     ).checkFlavor(workId: workId, chapterId: chapterId, deep: true).toList();
 
     expect(events.first, isA<CheckRuleResult>());
@@ -244,11 +248,15 @@ void main() {
 
   test('整作检查拼接全部章节', () async {
     final second = await chapters.createChapter(workId: workId, title: '第二章');
-    await chapters.saveChapter(chapterId: second, title: '第二章', content: '他缓缓开口。');
+    await chapters.saveChapter(
+      chapterId: second,
+      title: '第二章',
+      content: '他缓缓开口。',
+    );
 
-    final events = await serviceWith(MockClient((req) async => throw StateError('不应联网')))
-        .checkFlavor(workId: workId)
-        .toList();
+    final events = await serviceWith(
+      MockClient((req) async => throw StateError('不应联网')),
+    ).checkFlavor(workId: workId).toList();
 
     final rule = events.single as CheckRuleResult;
     expect(rule.scope.segments, hasLength(2));
@@ -278,15 +286,12 @@ void main() {
 
     test('流式生成：上下文先行、文本增量、结束携带 usage 并落统计', () async {
       await configureContinueModel();
-      final events = await serviceWith(MockClient((req) async => sseResponse('她点头。')))
-          .continueWriting(workId: workId, chapterId: chapterId)
-          .toList();
+      final events = await serviceWith(
+        MockClient((req) async => sseResponse('她点头。')),
+      ).continueWriting(workId: workId, chapterId: chapterId).toList();
 
       expect(events.first, isA<AiContextBuilt>());
-      expect(
-        events.whereType<AiTextChunk>().map((e) => e.text).join(),
-        '她点头。',
-      );
+      expect(events.whereType<AiTextChunk>().map((e) => e.text).join(), '她点头。');
       final finished = events.whereType<AiFinished>().single;
       expect(finished.text, '她点头。');
       expect(events.whereType<AiFailed>(), isEmpty);
@@ -299,13 +304,15 @@ void main() {
 
     test('生成中断时保留已生成内容并给出网络错误（M3-22）', () async {
       await configureContinueModel();
-      final events = await serviceWith(MockClient.streaming(
-        (request, bodyStream) async => http.StreamedResponse(
-          http.ByteStream(interruptedStream()),
-          200,
-          headers: <String, String>{'content-type': 'text/event-stream'},
+      final events = await serviceWith(
+        MockClient.streaming(
+          (request, bodyStream) async => http.StreamedResponse(
+            http.ByteStream(interruptedStream()),
+            200,
+            headers: <String, String>{'content-type': 'text/event-stream'},
+          ),
         ),
-      )).continueWriting(workId: workId, chapterId: chapterId).toList();
+      ).continueWriting(workId: workId, chapterId: chapterId).toList();
 
       // 已生成的部分保留在面板中（AiFinished 先于 AiFailed），可手动保存 / 重试。
       final finished = events.whereType<AiFinished>().single;
@@ -327,7 +334,11 @@ void main() {
       );
 
       final events = await service
-          .rewrite(workId: workId, chapterId: chapterId, selectedText: chapterText)
+          .rewrite(
+            workId: workId,
+            chapterId: chapterId,
+            selectedText: chapterText,
+          )
           .toList();
 
       expect(events.single, isA<AiNeedsConfig>());
@@ -336,8 +347,9 @@ void main() {
 
     test('未单独配置改写模型时回退续写模型组并流式生成、落 rewrite 统计', () async {
       await configureContinueModel();
-      final service =
-          serviceWith(MockClient((req) async => sseResponse('她轻轻笑了。')));
+      final service = serviceWith(
+        MockClient((req) async => sseResponse('她轻轻笑了。')),
+      );
 
       // 零配置回退：改写任务未配置，但续写组可用。
       expect(await service.isReady(AiTask.rewrite), isTrue);
@@ -352,8 +364,10 @@ void main() {
           .toList();
 
       final built = events.whereType<AiContextBuilt>().single;
-      expect(built.context.messages.single.content,
-          contains('【待改写原文】\n$chapterText'));
+      expect(
+        built.context.messages.single.content,
+        contains('【待改写原文】\n$chapterText'),
+      );
       expect(events.whereType<AiFinished>().single.text, '她轻轻笑了。');
       expect(events.whereType<AiFailed>(), isEmpty);
 
@@ -384,9 +398,9 @@ void main() {
 
     test('摘要回退续写模型组、上下文含本章正文、落 summary 统计', () async {
       await configureContinueModel();
-      final events = await serviceWith(MockClient((req) async => sseResponse('沈砚离乡。')))
-          .summarizeChapter(workId: workId, chapterId: chapterId)
-          .toList();
+      final events = await serviceWith(
+        MockClient((req) async => sseResponse('沈砚离乡。')),
+      ).summarizeChapter(workId: workId, chapterId: chapterId).toList();
 
       final built = events.whereType<AiContextBuilt>().single;
       expect(built.context.messages.single.content, contains(chapterText));
@@ -398,9 +412,10 @@ void main() {
 
     test('章纲扩写回退续写模型组、种子进入上下文、落 outline 统计', () async {
       await configureContinueModel();
-      final events = await serviceWith(
-        MockClient((req) async => sseResponse('分场一：雨夜相遇。')),
-      ).expandOutline(workId: workId, chapterId: chapterId, seed: '雨中摊牌').toList();
+      final events =
+          await serviceWith(MockClient((req) async => sseResponse('分场一：雨夜相遇。')))
+              .expandOutline(workId: workId, chapterId: chapterId, seed: '雨中摊牌')
+              .toList();
 
       final built = events.whereType<AiContextBuilt>().single;
       expect(built.context.messages.single.content, contains('雨中摊牌'));
@@ -413,11 +428,13 @@ void main() {
     test('多候选按 variant 调整温度（版本越靠后越高）', () async {
       await configureContinueModel();
       final temperatures = <double>[];
-      final service = serviceWith(MockClient((req) async {
-        final body = jsonDecode(req.body) as Map<String, dynamic>;
-        temperatures.add((body['temperature'] as num).toDouble());
-        return sseResponse('她点头。');
-      }));
+      final service = serviceWith(
+        MockClient((req) async {
+          final body = jsonDecode(req.body) as Map<String, dynamic>;
+          temperatures.add((body['temperature'] as num).toDouble());
+          return sseResponse('她点头。');
+        }),
+      );
 
       await service
           .continueWriting(workId: workId, chapterId: chapterId, variant: 0)
@@ -450,10 +467,15 @@ void main() {
       // 为第一章写入 AI 摘要：卷回顾素材应直接采用缓存内容。
       await chapters.saveChapterSummary(chapterId, '第一章摘要：她笑了。');
       final second = await chapters.createChapter(workId: workId, title: '第二章');
-      await chapters.saveChapter(chapterId: second, title: '第二章', content: '他缓缓开口。');
+      await chapters.saveChapter(
+        chapterId: second,
+        title: '第二章',
+        content: '他缓缓开口。',
+      );
 
-      final service =
-          serviceWith(MockClient((req) async => sseResponse('本卷：她笑了。')));
+      final service = serviceWith(
+        MockClient((req) async => sseResponse('本卷：她笑了。')),
+      );
       // 零配置回退：卷回顾任务未配置，但续写组可用。
       expect(await service.isReady(AiTask.volumeSummary), isTrue);
 

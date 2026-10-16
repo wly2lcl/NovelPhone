@@ -43,13 +43,14 @@ class _ImportPageState extends ConsumerState<ImportPage> {
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
         children: <Widget>[
           if (_error != null) _ErrorBanner(message: _error!),
-          if (_drafts.isEmpty) const _PickHint() else ...<Widget>[
+          if (_drafts.isEmpty)
+            const _PickHint()
+          else ...<Widget>[
             _FileSummary(
               fileName: _fileName!,
               encoding: _encoding,
               chapterCount: _drafts.length,
-              totalWords:
-                  _drafts.fold<int>(0, (sum, d) => sum + d.wordCount),
+              totalWords: _drafts.fold<int>(0, (sum, d) => sum + d.wordCount),
             ),
             const SizedBox(height: 8),
             for (var i = 0; i < _drafts.length; i++)
@@ -59,8 +60,8 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                 onMerge: i == 0
                     ? null
                     : () => setState(() {
-                          _drafts = mergeWithPrevious(_drafts, i);
-                        }),
+                        _drafts = mergeWithPrevious(_drafts, i);
+                      }),
               ),
           ],
           const SizedBox(height: 24),
@@ -96,8 +97,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
       final fileName = file.name;
       final bytes = await file.readAsBytes();
       if (bytes.length > kMaxImportBytes) {
-        setState(() =>
-            _error = '文件超过 10MB 上限，请先在电脑上拆分后再导入');
+        setState(() => _error = '文件超过 10MB 上限，请先在电脑上拆分后再导入');
         return;
       }
       final parsed = await parseImportFileAsync(fileName, bytes);
@@ -150,12 +150,15 @@ class _ImportPageState extends ConsumerState<ImportPage> {
 
     setState(() => _busy = true);
     final volumeName = p.basenameWithoutExtension(_fileName!);
-    final count = await ref.read(chapterRepositoryProvider).importChapters(
+    final count = await ref
+        .read(chapterRepositoryProvider)
+        .importChapters(
           workId: widget.workId,
           volumeName: volumeName,
           drafts: drafts
-              .map((d) =>
-                  ChapterImportDraft(title: d.title, content: d.content))
+              .map(
+                (d) => ChapterImportDraft(title: d.title, content: d.content),
+              )
               .toList(growable: false),
         );
     // 原始文件留档失败不阻断导入结果。
@@ -215,8 +218,11 @@ class _PickHint extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 32),
       child: Column(
         children: <Widget>[
-          Icon(Icons.upload_file_outlined,
-              size: 64, color: context.paper.inkSoft),
+          Icon(
+            Icons.upload_file_outlined,
+            size: 64,
+            color: context.paper.inkSoft,
+          ),
           const SizedBox(height: 12),
           Text('导入旧稿', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 6),
@@ -251,8 +257,10 @@ class _ErrorBanner extends StatelessWidget {
           const Icon(Icons.error_outline, color: Color(0xFFB3261E), size: 18),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(message,
-                style: const TextStyle(color: Color(0xFFB3261E), fontSize: 13)),
+            child: Text(
+              message,
+              style: const TextStyle(color: Color(0xFFB3261E), fontSize: 13),
+            ),
           ),
         ],
       ),
@@ -277,8 +285,7 @@ class _FileSummary extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: ListTile(
-        leading: Icon(Icons.description_outlined,
-            color: context.paper.accent),
+        leading: Icon(Icons.description_outlined, color: context.paper.accent),
         title: Text(fileName, maxLines: 1, overflow: TextOverflow.ellipsis),
         subtitle: Text(
           '编码 $encoding · $chapterCount 章 · 共 $totalWords 字',
@@ -304,21 +311,22 @@ class _DraftTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       contentPadding: EdgeInsets.zero,
-      leading: Text('${index + 1}',
-          style: TextStyle(color: context.paper.inkSoft)),
+      leading: Text(
+        '${index + 1}',
+        style: TextStyle(color: context.paper.inkSoft),
+      ),
       title: Text(
         draft.title.isEmpty ? '未命名章节' : draft.title,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
-      subtitle: Text('${draft.wordCount} 字',
-          style: TextStyle(color: context.paper.inkSoft, fontSize: 12)),
+      subtitle: Text(
+        '${draft.wordCount} 字',
+        style: TextStyle(color: context.paper.inkSoft, fontSize: 12),
+      ),
       trailing: onMerge == null
           ? null
-          : TextButton(
-              onPressed: onMerge,
-              child: const Text('并入上一章'),
-            ),
+          : TextButton(onPressed: onMerge, child: const Text('并入上一章')),
     );
   }
 }

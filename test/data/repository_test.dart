@@ -48,7 +48,10 @@ void main() {
 
   test('保存章节在同一事务内更新章节字数与作品汇总', () async {
     final workId = await works.createWork(title: '长夜行');
-    final chapterId = await chapters.createChapter(workId: workId, title: '第一章');
+    final chapterId = await chapters.createChapter(
+      workId: workId,
+      title: '第一章',
+    );
 
     await chapters.saveChapter(
       chapterId: chapterId,
@@ -70,17 +73,26 @@ void main() {
 
   test('连续保存正文按差量增量更新作品汇总（ENH-14）', () async {
     final workId = await works.createWork(title: '长夜行');
-    final chapterId = await chapters.createChapter(workId: workId, title: '第一章');
+    final chapterId = await chapters.createChapter(
+      workId: workId,
+      title: '第一章',
+    );
 
     await chapters.saveChapter(
-        chapterId: chapterId, title: '第一章', content: '雨下了一整夜，街道上没有人。');
+      chapterId: chapterId,
+      title: '第一章',
+      content: '雨下了一整夜，街道上没有人。',
+    );
     var work = await works.getWork(workId);
     expect(work!.wordCount, 12);
     expect(work.chapterCount, 1);
 
     // 缩短正文：作品字数按差量回落，章节数保持不变。
     await chapters.saveChapter(
-        chapterId: chapterId, title: '第一章', content: '两人对坐。');
+      chapterId: chapterId,
+      title: '第一章',
+      content: '两人对坐。',
+    );
     work = await works.getWork(workId);
     expect(work!.wordCount, 4);
     expect(work.chapterCount, 1);
@@ -90,24 +102,31 @@ void main() {
     final stats = TokenStatsRepository(db);
 
     final first = await stats.record(
-        task: 'continue',
-        model: 'm1',
-        promptTokens: 10,
-        completionTokens: 20,
-        outputChars: 100);
+      task: 'continue',
+      model: 'm1',
+      promptTokens: 10,
+      completionTokens: 20,
+      outputChars: 100,
+    );
     await stats.record(
-        task: 'continue',
-        model: 'm1',
-        promptTokens: 5,
-        completionTokens: 7,
-        outputChars: 50);
-    final third = await stats.record(task: 'continue', model: 'm1', outputChars: 10);
+      task: 'continue',
+      model: 'm1',
+      promptTokens: 5,
+      completionTokens: 7,
+      outputChars: 50,
+    );
+    final third = await stats.record(
+      task: 'continue',
+      model: 'm1',
+      outputChars: 10,
+    );
     await stats.record(
-        task: 'inspire',
-        model: 'm2',
-        promptTokens: 1,
-        completionTokens: 2,
-        outputChars: 30);
+      task: 'inspire',
+      model: 'm2',
+      promptTokens: 1,
+      completionTokens: 2,
+      outputChars: 30,
+    );
     await stats.markAdopted(first, 60);
     await stats.updateOutcome(third, AiOutcome.ignored);
 
@@ -141,10 +160,17 @@ void main() {
   test('仅保存光标位置不改变正文与字数', () async {
     final workId = await works.createWork(title: '长夜行');
     final chapterId = await chapters.createChapter(workId: workId);
-    await chapters.saveChapter(chapterId: chapterId, title: '', content: '两人对坐。');
+    await chapters.saveChapter(
+      chapterId: chapterId,
+      title: '',
+      content: '两人对坐。',
+    );
 
     await chapters.saveCursorPosition(
-        chapterId: chapterId, cursorOffset: 3, scrollOffset: 40);
+      chapterId: chapterId,
+      cursorOffset: 3,
+      scrollOffset: 40,
+    );
 
     final chapter = await chapters.getChapter(chapterId);
     expect(chapter!.content, '两人对坐。');
@@ -155,9 +181,15 @@ void main() {
 
   test('章节元数据流不含正文且字段完整（ENH-10）', () async {
     final workId = await works.createWork(title: '长夜行');
-    final chapterId = await chapters.createChapter(workId: workId, title: '第一章');
+    final chapterId = await chapters.createChapter(
+      workId: workId,
+      title: '第一章',
+    );
     await chapters.saveChapter(
-        chapterId: chapterId, title: '第一章', content: '雨下了一整夜，街道上没有人。');
+      chapterId: chapterId,
+      title: '第一章',
+      content: '雨下了一整夜，街道上没有人。',
+    );
     await chapters.setChapterStatus(chapterId, ChapterStatus.finished);
 
     final metas = await chapters.watchChapterMetas(workId).first;
@@ -197,7 +229,11 @@ void main() {
     final firstVolume = (await chapters.listVolumes(workId)).single;
     final secondVolumeId = await chapters.createVolume(workId, '第二卷');
     final a = await chapters.createChapter(workId: workId, title: 'A');
-    await chapters.createChapter(workId: workId, volumeId: secondVolumeId, title: 'B');
+    await chapters.createChapter(
+      workId: workId,
+      volumeId: secondVolumeId,
+      title: 'B',
+    );
 
     await chapters.moveChapterToVolume(a, secondVolumeId);
 
@@ -221,9 +257,15 @@ void main() {
 
   test('保存章节 AI 摘要只改摘要字段（ENH-05）', () async {
     final workId = await works.createWork(title: '长夜行');
-    final chapterId = await chapters.createChapter(workId: workId, title: '第一章');
+    final chapterId = await chapters.createChapter(
+      workId: workId,
+      title: '第一章',
+    );
     await chapters.saveChapter(
-        chapterId: chapterId, title: '第一章', content: '第一章正文内容。');
+      chapterId: chapterId,
+      title: '第一章',
+      content: '第一章正文内容。',
+    );
 
     await chapters.saveChapterSummary(chapterId, '沈砚离乡，风起。');
 
@@ -249,7 +291,10 @@ void main() {
 
   test('保存章节摘要记录摘要更新时间（ENH-07 O4）', () async {
     final workId = await works.createWork(title: '长夜行');
-    final chapterId = await chapters.createChapter(workId: workId, title: '第一章');
+    final chapterId = await chapters.createChapter(
+      workId: workId,
+      title: '第一章',
+    );
 
     await chapters.saveChapterSummary(chapterId, '第一章摘要。');
 
@@ -262,19 +307,27 @@ void main() {
     final workId = await works.createWork(title: '长夜行');
     final volumeId = (await chapters.listVolumes(workId)).single.id;
 
-    await chapters.saveVolumeSummary(volumeId, '本卷：沈砚离乡。',
-        coveredChapterId: 3);
+    await chapters.saveVolumeSummary(volumeId, '本卷：沈砚离乡。', coveredChapterId: 3);
 
     expect((await chapters.listVolumes(workId)).single.summaryChapterId, 3);
   });
 
   test('删除章节后作品汇总更新且章纲引用置空', () async {
     final workId = await works.createWork(title: '长夜行');
-    final chapterId = await chapters.createChapter(workId: workId, title: '第一章');
+    final chapterId = await chapters.createChapter(
+      workId: workId,
+      title: '第一章',
+    );
     await chapters.saveChapter(
-        chapterId: chapterId, title: '第一章', content: '第一章正文内容。');
+      chapterId: chapterId,
+      title: '第一章',
+      content: '第一章正文内容。',
+    );
     await outlines.saveChapterSummary(
-        workId: workId, chapterId: chapterId, summary: '主角登场');
+      workId: workId,
+      chapterId: chapterId,
+      summary: '主角登场',
+    );
 
     await chapters.deleteChapter(chapterId);
 
@@ -291,7 +344,11 @@ void main() {
     final workId = await works.createWork(title: '长夜行');
     final volumeId = (await chapters.listVolumes(workId)).single.id;
     final chapterId = await chapters.createChapter(workId: workId);
-    await chapters.saveChapter(chapterId: chapterId, title: '', content: '共八个汉字。');
+    await chapters.saveChapter(
+      chapterId: chapterId,
+      title: '',
+      content: '共八个汉字。',
+    );
 
     await chapters.deleteVolume(volumeId);
 
@@ -306,7 +363,10 @@ void main() {
     final chapterId = await chapters.createChapter(workId: workId);
     await characters.createCharacter(workId: workId, name: '林晚');
     await outlines.saveChapterSummary(
-        workId: workId, chapterId: chapterId, summary: '开场');
+      workId: workId,
+      chapterId: chapterId,
+      summary: '开场',
+    );
 
     await works.deleteWork(workId);
 
@@ -331,7 +391,9 @@ void main() {
 
   test('作品列表响应式流在写入后推送新数据', () async {
     final emissions = <int>[];
-    final subscription = works.watchWorks().listen((rows) => emissions.add(rows.length));
+    final subscription = works.watchWorks().listen(
+      (rows) => emissions.add(rows.length),
+    );
 
     await works.createWork(title: '第一部');
     await works.createWork(title: '第二部');
@@ -346,9 +408,15 @@ void main() {
     final chapterId = await chapters.createChapter(workId: workId);
 
     await outlines.saveChapterSummary(
-        workId: workId, chapterId: chapterId, summary: '初稿梗概');
+      workId: workId,
+      chapterId: chapterId,
+      summary: '初稿梗概',
+    );
     await outlines.saveChapterSummary(
-        workId: workId, chapterId: chapterId, summary: '改后梗概');
+      workId: workId,
+      chapterId: chapterId,
+      summary: '改后梗概',
+    );
 
     final entries = await outlines.listOutline(workId);
     expect(entries, hasLength(1));
@@ -427,10 +495,7 @@ void main() {
           .get();
       final names = rows.map((r) => r.read<String>('name')).toSet();
 
-      expect(
-        names,
-        containsAll(_hotspotIndexNames),
-      );
+      expect(names, containsAll(_hotspotIndexNames));
     });
 
     test('v8 → v10 升级时为既有库补建索引', () async {
@@ -451,11 +516,14 @@ void main() {
 
         // 以 v8 身份重新打开：应触发 onUpgrade(8 → 10) 补建索引。
         final upgraded = AppDatabase(NativeDatabase(file));
-        final names = (await upgraded
-                .customSelect("SELECT name FROM sqlite_master WHERE type = 'index'")
-                .get())
-            .map((r) => r.read<String>('name'))
-            .toSet();
+        final names =
+            (await upgraded
+                    .customSelect(
+                      "SELECT name FROM sqlite_master WHERE type = 'index'",
+                    )
+                    .get())
+                .map((r) => r.read<String>('name'))
+                .toSet();
         await upgraded.close();
 
         expect(names, containsAll(_allIndexNames));

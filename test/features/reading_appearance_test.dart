@@ -24,8 +24,11 @@ void main() {
     });
 
     test('encode / decode 往返', () {
-      const appearance =
-          ReadingAppearance(dark: true, fontSize: 21, lineHeight: 2.2);
+      const appearance = ReadingAppearance(
+        dark: true,
+        fontSize: 21,
+        lineHeight: 2.2,
+      );
       final restored = ReadingAppearance.decode(appearance.encode());
       expect(restored.dark, isTrue);
       expect(restored.fontSize, 21);
@@ -39,9 +42,7 @@ void main() {
       expect(big.fontSize, ReadingAppearance.maxFontSize);
       expect(big.lineHeight, ReadingAppearance.maxLineHeight);
 
-      final small = ReadingAppearance.decode(
-        '{"fontSize":1,"lineHeight":0.1}',
-      );
+      final small = ReadingAppearance.decode('{"fontSize":1,"lineHeight":0.1}');
       expect(small.fontSize, ReadingAppearance.minFontSize);
       expect(small.lineHeight, ReadingAppearance.minLineHeight);
     });
@@ -130,7 +131,8 @@ void main() {
     Future<void> settle(WidgetTester tester, Finder until) async {
       for (var i = 0; i < 40; i++) {
         await tester.runAsync(
-            () => Future<void>.delayed(const Duration(milliseconds: 10)));
+          () => Future<void>.delayed(const Duration(milliseconds: 10)),
+        );
         await tester.pump();
         if (until.evaluate().isNotEmpty) return;
       }
@@ -142,7 +144,9 @@ void main() {
     }
 
     testWidgets('夜间外观下编辑器用夜间配色与自定义字号', (tester) async {
-      await seed(const ReadingAppearance(dark: true, fontSize: 21, lineHeight: 2.2));
+      await seed(
+        const ReadingAppearance(dark: true, fontSize: 21, lineHeight: 2.2),
+      );
       await tester.pumpWidget(
         wrap(EditorPage(workId: workId, chapterId: chapterId)),
       );
@@ -150,7 +154,8 @@ void main() {
       // 等外观 FutureProvider 完成加载
       for (var i = 0; i < 10; i++) {
         await tester.runAsync(
-            () => Future<void>.delayed(const Duration(milliseconds: 10)));
+          () => Future<void>.delayed(const Duration(milliseconds: 10)),
+        );
         await tester.pump();
       }
 
@@ -161,7 +166,10 @@ void main() {
 
       final container = tester.widget<Container>(
         find
-            .ancestor(of: find.byType(TextField), matching: find.byType(Container))
+            .ancestor(
+              of: find.byType(TextField),
+              matching: find.byType(Container),
+            )
             .first,
       );
       expect(container.color, ReadingPalette.night.surface);
@@ -181,7 +189,10 @@ void main() {
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: container,
-          child: MaterialApp(theme: buildPaperTheme(), home: const AppearancePage()),
+          child: MaterialApp(
+            theme: buildPaperTheme(),
+            home: const AppearancePage(),
+          ),
         ),
       );
       await settle(tester, find.text('夜间纸张'));

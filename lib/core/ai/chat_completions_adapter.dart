@@ -36,14 +36,16 @@ class ChatCompletionsAdapter implements AiClient {
       'stream_options': const <String, dynamic>{'include_usage': true},
       if (req.tools.isNotEmpty)
         'tools': req.tools
-            .map((t) => <String, dynamic>{
-                  'type': 'function',
-                  'function': <String, dynamic>{
-                    'name': t.name,
-                    'description': t.description,
-                    'parameters': t.inputSchema,
-                  },
-                })
+            .map(
+              (t) => <String, dynamic>{
+                'type': 'function',
+                'function': <String, dynamic>{
+                  'name': t.name,
+                  'description': t.description,
+                  'parameters': t.inputSchema,
+                },
+              },
+            )
             .toList(),
     };
 
@@ -118,11 +120,13 @@ class ChatCompletionsAdapter implements AiClient {
       yield ChatToolCalls(
         accumulators.values
             .where((a) => a.name.isNotEmpty)
-            .map((a) => ToolCall(
-                  id: a.id,
-                  name: a.name,
-                  arguments: a.arguments.toString(),
-                ))
+            .map(
+              (a) => ToolCall(
+                id: a.id,
+                name: a.name,
+                arguments: a.arguments.toString(),
+              ),
+            )
             .toList(),
       );
     }
@@ -138,26 +142,33 @@ class ChatCompletionsAdapter implements AiClient {
       };
     }
     final toolCalls = message.toolCalls;
-    if (message.role == 'assistant' && toolCalls != null && toolCalls.isNotEmpty) {
+    if (message.role == 'assistant' &&
+        toolCalls != null &&
+        toolCalls.isNotEmpty) {
       return <String, dynamic>{
         'role': 'assistant',
         'content': message.content.isEmpty ? null : message.content,
         'tool_calls': toolCalls
-            .map((c) => <String, dynamic>{
-                  'id': c.id,
-                  'type': 'function',
-                  'function': <String, dynamic>{
-                    'name': c.name,
-                    'arguments': c.arguments,
-                  },
-                })
+            .map(
+              (c) => <String, dynamic>{
+                'id': c.id,
+                'type': 'function',
+                'function': <String, dynamic>{
+                  'name': c.name,
+                  'arguments': c.arguments,
+                },
+              },
+            )
             .toList(),
       };
     }
     return <String, dynamic>{'role': message.role, 'content': message.content};
   }
 
-  void _accumulate(Map<int, _ToolCallAccumulator> map, Map<dynamic, dynamic> tc) {
+  void _accumulate(
+    Map<int, _ToolCallAccumulator> map,
+    Map<dynamic, dynamic> tc,
+  ) {
     final index = _intOf(tc['index']);
     final accumulator = map.putIfAbsent(index, _ToolCallAccumulator.new);
     final id = tc['id'];
@@ -178,7 +189,8 @@ class _ToolCallAccumulator {
   final StringBuffer arguments = StringBuffer();
 }
 
-String _trimSlash(String url) => url.endsWith('/') ? url.substring(0, url.length - 1) : url;
+String _trimSlash(String url) =>
+    url.endsWith('/') ? url.substring(0, url.length - 1) : url;
 
 Map<String, dynamic>? _tryDecode(String data) {
   try {

@@ -16,19 +16,22 @@ void main() {
     final keyStore = InMemoryKeyStore();
     final settings = SettingsRepository(db, keyStore);
 
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        databaseProvider.overrideWithValue(db),
-        secureKeyStoreProvider.overrideWithValue(keyStore),
-      ],
-      child: MaterialApp(
-        theme: buildPaperTheme(),
-        home: const CloudBackupPage(),
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          secureKeyStoreProvider.overrideWithValue(keyStore),
+        ],
+        child: MaterialApp(
+          theme: buildPaperTheme(),
+          home: const CloudBackupPage(),
+        ),
       ),
-    ));
+    );
     for (var i = 0; i < 60; i++) {
       await tester.runAsync(
-          () => Future<void>.delayed(const Duration(milliseconds: 10)));
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
       await tester.pump();
       if (find.text('启用云备份').evaluate().isNotEmpty) break;
     }
@@ -41,7 +44,8 @@ void main() {
     await tester.tap(find.widgetWithText(SwitchListTile, '启用云备份'));
     for (var i = 0; i < 20; i++) {
       await tester.runAsync(
-          () => Future<void>.delayed(const Duration(milliseconds: 10)));
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
       await tester.pump();
       if (find.text('服务商').evaluate().isNotEmpty) break;
     }
@@ -69,19 +73,22 @@ void main() {
     final keyStore = InMemoryKeyStore();
     final settings = SettingsRepository(db, keyStore);
 
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        databaseProvider.overrideWithValue(db),
-        secureKeyStoreProvider.overrideWithValue(keyStore),
-      ],
-      child: MaterialApp(
-        theme: buildPaperTheme(),
-        home: const CloudBackupPage(),
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          secureKeyStoreProvider.overrideWithValue(keyStore),
+        ],
+        child: MaterialApp(
+          theme: buildPaperTheme(),
+          home: const CloudBackupPage(),
+        ),
       ),
-    ));
+    );
     for (var i = 0; i < 60; i++) {
       await tester.runAsync(
-          () => Future<void>.delayed(const Duration(milliseconds: 10)));
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
       await tester.pump();
       if (find.text('启用云备份').evaluate().isNotEmpty) break;
     }
@@ -89,7 +96,8 @@ void main() {
     Future<void> settle() async {
       for (var i = 0; i < 20; i++) {
         await tester.runAsync(
-            () => Future<void>.delayed(const Duration(milliseconds: 10)));
+          () => Future<void>.delayed(const Duration(milliseconds: 10)),
+        );
         await tester.pump();
       }
     }

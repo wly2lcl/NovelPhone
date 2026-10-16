@@ -1,0 +1,252 @@
+// 假 LLM 服务器（ENH-16）：本机回环上模拟 Chat Completions / Messages
+// 三个端点协议的关键行为，用于真机验证 429/5xx 自动重试、内容过滤提示
+// 与 Anthropic 流式解析，无需真实供应商 Key。
+//
+// 用法：
+//   dart run tool/fake_llm_server.dart [port] [chunkDelayMs]   # 默认 8899 / 80ms
+//   adb reverse tcp:8899 tcp:8899
+//   模型组 Base URL 填 http://127.0.0.1:8899/<场景>
+//
+// 场景（路径首段即场景名，其余路径忽略）：
+//   /openai              Chat Completions 正常流（delta 分片 + usage + [DONE]）
+//   /openai-429-first    首次请求 429，之后正常（验证 RetryingAiClient 重试）
+//   /openai-429-always   始终 429
+//   /openai-500          始终 500（验证 5xx 重试后仍透出错误）
+//   /openai-filter       400 + safety 关键字（验证内容过滤错误分类与提示）
+//   /anthropic           Messages 正常流（message_start → 文本增量 → usage）
+//   /anthropic-429       始终 429
+//
+// 观测：GET /stats 返回各场景请求计数（JSON），GET /stats/reset 清零
+// （同时重置 /openai-429-first 的“首次失败”状态），便于重复演示。
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+
+Future<void> main(List<String> args) async {
+  final port = args.isNotEmpty ? int.parse(args.first) : 8899;
+  final delayMs = args.length > 1 ? int.parse(args[1]) : 80;
+  final server = FakeLlmServer(chunkDelay: Duration(milliseconds: delayMs));
+  await server.start(port);
+  stdout.writeln('fake-llm 已启动：http://127.0.0.1:$port （分片间隔 ${delayMs}ms）');
+  stdout.writeln(
+    '场景基址：http://127.0.0.1:$port/openai、/openai-429-first、'
+    '/openai-429-always、/openai-500、/openai-filter、/anthropic、/anthropic-429',
+  );
+  stdout.writeln('观测：GET /stats、GET /stats/reset');
+}
+
+class FakeLlmServer {
+  FakeLlmServer({this.chunkDelay = const Duration(milliseconds: 80)});
+
+  final Duration chunkDelay;
+
+  /// 场景名 → 已收到请求数（/stats 与 /stats/reset 不计入）。
+  final Map<String, int> _counts = <String, int>{};
+
+  /// /openai-429-first：已“失败过一次”的场景集合。
+  final Set<String> _failedOnce = <String>{};
+
+  final List<String> _reply = <String>['连接', '成功', '！（fake-llm）'];
+
+  Future<void> start(int port) async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, port);
+    await for (final request in server) {
+      unawaited(_handle(request));
+    }
+  }
+
+  Future<void> _handle(HttpRequest request) async {
+    final segments = request.uri.pathSegments;
+    final scenario = segments.isEmpty ? '' : segments.first;
+
+    if (request.method == 'GET' &&
+        (request.uri.path == '/stats/reset' || scenario == 'stats-reset')) {
+      final cleared = <String, int>{..._counts};
+      _counts.clear();
+      _failedOnce.clear();
+      await _json(request.response, 200, <String, dynamic>{'cleared': cleared});
+      return;
+    }
+    if (request.method == 'GET' && scenario == 'stats') {
+      await _json(request.response, 200, <String, dynamic>{
+        'counts': _counts,
+        'total': _counts.values.fold(0, (sum, n) => sum + n),
+      });
+      return;
+    }
+
+    if (request.method != 'POST') {
+      await _json(request.response, 405, <String, dynamic>{
+        'error': '仅支持 POST',
+      });
+      return;
+    }
+
+    _counts[scenario] = (_counts[scenario] ?? 0) + 1;
+    final count = _counts[scenario];
+    try {
+      await _route(scenario, request);
+      stdout.writeln(
+        '[fake-llm] POST /${request.uri.path} → $scenario（第 $count 次）',
+      );
+    } catch (e) {
+      stdout.writeln('[fake-llm] POST /${request.uri.path} 处理异常：$e');
+    }
+  }
+
+  Future<void> _route(String scenario, HttpRequest request) {
+    switch (scenario) {
+      case 'openai':
+        return _openaiStream(request.response);
+      case 'openai-429-first':
+        if (_failedOnce.add(scenario)) {
+          return _json(request.response, 429, _rateLimitBody);
+        }
+        return _openaiStream(request.response);
+      case 'openai-429-always':
+        return _json(request.response, 429, _rateLimitBody);
+      case 'openai-500':
+        return _json(request.response, 500, _serverErrorBody);
+      case 'openai-filter':
+        return _json(request.response, 400, _contentFilterBody);
+      case 'anthropic':
+        return _anthropicStream(request.response);
+      case 'anthropic-429':
+        return _json(request.response, 429, _rateLimitBody);
+      default:
+        return _json(request.response, 404, <String, dynamic>{
+          'error': '未知场景 /$scenario，见文件头注释',
+        });
+    }
+  }
+
+  // ---------- 正常流 ----------
+
+  Future<void> _openaiStream(HttpResponse response) async {
+    await _begin(response);
+    await _sse(response, <String, dynamic>{
+      'choices': <dynamic>[
+        <String, dynamic>{
+          'index': 0,
+          'delta': <String, dynamic>{'role': 'assistant'},
+          'finish_reason': null,
+        },
+      ],
+    });
+    for (final piece in _reply) {
+      await _sse(response, <String, dynamic>{
+        'choices': <dynamic>[
+          <String, dynamic>{
+            'index': 0,
+            'delta': <String, dynamic>{'content': piece},
+            'finish_reason': null,
+          },
+        ],
+      });
+    }
+    await _sse(response, <String, dynamic>{
+      'choices': <dynamic>[
+        <String, dynamic>{
+          'index': 0,
+          'delta': <String, dynamic>{},
+          'finish_reason': 'stop',
+        },
+      ],
+    });
+    await _sse(response, <String, dynamic>{
+      'choices': <dynamic>[],
+      'usage': <String, dynamic>{'prompt_tokens': 12, 'completion_tokens': 9},
+    });
+    response.write('data: [DONE]\n\n');
+    await response.flush();
+    await response.close();
+  }
+
+  Future<void> _anthropicStream(HttpResponse response) async {
+    await _begin(response);
+    await _sse(response, <String, dynamic>{
+      'type': 'message_start',
+      'message': <String, dynamic>{
+        'id': 'msg_fake',
+        'type': 'message',
+        'role': 'assistant',
+        'model': 'fake-llm',
+        'usage': <String, dynamic>{'input_tokens': 12, 'output_tokens': 1},
+      },
+    });
+    await _sse(response, <String, dynamic>{
+      'type': 'content_block_start',
+      'index': 0,
+      'content_block': <String, dynamic>{'type': 'text', 'text': ''},
+    });
+    for (final piece in _reply) {
+      await _sse(response, <String, dynamic>{
+        'type': 'content_block_delta',
+        'index': 0,
+        'delta': <String, dynamic>{'type': 'text_delta', 'text': piece},
+      });
+    }
+    await _sse(response, <String, dynamic>{
+      'type': 'content_block_stop',
+      'index': 0,
+    });
+    await _sse(response, <String, dynamic>{
+      'type': 'message_delta',
+      'delta': <String, dynamic>{'stop_reason': 'end_turn'},
+      'usage': <String, dynamic>{'output_tokens': 9},
+    });
+    await _sse(response, <String, dynamic>{'type': 'message_stop'});
+    await response.close();
+  }
+
+  // ---------- 基础设施 ----------
+
+  Future<void> _begin(HttpResponse response) async {
+    response.statusCode = 200;
+    response.headers.contentType = ContentType(
+      'text',
+      'event-stream',
+      charset: 'utf-8',
+    );
+  }
+
+  Future<void> _sse(HttpResponse response, Map<String, dynamic> payload) async {
+    response.write('data: ${jsonEncode(payload)}\n\n');
+    await response.flush();
+    await Future<void>.delayed(chunkDelay);
+  }
+
+  Future<void> _json(
+    HttpResponse response,
+    int status,
+    Map<String, dynamic> body,
+  ) async {
+    response.statusCode = status;
+    response.headers.contentType = ContentType.json;
+    response.write(jsonEncode(body));
+    await response.close();
+  }
+
+  static const Map<String, dynamic> _rateLimitBody = <String, dynamic>{
+    'error': <String, dynamic>{
+      'message': 'Rate limit reached for requests',
+      'type': 'rate_limit_error',
+    },
+  };
+
+  static const Map<String, dynamic> _serverErrorBody = <String, dynamic>{
+    'error': <String, dynamic>{
+      'message': 'Internal server error',
+      'type': 'server_error',
+    },
+  };
+
+  /// 含 safety + content_filter 关键字，命中 mapHttpError 的内容过滤分支。
+  static const Map<String, dynamic> _contentFilterBody = <String, dynamic>{
+    'error': <String, dynamic>{
+      'message': 'Your request was rejected as a result of our safety system.',
+      'type': 'invalid_request_error',
+      'code': 'content_filter',
+    },
+  };
+}

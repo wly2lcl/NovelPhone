@@ -44,12 +44,12 @@ class McpServerConfig {
   }
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'id': id,
-        'name': name,
-        'url': url,
-        'enabled': enabled,
-        'allowedTools': allowedTools,
-      };
+    'id': id,
+    'name': name,
+    'url': url,
+    'enabled': enabled,
+    'allowedTools': allowedTools,
+  };
 
   factory McpServerConfig.fromJson(Map<String, dynamic> json) {
     return McpServerConfig(
@@ -57,9 +57,8 @@ class McpServerConfig {
       name: json['name'] as String? ?? '',
       url: json['url'] as String? ?? '',
       enabled: json['enabled'] as bool? ?? true,
-      allowedTools: (json['allowedTools'] as List?)
-              ?.whereType<String>()
-              .toList() ??
+      allowedTools:
+          (json['allowedTools'] as List?)?.whereType<String>().toList() ??
           const <String>[],
     );
   }
@@ -117,14 +116,15 @@ class _RemoteMcpSession implements McpToolSession {
 }
 
 /// 打开 MCP 工具会话的函数签名（便于单测注入假实现，替代 [openMcpTools]）。
-typedef McpToolOpener = Future<McpToolSession> Function(
-  McpServerConfig config,
-  Map<String, String> headers,
-);
+typedef McpToolOpener =
+    Future<McpToolSession> Function(
+      McpServerConfig config,
+      Map<String, String> headers,
+    );
 
 mcp.McpClient _newClient() => mcp.McpClient(
-      const mcp.Implementation(name: 'novelphone', version: '1.0.0'),
-    );
+  const mcp.Implementation(name: 'novelphone', version: '1.0.0'),
+);
 
 mcp.StreamableHttpClientTransport _transport(
   McpServerConfig config,
@@ -133,8 +133,9 @@ mcp.StreamableHttpClientTransport _transport(
   return mcp.StreamableHttpClientTransport(
     Uri.parse(config.url),
     opts: mcp.StreamableHttpClientTransportOptions(
-      requestInit:
-          headers.isEmpty ? null : <String, dynamic>{'headers': headers},
+      requestInit: headers.isEmpty
+          ? null
+          : <String, dynamic>{'headers': headers},
     ),
   );
 }
@@ -167,12 +168,14 @@ Future<McpToolSession> openMcpTools({
     final tools = <Tool>[];
     for (final remote in result.tools) {
       if (!config.allowsTool(remote.name)) continue;
-      tools.add(Tool(
-        name: '$mcpToolPrefix${remote.name}',
-        description: remote.description ?? '远程 MCP 工具 ${remote.name}',
-        inputSchema: remote.inputSchema.toJson(),
-        execute: (args) => _callTool(client, remote.name, args),
-      ));
+      tools.add(
+        Tool(
+          name: '$mcpToolPrefix${remote.name}',
+          description: remote.description ?? '远程 MCP 工具 ${remote.name}',
+          inputSchema: remote.inputSchema.toJson(),
+          execute: (args) => _callTool(client, remote.name, args),
+        ),
+      );
     }
     return _RemoteMcpSession(client, config.name, tools);
   } catch (e) {

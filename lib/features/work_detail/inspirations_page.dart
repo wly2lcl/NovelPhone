@@ -52,8 +52,11 @@ class _EmptyHint extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Icon(Icons.lightbulb_outline,
-                size: 64, color: context.paper.inkSoft),
+            Icon(
+              Icons.lightbulb_outline,
+              size: 64,
+              color: context.paper.inkSoft,
+            ),
             const SizedBox(height: 12),
             Text('灵感箱是空的', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 6),
@@ -80,8 +83,12 @@ class _InspirationCard extends ConsumerWidget {
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () => openInspirationEditor(context, ref,
-            workId: workId, inspiration: inspiration),
+        onTap: () => openInspirationEditor(
+          context,
+          ref,
+          workId: workId,
+          inspiration: inspiration,
+        ),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(14, 12, 6, 12),
           child: Row(
@@ -96,17 +103,22 @@ class _InspirationCard extends ConsumerWidget {
                     Text(
                       formatRelativeTime(inspiration.createdAt),
                       style: TextStyle(
-                          color: context.paper.inkSoft, fontSize: 12),
+                        color: context.paper.inkSoft,
+                        fontSize: 12,
+                      ),
                     ),
                   ],
                 ),
               ),
               IconButton(
                 tooltip: '删除',
-                icon: Icon(Icons.delete_outline,
-                    color: context.paper.inkSoft),
+                icon: Icon(Icons.delete_outline, color: context.paper.inkSoft),
                 onPressed: () => confirmDeleteInspiration(
-                    context, ref, inspiration.id, inspiration.content),
+                  context,
+                  ref,
+                  inspiration.id,
+                  inspiration.content,
+                ),
               ),
             ],
           ),

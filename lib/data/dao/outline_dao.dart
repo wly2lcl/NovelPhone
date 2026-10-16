@@ -16,15 +16,15 @@ class OutlineDao {
   }
 
   Future<List<OutlineEntry>> findByWork(int workId) {
-    return (_db.select(_db.outlineEntries)
-          ..where((t) => t.workId.equals(workId)))
-        .get();
+    return (_db.select(
+      _db.outlineEntries,
+    )..where((t) => t.workId.equals(workId))).get();
   }
 
   Future<OutlineEntry?> findByChapter(int chapterId) {
-    return (_db.select(_db.outlineEntries)
-          ..where((t) => t.chapterId.equals(chapterId)))
-        .getSingleOrNull();
+    return (_db.select(
+      _db.outlineEntries,
+    )..where((t) => t.chapterId.equals(chapterId))).getSingleOrNull();
   }
 
   Future<int> insert(OutlineEntriesCompanion row) {
@@ -32,8 +32,9 @@ class OutlineDao {
   }
 
   Future<void> updateEntry(int id, OutlineEntriesCompanion patch) {
-    return (_db.update(_db.outlineEntries)..where((t) => t.id.equals(id)))
-        .write(patch);
+    return (_db.update(
+      _db.outlineEntries,
+    )..where((t) => t.id.equals(id))).write(patch);
   }
 
   Future<void> deleteById(int id) {

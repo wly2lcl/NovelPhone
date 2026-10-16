@@ -115,11 +115,13 @@ class _EditorPageState extends ConsumerState<EditorPage> {
     final offset = _controller.textController.selection.baseOffset;
     if (offset < 0) return;
     // getLocalRectForCaret 返回的已是视口局部坐标（已扣除当前滚动量）。
-    final rect =
-        renderEditable.getLocalRectForCaret(TextPosition(offset: offset));
+    final rect = renderEditable.getLocalRectForCaret(
+      TextPosition(offset: offset),
+    );
     final position = scrollController.position;
-    final target = (scrollController.offset + rect.bottom - renderEditable.size.height)
-        .clamp(0.0, position.maxScrollExtent);
+    final target =
+        (scrollController.offset + rect.bottom - renderEditable.size.height)
+            .clamp(0.0, position.maxScrollExtent);
     if ((target - scrollController.offset).abs() <= 0.5) return;
     scrollController.jumpTo(target);
   }
@@ -147,7 +149,8 @@ class _EditorPageState extends ConsumerState<EditorPage> {
     final target = _controller.initialScrollOffset.toDouble();
     if (target > 0) {
       scrollController.jumpTo(
-          target.clamp(0.0, scrollController.position.maxScrollExtent).toDouble());
+        target.clamp(0.0, scrollController.position.maxScrollExtent).toDouble(),
+      );
     }
   }
 
@@ -402,22 +405,21 @@ class _EditorPageState extends ConsumerState<EditorPage> {
   Future<void> _openAi(AiPanelMode mode) async {
     // 改写需在点击那一刻同步快照选区（任何 await 之前，否则 selection 会被改写）。
     if (mode == AiPanelMode.rewrite && !_snapshotRewriteSelection()) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('请先在正文中选中要改写的段落')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('请先在正文中选中要改写的段落')));
       return;
     }
     // 章纲扩写（ENH-05）：以本章一句话梗概为种子，未填写则先引导作者补写。
     if (mode == AiPanelMode.outlineExpand) {
-      final existing =
-          await ref.read(outlineRepositoryProvider).findByChapter(widget.chapterId);
+      final existing = await ref
+          .read(outlineRepositoryProvider)
+          .findByChapter(widget.chapterId);
       if (!mounted) return;
       final seed = existing?.summary.trim() ?? '';
       if (seed.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('请先用顶栏「本章梗概」写一句话梗概，AI 再据此扩写'),
-          ),
+          const SnackBar(content: Text('请先用顶栏「本章梗概」写一句话梗概，AI 再据此扩写')),
         );
         return;
       }
@@ -435,10 +437,15 @@ class _EditorPageState extends ConsumerState<EditorPage> {
           .first;
       if (!mounted) return;
       final index = metas.indexWhere((c) => c.id == widget.chapterId);
-      final hasEarlier = index > 0 &&
-          metas.take(index).any((c) =>
-              c.volumeId == chapter?.volumeId &&
-              (c.wordCount > 0 || c.summary.trim().isNotEmpty));
+      final hasEarlier =
+          index > 0 &&
+          metas
+              .take(index)
+              .any(
+                (c) =>
+                    c.volumeId == chapter?.volumeId &&
+                    (c.wordCount > 0 || c.summary.trim().isNotEmpty),
+              );
       if (!hasEarlier) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('本卷还没有更早的章节内容，暂无法生成本卷前情回顾')),
@@ -515,9 +522,9 @@ class _EditorPageState extends ConsumerState<EditorPage> {
       replacement: text,
     );
     if (!ok) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('原文已变化，请重新选中后再改写')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('原文已变化，请重新选中后再改写')));
       return;
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -535,10 +542,13 @@ class _EditorPageState extends ConsumerState<EditorPage> {
   /// 本卷前情回顾（ENH-06）：把 AI 回顾写回 VOLUME.summary，供后续章节续写注入。
   /// 同时记录本次归并覆盖到的章节（ENH-07 O6 增量归并）。
   Future<void> _saveVolumeSummary(String text) async {
-    final chapter =
-        await ref.read(chapterRepositoryProvider).getChapter(widget.chapterId);
+    final chapter = await ref
+        .read(chapterRepositoryProvider)
+        .getChapter(widget.chapterId);
     if (chapter == null) return;
-    await ref.read(chapterRepositoryProvider).saveVolumeSummary(
+    await ref
+        .read(chapterRepositoryProvider)
+        .saveVolumeSummary(
           chapter.volumeId,
           sanitizeAiText(text).trim(),
           coveredChapterId: widget.chapterId,
@@ -547,9 +557,12 @@ class _EditorPageState extends ConsumerState<EditorPage> {
 
   /// 章纲扩写（ENH-05）：把 AI 分场大纲覆盖写入本章章纲。
   Future<void> _saveOutline(String text) async {
-    final chapter =
-        await ref.read(chapterRepositoryProvider).getChapter(widget.chapterId);
-    await ref.read(outlineRepositoryProvider).saveChapterSummary(
+    final chapter = await ref
+        .read(chapterRepositoryProvider)
+        .getChapter(widget.chapterId);
+    await ref
+        .read(outlineRepositoryProvider)
+        .saveChapterSummary(
           workId: widget.workId,
           chapterId: widget.chapterId,
           volumeId: chapter?.volumeId,
@@ -559,13 +572,15 @@ class _EditorPageState extends ConsumerState<EditorPage> {
 
   /// 查看 / 编辑本章 AI 摘要（ENH-06）：弹窗读写 CHAPTER.summary。
   Future<void> _editAiSummary() async {
-    final chapter =
-        await ref.read(chapterRepositoryProvider).getChapter(widget.chapterId);
+    final chapter = await ref
+        .read(chapterRepositoryProvider)
+        .getChapter(widget.chapterId);
     if (!mounted) return;
     final summary = chapter?.summary ?? '';
     // ENH-07 O4：摘要生成后正文又有改动时，提示摘要可能过期。
     final summaryUpdatedAt = chapter?.summaryUpdatedAt;
-    final stale = summary.trim().isNotEmpty &&
+    final stale =
+        summary.trim().isNotEmpty &&
         (summaryUpdatedAt == null ||
             (chapter?.updatedAt.isAfter(summaryUpdatedAt) ?? false));
     await showSummaryEditor(
@@ -583,8 +598,9 @@ class _EditorPageState extends ConsumerState<EditorPage> {
   /// 编辑器侧栏入口：直接编辑本章梗概（PRD 5.4 双入口之一）。
   Future<void> _editChapterSummary() async {
     final repository = ref.read(outlineRepositoryProvider);
-    final chapter =
-        await ref.read(chapterRepositoryProvider).getChapter(widget.chapterId);
+    final chapter = await ref
+        .read(chapterRepositoryProvider)
+        .getChapter(widget.chapterId);
     final existing = await repository.findByChapter(widget.chapterId);
     if (!mounted) return;
     await showSummaryEditor(
@@ -620,7 +636,10 @@ class _SaveIndicator extends StatelessWidget {
                 child: CircularProgressIndicator(strokeWidth: 1.6),
               ),
               SizedBox(width: 8),
-              Text('保存中', style: TextStyle(fontSize: 13, color: context.paper.inkSoft)),
+              Text(
+                '保存中',
+                style: TextStyle(fontSize: 13, color: context.paper.inkSoft),
+              ),
             ],
           ),
         );
@@ -629,18 +648,31 @@ class _SaveIndicator extends StatelessWidget {
           padding: EdgeInsets.symmetric(horizontal: 16),
           child: Row(
             children: <Widget>[
-              Icon(Icons.cloud_done_outlined, size: 15, color: context.paper.inkSoft),
+              Icon(
+                Icons.cloud_done_outlined,
+                size: 15,
+                color: context.paper.inkSoft,
+              ),
               SizedBox(width: 6),
-              Text('已保存', style: TextStyle(fontSize: 13, color: context.paper.inkSoft)),
+              Text(
+                '已保存',
+                style: TextStyle(fontSize: 13, color: context.paper.inkSoft),
+              ),
             ],
           ),
         );
       case SaveStatus.failed:
         return TextButton.icon(
           onPressed: onRetry,
-          icon: const Icon(Icons.error_outline, size: 16, color: Color(0xFFB3261E)),
-          label: const Text('保存失败，点击重试',
-              style: TextStyle(color: Color(0xFFB3261E), fontSize: 13)),
+          icon: const Icon(
+            Icons.error_outline,
+            size: 16,
+            color: Color(0xFFB3261E),
+          ),
+          label: const Text(
+            '保存失败，点击重试',
+            style: TextStyle(color: Color(0xFFB3261E), fontSize: 13),
+          ),
         );
     }
   }
@@ -781,8 +813,9 @@ class _ToolButtonBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color =
-        enabled ? palette.ink : palette.inkSoft.withValues(alpha: 0.5);
+    final color = enabled
+        ? palette.ink
+        : palette.inkSoft.withValues(alpha: 0.5);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Column(
@@ -834,8 +867,10 @@ class _StatusBar extends ConsumerWidget {
               ),
             ),
             const SizedBox(width: 12),
-            Text('全书 ${formatWordCount(workWords)}',
-                style: TextStyle(fontSize: 12, color: palette.inkSoft)),
+            Text(
+              '全书 ${formatWordCount(workWords)}',
+              style: TextStyle(fontSize: 12, color: palette.inkSoft),
+            ),
             const Spacer(),
             Text(
               controller.lastSavedAt == null

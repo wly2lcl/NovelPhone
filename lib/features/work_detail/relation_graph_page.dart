@@ -16,13 +16,12 @@ class RelationGraphPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final characters = ref.watch(charactersProvider(workId)).value ??
-        const <Character>[];
-    final relations = ref.watch(characterRelationsProvider(workId)).value ??
+    final characters =
+        ref.watch(charactersProvider(workId)).value ?? const <Character>[];
+    final relations =
+        ref.watch(characterRelationsProvider(workId)).value ??
         const <CharacterRelation>[];
-    final nameById = <int, String>{
-      for (final c in characters) c.id: c.name,
-    };
+    final nameById = <int, String>{for (final c in characters) c.id: c.name};
 
     return Scaffold(
       appBar: AppBar(title: const Text('人物关系图')),
@@ -45,8 +44,10 @@ class RelationGraphPage extends ConsumerWidget {
           Expanded(
             child: relations.isEmpty
                 ? Center(
-                    child: Text('还没有关系，点击右下角添加',
-                        style: TextStyle(color: context.paper.inkSoft)),
+                    child: Text(
+                      '还没有关系，点击右下角添加',
+                      style: TextStyle(color: context.paper.inkSoft),
+                    ),
                   )
                 : ListView.builder(
                     padding: const EdgeInsets.only(bottom: 96),
@@ -60,9 +61,10 @@ class RelationGraphPage extends ConsumerWidget {
                         title: Text('$from → $to'),
                         subtitle: relation.label.isEmpty
                             ? null
-                            : Text(relation.label,
-                                style: TextStyle(
-                                    color: context.paper.inkSoft)),
+                            : Text(
+                                relation.label,
+                                style: TextStyle(color: context.paper.inkSoft),
+                              ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: <Widget>[
@@ -71,9 +73,12 @@ class RelationGraphPage extends ConsumerWidget {
                               icon: const Icon(Icons.edit_outlined),
                               onPressed: characters.length < 2
                                   ? null
-                                  : () => _openEditor(context, ref,
+                                  : () => _openEditor(
+                                      context,
+                                      ref,
                                       characters: characters,
-                                      relation: relation),
+                                      relation: relation,
+                                    ),
                             ),
                             IconButton(
                               tooltip: '删除',
@@ -93,8 +98,8 @@ class RelationGraphPage extends ConsumerWidget {
       floatingActionButton: characters.length < 2
           ? null
           : FloatingActionButton.extended(
-              onPressed: () => _openEditor(context, ref,
-                  characters: characters),
+              onPressed: () =>
+                  _openEditor(context, ref, characters: characters),
               icon: const Icon(Icons.add),
               label: const Text('添加关系'),
             ),
@@ -157,8 +162,8 @@ class _RelationGraphPainter extends CustomPainter {
     final positions = <int, Offset>{};
     for (var i = 0; i < characters.length; i++) {
       final angle = -math.pi / 2 + 2 * math.pi * i / characters.length;
-      positions[characters[i].id] = center +
-          Offset(math.cos(angle) * radius, math.sin(angle) * radius);
+      positions[characters[i].id] =
+          center + Offset(math.cos(angle) * radius, math.sin(angle) * radius);
     }
 
     final edgePaint = Paint()
@@ -170,10 +175,13 @@ class _RelationGraphPainter extends CustomPainter {
       if (from == null || to == null) continue;
       canvas.drawLine(from, to, edgePaint);
       if (relation.label.isNotEmpty) {
-        _paintText(canvas, relation.label, Offset(
-          (from.dx + to.dx) / 2,
-          (from.dy + to.dy) / 2,
-        ), color: palette.inkSoft, fontSize: 10);
+        _paintText(
+          canvas,
+          relation.label,
+          Offset((from.dx + to.dx) / 2, (from.dy + to.dy) / 2),
+          color: palette.inkSoft,
+          fontSize: 10,
+        );
       }
     }
 
@@ -190,8 +198,13 @@ class _RelationGraphPainter extends CustomPainter {
     }
   }
 
-  void _paintText(Canvas canvas, String text, Offset center,
-      {required Color color, required double fontSize}) {
+  void _paintText(
+    Canvas canvas,
+    String text,
+    Offset center, {
+    required Color color,
+    required double fontSize,
+  }) {
     final painter = TextPainter(
       text: TextSpan(
         text: text,
@@ -264,8 +277,10 @@ class _RelationFormSheetState extends ConsumerState<_RelationFormSheet> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Text(_isEditing ? '编辑关系' : '添加关系',
-                  style: Theme.of(context).textTheme.titleLarge),
+              Text(
+                _isEditing ? '编辑关系' : '添加关系',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
               const SizedBox(height: 16),
               DropdownButtonFormField<int>(
                 initialValue: _fromId,
@@ -305,7 +320,9 @@ class _RelationFormSheetState extends ConsumerState<_RelationFormSheet> {
                 children: <Widget>[
                   const Spacer(),
                   TextButton(
-                    onPressed: _saving ? null : () => Navigator.of(context).pop(),
+                    onPressed: _saving
+                        ? null
+                        : () => Navigator.of(context).pop(),
                     child: const Text('取消'),
                   ),
                   const SizedBox(width: 8),

@@ -122,10 +122,10 @@ enum AppThemeMode {
   static const String settingKey = 'app_theme_mode';
 
   ThemeMode get themeMode => switch (this) {
-        AppThemeMode.system => ThemeMode.system,
-        AppThemeMode.light => ThemeMode.light,
-        AppThemeMode.dark => ThemeMode.dark,
-      };
+    AppThemeMode.system => ThemeMode.system,
+    AppThemeMode.light => ThemeMode.light,
+    AppThemeMode.dark => ThemeMode.dark,
+  };
 
   /// 解析设置值；缺失或脏数据一律回落到「跟随系统」。
   static AppThemeMode decode(String? raw) {
@@ -146,29 +146,31 @@ final appThemeModeProvider = FutureProvider<AppThemeMode>((ref) async {
 
 /// 按亮度构建主题；亮/暗各注册一套 [PaperPalette] 供 `context.paper` 读取。
 ThemeData buildPaperTheme([Brightness brightness = Brightness.light]) {
-  final palette =
-      brightness == Brightness.dark ? PaperPalette.dark : PaperPalette.light;
-  final scheme = ColorScheme.fromSeed(
-    seedColor: palette.accent,
-    brightness: brightness,
-  ).copyWith(
-    surface: palette.surface,
-    onSurface: palette.ink,
-    primary: palette.accent,
-    onPrimary: Colors.white,
-    outlineVariant: palette.divider,
-  );
+  final palette = brightness == Brightness.dark
+      ? PaperPalette.dark
+      : PaperPalette.light;
+  final scheme =
+      ColorScheme.fromSeed(
+        seedColor: palette.accent,
+        brightness: brightness,
+      ).copyWith(
+        surface: palette.surface,
+        onSurface: palette.ink,
+        primary: palette.accent,
+        onPrimary: Colors.white,
+        outlineVariant: palette.divider,
+      );
 
   final base = brightness == Brightness.dark
       ? Typography.material2021().white
       : Typography.material2021().black;
-  TextStyle serif(TextStyle? style, {FontWeight? weight}) => (style ?? const TextStyle())
-      .copyWith(
-    fontFamily: kSerifFontFamily,
-    fontFamilyFallback: kSerifFontFallback,
-    fontWeight: weight,
-    color: palette.ink,
-  );
+  TextStyle serif(TextStyle? style, {FontWeight? weight}) =>
+      (style ?? const TextStyle()).copyWith(
+        fontFamily: kSerifFontFamily,
+        fontFamilyFallback: kSerifFontFallback,
+        fontWeight: weight,
+        color: palette.ink,
+      );
 
   final textTheme = base.copyWith(
     displaySmall: serif(base.displaySmall, weight: FontWeight.w600),

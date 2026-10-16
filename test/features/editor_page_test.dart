@@ -68,7 +68,8 @@ void main() {
   Future<void> settle(WidgetTester tester, Finder until) async {
     for (var i = 0; i < 40; i++) {
       await tester.runAsync(
-          () => Future<void>.delayed(const Duration(milliseconds: 10)));
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
       await tester.pump();
       if (until.evaluate().isNotEmpty) return;
     }
@@ -90,11 +91,15 @@ void main() {
   }
 
   /// 推进一段真实异步后渲染（网络流 / drift 查询都需 runAsync 驱动）。
-  Future<void> pumpReal(WidgetTester tester,
-      {bool Function()? until, int rounds = 60}) async {
+  Future<void> pumpReal(
+    WidgetTester tester, {
+    bool Function()? until,
+    int rounds = 60,
+  }) async {
     for (var i = 0; i < rounds; i++) {
       await tester.runAsync(
-          () => Future<void>.delayed(const Duration(milliseconds: 10)));
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
       await tester.pump();
       if (until != null && until()) return;
     }
@@ -134,7 +139,8 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 350));
     await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 50)));
+      () => Future<void>.delayed(const Duration(milliseconds: 50)),
+    );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 350));
 
@@ -258,7 +264,10 @@ void main() {
               'finish_reason': 'stop',
             },
           ],
-          'usage': <String, dynamic>{'prompt_tokens': 20, 'completion_tokens': 8},
+          'usage': <String, dynamic>{
+            'prompt_tokens': 20,
+            'completion_tokens': 8,
+          },
         });
         return http.Response.bytes(
           utf8.encode('data: $payload\n\ndata: [DONE]\n\n'),
@@ -272,10 +281,13 @@ void main() {
     await settle(tester, find.byType(TextField));
 
     // 选中整段「她不禁笑了。」（6 字）。
-    final editable =
-        tester.widget<EditableText>(find.byType(EditableText).first);
-    editable.controller.selection =
-        const TextSelection(baseOffset: 0, extentOffset: 6);
+    final editable = tester.widget<EditableText>(
+      find.byType(EditableText).first,
+    );
+    editable.controller.selection = const TextSelection(
+      baseOffset: 0,
+      extentOffset: 6,
+    );
     await tester.pump();
 
     await tester.tap(find.text('AI 改写'));
@@ -289,10 +301,13 @@ void main() {
     expect(find.text('换个方向'), findsNothing);
 
     final replaceButton = find.widgetWithText(FilledButton, '替换原文');
-    await pumpReal(tester, until: () {
-      return replaceButton.evaluate().isNotEmpty &&
-          tester.widget<FilledButton>(replaceButton).onPressed != null;
-    });
+    await pumpReal(
+      tester,
+      until: () {
+        return replaceButton.evaluate().isNotEmpty &&
+            tester.widget<FilledButton>(replaceButton).onPressed != null;
+      },
+    );
 
     // 面板内容在限高内滚动，按钮可能不在视口内：先滚动可见再点。
     await tester.ensureVisible(replaceButton);
@@ -306,7 +321,10 @@ void main() {
     );
 
     expect(
-      tester.widget<EditableText>(find.byType(EditableText).first).controller.text,
+      tester
+          .widget<EditableText>(find.byType(EditableText).first)
+          .controller
+          .text,
       '她轻轻笑了。',
     );
     expect(find.text('她不禁笑了。'), findsNothing);
@@ -345,7 +363,8 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 350));
     await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 50)));
+      () => Future<void>.delayed(const Duration(milliseconds: 50)),
+    );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 350));
 
@@ -371,8 +390,10 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 350));
     await tester.tap(find.text('生成本卷前情回顾'));
-    await pumpReal(tester,
-        until: () => find.text('尚未配置模型').evaluate().isNotEmpty);
+    await pumpReal(
+      tester,
+      until: () => find.text('尚未配置模型').evaluate().isNotEmpty,
+    );
 
     // 前置校验只查章节元数据，不整部读作品正文。
     expect(counting.fullWorkReads, 0);
@@ -390,10 +411,11 @@ void main() {
     await seed('她不禁笑了。');
     await chapters.saveChapterSummary(chapterId, '摘要：她笑了。');
     // 让正文更新时间晚于摘要更新时间（drift 时间戳秒级精度，直接写未来时间避免等待）。
-    await (db.update(db.chapters)..where((t) => t.id.equals(chapterId)))
-        .write(ChaptersCompanion(
-      updatedAt: Value(DateTime.now().add(const Duration(days: 1))),
-    ));
+    await (db.update(db.chapters)..where((t) => t.id.equals(chapterId))).write(
+      ChaptersCompanion(
+        updatedAt: Value(DateTime.now().add(const Duration(days: 1))),
+      ),
+    );
 
     await tester.pumpWidget(wrap());
     await settle(tester, find.byType(TextField));
@@ -458,7 +480,10 @@ void main() {
               'finish_reason': 'stop',
             },
           ],
-          'usage': <String, dynamic>{'prompt_tokens': 20, 'completion_tokens': 8},
+          'usage': <String, dynamic>{
+            'prompt_tokens': 20,
+            'completion_tokens': 8,
+          },
         });
         return http.Response.bytes(
           utf8.encode('data: $payload\n\ndata: [DONE]\n\n'),
@@ -471,31 +496,40 @@ void main() {
     await tester.pumpWidget(wrap(service: service));
     await settle(tester, find.byType(TextField));
 
-    final editable =
-        tester.widget<EditableText>(find.byType(EditableText).first);
-    editable.controller.selection =
-        const TextSelection(baseOffset: 0, extentOffset: 6);
+    final editable = tester.widget<EditableText>(
+      find.byType(EditableText).first,
+    );
+    editable.controller.selection = const TextSelection(
+      baseOffset: 0,
+      extentOffset: 6,
+    );
     await tester.pump();
 
     await tester.tap(find.text('AI 改写'));
     await settle(tester, find.text('替换原文'));
 
     final replaceButton = find.widgetWithText(FilledButton, '替换原文');
-    await pumpReal(tester, until: () {
-      return replaceButton.evaluate().isNotEmpty &&
-          tester.widget<FilledButton>(replaceButton).onPressed != null;
-    });
+    await pumpReal(
+      tester,
+      until: () {
+        return replaceButton.evaluate().isNotEmpty &&
+            tester.widget<FilledButton>(replaceButton).onPressed != null;
+      },
+    );
 
     await tester.ensureVisible(replaceButton);
     await tester.pump();
     await tester.tap(replaceButton);
-    await pumpReal(tester, until: () {
-      return tester
-              .widget<EditableText>(find.byType(EditableText).first)
-              .controller
-              .text !=
-          '她不禁笑了。';
-    });
+    await pumpReal(
+      tester,
+      until: () {
+        return tester
+                .widget<EditableText>(find.byType(EditableText).first)
+                .controller
+                .text !=
+            '她不禁笑了。';
+      },
+    );
 
     final body = tester
         .widget<EditableText>(find.byType(EditableText).first)
@@ -539,7 +573,10 @@ void main() {
               'finish_reason': 'stop',
             },
           ],
-          'usage': <String, dynamic>{'prompt_tokens': 20, 'completion_tokens': 8},
+          'usage': <String, dynamic>{
+            'prompt_tokens': 20,
+            'completion_tokens': 8,
+          },
         });
         return http.Response.bytes(
           utf8.encode('data: $payload\n\ndata: [DONE]\n\n'),
@@ -549,8 +586,10 @@ void main() {
       }),
     );
 
-    final prebuilt =
-        await service.prebuildContinue(workId: workId, chapterId: chapterId);
+    final prebuilt = await service.prebuildContinue(
+      workId: workId,
+      chapterId: chapterId,
+    );
     expect(prebuilt, isNotNull);
 
     // 三路候选只在温度上不同：传入 prebuilt 后不再各自组装，

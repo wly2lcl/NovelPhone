@@ -83,7 +83,8 @@ void main() {
   Future<void> settle(WidgetTester tester, Finder until) async {
     for (var i = 0; i < 40; i++) {
       await tester.runAsync(
-          () => Future<void>.delayed(const Duration(milliseconds: 10)));
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
       await tester.pump();
       if (until.evaluate().isNotEmpty) return;
     }
@@ -216,10 +217,9 @@ void main() {
     await controller.load();
     addTearDown(controller.dispose);
 
-    await tester.pumpWidget(wrap(
-      scopeChapterId: chapterId,
-      controller: controller,
-    ));
+    await tester.pumpWidget(
+      wrap(scopeChapterId: chapterId, controller: controller),
+    );
     await settle(tester, find.text('原文：不禁'));
 
     await tapVisible(tester, find.widgetWithText(TextButton, '删除'));
@@ -342,10 +342,9 @@ void main() {
     await controller.load();
     addTearDown(controller.dispose);
 
-    await tester.pumpWidget(wrap(
-      scopeChapterId: chapterId,
-      controller: controller,
-    ));
+    await tester.pumpWidget(
+      wrap(scopeChapterId: chapterId, controller: controller),
+    );
     await settle(tester, find.text('原文：不禁'));
 
     await tapVisible(tester, find.widgetWithText(TextButton, '定位'));

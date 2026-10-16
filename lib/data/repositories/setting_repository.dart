@@ -21,13 +21,15 @@ class SettingRepository {
     required String name,
     String content = '',
   }) {
-    return _dao.insert(SettingEntriesCompanion.insert(
-      workId: workId,
-      type: Value(type.value),
-      name: name,
-      content: Value(content),
-      createdAt: DateTime.now(),
-    ));
+    return _dao.insert(
+      SettingEntriesCompanion.insert(
+        workId: workId,
+        type: Value(type.value),
+        name: name,
+        content: Value(content),
+        createdAt: DateTime.now(),
+      ),
+    );
   }
 
   Future<void> updateEntry({

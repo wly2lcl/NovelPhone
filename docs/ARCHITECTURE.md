@@ -638,3 +638,6 @@ Responses（OpenAI Responses 端点，B-01 已实现）：
 - 代码规范：`flutter_lints`；注释与提交信息使用中文；每个里程碑出口标准对应 `docs/TODO.md` 中的验收项。
 - Android 权限：`android/app/src/main/AndroidManifest.xml` 必须显式声明 `android.permission.INTERNET`（Flutter 模板默认只在 `debug/`、`profile/` 清单声明）；漏声明会导致 release 构建下所有联网功能（AI、云备份）被系统阻断且仅表现为 `SocketException: Operation not permitted`。
 - 每次修改保证可运行、变更量最小（项目既定约束）。
+- Android release 签名（ENH-16）：keystore（`android/upload-keystore.jks`）与 `android/key.properties`（storeFile / storePassword / keyAlias / keyPassword）均不入库（`.gitignore`），**需离线备份**——丢失将无法对已发布应用做覆盖升级；`app/build.gradle.kts` 的 release 构建读 `key.properties` 并挂 `signingConfigs.release`，启用 R8（`isMinifyEnabled` + `isShrinkResources`）与 `proguard-rules.pro`（keep `io.flutter.**`；`-dontwarn com.google.android.play.core.**` 对应 Flutter 延迟组件按需引用的可选类）。
+- CI（ENH-16）：`.github/workflows/ci.yml` 在 push / PR to main 上执行 `flutter pub get` → `dart format --output=none --set-exit-if-changed lib test` → `flutter analyze` → `flutter test`，Flutter 版本固定 3.44.3 与本地一致；格式校验只覆盖 `lib` / `test`（`tool/` 为开发工具，只参与 analyze）。
+- 假 LLM 服务（ENH-16，开发工具）：`tool/fake_llm_server.dart` 在本机回环模拟 Chat Completions / Messages 正常流与 429 / 5xx / 内容过滤错误（分场景路径，`GET /stats` 观测请求计数、`GET /stats/reset` 重置），`dart run tool/fake_llm_server.dart [port] [chunkDelayMs]` 启动；配合 `adb reverse tcp:8899 tcp:8899` 可在真机验证重试与错误分类路径，无需真实供应商 Key，不随应用产物发布。

@@ -74,7 +74,11 @@ class FlavorIssue {
 
   bool get isDocumentLevel => start == end;
 
-  FlavorIssue copyWith({int? severity, String? suggestion, String? replacement}) {
+  FlavorIssue copyWith({
+    int? severity,
+    String? suggestion,
+    String? replacement,
+  }) {
     return FlavorIssue(
       type: type,
       severity: severity ?? this.severity,
@@ -204,14 +208,16 @@ FlavorResult runFlavorRules(
   for (final entry in perWordCount.entries) {
     if (entry.value < repeatedWordThreshold) continue;
     final first = perWordFirst[entry.key];
-    issues.add(FlavorIssue(
-      type: FlavorType.repetition,
-      severity: FlavorSeverity.medium,
-      start: first?.start ?? 0,
-      end: first?.end ?? 0,
-      excerpt: entry.key,
-      message: '「${entry.key}」在本章出现 ${entry.value} 次，重复明显',
-    ));
+    issues.add(
+      FlavorIssue(
+        type: FlavorType.repetition,
+        severity: FlavorSeverity.medium,
+        start: first?.start ?? 0,
+        end: first?.end ?? 0,
+        excerpt: entry.key,
+        message: '「${entry.key}」在本章出现 ${entry.value} 次，重复明显',
+      ),
+    );
   }
 
   // 3. 句式模式（对话标签 / 翻译腔）。
@@ -224,31 +230,41 @@ FlavorResult runFlavorRules(
   // 5. 指标阈值（全文级提示）。
   final clicheDensity = words == 0 ? 0.0 : matches.length * 1000 / words;
   if (words >= densityMinWords && clicheDensity > clicheDensityThreshold) {
-    issues.add(FlavorIssue(
-      type: FlavorType.cliche,
-      severity: FlavorSeverity.high,
-      start: 0,
-      end: 0,
-      message: '套话密度偏高：每千字 ${clicheDensity.toStringAsFixed(1)} 处',
-      suggestion: '整体减少套话，改为具体动作、神态与细节描写',
-    ));
+    issues.add(
+      FlavorIssue(
+        type: FlavorType.cliche,
+        severity: FlavorSeverity.high,
+        start: 0,
+        end: 0,
+        message: '套话密度偏高：每千字 ${clicheDensity.toStringAsFixed(1)} 处',
+        suggestion: '整体减少套话，改为具体动作、神态与细节描写',
+      ),
+    );
   }
-  final ellipsisCount = '…'.allMatches(text).length + '......'.allMatches(text).length;
+  final ellipsisCount =
+      '…'.allMatches(text).length + '......'.allMatches(text).length;
   final dashCount = '—'.allMatches(text).length;
-  final punctuationDensity = words == 0 ? 0.0 : (ellipsisCount + dashCount) * 1000 / words;
-  if (words >= densityMinWords && punctuationDensity > punctuationDensityThreshold) {
-    issues.add(FlavorIssue(
-      type: FlavorType.pacing,
-      severity: FlavorSeverity.medium,
-      start: 0,
-      end: 0,
-      message: '破折号/省略号偏多：每千字 ${punctuationDensity.toStringAsFixed(1)} 处，节奏显拖沓',
-      suggestion: '精简省略号与破折号，改用完整的动作或对话推进',
-    ));
+  final punctuationDensity = words == 0
+      ? 0.0
+      : (ellipsisCount + dashCount) * 1000 / words;
+  if (words >= densityMinWords &&
+      punctuationDensity > punctuationDensityThreshold) {
+    issues.add(
+      FlavorIssue(
+        type: FlavorType.pacing,
+        severity: FlavorSeverity.medium,
+        start: 0,
+        end: 0,
+        message:
+            '破折号/省略号偏多：每千字 ${punctuationDensity.toStringAsFixed(1)} 处，节奏显拖沓',
+        suggestion: '精简省略号与破折号，改用完整的动作或对话推进',
+      ),
+    );
   }
 
-  final patternRepeatRate =
-      paragraphs.isEmpty ? 0.0 : structure.repeatedParagraphs / paragraphs.length;
+  final patternRepeatRate = paragraphs.isEmpty
+      ? 0.0
+      : structure.repeatedParagraphs / paragraphs.length;
   final metrics = FlavorMetrics(
     wordCount: words,
     paragraphCount: paragraphs.length,
@@ -280,8 +296,9 @@ void sortFlavorIssues(List<FlavorIssue> issues) {
 
 /// 段落级判定口径（M4-05 回归集）：是否存在可定位的"中"及以上问题。
 /// 全文级密度提示不计入，避免短样本被密度指标带偏。
-bool isFlavorFlagged(FlavorResult result) => result.issues
-    .any((i) => !i.isDocumentLevel && i.severity >= FlavorSeverity.medium);
+bool isFlavorFlagged(FlavorResult result) => result.issues.any(
+  (i) => !i.isDocumentLevel && i.severity >= FlavorSeverity.medium,
+);
 
 /// 两层结果合并去重（M4-08）：按「原文位置 + 类型」去重，同键保留严重度更高者，
 /// 严重度相同时优先保留 LLM 深检（带建议）的那条；合并后统一排序。
@@ -296,7 +313,8 @@ List<FlavorIssue> mergeFlavorIssues(Iterable<FlavorIssue> issues) {
       merged[key] = issue;
       continue;
     }
-    final preferNew = issue.severity > existing.severity ||
+    final preferNew =
+        issue.severity > existing.severity ||
         (issue.severity == existing.severity &&
             issue.source == FlavorSource.llm &&
             existing.source != FlavorSource.llm);
@@ -319,9 +337,10 @@ String _suggestionFor(FlavorLexiconEntry entry) {
 typedef _LexiconMatch = ({FlavorLexiconEntry entry, int start, int end});
 
 /// 词条 → 词条对象的索引，供组合正则命中后反查。
-final Map<String, FlavorLexiconEntry> _lexiconByWord = <String, FlavorLexiconEntry>{
-  for (final entry in flavorLexicon) entry.word: entry,
-};
+final Map<String, FlavorLexiconEntry> _lexiconByWord =
+    <String, FlavorLexiconEntry>{
+      for (final entry in flavorLexicon) entry.word: entry,
+    };
 
 /// 词库组合正则（ENH-10）：按「词长降序、同级按权重降序」排列候选，
 /// 使同一位置优先命中更长（更具体）的词条；单趟扫描替代
@@ -380,7 +399,9 @@ final List<_PatternRule> _patternRules = <_PatternRule>[
   _PatternRule(
     type: FlavorType.repetition,
     severity: FlavorSeverity.medium,
-    regex: RegExp(r'(?:淡淡|轻轻|缓缓|冷冷|低声|沉声|柔声|轻声|沉声|笑着|苦笑|冷笑|微笑|无奈)(?:地)?(?:说道|开口|说道|说|道|回答|应道|答道)'),
+    regex: RegExp(
+      r'(?:淡淡|轻轻|缓缓|冷冷|低声|沉声|柔声|轻声|沉声|笑着|苦笑|冷笑|微笑|无奈)(?:地)?(?:说道|开口|说道|说|道|回答|应道|答道)',
+    ),
     message: '模式化对话标签：副词 + 说/道 的固定搭配',
     suggestion: '用动作、神态或停顿替代"副词 + 说"',
   ),
@@ -432,15 +453,17 @@ List<FlavorIssue> _matchPatterns(String text) {
   final issues = <FlavorIssue>[];
   for (final rule in _patternRules) {
     for (final match in rule.regex.allMatches(text)) {
-      issues.add(FlavorIssue(
-        type: rule.type,
-        severity: rule.severity,
-        start: match.start,
-        end: match.end,
-        excerpt: match.group(0) ?? '',
-        message: rule.message,
-        suggestion: rule.suggestion,
-      ));
+      issues.add(
+        FlavorIssue(
+          type: rule.type,
+          severity: rule.severity,
+          start: match.start,
+          end: match.end,
+          excerpt: match.group(0) ?? '',
+          message: rule.message,
+          suggestion: rule.suggestion,
+        ),
+      );
     }
   }
   return issues;
@@ -464,11 +487,31 @@ List<_Paragraph> _splitParagraphs(String text) {
 
 /// 段尾感悟句用到的抽象名词。
 const List<String> _reflectionWords = <String>[
-  '人生', '命运', '时间', '世界', '世间', '岁月', '意义', '真心', '孤独', '成长',
-  '温暖', '真相', '道理', '未来', '灵魂', '人性', '生活', '青春', '回忆',
+  '人生',
+  '命运',
+  '时间',
+  '世界',
+  '世间',
+  '岁月',
+  '意义',
+  '真心',
+  '孤独',
+  '成长',
+  '温暖',
+  '真相',
+  '道理',
+  '未来',
+  '灵魂',
+  '人性',
+  '生活',
+  '青春',
+  '回忆',
 ];
 
-typedef _ParagraphAnalysis = ({List<FlavorIssue> issues, int repeatedParagraphs});
+typedef _ParagraphAnalysis = ({
+  List<FlavorIssue> issues,
+  int repeatedParagraphs,
+});
 
 _ParagraphAnalysis _analyzeParagraphs(List<_Paragraph> paragraphs) {
   final issues = <FlavorIssue>[];
@@ -482,15 +525,17 @@ _ParagraphAnalysis _analyzeParagraphs(List<_Paragraph> paragraphs) {
     final core = last.text.replaceAll(RegExp(r'[。！？!?…\s]'), '');
     if (core.length > 30) continue;
     if (!_reflectionWords.any(core.contains)) continue;
-    issues.add(FlavorIssue(
-      type: FlavorType.oversummary,
-      severity: FlavorSeverity.medium,
-      start: paragraph.start + last.start,
-      end: paragraph.start + last.start + last.text.length,
-      excerpt: last.text,
-      message: '段尾感悟句：为段落强行升华',
-      suggestion: '删去或改为具体的动作、对话收束',
-    ));
+    issues.add(
+      FlavorIssue(
+        type: FlavorType.oversummary,
+        severity: FlavorSeverity.medium,
+        start: paragraph.start + last.start,
+        end: paragraph.start + last.start + last.text.length,
+        excerpt: last.text,
+        message: '段尾感悟句：为段落强行升华',
+        suggestion: '删去或改为具体的动作、对话收束',
+      ),
+    );
   }
 
   // 连续同结构段落：首二字相同连续 >= 3 段。
@@ -498,21 +543,25 @@ _ParagraphAnalysis _analyzeParagraphs(List<_Paragraph> paragraphs) {
   while (i < paragraphs.length) {
     final head = _head(paragraphs[i].text);
     var j = i + 1;
-    while (j < paragraphs.length && head.isNotEmpty && _head(paragraphs[j].text) == head) {
+    while (j < paragraphs.length &&
+        head.isNotEmpty &&
+        _head(paragraphs[j].text) == head) {
       j++;
     }
     final run = j - i;
     if (head.isNotEmpty && run >= 3) {
       repeated += run;
-      issues.add(FlavorIssue(
-        type: FlavorType.repetition,
-        severity: FlavorSeverity.medium,
-        start: paragraphs[i].start,
-        end: paragraphs[j - 1].start + paragraphs[j - 1].text.length,
-        excerpt: '$run 段以「$head」开头',
-        message: '连续 $run 段结构相同（均以「$head」开头），句式模式化',
-        suggestion: '变换段落起笔方式，避免同构排列',
-      ));
+      issues.add(
+        FlavorIssue(
+          type: FlavorType.repetition,
+          severity: FlavorSeverity.medium,
+          start: paragraphs[i].start,
+          end: paragraphs[j - 1].start + paragraphs[j - 1].text.length,
+          excerpt: '$run 段以「$head」开头',
+          message: '连续 $run 段结构相同（均以「$head」开头），句式模式化',
+          suggestion: '变换段落起笔方式，避免同构排列',
+        ),
+      );
     }
     i = j > i ? j : i + 1;
   }
@@ -521,21 +570,24 @@ _ParagraphAnalysis _analyzeParagraphs(List<_Paragraph> paragraphs) {
   var k = 0;
   while (k < paragraphs.length) {
     var m = k + 1;
-    while (m < paragraphs.length && _similarLength(paragraphs[m - 1].text, paragraphs[m].text)) {
+    while (m < paragraphs.length &&
+        _similarLength(paragraphs[m - 1].text, paragraphs[m].text)) {
       m++;
     }
     final run = m - k;
     if (run >= 3) {
       repeated += run;
-      issues.add(FlavorIssue(
-        type: FlavorType.pacing,
-        severity: FlavorSeverity.low,
-        start: paragraphs[k].start,
-        end: paragraphs[m - 1].start + paragraphs[m - 1].text.length,
-        excerpt: '$run 段长度相近',
-        message: '连续 $run 段长度几乎一致，节奏平板',
-        suggestion: '长短句交替，打破均匀节奏',
-      ));
+      issues.add(
+        FlavorIssue(
+          type: FlavorType.pacing,
+          severity: FlavorSeverity.low,
+          start: paragraphs[k].start,
+          end: paragraphs[m - 1].start + paragraphs[m - 1].text.length,
+          excerpt: '$run 段长度相近',
+          message: '连续 $run 段长度几乎一致，节奏平板',
+          suggestion: '长短句交替，打破均匀节奏',
+        ),
+      );
     }
     k = m > k ? m : k + 1;
   }

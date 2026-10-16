@@ -47,6 +47,26 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     setState(() => _query = '');
   }
 
+  /// 跳转编辑器前对高亮范围做精确校正（ENH-16）：SQL 检索返回的是码点偏移，
+  /// 含 emoji 的章节与 Dart UTF-16 偏移会偏差；校正只多读一章正文（即将打开的
+  /// 编辑器本就要读同一章），关键词已不存在时沿用 SQL 偏移。
+  Future<void> _openHit(ChapterSearchHit hit, String keyword) async {
+    var start = hit.matchOffset;
+    var end = start < 0 ? -1 : start + hit.matchLength;
+    if (start >= 0) {
+      final exact = await ref
+          .read(chapterRepositoryProvider)
+          .findMatchOffset(hit.chapterId, keyword);
+      if (exact != null) {
+        start = exact;
+        end = exact + hit.matchLength;
+      }
+    }
+    if (!mounted) return;
+    final query = start < 0 ? '' : '?checkStart=$start&checkEnd=$end';
+    context.push('/work/${hit.workId}/chapter/${hit.chapterId}$query');
+  }
+
   @override
   Widget build(BuildContext context) {
     final resultsAsync = ref.watch(searchProvider(_query));
@@ -95,15 +115,23 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       data: (hits) {
         if (hits.isEmpty) {
           return Center(
-            child: Text('没有找到包含「$_query」的章节',
-                style: TextStyle(color: context.paper.inkSoft)),
+            child: Text(
+              '没有找到包含「$_query」的章节',
+              style: TextStyle(color: context.paper.inkSoft),
+            ),
           );
         }
         return ListView.separated(
           itemCount: hits.length,
           separatorBuilder: (_, _) => const Divider(height: 1),
-          itemBuilder: (context, index) =>
-              _HitTile(hit: hits[index], keyword: _query),
+          itemBuilder: (context, index) {
+            final hit = hits[index];
+            return _HitTile(
+              hit: hit,
+              keyword: _query,
+              onOpen: () => _openHit(hit, _query),
+            );
+          },
         );
       },
     );
@@ -111,10 +139,15 @@ class _SearchPageState extends ConsumerState<SearchPage> {
 }
 
 class _HitTile extends StatelessWidget {
-  const _HitTile({required this.hit, required this.keyword});
+  const _HitTile({
+    required this.hit,
+    required this.keyword,
+    required this.onOpen,
+  });
 
   final ChapterSearchHit hit;
   final String keyword;
+  final VoidCallback onOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -130,25 +163,24 @@ class _HitTile extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Text(hit.workTitle,
-                style: TextStyle(fontSize: 12, color: context.paper.accent)),
+            Text(
+              hit.workTitle,
+              style: TextStyle(fontSize: 12, color: context.paper.accent),
+            ),
             const SizedBox(height: 2),
             _highlight(
               context,
               hit.snippet,
               TextStyle(
-                  fontSize: 13, color: context.paper.inkSoft, height: 1.4),
+                fontSize: 13,
+                color: context.paper.inkSoft,
+                height: 1.4,
+              ),
             ),
           ],
         ),
       ),
-      onTap: () {
-        final offset = hit.matchOffset;
-        final query = offset < 0
-            ? ''
-            : '?checkStart=$offset&checkEnd=${offset + hit.matchLength}';
-        context.push('/work/${hit.workId}/chapter/${hit.chapterId}$query');
-      },
+      onTap: onOpen,
     );
   }
 
@@ -168,11 +200,15 @@ class _HitTile extends StatelessWidget {
       if (index > start) {
         spans.add(TextSpan(text: text.substring(start, index)));
       }
-      spans.add(TextSpan(
-        text: text.substring(index, index + keyword.length),
-        style: TextStyle(
-            color: context.paper.accent, fontWeight: FontWeight.w600),
-      ));
+      spans.add(
+        TextSpan(
+          text: text.substring(index, index + keyword.length),
+          style: TextStyle(
+            color: context.paper.accent,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      );
       start = index + keyword.length;
     }
     return Text.rich(TextSpan(style: base, children: spans));

@@ -33,8 +33,7 @@ final modelGroupsProvider = StreamProvider<List<ModelGroup>>(
 );
 
 /// 任务 → 模型映射（autoDispose，ENH-11：离开设置页即释放流订阅）。
-final taskModelIdProvider =
-    StreamProvider.autoDispose.family<int?, String>(
+final taskModelIdProvider = StreamProvider.autoDispose.family<int?, String>(
   (ref, task) => ref.watch(settingsRepositoryProvider).watchTaskModelId(task),
 );
 

@@ -39,9 +39,7 @@ class TokenStatsPage extends ConsumerWidget {
                 ),
               );
               if (ok == true) {
-                await ref
-                    .read(tokenStatsRepositoryProvider)
-                    .reset();
+                await ref.read(tokenStatsRepositoryProvider).reset();
               }
             },
             child: const Text('重置'),
@@ -60,8 +58,11 @@ class TokenStatsPage extends ConsumerWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
-                    Icon(Icons.insights_outlined,
-                        size: 40, color: context.paper.inkSoft),
+                    Icon(
+                      Icons.insights_outlined,
+                      size: 40,
+                      color: context.paper.inkSoft,
+                    ),
                     SizedBox(height: 12),
                     Text('还没有生成记录'),
                   ],
@@ -98,13 +99,17 @@ class _SummaryCard extends StatelessWidget {
         runSpacing: 8,
         children: <Widget>[
           _Metric(label: '生成次数', value: '${stats.calls}'),
-          _Metric(label: 'Token 合计', value: formatTokenCount(stats.totalTokens)),
+          _Metric(
+            label: 'Token 合计',
+            value: formatTokenCount(stats.totalTokens),
+          ),
           _Metric(label: '采纳率', value: _percent(stats.adoptionRate)),
           _Metric(label: '忽略率', value: _percent(stats.ignoreRate)),
           if (check != null && check.total > 0)
             _Metric(
               label: '检查问题处置率',
-              value: '${(check.handled / check.total * 100).toStringAsFixed(1)}%',
+              value:
+                  '${(check.handled / check.total * 100).toStringAsFixed(1)}%',
             ),
         ],
       ),
@@ -126,12 +131,19 @@ class _Metric extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Text(label,
-            style: TextStyle(fontSize: 12, color: context.paper.inkSoft)),
+        Text(
+          label,
+          style: TextStyle(fontSize: 12, color: context.paper.inkSoft),
+        ),
         const SizedBox(height: 2),
-        Text(value,
-            style: TextStyle(
-                fontSize: 16, fontWeight: FontWeight.w600, color: context.paper.ink)),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: context.paper.ink,
+          ),
+        ),
       ],
     );
   }

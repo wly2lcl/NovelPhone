@@ -12,10 +12,10 @@ import 'package:novelphone/core/ai/retrying_ai_client.dart';
 /// M3-05：用录制的 SSE 响应分别驱动两个适配器（流式文本 / usage / 错误路径）。
 void main() {
   ChatRequest request() => const ChatRequest(
-        model: 'test-model',
-        system: '你是助手',
-        messages: <ChatMessage>[ChatMessage('user', '继续')],
-      );
+    model: 'test-model',
+    system: '你是助手',
+    messages: <ChatMessage>[ChatMessage('user', '继续')],
+  );
 
   Future<List<ChatChunk>> run(AiClient client, ChatRequest req) =>
       client.streamChat(req).toList();
@@ -40,8 +40,11 @@ void main() {
         apiKey: 'sk-test',
         client: MockClient((req) async {
           captured = req;
-          return http.Response.bytes(utf8.encode(body), 200,
-              headers: <String, String>{'content-type': 'text/event-stream'});
+          return http.Response.bytes(
+            utf8.encode(body),
+            200,
+            headers: <String, String>{'content-type': 'text/event-stream'},
+          );
         }),
       );
 
@@ -88,7 +91,9 @@ void main() {
       final client = ChatCompletionsAdapter(
         baseUrl: 'https://api.example.com/v1',
         apiKey: 'sk-test',
-        client: MockClient((_) async => http.Response('{"error":"slow down"}', 429)),
+        client: MockClient(
+          (_) async => http.Response('{"error":"slow down"}', 429),
+        ),
       );
 
       final chunks = await run(client, request());
@@ -134,7 +139,10 @@ void main() {
       );
 
       final chunks = await run(client, request());
-      expect(chunks.whereType<ChatTextDelta>().map((c) => c.text).join(), '月色很好');
+      expect(
+        chunks.whereType<ChatTextDelta>().map((c) => c.text).join(),
+        '月色很好',
+      );
       final usage = chunks.whereType<ChatUsage>().single;
       expect(usage.promptTokens, 9);
       expect(usage.completionTokens, 6);
@@ -189,7 +197,9 @@ void main() {
       final client = MessagesAdapter(
         baseUrl: 'https://api.anthropic.com',
         apiKey: 'ak-test',
-        client: MockClient((_) async => http.Response.bytes(utf8.encode(body), 200)),
+        client: MockClient(
+          (_) async => http.Response.bytes(utf8.encode(body), 200),
+        ),
       );
 
       final chunks = await run(client, request());
@@ -228,7 +238,10 @@ void main() {
       );
 
       final chunks = await run(client, request());
-      expect(chunks.whereType<ChatTextDelta>().map((c) => c.text).join(), '雨下了一夜');
+      expect(
+        chunks.whereType<ChatTextDelta>().map((c) => c.text).join(),
+        '雨下了一夜',
+      );
       final usage = chunks.whereType<ChatUsage>().single;
       expect(usage.promptTokens, 12);
       expect(usage.completionTokens, 5);
@@ -269,7 +282,9 @@ void main() {
       final client = ResponsesAdapter(
         baseUrl: 'https://api.openai.com/v1',
         apiKey: 'sk-test',
-        client: MockClient((_) async => http.Response.bytes(utf8.encode(body), 200)),
+        client: MockClient(
+          (_) async => http.Response.bytes(utf8.encode(body), 200),
+        ),
       );
 
       final chunks = await run(client, request());
@@ -288,7 +303,9 @@ void main() {
       final client = ResponsesAdapter(
         baseUrl: 'https://api.openai.com',
         apiKey: 'sk-test',
-        client: MockClient((_) async => http.Response.bytes(utf8.encode(errorBody), 200)),
+        client: MockClient(
+          (_) async => http.Response.bytes(utf8.encode(errorBody), 200),
+        ),
       );
       final chunks = await run(client, request());
       final error = chunks.whereType<ChatError>().single;
@@ -298,7 +315,9 @@ void main() {
       final unauthorized = ResponsesAdapter(
         baseUrl: 'https://api.openai.com',
         apiKey: 'sk-bad',
-        client: MockClient((_) async => http.Response('{"error":"bad key"}', 401)),
+        client: MockClient(
+          (_) async => http.Response('{"error":"bad key"}', 401),
+        ),
       );
       final authChunks = await run(unauthorized, request());
       expect(authChunks.whereType<ChatError>().single.kind, AiErrorKind.auth);
@@ -324,15 +343,24 @@ void main() {
           model: 'test-model',
           messages: <ChatMessage>[
             ChatMessage('user', '继续'),
-            ChatMessage('assistant', '', toolCalls: <ToolCall>[
-              ToolCall(id: 'call_1', name: 'get_chapter', arguments: '{"id":3}'),
-            ]),
+            ChatMessage(
+              'assistant',
+              '',
+              toolCalls: <ToolCall>[
+                ToolCall(
+                  id: 'call_1',
+                  name: 'get_chapter',
+                  arguments: '{"id":3}',
+                ),
+              ],
+            ),
             ChatMessage('tool', '章节正文', toolCallId: 'call_1'),
           ],
         ),
       );
 
-      final input = (jsonDecode(captured.body) as Map<String, dynamic>)['input'] as List;
+      final input =
+          (jsonDecode(captured.body) as Map<String, dynamic>)['input'] as List;
       expect(input, hasLength(3));
       expect((input[1] as Map)['type'], 'function_call');
       expect((input[2] as Map)['type'], 'function_call_output');
@@ -350,10 +378,12 @@ void main() {
           calls++;
           if (calls == 1) return http.Response('{"error":"slow down"}', 429);
           return http.Response.bytes(
-            utf8.encode('data: {"choices":[{"delta":{"content":"好"}}]}\n\n'
-                'data: {"choices":[{"delta":{},"finish_reason":"stop"}],'
-                '"usage":{"prompt_tokens":3,"completion_tokens":1}}\n\n'
-                'data: [DONE]\n\n'),
+            utf8.encode(
+              'data: {"choices":[{"delta":{"content":"好"}}]}\n\n'
+              'data: {"choices":[{"delta":{},"finish_reason":"stop"}],'
+              '"usage":{"prompt_tokens":3,"completion_tokens":1}}\n\n'
+              'data: [DONE]\n\n',
+            ),
             200,
           );
         }),
@@ -423,7 +453,8 @@ class _ScriptedClient implements AiClient {
 
   @override
   Stream<ChatChunk> streamChat(ChatRequest req) async* {
-    final script = _scripts[calls < _scripts.length ? calls : _scripts.length - 1];
+    final script =
+        _scripts[calls < _scripts.length ? calls : _scripts.length - 1];
     calls++;
     for (final chunk in script) {
       yield chunk;

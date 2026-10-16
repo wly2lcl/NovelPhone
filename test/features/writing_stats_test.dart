@@ -62,7 +62,10 @@ void main() {
     test('保存正文时当天字数按净增累积', () async {
       const first = '一二三四五';
       await chapters.saveChapter(
-          chapterId: chapterId, title: '第一章', content: first);
+        chapterId: chapterId,
+        title: '第一章',
+        content: first,
+      );
 
       final stats = await chapters.listDailyWritingStats();
       expect(stats, hasLength(1));
@@ -73,12 +76,18 @@ void main() {
     test('删减正文不回退统计（只加不减）', () async {
       const long = '一二三四五六七八九十';
       await chapters.saveChapter(
-          chapterId: chapterId, title: '第一章', content: long);
+        chapterId: chapterId,
+        title: '第一章',
+        content: long,
+      );
       final afterFirst = (await chapters.listDailyWritingStats()).single.words;
       expect(afterFirst, countWords(long));
 
       await chapters.saveChapter(
-          chapterId: chapterId, title: '第一章', content: '一二');
+        chapterId: chapterId,
+        title: '第一章',
+        content: '一二',
+      );
 
       final stats = await chapters.listDailyWritingStats();
       expect(stats.single.words, afterFirst);
@@ -86,9 +95,15 @@ void main() {
 
     test('多次增写在同一天累加', () async {
       await chapters.saveChapter(
-          chapterId: chapterId, title: '第一章', content: '一二三');
+        chapterId: chapterId,
+        title: '第一章',
+        content: '一二三',
+      );
       await chapters.saveChapter(
-          chapterId: chapterId, title: '第一章', content: '一二三四五');
+        chapterId: chapterId,
+        title: '第一章',
+        content: '一二三四五',
+      );
 
       final stats = await chapters.listDailyWritingStats();
       expect(stats.single.words, countWords('一二三四五'));
@@ -97,13 +112,19 @@ void main() {
     test('备份导出与覆盖恢复保留每日写作统计', () async {
       final backup = BackupRepository(db);
       await chapters.saveChapter(
-          chapterId: chapterId, title: '第一章', content: '一二三');
+        chapterId: chapterId,
+        title: '第一章',
+        content: '一二三',
+      );
       final data = await backup.exportData();
       expect((data['tables'] as Map)['dailyWritingStats'], hasLength(1));
 
       // 导出后本机继续写作，覆盖恢复应回到备份时的字数。
       await chapters.saveChapter(
-          chapterId: chapterId, title: '第一章', content: '一二三四五');
+        chapterId: chapterId,
+        title: '第一章',
+        content: '一二三四五',
+      );
       await backup.restore(data, overwrite: true);
 
       final restored = await chapters.listDailyWritingStats();
@@ -168,26 +189,34 @@ void main() {
     final chapters = ChapterRepository(db);
     final settings = SettingsRepository(db, InMemoryKeyStore());
     final workId = await works.createWork(title: '长夜行');
-    final chapterId =
-        await chapters.createChapter(workId: workId, title: '第一章');
+    final chapterId = await chapters.createChapter(
+      workId: workId,
+      title: '第一章',
+    );
     await chapters.saveChapter(
-        chapterId: chapterId, title: '第一章', content: '一二三四五');
+      chapterId: chapterId,
+      title: '第一章',
+      content: '一二三四五',
+    );
     await settings.setDailyWordTarget(100);
 
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        databaseProvider.overrideWithValue(db),
-        secureKeyStoreProvider.overrideWithValue(InMemoryKeyStore()),
-      ],
-      child: MaterialApp(
-        theme: buildPaperTheme(),
-        home: const WritingStatsPage(),
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          secureKeyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+        ],
+        child: MaterialApp(
+          theme: buildPaperTheme(),
+          home: const WritingStatsPage(),
+        ),
       ),
-    ));
+    );
 
     for (var i = 0; i < 60; i++) {
       await tester.runAsync(
-          () => Future<void>.delayed(const Duration(milliseconds: 10)));
+        () => Future<void>.delayed(const Duration(milliseconds: 10)),
+      );
       await tester.pump();
       if (find.text('5 / 100 字', findRichText: true).evaluate().isNotEmpty) {
         break;

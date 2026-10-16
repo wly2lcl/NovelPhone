@@ -57,8 +57,9 @@ class _TaskMappingTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final selectedId = ref.watch(taskModelIdProvider(task)).value;
     final enabledGroups = groups.where((g) => g.enabled).toList();
-    final validSelected =
-        enabledGroups.any((g) => g.id == selectedId) ? selectedId : null;
+    final validSelected = enabledGroups.any((g) => g.id == selectedId)
+        ? selectedId
+        : null;
 
     return ListTile(
       title: Text(AiTask.label(task)),
@@ -69,14 +70,10 @@ class _TaskMappingTile extends ConsumerWidget {
         items: <DropdownMenuItem<int?>>[
           const DropdownMenuItem<int?>(value: null, child: Text('未指定')),
           for (final group in enabledGroups)
-            DropdownMenuItem<int?>(
-              value: group.id,
-              child: Text(group.name),
-            ),
+            DropdownMenuItem<int?>(value: group.id, child: Text(group.name)),
         ],
-        onChanged: (value) => ref
-            .read(settingsRepositoryProvider)
-            .setTaskModel(task, value),
+        onChanged: (value) =>
+            ref.read(settingsRepositoryProvider).setTaskModel(task, value),
       ),
     );
   }

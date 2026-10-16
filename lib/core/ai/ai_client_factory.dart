@@ -42,10 +42,22 @@ AiClient _buildAdapter({
   http.Client? httpClient,
 }) {
   if (provider == AiProvider.anthropic) {
-    return MessagesAdapter(baseUrl: baseUrl, apiKey: apiKey, client: httpClient);
+    return MessagesAdapter(
+      baseUrl: baseUrl,
+      apiKey: apiKey,
+      client: httpClient,
+    );
   }
   if (provider == AiProvider.responses) {
-    return ResponsesAdapter(baseUrl: baseUrl, apiKey: apiKey, client: httpClient);
+    return ResponsesAdapter(
+      baseUrl: baseUrl,
+      apiKey: apiKey,
+      client: httpClient,
+    );
   }
-  return ChatCompletionsAdapter(baseUrl: baseUrl, apiKey: apiKey, client: httpClient);
+  return ChatCompletionsAdapter(
+    baseUrl: baseUrl,
+    apiKey: apiKey,
+    client: httpClient,
+  );
 }

@@ -64,7 +64,8 @@ class _AppearancePageState extends ConsumerState<AppearancePage> {
                   min: ReadingAppearance.minFontSize,
                   max: ReadingAppearance.maxFontSize,
                   divisions:
-                      (ReadingAppearance.maxFontSize - ReadingAppearance.minFontSize)
+                      (ReadingAppearance.maxFontSize -
+                              ReadingAppearance.minFontSize)
                           .round(),
                   display: '${appearance.fontSize.round()}',
                   onChanged: (v) => _save(appearance.copyWith(fontSize: v)),

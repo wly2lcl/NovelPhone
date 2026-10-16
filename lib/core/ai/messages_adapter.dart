@@ -26,7 +26,9 @@ class MessagesAdapter implements AiClient {
   Uri get _uri {
     final trimmed = _trimSlash(baseUrl);
     // 兼容用户把 baseUrl 直接填成 .../v1 的情况，避免出现 /v1/v1/messages。
-    final path = trimmed.endsWith('/v1') ? '$trimmed/messages' : '$trimmed/v1/messages';
+    final path = trimmed.endsWith('/v1')
+        ? '$trimmed/messages'
+        : '$trimmed/v1/messages';
     return Uri.parse(path);
   }
 
@@ -41,11 +43,13 @@ class MessagesAdapter implements AiClient {
       'messages': req.messages.map(_messageJson).toList(),
       if (req.tools.isNotEmpty)
         'tools': req.tools
-            .map((t) => <String, dynamic>{
-                  'name': t.name,
-                  'description': t.description,
-                  'input_schema': t.inputSchema,
-                })
+            .map(
+              (t) => <String, dynamic>{
+                'name': t.name,
+                'description': t.description,
+                'input_schema': t.inputSchema,
+              },
+            )
             .toList(),
     };
 
@@ -112,7 +116,9 @@ class MessagesAdapter implements AiClient {
               if (text is String && text.isNotEmpty) yield ChatTextDelta(text);
             } else if (delta['type'] == 'input_json_delta') {
               final partial = delta['partial_json'];
-              if (partial is String) toolBlocks[index]?.arguments.write(partial);
+              if (partial is String) {
+                toolBlocks[index]?.arguments.write(partial);
+              }
             }
           }
         } else if (type == 'message_delta') {
@@ -127,8 +133,9 @@ class MessagesAdapter implements AiClient {
           }
         } else if (type == 'error') {
           final error = decoded['error'];
-          final message =
-              error is Map && error['message'] is String ? error['message'] as String : '未知错误';
+          final message = error is Map && error['message'] is String
+              ? error['message'] as String
+              : '未知错误';
           yield ChatError(
             kind: AiErrorKind.badRequest,
             message: '模型服务返回错误：$message',
@@ -142,17 +149,22 @@ class MessagesAdapter implements AiClient {
     }
 
     if (usageSeen) {
-      yield ChatUsage(promptTokens: inputTokens, completionTokens: outputTokens);
+      yield ChatUsage(
+        promptTokens: inputTokens,
+        completionTokens: outputTokens,
+      );
     }
     if (toolBlocks.isNotEmpty) {
       yield ChatToolCalls(
         toolBlocks.values
             .where((b) => b.name.isNotEmpty)
-            .map((b) => ToolCall(
-                  id: b.id,
-                  name: b.name,
-                  arguments: b.arguments.isEmpty ? '{}' : b.arguments.toString(),
-                ))
+            .map(
+              (b) => ToolCall(
+                id: b.id,
+                name: b.name,
+                arguments: b.arguments.isEmpty ? '{}' : b.arguments.toString(),
+              ),
+            )
             .toList(),
       );
     }
@@ -173,18 +185,22 @@ class MessagesAdapter implements AiClient {
       };
     }
     final toolCalls = message.toolCalls;
-    if (message.role == 'assistant' && toolCalls != null && toolCalls.isNotEmpty) {
+    if (message.role == 'assistant' &&
+        toolCalls != null &&
+        toolCalls.isNotEmpty) {
       return <String, dynamic>{
         'role': 'assistant',
         'content': <Map<String, dynamic>>[
           if (message.content.isNotEmpty)
             <String, dynamic>{'type': 'text', 'text': message.content},
-          ...toolCalls.map((c) => <String, dynamic>{
-                'type': 'tool_use',
-                'id': c.id,
-                'name': c.name,
-                'input': _decodeArguments(c.arguments),
-              }),
+          ...toolCalls.map(
+            (c) => <String, dynamic>{
+              'type': 'tool_use',
+              'id': c.id,
+              'name': c.name,
+              'input': _decodeArguments(c.arguments),
+            },
+          ),
         ],
       };
     }
@@ -195,7 +211,9 @@ class MessagesAdapter implements AiClient {
     if (arguments.isEmpty) return <String, dynamic>{};
     try {
       final decoded = jsonDecode(arguments);
-      return decoded is Map ? decoded.cast<String, dynamic>() : <String, dynamic>{};
+      return decoded is Map
+          ? decoded.cast<String, dynamic>()
+          : <String, dynamic>{};
     } catch (_) {
       return <String, dynamic>{};
     }
@@ -210,7 +228,8 @@ class _ToolBlock {
   final StringBuffer arguments = StringBuffer();
 }
 
-String _trimSlash(String url) => url.endsWith('/') ? url.substring(0, url.length - 1) : url;
+String _trimSlash(String url) =>
+    url.endsWith('/') ? url.substring(0, url.length - 1) : url;
 
 Map<String, dynamic>? _tryDecode(String data) {
   try {

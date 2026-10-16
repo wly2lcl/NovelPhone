@@ -21,7 +21,10 @@ void main() {
   });
 
   test('整作 markdown 导出后再分章，标题与正文一致', () {
-    final markdown = buildWorkMarkdown(const <ExportChapter>[chapter1, chapter2]);
+    final markdown = buildWorkMarkdown(const <ExportChapter>[
+      chapter1,
+      chapter2,
+    ]);
 
     final drafts = splitIntoChapters(markdown);
 
@@ -73,7 +76,10 @@ void main() {
     // 契约锁：mimetype 首条目且内容为标准 MIME（archive 升级破坏该行为立刻红灯）。
     final archive = ZipDecoder().decodeBytes(bytes);
     expect(archive.files.first.name, 'mimetype');
-    expect(utf8.decode(archive.files.first.readBytes()!), 'application/epub+zip');
+    expect(
+      utf8.decode(archive.files.first.readBytes()!),
+      'application/epub+zip',
+    );
   });
 
   test('整作 epub：包含 container / opf / nav / 章节条目与必需元数据', () {
@@ -84,30 +90,42 @@ void main() {
     );
 
     final archive = ZipDecoder().decodeBytes(bytes);
-    final names =
-        archive.files.where((f) => f.isFile).map((f) => f.name).toList();
-    expect(names, containsAll(<String>[
-      'mimetype',
-      'META-INF/container.xml',
-      'OEBPS/content.opf',
-      'OEBPS/nav.xhtml',
-      'OEBPS/style.css',
-      'OEBPS/chapter_1.xhtml',
-      'OEBPS/chapter_2.xhtml',
-    ]));
+    final names = archive.files
+        .where((f) => f.isFile)
+        .map((f) => f.name)
+        .toList();
+    expect(
+      names,
+      containsAll(<String>[
+        'mimetype',
+        'META-INF/container.xml',
+        'OEBPS/content.opf',
+        'OEBPS/nav.xhtml',
+        'OEBPS/style.css',
+        'OEBPS/chapter_1.xhtml',
+        'OEBPS/chapter_2.xhtml',
+      ]),
+    );
 
-    final opf = utf8.decode(archive.files
-        .firstWhere((f) => f.name == 'OEBPS/content.opf')
-        .readBytes()!);
+    final opf = utf8.decode(
+      archive.files
+          .firstWhere((f) => f.name == 'OEBPS/content.opf')
+          .readBytes()!,
+    );
     expect(opf, contains('properties="nav"'));
-    expect(opf, contains('<dc:identifier id="bookid">urn:novelphone:长夜行</dc:identifier>'));
+    expect(
+      opf,
+      contains('<dc:identifier id="bookid">urn:novelphone:长夜行</dc:identifier>'),
+    );
     expect(opf, contains('>2026-01-02T03:04:05Z<'));
     expect(opf, contains('<dc:title>长夜行</dc:title>'));
     expect(opf, contains('<dc:language>zh-CN</dc:language>'));
 
-    final container = utf8.decode(archive.files
-        .firstWhere((f) => f.name == 'META-INF/container.xml')
-        .readBytes()!);
+    final container = utf8.decode(
+      archive.files
+          .firstWhere((f) => f.name == 'META-INF/container.xml')
+          .readBytes()!,
+    );
     expect(container, contains('OEBPS/content.opf'));
   });
 
@@ -115,9 +133,11 @@ void main() {
     const chapter = ExportChapter(title: '第一章 雨', content: '他说：<走> & "好"。');
     final bytes = buildWorkEpub(const <ExportChapter>[chapter], title: '书');
     final archive = ZipDecoder().decodeBytes(bytes);
-    final xhtml = utf8.decode(archive.files
-        .firstWhere((f) => f.name == 'OEBPS/chapter_1.xhtml')
-        .readBytes()!);
+    final xhtml = utf8.decode(
+      archive.files
+          .firstWhere((f) => f.name == 'OEBPS/chapter_1.xhtml')
+          .readBytes()!,
+    );
 
     expect(xhtml, startsWith('<?xml'));
     expect(xhtml, contains('<h1>第一章 雨</h1>'));

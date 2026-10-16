@@ -14,11 +14,11 @@ enum ExportFormat { txt, markdown, docx, epub }
 
 extension on ExportFormat {
   String get label => switch (this) {
-        ExportFormat.txt => '纯文本（.txt）',
-        ExportFormat.markdown => 'Markdown（.md）',
-        ExportFormat.docx => 'Word 文档（.docx）',
-        ExportFormat.epub => 'EPUB 电子书（.epub）',
-      };
+    ExportFormat.txt => '纯文本（.txt）',
+    ExportFormat.markdown => 'Markdown（.md）',
+    ExportFormat.docx => 'Word 文档（.docx）',
+    ExportFormat.epub => 'EPUB 电子书（.epub）',
+  };
 }
 
 /// 单章导出（M2-08）：分享 txt 或 markdown。
@@ -27,40 +27,39 @@ Future<void> exportChapter(
   WidgetRef ref,
   Chapter chapter,
 ) async {
-  final format = await _pickFormat(
-    context,
-    const <ExportFormat>[ExportFormat.txt, ExportFormat.markdown],
-    title: '导出本章',
-  );
+  final format = await _pickFormat(context, const <ExportFormat>[
+    ExportFormat.txt,
+    ExportFormat.markdown,
+  ], title: '导出本章');
   if (format == null) return;
   final draft = ExportChapter(title: chapter.title, content: chapter.content);
   final name = safeExportFileName(
     chapter.title.isEmpty ? '未命名章节' : chapter.title,
     format == ExportFormat.txt ? 'txt' : 'md',
   );
-  final bytes = textToBytes(format == ExportFormat.txt
-      ? buildChapterText(draft)
-      : buildChapterMarkdown(draft));
+  final bytes = textToBytes(
+    format == ExportFormat.txt
+        ? buildChapterText(draft)
+        : buildChapterMarkdown(draft),
+  );
   if (!context.mounted) return;
   await _share(context, fileName: name, bytes: bytes, title: '导出章节');
 }
 
 /// 整作导出（M2-09）：txt / markdown / docx，正文 + 章节结构。
-Future<void> exportWork(
-  BuildContext context,
-  WidgetRef ref,
-  int workId,
-) async {
+Future<void> exportWork(BuildContext context, WidgetRef ref, int workId) async {
   final format = await _pickFormat(context, ExportFormat.values, title: '导出作品');
   if (format == null) return;
   final work = await ref.read(workRepositoryProvider).getWork(workId);
-  final chapters =
-      await ref.read(chapterRepositoryProvider).watchChapters(workId).first;
+  final chapters = await ref
+      .read(chapterRepositoryProvider)
+      .watchChapters(workId)
+      .first;
   if (!context.mounted) return;
   if (chapters.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('这部作品还没有章节，暂无可导出的内容')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('这部作品还没有章节，暂无可导出的内容')));
     return;
   }
   final drafts = <ExportChapter>[
@@ -74,8 +73,9 @@ Future<void> exportWork(
     // ENH-14：docx / epub 需逐章拼 XML 并 zip 压缩，大作品同步构建会卡住 UI，
     // 移入 isolate 执行（入参为纯数据，可安全跨 isolate）。
     ExportFormat.docx => await Isolate.run(() => buildWorkDocx(drafts)),
-    ExportFormat.epub =>
-      await Isolate.run(() => buildWorkEpub(drafts, title: title)),
+    ExportFormat.epub => await Isolate.run(
+      () => buildWorkEpub(drafts, title: title),
+    ),
   };
   final extension = switch (format) {
     ExportFormat.txt => 'txt',
@@ -107,8 +107,10 @@ Future<ExportFormat?> _pickFormat(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
             child: Align(
               alignment: Alignment.centerLeft,
-              child: Text(title,
-                  style: Theme.of(sheetContext).textTheme.titleMedium),
+              child: Text(
+                title,
+                style: Theme.of(sheetContext).textTheme.titleMedium,
+              ),
             ),
           ),
           for (final format in formats)
@@ -133,8 +135,8 @@ Future<void> _share(
     await shareExport(fileName: fileName, bytes: bytes, title: title);
   } catch (e) {
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('导出失败：$e')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('导出失败：$e')));
   }
 }

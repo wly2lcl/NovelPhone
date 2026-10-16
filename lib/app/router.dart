@@ -83,9 +83,7 @@ final GoRouter appRouter = GoRouter(
           name: 'skillEdit',
           builder: (context, state) {
             final raw = state.pathParameters['skillId']!;
-            return SkillEditPage(
-              skillId: raw == 'new' ? null : int.parse(raw),
-            );
+            return SkillEditPage(skillId: raw == 'new' ? null : int.parse(raw));
           },
         ),
         GoRoute(
@@ -118,9 +116,8 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/work/:workId',
       name: 'workDetail',
-      builder: (context, state) => WorkDetailPage(
-        workId: int.parse(state.pathParameters['workId']!),
-      ),
+      builder: (context, state) =>
+          WorkDetailPage(workId: int.parse(state.pathParameters['workId']!)),
       routes: <RouteBase>[
         GoRoute(
           path: 'chapter/:chapterId',
@@ -128,7 +125,9 @@ final GoRouter appRouter = GoRouter(
           builder: (context, state) => EditorPage(
             workId: int.parse(state.pathParameters['workId']!),
             chapterId: int.parse(state.pathParameters['chapterId']!),
-            checkStart: int.tryParse(state.uri.queryParameters['checkStart'] ?? ''),
+            checkStart: int.tryParse(
+              state.uri.queryParameters['checkStart'] ?? '',
+            ),
             checkEnd: int.tryParse(state.uri.queryParameters['checkEnd'] ?? ''),
           ),
         ),
@@ -142,9 +141,8 @@ final GoRouter appRouter = GoRouter(
         GoRoute(
           path: 'import',
           name: 'import',
-          builder: (context, state) => ImportPage(
-            workId: int.parse(state.pathParameters['workId']!),
-          ),
+          builder: (context, state) =>
+              ImportPage(workId: int.parse(state.pathParameters['workId']!)),
         ),
         GoRoute(
           path: 'relations',

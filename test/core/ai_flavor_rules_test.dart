@@ -37,7 +37,9 @@ void main() {
 
     test('重叠词条取更长匹配，不重复计数', () {
       final result = runFlavorRules('他不由自主地站了起来。');
-      final hits = result.issues.where((i) => i.type == FlavorType.cliche).toList();
+      final hits = result.issues
+          .where((i) => i.type == FlavorType.cliche)
+          .toList();
       expect(hits.length, 1);
       expect(hits.single.excerpt, '不由自主地');
       expect(result.metrics.clicheHits, 1);
@@ -46,7 +48,9 @@ void main() {
     test('词条互为前缀时仍取更长匹配（ENH-10 单趟匹配）', () {
       // 词库中「顿了顿」排在「顿了顿又道」之前，组合正则必须优先命中更长的词条。
       final result = runFlavorRules('他顿了顿又道：「算了。」', minWeight: 1);
-      final hits = result.issues.where((i) => i.type == FlavorType.cliche).toList();
+      final hits = result.issues
+          .where((i) => i.type == FlavorType.cliche)
+          .toList();
       expect(hits.single.excerpt, '顿了顿又道');
       expect(result.metrics.clicheHits, 1);
     });
@@ -69,19 +73,27 @@ void main() {
     test('模式化对话标签', () {
       final result = runFlavorRules('“你走吧。”他淡淡地说道。');
       expect(
-        result.issues.any((i) => i.type == FlavorType.repetition && i.message.contains('对话标签')),
+        result.issues.any(
+          (i) => i.type == FlavorType.repetition && i.message.contains('对话标签'),
+        ),
         isTrue,
       );
     });
 
     test('翻译腔句式', () {
       final result = runFlavorRules('对于他来说，这一切并不难。');
-      expect(result.issues.any((i) => i.type == FlavorType.translationese), isTrue);
+      expect(
+        result.issues.any((i) => i.type == FlavorType.translationese),
+        isTrue,
+      );
     });
 
     test('段尾感悟句', () {
       final result = runFlavorRules('他站在原地，看着远去的车灯。这一切，就是人生。');
-      expect(result.issues.any((i) => i.type == FlavorType.oversummary), isTrue);
+      expect(
+        result.issues.any((i) => i.type == FlavorType.oversummary),
+        isTrue,
+      );
     });
 
     test('连续同结构段落', () {
@@ -103,7 +115,9 @@ void main() {
       expect(result.metrics.wordCount, greaterThanOrEqualTo(densityMinWords));
       // 套话密度超阈值时给出全文级提示（不可定位）。
       expect(
-        result.issues.any((i) => i.isDocumentLevel && i.type == FlavorType.cliche),
+        result.issues.any(
+          (i) => i.isDocumentLevel && i.type == FlavorType.cliche,
+        ),
         isTrue,
       );
     });
@@ -119,7 +133,9 @@ void main() {
       expect(result.metrics.ellipsisCount, greaterThan(0));
       expect(result.metrics.dashCount, greaterThan(0));
       expect(
-        result.issues.any((i) => i.isDocumentLevel && i.type == FlavorType.pacing),
+        result.issues.any(
+          (i) => i.isDocumentLevel && i.type == FlavorType.pacing,
+        ),
         isTrue,
       );
     });

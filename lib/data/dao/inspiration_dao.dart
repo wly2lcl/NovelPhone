@@ -9,24 +9,29 @@ class InspirationDao {
   final AppDatabase _db;
 
   SimpleSelectStatement<$InspirationsTable, Inspiration> _selectByWork(
-      int workId) {
+    int workId,
+  ) {
     return _db.select(_db.inspirations)
       ..where((t) => t.workId.equals(workId))
-      ..orderBy([(t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.desc)]);
+      ..orderBy([
+        (t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.desc),
+      ]);
   }
 
   Stream<List<Inspiration>> watchByWork(int workId) =>
       _selectByWork(workId).watch();
 
-  Future<List<Inspiration>> findByWork(int workId) => _selectByWork(workId).get();
+  Future<List<Inspiration>> findByWork(int workId) =>
+      _selectByWork(workId).get();
 
   Future<int> insert(InspirationsCompanion row) {
     return _db.into(_db.inspirations).insert(row);
   }
 
   Future<void> updateContent(int id, String content) {
-    return (_db.update(_db.inspirations)..where((t) => t.id.equals(id)))
-        .write(InspirationsCompanion(content: Value(content)));
+    return (_db.update(_db.inspirations)..where((t) => t.id.equals(id))).write(
+      InspirationsCompanion(content: Value(content)),
+    );
   }
 
   Future<void> deleteById(int id) {

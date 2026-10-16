@@ -68,16 +68,19 @@ Uint8List buildWorkDocx(List<ExportChapter> chapters) {
     }
   }
 
-  final documentXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+  final documentXml =
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
       '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
       '<w:body>$body</w:body></w:document>';
-  final contentTypes = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+  final contentTypes =
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
       '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
       '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
       '<Default Extension="xml" ContentType="application/xml"/>'
       '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'
       '</Types>';
-  final rels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+  final rels =
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
       '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
       '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>'
       '</Relationships>';
@@ -98,7 +101,9 @@ Uint8List buildWorkEpub(
 }) {
   final mimetypeBytes = textToBytes(epubMimeType);
   final archive = Archive()
-    ..add(ArchiveFile.noCompress('mimetype', mimetypeBytes.length, mimetypeBytes))
+    ..add(
+      ArchiveFile.noCompress('mimetype', mimetypeBytes.length, mimetypeBytes),
+    )
     ..add(ArchiveFile.string('META-INF/container.xml', _epubContainerXml()));
 
   final pages = <String>[];
@@ -108,8 +113,12 @@ Uint8List buildWorkEpub(
     archive.add(ArchiveFile.string('OEBPS/$name', _epubChapter(chapters[i])));
   }
   archive
-    ..add(ArchiveFile.string(
-        'OEBPS/content.opf', _epubOpf(chapters, pages, title: title, modified: modified)))
+    ..add(
+      ArchiveFile.string(
+        'OEBPS/content.opf',
+        _epubOpf(chapters, pages, title: title, modified: modified),
+      ),
+    )
     ..add(ArchiveFile.string('OEBPS/nav.xhtml', _epubNav(chapters, pages)))
     ..add(ArchiveFile.string('OEBPS/style.css', _epubCss()));
   return ZipEncoder().encodeBytes(archive);
@@ -132,12 +141,15 @@ String _epubOpf(
   final identifier = 'urn:novelphone:${title.isEmpty ? 'untitled' : title}';
   final modifiedAt = _isoUtc(modified ?? DateTime.now());
   final manifest = StringBuffer()
-    ..write('<item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>')
+    ..write(
+      '<item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>',
+    )
     ..write('<item id="style" href="style.css" media-type="text/css"/>');
   final spine = StringBuffer();
   for (var i = 0; i < pages.length; i++) {
     manifest.write(
-        '<item id="chapter_${i + 1}" href="${pages[i]}" media-type="application/xhtml+xml"/>');
+      '<item id="chapter_${i + 1}" href="${pages[i]}" media-type="application/xhtml+xml"/>',
+    );
     spine.write('<itemref idref="chapter_${i + 1}"/>');
   }
   return '<?xml version="1.0" encoding="UTF-8"?>'
@@ -157,7 +169,8 @@ String _epubNav(List<ExportChapter> chapters, List<String> pages) {
   final items = StringBuffer();
   for (var i = 0; i < chapters.length; i++) {
     items.write(
-        '<li><a href="${pages[i]}">${_escapeXml(chapters[i].displayTitle)}</a></li>');
+      '<li><a href="${pages[i]}">${_escapeXml(chapters[i].displayTitle)}</a></li>',
+    );
   }
   return '<?xml version="1.0" encoding="UTF-8"?>'
       '<!DOCTYPE html>'

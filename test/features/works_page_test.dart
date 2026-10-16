@@ -17,15 +17,15 @@ void main() {
   }
 
   Work buildWork({int wordCount = 0, int chapterCount = 0}) => Work(
-        id: 1,
-        title: '长夜行',
-        coverColor: 0xFFB4654A,
-        wordCount: wordCount,
-        chapterCount: chapterCount,
-        lastEditedAt: DateTime(2026, 9, 30, 12),
-        pinned: false,
-        createdAt: DateTime(2026, 9, 30, 12),
-      );
+    id: 1,
+    title: '长夜行',
+    coverColor: 0xFFB4654A,
+    wordCount: wordCount,
+    chapterCount: chapterCount,
+    lastEditedAt: DateTime(2026, 9, 30, 12),
+    pinned: false,
+    createdAt: DateTime(2026, 9, 30, 12),
+  );
 
   testWidgets('无作品时展示空状态引导', (tester) async {
     await tester.pumpWidget(wrap(const <Work>[]));
