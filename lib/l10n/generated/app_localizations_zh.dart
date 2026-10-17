@@ -161,6 +161,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get commonEdit => '编辑';
 
   @override
+  String get commonMoreActions => '更多操作';
+
+  @override
   String get commonRename => '重命名';
 
   @override
@@ -1603,6 +1606,127 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get mcpTestConnection => '测试连接';
+
+  @override
+  String mcpEnableSwitch(String name) {
+    return '启用「$name」';
+  }
+
+  @override
+  String get mcpAuthModeLabel => '认证方式';
+
+  @override
+  String get mcpAuthModeHeaders => '自定义请求头';
+
+  @override
+  String get mcpAuthModeOAuth => 'OAuth 2.1（PKCE）';
+
+  @override
+  String get mcpOAuthClientIdLabel => 'OAuth Client ID（选填）';
+
+  @override
+  String get mcpOAuthClientIdHint => '留空则自动动态注册';
+
+  @override
+  String get mcpOAuthClientIdHelper => '预注册的客户端 ID；动态注册成功后会自动回填并保存';
+
+  @override
+  String get mcpOAuthScopesLabel => '授权范围（选填）';
+
+  @override
+  String get mcpOAuthScopesHelper => '空格或逗号分隔；留空则由服务器决定';
+
+  @override
+  String get mcpOAuthStatusAuthorized => '已授权：访问令牌已保存在本机';
+
+  @override
+  String get mcpOAuthStatusNotAuthorized => '未授权：请先完成授权，OAuth 服务器才能使用';
+
+  @override
+  String get mcpOAuthAuthorize => '开始授权';
+
+  @override
+  String get mcpOAuthReauthorize => '重新授权';
+
+  @override
+  String get mcpOAuthClear => '清除授权';
+
+  @override
+  String get mcpOAuthClearTitle => '清除 OAuth 授权';
+
+  @override
+  String get mcpOAuthClearBody => '将删除本服务器已保存的访问令牌；之后使用该服务器的功能会提示重新授权。';
+
+  @override
+  String get mcpOAuthCleared => '已清除授权令牌';
+
+  @override
+  String get mcpOAuthSuccess => '授权成功，令牌已保存';
+
+  @override
+  String mcpOAuthFailed(String detail) {
+    return '授权失败：$detail';
+  }
+
+  @override
+  String get mcpOAuthSaveFirst => '请先保存该服务，再测试连接或授权';
+
+  @override
+  String get mcpOAuthSecureHint =>
+      '令牌只保存在本机安全存储，不会随备份导出；授权在系统浏览器中完成（PKCE，无客户端密钥落地）。';
+
+  @override
+  String get skillImport => '导入技能';
+
+  @override
+  String get skillImportFromFile => '从文件导入';
+
+  @override
+  String get skillImportFromPaste => '粘贴导入';
+
+  @override
+  String get skillImportPasteTitle => '粘贴技能 Markdown';
+
+  @override
+  String get skillImportPasteHint => '粘贴以 front matter（---）开头的技能文本';
+
+  @override
+  String get skillImportPreviewTitle => '确认导入技能';
+
+  @override
+  String skillImportOk(String name) {
+    return '已导入「$name」';
+  }
+
+  @override
+  String skillImportFailed(String detail) {
+    return '导入失败：$detail';
+  }
+
+  @override
+  String get skillDescriptionLabel => '技能简介（选填）';
+
+  @override
+  String get skillDescriptionHint => '一句话说明这个技能的用途';
+
+  @override
+  String commonToggleSwitch(String name) {
+    return '启用「$name」';
+  }
+
+  @override
+  String newWorkCoverOptionLabel(int index) {
+    return '封面色块 $index';
+  }
+
+  @override
+  String get a11yHeatmapLabel => '写作热力图：色块越深，表示当天写下的字数越多';
+
+  @override
+  String get a11yTrendChartLabel => '字数趋势图：按天统计的写作字数';
+
+  @override
+  String get a11yRelationGraphLabel => '人物关系图，节点可拖动调整位置';
 
   @override
   String get skillDeleteTitle => '删除技能';

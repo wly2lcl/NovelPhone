@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:novelphone/core/ai/agent_core.dart';
 import 'package:novelphone/core/ai/mcp/mcp_bridge.dart';
+import 'package:novelphone/core/ai/mcp/mcp_oauth.dart';
 import 'package:novelphone/data/db.dart';
 import 'package:novelphone/data/repositories/chapter_repository.dart';
 import 'package:novelphone/data/repositories/character_repository.dart';
@@ -81,6 +82,30 @@ void main() {
       expect(limited.allowsTool('a'), isTrue);
       expect(limited.allowsTool('b'), isFalse);
     });
+
+    test('ENH-21：OAuth 字段序列化往返，历史配置回退 headers', () {
+      const config = McpServerConfig(
+        id: 4,
+        name: 'OAuth 服务',
+        url: 'https://oauth.example.com/mcp',
+        authMode: McpAuthMode.oauth,
+        oauthClientId: 'client-1',
+        oauthScopes: <String>['read', 'write'],
+      );
+      final restored = McpServerConfig.fromJson(config.toJson());
+      expect(restored.authMode, McpAuthMode.oauth);
+      expect(restored.oauthClientId, 'client-1');
+      expect(restored.oauthScopes, <String>['read', 'write']);
+
+      final legacy = McpServerConfig.fromJson(<String, dynamic>{
+        'id': 1,
+        'name': '旧服务',
+        'url': 'https://legacy.example.com/mcp',
+      });
+      expect(legacy.authMode, McpAuthMode.headers);
+      expect(legacy.oauthClientId, isEmpty);
+      expect(legacy.oauthScopes, isEmpty);
+    });
   });
 
   group('SettingsRepository MCP 持久化', () {
@@ -129,6 +154,34 @@ void main() {
       await settings.deleteMcpServer(id);
       expect(await settings.listMcpServers(), isEmpty);
       expect(await settings.hasMcpAuthHeaders(id), isFalse);
+    });
+
+    test('ENH-21：OAuth 令牌只进安全存储，删除服务一并清除', () async {
+      final id = await settings.createMcpServer(
+        name: 'OAuth 服务',
+        url: 'https://oauth.example.com/mcp',
+        authMode: McpAuthMode.oauth,
+      );
+      expect(await settings.hasMcpOAuthTokens(id), isFalse);
+
+      await settings.saveMcpOAuthTokens(
+        id,
+        McpOAuthTokens(
+          accessToken: 'access-secret',
+          refreshToken: 'refresh-secret',
+          expiresAt: DateTime(2030),
+        ),
+      );
+      expect(await settings.hasMcpOAuthTokens(id), isTrue);
+      final restored = await settings.readMcpOAuthTokens(id);
+      expect(restored!.accessToken, 'access-secret');
+      expect(restored.refreshToken, 'refresh-secret');
+      // 令牌不得进入配置 JSON
+      final raw = await settings.getSetting(SettingsRepository.mcpServersKey);
+      expect(raw, isNot(contains('access-secret')));
+
+      await settings.deleteMcpServer(id);
+      expect(await settings.hasMcpOAuthTokens(id), isFalse);
     });
   });
 
@@ -182,7 +235,7 @@ void main() {
       );
       final session = _FakeSession();
       McpServerConfig? openedConfig;
-      Map<String, String>? openedHeaders;
+      McpCredentials? openedCredentials;
 
       var round = 0;
       final service = AiService(
@@ -196,9 +249,9 @@ void main() {
           final body = sseFor(round++);
           return httpResponse(body);
         }),
-        mcpOpener: (config, headers) async {
+        mcpOpener: (config, credentials) async {
           openedConfig = config;
-          openedHeaders = headers;
+          openedCredentials = credentials;
           return session;
         },
       );
@@ -208,7 +261,9 @@ void main() {
           .toList();
 
       expect(openedConfig!.name, '测试 MCP');
-      expect(openedHeaders, <String, String>{'Authorization': 'Bearer tok'});
+      expect(openedCredentials!.headers, <String, String>{
+        'Authorization': 'Bearer tok',
+      });
       expect(session.calls.single, <String, dynamic>{'q': 'hi'});
       expect(session.closed, isTrue);
       final finished = events.whereType<AiFinished>().single;
@@ -228,7 +283,7 @@ void main() {
         outline: OutlineRepository(db),
         stats: TokenStatsRepository(db),
         httpClient: MockClient((_) async => httpResponse(sseFor(1))),
-        mcpOpener: (config, headers) async => throw StateError('连接被拒绝'),
+        mcpOpener: (config, credentials) async => throw StateError('连接被拒绝'),
       );
 
       final events = await service
@@ -237,6 +292,77 @@ void main() {
 
       expect(events.whereType<AiFailed>(), isEmpty);
       expect(events.whereType<AiFinished>().single.text, '1. 点子一');
+    });
+
+    test('ENH-21：OAuth 服务器未授权时跳过该服务、不阻断生成', () async {
+      final id = await settings.createMcpServer(
+        name: 'OAuth 未授权',
+        url: 'https://oauth.example.com/mcp',
+        authMode: McpAuthMode.oauth,
+      );
+      var opened = false;
+      final service = AiService(
+        settings: settings,
+        works: WorkRepository(db),
+        chapters: ChapterRepository(db),
+        characters: CharacterRepository(db),
+        outline: OutlineRepository(db),
+        stats: TokenStatsRepository(db),
+        httpClient: MockClient((_) async => httpResponse(sseFor(1))),
+        mcpOpener: (config, credentials) async {
+          opened = true;
+          return _FakeSession();
+        },
+      );
+
+      final events = await service
+          .inspire(workId: workId, mode: InspireMode.ideas)
+          .toList();
+
+      expect(opened, isFalse);
+      expect(events.whereType<AiFailed>(), isEmpty);
+      expect(events.whereType<AiFinished>().single.text, '1. 点子一');
+      expect(await settings.hasMcpOAuthTokens(id), isFalse);
+    });
+
+    test('ENH-21：OAuth 服务器已授权时把令牌交给连接器', () async {
+      final id = await settings.createMcpServer(
+        name: 'OAuth 已授权',
+        url: 'https://oauth.example.com/mcp',
+        authMode: McpAuthMode.oauth,
+      );
+      await settings.saveMcpOAuthTokens(
+        id,
+        McpOAuthTokens(
+          accessToken: 'tok-1',
+          expiresAt: DateTime.now().add(const Duration(hours: 1)),
+        ),
+      );
+      McpCredentials? openedCredentials;
+      var round = 0;
+      final service = AiService(
+        settings: settings,
+        works: WorkRepository(db),
+        chapters: ChapterRepository(db),
+        characters: CharacterRepository(db),
+        outline: OutlineRepository(db),
+        stats: TokenStatsRepository(db),
+        httpClient: MockClient((_) async {
+          final body = sseFor(round++);
+          return httpResponse(body);
+        }),
+        mcpOpener: (config, credentials) async {
+          openedCredentials = credentials;
+          return _FakeSession();
+        },
+      );
+
+      final events = await service
+          .inspire(workId: workId, mode: InspireMode.ideas)
+          .toList();
+
+      expect(openedCredentials!.oauthTokens!.accessToken, 'tok-1');
+      expect(events.whereType<AiFinished>().single.text, contains('点子一'));
     });
   });
 }

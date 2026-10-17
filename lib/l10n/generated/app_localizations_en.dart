@@ -187,6 +187,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commonEdit => 'Edit';
 
   @override
+  String get commonMoreActions => 'More actions';
+
+  @override
   String get commonRename => 'Rename';
 
   @override
@@ -1851,6 +1854,136 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mcpTestConnection => 'Test connection';
+
+  @override
+  String mcpEnableSwitch(String name) {
+    return 'Enable \"$name\"';
+  }
+
+  @override
+  String get mcpAuthModeLabel => 'Authentication';
+
+  @override
+  String get mcpAuthModeHeaders => 'Custom headers';
+
+  @override
+  String get mcpAuthModeOAuth => 'OAuth 2.1 (PKCE)';
+
+  @override
+  String get mcpOAuthClientIdLabel => 'OAuth Client ID (optional)';
+
+  @override
+  String get mcpOAuthClientIdHint => 'Leave blank to register dynamically';
+
+  @override
+  String get mcpOAuthClientIdHelper =>
+      'Pre-registered client ID; saved back automatically after dynamic registration';
+
+  @override
+  String get mcpOAuthScopesLabel => 'Scopes (optional)';
+
+  @override
+  String get mcpOAuthScopesHelper =>
+      'Space or comma separated; leave blank to let the server decide';
+
+  @override
+  String get mcpOAuthStatusAuthorized =>
+      'Authorized: the access token is stored on this device';
+
+  @override
+  String get mcpOAuthStatusNotAuthorized =>
+      'Not authorized: complete authorization before using this OAuth server';
+
+  @override
+  String get mcpOAuthAuthorize => 'Authorize';
+
+  @override
+  String get mcpOAuthReauthorize => 'Re-authorize';
+
+  @override
+  String get mcpOAuthClear => 'Revoke';
+
+  @override
+  String get mcpOAuthClearTitle => 'Revoke OAuth authorization';
+
+  @override
+  String get mcpOAuthClearBody =>
+      'This deletes the stored access token for this server; features using it will ask you to authorize again.';
+
+  @override
+  String get mcpOAuthCleared => 'Authorization token cleared';
+
+  @override
+  String get mcpOAuthSuccess => 'Authorization succeeded; token saved';
+
+  @override
+  String mcpOAuthFailed(String detail) {
+    return 'Authorization failed: $detail';
+  }
+
+  @override
+  String get mcpOAuthSaveFirst =>
+      'Save this server first, then test or authorize';
+
+  @override
+  String get mcpOAuthSecureHint =>
+      'The token stays in on-device secure storage and is never exported with backups; authorization runs in your system browser (PKCE, no client secret stored).';
+
+  @override
+  String get skillImport => 'Import skill';
+
+  @override
+  String get skillImportFromFile => 'Import from file';
+
+  @override
+  String get skillImportFromPaste => 'Paste to import';
+
+  @override
+  String get skillImportPasteTitle => 'Paste skill Markdown';
+
+  @override
+  String get skillImportPasteHint =>
+      'Paste skill text that starts with front matter (---)';
+
+  @override
+  String get skillImportPreviewTitle => 'Confirm skill import';
+
+  @override
+  String skillImportOk(String name) {
+    return 'Imported \"$name\"';
+  }
+
+  @override
+  String skillImportFailed(String detail) {
+    return 'Import failed: $detail';
+  }
+
+  @override
+  String get skillDescriptionLabel => 'Description (optional)';
+
+  @override
+  String get skillDescriptionHint => 'One sentence on what this skill is for';
+
+  @override
+  String commonToggleSwitch(String name) {
+    return 'Enable \"$name\"';
+  }
+
+  @override
+  String newWorkCoverOptionLabel(int index) {
+    return 'Cover color $index';
+  }
+
+  @override
+  String get a11yHeatmapLabel =>
+      'Writing heatmap: darker cells mean more words written that day';
+
+  @override
+  String get a11yTrendChartLabel => 'Word count trend: words written per day';
+
+  @override
+  String get a11yRelationGraphLabel =>
+      'Character relation graph with draggable nodes';
 
   @override
   String get skillDeleteTitle => 'Delete skill';

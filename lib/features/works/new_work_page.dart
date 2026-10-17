@@ -99,24 +99,34 @@ class _NewWorkPageState extends ConsumerState<NewWorkPage> {
           Wrap(
             spacing: 14,
             runSpacing: 14,
-            children: WorkCoverColors.palette.map((color) {
+            children: WorkCoverColors.palette.indexed.map((entry) {
+              final (index, color) = entry;
               final selected = color.toARGB32() == _coverColor;
-              return GestureDetector(
+              return Semantics(
+                button: true,
+                selected: selected,
+                label: context.l10n.newWorkCoverOptionLabel(index + 1),
                 onTap: () => setState(() => _coverColor = color.toARGB32()),
-                child: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: color,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: selected ? context.paper.ink : Colors.transparent,
-                      width: 2.5,
+                child: GestureDetector(
+                  excludeFromSemantics: true,
+                  onTap: () => setState(() => _coverColor = color.toARGB32()),
+                  child: Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: selected
+                            ? context.paper.ink
+                            : Colors.transparent,
+                        width: 2.5,
+                      ),
                     ),
+                    child: selected
+                        ? const Icon(Icons.check, color: Colors.white, size: 20)
+                        : null,
                   ),
-                  child: selected
-                      ? const Icon(Icons.check, color: Colors.white, size: 20)
-                      : null,
                 ),
               );
             }).toList(),

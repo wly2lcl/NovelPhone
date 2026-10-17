@@ -21,11 +21,12 @@
 - 请求携带的 API Key 由你提供，仅用于向该服务商鉴权。
 - **本地规则引擎的 AI 感检查完全离线**，绝不联网扫描你的正文。
 - 若你主动配置了 **MCP 工具服务**（设置页「MCP 工具服务」），灵感类任务在 AI 决定调用其工具时，会把你自行配置的 MCP server 所需的参数经 `Authorization` 等自定义请求头直连该服务地址；不配置该功能则不产生此类请求。
+- 若 MCP 服务选择 **OAuth 2.1（PKCE）** 认证，点「开始授权」后会打开**系统浏览器**直达该 MCP 服务的授权服务器（元数据发现、动态客户端注册与令牌交换都直连该服务器），授权完成后通过 `127.0.0.1` 本机回环回调把授权码换为令牌；NovelPhone 不设中转服务器，也不接收你的账号密码——登录与同意都在浏览器内由授权服务器完成。
 - 若你在设置页「云备份」中开启，则在你手动触发（立即备份 / 刷新远端备份 / 从云端恢复）或开启「自动备份」后于应用启动 / 回到前台按所选频率自动触发时，会把整库备份 zip **直连你自行配置的对象存储**（S3 兼容：AWS S3 / 阿里云 OSS / 七牛云 Kodo / 腾讯云 COS / 华为云 OBS）上传或下载；NovelPhone 不设中转服务器。AccessKey / SecretKey 只存本机安全存储，不落库、不随备份导出。**该开关默认关闭；关闭时不联网、不产生任何云端请求。**
 
 ### 1.3 数据的删除与导出
 
-- 卸载应用即清除本地数据库与安全区中的 Key。
+- 卸载应用即清除本地数据库与安全区中的 Key / MCP 认证头 / OAuth 令牌。
 - 应用内提供作品导出（txt / docx / markdown）与整库 zip 备份（**备份不含 API Key**），你可自行保管与迁移。
 - **系统级自动云备份已关闭**：Android 侧声明 `android:allowBackup="false"`，并在 Android 12+ 由 `dataExtractionRules` 将 cloud-backup 的全部数据域显式排除——作品数据不会进入 Google Drive 等系统云备份，卸载后也不存在「云端恢复回来」的隐藏路径；Android 12+ 的换机设备直传（D2D）保留，数据仅在用户自己的两台设备之间直接迁移、不经过云端。
 
@@ -43,7 +44,8 @@
 |---|---|
 | 正文与设定数据 | 本地 SQLite（drift），离线可用；不参与任何出网请求，除你在 AI 请求中主动包含的当前上下文 |
 | API Key | 仅存 flutter_secure_storage（Keychain / Keystore）；库中只存 `apiKeyRef` 引用；删除模型组时同步清除安全区 Key |
-| MCP 认证头 | 与 API Key 同策略：只存 flutter_secure_storage（`mcp_server_<id>`），配置 JSON 仅存 URL / 名称 / 工具白名单；删除 MCP 服务时同步清除 |
+| MCP 认证头 | 与 API Key 同策略：只存 flutter_secure_storage（`mcp_server_<id>`），配置 JSON 仅存 URL / 名称 / 工具白名单 / OAuth client_id 与 scope；删除 MCP 服务时同步清除 |
+| MCP OAuth 令牌 | access / refresh 令牌与过期时间以 JSON 只存 flutter_secure_storage（`mcp_oauth_<id>`），不落库、不随备份导出、不写日志；授权走 PKCE（S256）、无客户端密钥落地，令牌过期自动用 refresh_token 续期，刷新失败提示重新授权；删除 MCP 服务或「清除授权」时立即删除 |
 | 备份文件 | zip 导出时过滤 Key 字段；恢复后需重新填写 Key |
 | 云备份凭证 | 与 API Key 同策略：AccessKey / SecretKey 仅存 flutter_secure_storage；配置 JSON（服务商 / endpoint / region / bucket / 前缀 / 保留份数）存 APP_SETTING，不含凭证、不随备份导出 |
 | 出网面 | 除用户配置的模型服务端点、MCP 服务地址（可选）与用户开启并触发时的云备份对象存储地址外，无任何出网请求（无更新检查、无遥测、无广告） |

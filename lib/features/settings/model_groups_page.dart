@@ -119,14 +119,18 @@ class _ModelGroupTileState extends ConsumerState<_ModelGroupTile> {
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          Switch(
-            value: group.enabled,
-            activeTrackColor: context.paper.accent,
-            onChanged: (value) => ref
-                .read(settingsRepositoryProvider)
-                .setModelGroupEnabled(group.id, value),
+          Semantics(
+            label: l10n.commonToggleSwitch(group.name),
+            child: Switch(
+              value: group.enabled,
+              activeTrackColor: context.paper.accent,
+              onChanged: (value) => ref
+                  .read(settingsRepositoryProvider)
+                  .setModelGroupEnabled(group.id, value),
+            ),
           ),
           PopupMenuButton<String>(
+            tooltip: l10n.commonMoreActions,
             onSelected: (value) async {
               switch (value) {
                 case 'edit':

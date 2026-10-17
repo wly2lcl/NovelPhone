@@ -284,22 +284,24 @@ class _ModelGroupEditPageState extends ConsumerState<ModelGroupEditPage> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  Row(
-                    children: <Widget>[
-                      _FieldLabel(l10n.modelEditTemperature),
-                      Expanded(
-                        child: Slider(
-                          value: _temperature,
-                          min: 0,
-                          max: 2,
-                          divisions: 20,
-                          label: _temperature.toStringAsFixed(1),
-                          activeColor: context.paper.accent,
-                          onChanged: (v) => setState(() => _temperature = v),
+                  MergeSemantics(
+                    child: Row(
+                      children: <Widget>[
+                        _FieldLabel(l10n.modelEditTemperature),
+                        Expanded(
+                          child: Slider(
+                            value: _temperature,
+                            min: 0,
+                            max: 2,
+                            divisions: 20,
+                            label: _temperature.toStringAsFixed(1),
+                            activeColor: context.paper.accent,
+                            onChanged: (v) => setState(() => _temperature = v),
+                          ),
                         ),
-                      ),
-                      Text(_temperature.toStringAsFixed(1)),
-                    ],
+                        Text(_temperature.toStringAsFixed(1)),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Row(

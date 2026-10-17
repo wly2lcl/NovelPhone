@@ -10,6 +10,7 @@ class Skill {
     required this.id,
     required this.name,
     required this.instruction,
+    this.description = '',
     this.enabled = true,
     this.allowedTools = const <String>[],
     this.parameters = const <String, String>{},
@@ -17,6 +18,9 @@ class Skill {
 
   final int id;
   final String name;
+
+  /// 一句话说明（front matter 导入的 `description`；列表页优先展示）。
+  final String description;
 
   /// 注入 system 的指令文本，可用 `{{参数名}}` 引用 [parameters]。
   final String instruction;
@@ -40,6 +44,7 @@ class Skill {
   Skill copyWith({
     String? name,
     String? instruction,
+    String? description,
     bool? enabled,
     List<String>? allowedTools,
     Map<String, String>? parameters,
@@ -48,6 +53,7 @@ class Skill {
       id: id,
       name: name ?? this.name,
       instruction: instruction ?? this.instruction,
+      description: description ?? this.description,
       enabled: enabled ?? this.enabled,
       allowedTools: allowedTools ?? this.allowedTools,
       parameters: parameters ?? this.parameters,
@@ -58,6 +64,7 @@ class Skill {
     'id': id,
     'name': name,
     'instruction': instruction,
+    'description': description,
     'enabled': enabled,
     'allowedTools': allowedTools,
     'parameters': parameters,
@@ -68,6 +75,7 @@ class Skill {
       id: (json['id'] as num?)?.toInt() ?? 0,
       name: json['name'] as String? ?? '',
       instruction: json['instruction'] as String? ?? '',
+      description: json['description'] as String? ?? '',
       enabled: json['enabled'] as bool? ?? true,
       allowedTools:
           (json['allowedTools'] as List?)?.whereType<String>().toList() ??

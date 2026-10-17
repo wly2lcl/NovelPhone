@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -107,63 +108,71 @@ class _WorkCard extends ConsumerWidget {
         side: BorderSide(color: context.paper.divider),
       ),
       clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => context.push('/work/${work.id}'),
-        onLongPress: () => _showActions(context, ref, work),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              _CoverBlock(work: work),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Row(
+      child: MergeSemantics(
+        child: Semantics(
+          customSemanticsActions: <CustomSemanticsAction, VoidCallback>{
+            CustomSemanticsAction(label: context.l10n.commonMoreActions): () =>
+                _showActions(context, ref, work),
+          },
+          child: InkWell(
+            onTap: () => context.push('/work/${work.id}'),
+            onLongPress: () => _showActions(context, ref, work),
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  _CoverBlock(work: work),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
-                        if (work.pinned) ...<Widget>[
-                          Icon(
-                            Icons.push_pin,
-                            size: 15,
-                            color: context.paper.accent,
+                        Row(
+                          children: <Widget>[
+                            if (work.pinned) ...<Widget>[
+                              Icon(
+                                Icons.push_pin,
+                                size: 15,
+                                color: context.paper.accent,
+                              ),
+                              const SizedBox(width: 6),
+                            ],
+                            Expanded(
+                              child: Text(
+                                work.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '${formatWordCount(work.wordCount, context.l10n)} · '
+                          '${context.l10n.chapterCount(work.chapterCount)}',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: context.paper.inkSoft,
                           ),
-                          const SizedBox(width: 6),
-                        ],
-                        Expanded(
-                          child: Text(
-                            work.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          context.l10n.worksLastEdited(
+                            formatRelativeTime(work.lastEditedAt, context.l10n),
+                          ),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: context.paper.inkSoft,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '${formatWordCount(work.wordCount, context.l10n)} · '
-                      '${context.l10n.chapterCount(work.chapterCount)}',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: context.paper.inkSoft,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      context.l10n.worksLastEdited(
-                        formatRelativeTime(work.lastEditedAt, context.l10n),
-                      ),
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: context.paper.inkSoft,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),

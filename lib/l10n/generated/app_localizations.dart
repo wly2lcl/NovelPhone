@@ -338,6 +338,12 @@ abstract class AppLocalizations {
   /// **'编辑'**
   String get commonEdit;
 
+  /// No description provided for @commonMoreActions.
+  ///
+  /// In zh, this message translates to:
+  /// **'更多操作'**
+  String get commonMoreActions;
+
   /// No description provided for @commonRename.
   ///
   /// In zh, this message translates to:
@@ -2935,6 +2941,222 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'测试连接'**
   String get mcpTestConnection;
+
+  /// No description provided for @mcpEnableSwitch.
+  ///
+  /// In zh, this message translates to:
+  /// **'启用「{name}」'**
+  String mcpEnableSwitch(String name);
+
+  /// No description provided for @mcpAuthModeLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'认证方式'**
+  String get mcpAuthModeLabel;
+
+  /// No description provided for @mcpAuthModeHeaders.
+  ///
+  /// In zh, this message translates to:
+  /// **'自定义请求头'**
+  String get mcpAuthModeHeaders;
+
+  /// No description provided for @mcpAuthModeOAuth.
+  ///
+  /// In zh, this message translates to:
+  /// **'OAuth 2.1（PKCE）'**
+  String get mcpAuthModeOAuth;
+
+  /// No description provided for @mcpOAuthClientIdLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'OAuth Client ID（选填）'**
+  String get mcpOAuthClientIdLabel;
+
+  /// No description provided for @mcpOAuthClientIdHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'留空则自动动态注册'**
+  String get mcpOAuthClientIdHint;
+
+  /// No description provided for @mcpOAuthClientIdHelper.
+  ///
+  /// In zh, this message translates to:
+  /// **'预注册的客户端 ID；动态注册成功后会自动回填并保存'**
+  String get mcpOAuthClientIdHelper;
+
+  /// No description provided for @mcpOAuthScopesLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'授权范围（选填）'**
+  String get mcpOAuthScopesLabel;
+
+  /// No description provided for @mcpOAuthScopesHelper.
+  ///
+  /// In zh, this message translates to:
+  /// **'空格或逗号分隔；留空则由服务器决定'**
+  String get mcpOAuthScopesHelper;
+
+  /// No description provided for @mcpOAuthStatusAuthorized.
+  ///
+  /// In zh, this message translates to:
+  /// **'已授权：访问令牌已保存在本机'**
+  String get mcpOAuthStatusAuthorized;
+
+  /// No description provided for @mcpOAuthStatusNotAuthorized.
+  ///
+  /// In zh, this message translates to:
+  /// **'未授权：请先完成授权，OAuth 服务器才能使用'**
+  String get mcpOAuthStatusNotAuthorized;
+
+  /// No description provided for @mcpOAuthAuthorize.
+  ///
+  /// In zh, this message translates to:
+  /// **'开始授权'**
+  String get mcpOAuthAuthorize;
+
+  /// No description provided for @mcpOAuthReauthorize.
+  ///
+  /// In zh, this message translates to:
+  /// **'重新授权'**
+  String get mcpOAuthReauthorize;
+
+  /// No description provided for @mcpOAuthClear.
+  ///
+  /// In zh, this message translates to:
+  /// **'清除授权'**
+  String get mcpOAuthClear;
+
+  /// No description provided for @mcpOAuthClearTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'清除 OAuth 授权'**
+  String get mcpOAuthClearTitle;
+
+  /// No description provided for @mcpOAuthClearBody.
+  ///
+  /// In zh, this message translates to:
+  /// **'将删除本服务器已保存的访问令牌；之后使用该服务器的功能会提示重新授权。'**
+  String get mcpOAuthClearBody;
+
+  /// No description provided for @mcpOAuthCleared.
+  ///
+  /// In zh, this message translates to:
+  /// **'已清除授权令牌'**
+  String get mcpOAuthCleared;
+
+  /// No description provided for @mcpOAuthSuccess.
+  ///
+  /// In zh, this message translates to:
+  /// **'授权成功，令牌已保存'**
+  String get mcpOAuthSuccess;
+
+  /// No description provided for @mcpOAuthFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'授权失败：{detail}'**
+  String mcpOAuthFailed(String detail);
+
+  /// No description provided for @mcpOAuthSaveFirst.
+  ///
+  /// In zh, this message translates to:
+  /// **'请先保存该服务，再测试连接或授权'**
+  String get mcpOAuthSaveFirst;
+
+  /// No description provided for @mcpOAuthSecureHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'令牌只保存在本机安全存储，不会随备份导出；授权在系统浏览器中完成（PKCE，无客户端密钥落地）。'**
+  String get mcpOAuthSecureHint;
+
+  /// No description provided for @skillImport.
+  ///
+  /// In zh, this message translates to:
+  /// **'导入技能'**
+  String get skillImport;
+
+  /// No description provided for @skillImportFromFile.
+  ///
+  /// In zh, this message translates to:
+  /// **'从文件导入'**
+  String get skillImportFromFile;
+
+  /// No description provided for @skillImportFromPaste.
+  ///
+  /// In zh, this message translates to:
+  /// **'粘贴导入'**
+  String get skillImportFromPaste;
+
+  /// No description provided for @skillImportPasteTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'粘贴技能 Markdown'**
+  String get skillImportPasteTitle;
+
+  /// No description provided for @skillImportPasteHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'粘贴以 front matter（---）开头的技能文本'**
+  String get skillImportPasteHint;
+
+  /// No description provided for @skillImportPreviewTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'确认导入技能'**
+  String get skillImportPreviewTitle;
+
+  /// No description provided for @skillImportOk.
+  ///
+  /// In zh, this message translates to:
+  /// **'已导入「{name}」'**
+  String skillImportOk(String name);
+
+  /// No description provided for @skillImportFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'导入失败：{detail}'**
+  String skillImportFailed(String detail);
+
+  /// No description provided for @skillDescriptionLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'技能简介（选填）'**
+  String get skillDescriptionLabel;
+
+  /// No description provided for @skillDescriptionHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'一句话说明这个技能的用途'**
+  String get skillDescriptionHint;
+
+  /// No description provided for @commonToggleSwitch.
+  ///
+  /// In zh, this message translates to:
+  /// **'启用「{name}」'**
+  String commonToggleSwitch(String name);
+
+  /// No description provided for @newWorkCoverOptionLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'封面色块 {index}'**
+  String newWorkCoverOptionLabel(int index);
+
+  /// No description provided for @a11yHeatmapLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'写作热力图：色块越深，表示当天写下的字数越多'**
+  String get a11yHeatmapLabel;
+
+  /// No description provided for @a11yTrendChartLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'字数趋势图：按天统计的写作字数'**
+  String get a11yTrendChartLabel;
+
+  /// No description provided for @a11yRelationGraphLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'人物关系图，节点可拖动调整位置'**
+  String get a11yRelationGraphLabel;
 
   /// No description provided for @skillDeleteTitle.
   ///

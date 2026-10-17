@@ -1,9 +1,13 @@
+import 'dart:convert';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/theme.dart';
 import '../../core/ai/skills/skill.dart';
+import '../../core/ai/skills/skill_front_matter.dart';
 import '../../data/data_providers.dart';
 import '../../l10n/l10n.dart';
 
@@ -66,12 +70,149 @@ class _SkillsPageState extends ConsumerState<SkillsPage> {
     await _load();
   }
 
+  /// 从 .md / .markdown / .txt 文件读取技能文本（ENH-21）。
+  Future<void> _importFromFile() async {
+    final l10n = context.l10n;
+    String raw;
+    try {
+      final file = await FilePicker.pickFile(
+        type: FileType.custom,
+        allowedExtensions: const <String>['md', 'markdown', 'txt'],
+      );
+      if (file == null) return;
+      final bytes = await file.readAsBytes();
+      raw = utf8.decode(bytes, allowMalformed: true);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.skillImportFailed('$e'))));
+      return;
+    }
+    if (!mounted) return;
+    await _importFromText(raw);
+  }
+
+  /// 粘贴导入：对话框内输入 front matter 文本（ENH-21）。
+  Future<void> _importFromPaste() async {
+    final raw = await showDialog<String>(
+      context: context,
+      builder: (_) => const _PasteSkillDialog(),
+    );
+    if (raw == null || raw.trim().isEmpty) return;
+    await _importFromText(raw);
+  }
+
+  /// 解析 front matter → 预览确认 → 落库（ENH-21）。
+  Future<void> _importFromText(String raw) async {
+    final l10n = context.l10n;
+    SkillDraft draft;
+    try {
+      draft = parseSkillFrontMatter(raw);
+    } on FormatException catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.skillImportFailed(e.message))),
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(dialogContext.l10n.skillImportPreviewTitle),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Text(
+                draft.name,
+                style: Theme.of(dialogContext).textTheme.titleMedium,
+              ),
+              if (draft.description.isNotEmpty) ...<Widget>[
+                const SizedBox(height: 4),
+                Text(
+                  draft.description,
+                  style: Theme.of(dialogContext).textTheme.bodySmall,
+                ),
+              ],
+              const SizedBox(height: 12),
+              Text(
+                draft.allowedTools.isEmpty
+                    ? l10n.skillToolsUnlimited
+                    : l10n.skillToolsWhitelist(
+                        draft.allowedTools.join(l10n.skillListSeparator),
+                      ),
+                style: Theme.of(dialogContext).textTheme.bodySmall,
+              ),
+              const SizedBox(height: 12),
+              Text(draft.instruction),
+            ],
+          ),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(l10n.commonCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(l10n.skillImport),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    final repo = ref.read(settingsRepositoryProvider);
+    final id = await repo.createSkill(
+      name: draft.name,
+      instruction: draft.instruction,
+      description: draft.description,
+      allowedTools: draft.allowedTools,
+      parameters: draft.parameters,
+    );
+    if (!draft.enabled) {
+      await repo.setSkillEnabled(id, false);
+    }
+    await _load();
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(l10n.skillImportOk(draft.name))));
+  }
+
   @override
   Widget build(BuildContext context) {
     final skills = _skills;
     final l10n = context.l10n;
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.skillTitle)),
+      appBar: AppBar(
+        title: Text(l10n.skillTitle),
+        actions: <Widget>[
+          PopupMenuButton<String>(
+            tooltip: l10n.commonMoreActions,
+            onSelected: (value) async {
+              switch (value) {
+                case 'import_file':
+                  await _importFromFile();
+                case 'import_paste':
+                  await _importFromPaste();
+              }
+            },
+            itemBuilder: (context) => <PopupMenuEntry<String>>[
+              PopupMenuItem<String>(
+                value: 'import_file',
+                child: Text(l10n.skillImportFromFile),
+              ),
+              PopupMenuItem<String>(
+                value: 'import_paste',
+                child: Text(l10n.skillImportFromPaste),
+              ),
+            ],
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openEdit(null),
         icon: const Icon(Icons.add),
@@ -97,7 +238,7 @@ class _SkillsPageState extends ConsumerState<SkillsPage> {
                   ),
                   title: Text(skill.name),
                   subtitle: Text(
-                    '${skill.instruction.trim()}\n'
+                    '${skill.description.trim().isNotEmpty ? skill.description.trim() : skill.instruction.trim()}\n'
                     '${skill.allowedTools.isEmpty ? l10n.skillToolsUnlimited : l10n.skillToolsWhitelist(skill.allowedTools.join(l10n.skillListSeparator))}',
                     maxLines: 3,
                     style: TextStyle(
@@ -109,12 +250,16 @@ class _SkillsPageState extends ConsumerState<SkillsPage> {
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
-                      Switch(
-                        value: skill.enabled,
-                        activeTrackColor: context.paper.accent,
-                        onChanged: (value) => _toggle(skill, value),
+                      Semantics(
+                        label: l10n.commonToggleSwitch(skill.name),
+                        child: Switch(
+                          value: skill.enabled,
+                          activeTrackColor: context.paper.accent,
+                          onChanged: (value) => _toggle(skill, value),
+                        ),
                       ),
                       PopupMenuButton<String>(
+                        tooltip: l10n.commonMoreActions,
                         onSelected: (value) async {
                           switch (value) {
                             case 'edit':
@@ -140,6 +285,49 @@ class _SkillsPageState extends ConsumerState<SkillsPage> {
                 );
               },
             ),
+    );
+  }
+}
+
+/// 粘贴导入对话框：自持控制器，避免路由退出动画期间被提前释放。
+class _PasteSkillDialog extends StatefulWidget {
+  const _PasteSkillDialog();
+
+  @override
+  State<_PasteSkillDialog> createState() => _PasteSkillDialogState();
+}
+
+class _PasteSkillDialogState extends State<_PasteSkillDialog> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return AlertDialog(
+      title: Text(l10n.skillImportPasteTitle),
+      content: TextField(
+        controller: _controller,
+        minLines: 6,
+        maxLines: 12,
+        autofocus: true,
+        decoration: InputDecoration(hintText: l10n.skillImportPasteHint),
+      ),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l10n.commonCancel),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(_controller.text),
+          child: Text(l10n.skillImport),
+        ),
+      ],
     );
   }
 }
@@ -189,6 +377,7 @@ class SkillEditPage extends ConsumerStatefulWidget {
 class _SkillEditPageState extends ConsumerState<SkillEditPage> {
   final _formKey = GlobalKey<FormState>();
   final _name = TextEditingController();
+  final _description = TextEditingController();
   final _instruction = TextEditingController();
   final _parameters = TextEditingController();
   final _allowedTools = TextEditingController();
@@ -207,6 +396,7 @@ class _SkillEditPageState extends ConsumerState<SkillEditPage> {
   @override
   void dispose() {
     _name.dispose();
+    _description.dispose();
     _instruction.dispose();
     _parameters.dispose();
     _allowedTools.dispose();
@@ -234,6 +424,7 @@ class _SkillEditPageState extends ConsumerState<SkillEditPage> {
     if (!mounted) return;
     setState(() {
       _name.text = skill.name;
+      _description.text = skill.description;
       _instruction.text = skill.instruction;
       _parameters.text = skill.parameters.entries
           .map((e) => '${e.key}=${e.value}')
@@ -270,6 +461,7 @@ class _SkillEditPageState extends ConsumerState<SkillEditPage> {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     final repo = ref.read(settingsRepositoryProvider);
     final name = _name.text.trim();
+    final description = _description.text.trim();
     final instruction = _instruction.text.trim();
     final tools = _toolList;
     final parameters = _parameterMap;
@@ -278,6 +470,7 @@ class _SkillEditPageState extends ConsumerState<SkillEditPage> {
       await repo.createSkill(
         name: name,
         instruction: instruction,
+        description: description,
         allowedTools: tools,
         parameters: parameters,
       );
@@ -287,6 +480,7 @@ class _SkillEditPageState extends ConsumerState<SkillEditPage> {
           id: widget.skillId!,
           name: name,
           instruction: instruction,
+          description: description,
           enabled: _enabled,
           allowedTools: tools,
           parameters: parameters,
@@ -331,6 +525,15 @@ class _SkillEditPageState extends ConsumerState<SkillEditPage> {
                     validator: (v) => (v ?? '').trim().isEmpty
                         ? context.l10n.skillNameRequired
                         : null,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _description,
+                    maxLength: 60,
+                    decoration: InputDecoration(
+                      labelText: context.l10n.skillDescriptionLabel,
+                      hintText: context.l10n.skillDescriptionHint,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   TextFormField(

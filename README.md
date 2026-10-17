@@ -13,7 +13,7 @@
 - **数据归你**——SQLite 本地存储、API Key 存系统安全区、备份导出到本地文件或你自己的对象存储；
 - **治理「AI 味」**——内置规则引擎与可选 LLM 深检标记套话、重复句式等问题，支持定位与一键替换；AI 续写默认并发生成多个候选，供你对照挑选。
 
-当前状态：MVP 功能范围（78 / 78）已收口，此后 20 项增强（ENH-01~20，含全 App 简体中文 / English 双语 UI、应用图标 / 启动闪屏品牌化与发布产物交付）全部落地；Android release 签名、AAB / 分 ABI APK 产物与 GitHub Actions CI 就绪，iOS 无签名 release 构建通过，354 个自动化用例通过，真机验收记录见 [docs/TODO.md](docs/TODO.md)。
+当前状态：MVP 功能范围（78 / 78）已收口，此后 21 项增强（ENH-01~21，含全 App 简体中文 / English 双语 UI、MCP OAuth 2.1 PKCE 与技能 front matter 导入、无障碍语义、应用图标 / 启动闪屏品牌化与发布产物交付）全部落地；Android release 签名、AAB / 分 ABI APK 产物与 GitHub Actions CI（含 iOS 无签名构建 job）就绪，iOS 无签名 release 构建通过，384 个自动化用例通过，真机验收记录见 [docs/TODO.md](docs/TODO.md)。
 
 ## 截图
 
@@ -59,14 +59,15 @@
 - 模型组：支持 OpenAI 兼容 / Anthropic / Responses 三类端点协议，多组管理、启用开关、baseUrl 与模型列表、每任务生成参数
 - 任务与模型映射：续写 / 灵感 / 改写 / 感检查 / 摘要 / 章纲扩写 / 本卷回顾分别指定模型组，未配置时引导至设置页
 - 出网稳健性：429 / 5xx 在首个文本增量前指数退避自动重试，内容过滤等错误分类给出可读提示
-- MCP 工具服务：接入远程 Streamable HTTP server，把其工具提供给 AI 调用
-- 自定义技能：附加指令文本 + 工具白名单，注入续写与灵感编排
+- MCP 工具服务：接入远程 Streamable HTTP server，把其工具提供给 AI 调用；认证支持自定义请求头与 **OAuth 2.1 PKCE**（授权在系统浏览器完成、loopback 回调换令牌，支持动态客户端注册与 refresh_token 自动续期，令牌只存本机安全区）
+- 自定义技能：附加指令文本 + 工具白名单，注入续写与灵感编排；支持按 Anthropic SKILL.md 约定从文件 / 粘贴导入 **front matter**（name / description / allowed-tools / parameters / enabled，预览确认后落库）
 
 ### 界面与体验
 
 - 界面语言：简体中文 / English 双语，默认跟随系统，可在设置 → 写作 → 语言内切换（即时生效并持久化）；AI 提示词与中文域数据保持中文
 - 全 App 深色模式：跟随系统 / 浅色 / 深色三态，暖色纸质调色板亮暗两套随主题切换
 - 品牌化外观：钢笔笔尖主题应用图标与暖色启动闪屏；「关于」页展示版本号、隐私说明要点与开源许可清单
+- 无障碍：开关 / 色块 / 弹层菜单带语义标签，仅长按可达的操作（作品卡、章节行）暴露为屏幕阅读器自定义动作，图表提供摘要描述，滑杆与标签合并播报
 
 ### 数据、统计与隐私
 
@@ -134,12 +135,12 @@ dart run build_runner build --delete-conflicting-outputs
 ```bash
 dart format --output=none --set-exit-if-changed lib test
 flutter analyze
-flutter test    # 354 个用例：数据层 / 编辑器控制器 / AI 客户端与编排 / 检查引擎 / 页面 widget
+flutter test    # 384 个用例：数据层 / 编辑器控制器 / AI 客户端与编排 / MCP OAuth 与技能导入 / 检查引擎 / 页面 widget
 ```
 
-GitHub Actions（[ci.yml](.github/workflows/ci.yml)）在 push 与 PR 上执行上述三项检查。
+GitHub Actions（[ci.yml](.github/workflows/ci.yml)）在 push 与 PR 上执行上述三项检查，并在 `macos-latest` 上额外执行 iOS 无签名 release 构建（`flutter build ios --release --no-codesign`）以尽早发现 iOS 工程 / 插件集成问题。
 
-开发辅助工具：[tool/fake_llm_server.dart](tool/fake_llm_server.dart) 在本机回环模拟 Chat Completions / Messages 的正常流与 429 / 5xx / 内容过滤场景（`GET /stats` 观测请求计数），配合 `adb reverse` 可在真机验证 AI 错误与重试路径，无需真实 API Key。
+开发辅助工具：[tool/fake_llm_server.dart](tool/fake_llm_server.dart) 在本机回环模拟 Chat Completions / Messages 的正常流与 429 / 5xx / 内容过滤场景（`GET /stats` 观测请求计数），配合 `adb reverse` 可在真机验证 AI 错误与重试路径，无需真实 API Key；[tool/fake_mcp_oauth_server.dart](tool/fake_mcp_oauth_server.dart) 模拟带 OAuth 2.1 PKCE 授权服务器（含动态注册、S256 校验、refresh_token）的 MCP server 与 echo 工具，用于验证完整授权链路。
 
 ## 文档
 
@@ -147,7 +148,7 @@ GitHub Actions（[ci.yml](.github/workflows/ci.yml)）在 push 与 PR 上执行�
 |---|---|
 | [docs/PRD.md](docs/PRD.md) | 产品定位、功能范围与验收标准 |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 技术选型、分层模块、数据模型与 AI 层设计 |
-| [docs/TODO.md](docs/TODO.md) | 任务清单、进度跟踪与真机验收记录（M1-M4 + ENH-01~20） |
+| [docs/TODO.md](docs/TODO.md) | 任务清单、进度跟踪与真机验收记录（M1-M4 + ENH-01~21） |
 | [docs/COMPLIANCE.md](docs/COMPLIANCE.md) | 隐私政策、数据安全说明与上架资料要点 |
 
 ## 许可证

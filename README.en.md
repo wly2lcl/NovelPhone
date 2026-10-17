@@ -13,7 +13,7 @@ Two design principles:
 - **Your data stays yours** — SQLite storage on device, API keys in the OS secure store, backups to local files or your own object storage;
 - **Curating the "AI flavor"** — a built-in rule engine plus optional LLM deep-check flags clichés and repetitive sentence patterns with locate-and-replace actions; AI continuation generates multiple candidates in parallel for you to compare.
 
-Status: the MVP scope (78 / 78) is complete, followed by 20 enhancements (ENH-01~20, including a full Simplified-Chinese / English bilingual UI, a branded app icon / launch splash and release-artifact delivery). Android release signing, AAB / split-ABI APKs and GitHub Actions CI are in place; the iOS unsigned release build passes and 354 automated tests pass. Real-device acceptance records are in [docs/TODO.md](docs/TODO.md) (Chinese).
+Status: the MVP scope (78 / 78) is complete, followed by 21 enhancements (ENH-01~21, including a full Simplified-Chinese / English bilingual UI, MCP OAuth 2.1 PKCE and skill front-matter import, accessibility semantics, a branded app icon / launch splash and release-artifact delivery). Android release signing, AAB / split-ABI APKs and GitHub Actions CI (including an iOS unsigned-build job) are in place; the iOS unsigned release build passes and 384 automated tests pass. Real-device acceptance records are in [docs/TODO.md](docs/TODO.md) (Chinese).
 
 ## Screenshots
 
@@ -59,14 +59,15 @@ Status: the MVP scope (78 / 78) is complete, followed by 20 enhancements (ENH-01
 - Model groups: OpenAI-compatible / Anthropic / Responses endpoint protocols, multiple groups with enable toggles, baseUrl and model list, per-task generation parameters
 - Task-to-model mapping: continuation / inspiration / rewrite / check / summary / outline / volume-recap each bind to their own group; unconfigured states guide you to Settings
 - Network resilience: exponential backoff retry on 429 / 5xx before the first text delta; classified, readable errors for content-filtering and other failures
-- MCP tool service: connect a remote Streamable HTTP server and let AI call its tools
-- Custom skills: extra instruction text plus a tool allowlist, injected into continuation and inspiration orchestration
+- MCP tool service: connect a remote Streamable HTTP server and let AI call its tools; authentication supports custom headers and **OAuth 2.1 PKCE** (authorization in the system browser, loopback callback, dynamic client registration, automatic refresh_token renewal; tokens stay in the on-device secure store)
+- Custom skills: extra instruction text plus a tool allowlist, injected into continuation and inspiration orchestration; **front matter** import from a file or pasted text following the Anthropic SKILL.md convention (name / description / allowed-tools / parameters / enabled, previewed before saving)
 
 ### UI & experience
 
 - Bilingual UI: Simplified Chinese / English, following the system locale by default and switchable in Settings → Writing → Language (effective immediately, persisted). AI prompts and Chinese domain data stay in Chinese
 - App-wide dark mode: follow-system / light / dark, with light and dark variants of the warm paper palette
 - Branded look: a fountain-pen-nib app icon and a warm launch splash; an About page with the version number, privacy highlights and the open-source license list
+- Accessibility: labeled switches / color swatches / overflow menus, long-press-only actions exposed as custom screen-reader actions (work cards, chapter rows), summary descriptions for charts, and sliders merged with their labels
 
 ### Data, stats & privacy
 
@@ -134,12 +135,12 @@ dart run build_runner build --delete-conflicting-outputs
 ```bash
 dart format --output=none --set-exit-if-changed lib test
 flutter analyze
-flutter test    # 354 cases: data layer / editor controller / AI client & orchestration / check engine / widgets
+flutter test    # 384 cases: data layer / editor controller / AI client & orchestration / MCP OAuth & skill import / check engine / widgets
 ```
 
-GitHub Actions ([ci.yml](.github/workflows/ci.yml)) runs the three checks on pushes and pull requests.
+GitHub Actions ([ci.yml](.github/workflows/ci.yml)) runs the three checks on pushes and pull requests and additionally runs an unsigned iOS release build (`flutter build ios --release --no-codesign`) on `macos-latest` to catch iOS project / plugin integration issues early.
 
-Dev helper: [tool/fake_llm_server.dart](tool/fake_llm_server.dart) simulates Chat Completions / Messages success streams plus 429 / 5xx / content-filtering scenarios on loopback (`GET /stats` reports request counts). With `adb reverse` it lets you exercise AI error and retry paths on a real device without a real API key.
+Dev helpers: [tool/fake_llm_server.dart](tool/fake_llm_server.dart) simulates Chat Completions / Messages success streams plus 429 / 5xx / content-filtering scenarios on loopback (`GET /stats` reports request counts). With `adb reverse` it lets you exercise AI error and retry paths on a real device without a real API key. [tool/fake_mcp_oauth_server.dart](tool/fake_mcp_oauth_server.dart) simulates an MCP server with an OAuth 2.1 PKCE authorization server (dynamic registration, S256 verification, refresh_token) and an echo tool for exercising the full authorization chain.
 
 ## Documentation
 
@@ -147,7 +148,7 @@ Dev helper: [tool/fake_llm_server.dart](tool/fake_llm_server.dart) simulates Cha
 |---|---|
 | [docs/PRD.md](docs/PRD.md) | Product positioning, scope and acceptance criteria |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Tech choices, layering, data model and AI-layer design |
-| [docs/TODO.md](docs/TODO.md) | Task list, progress tracking and real-device acceptance records (M1-M4 + ENH-01~20) |
+| [docs/TODO.md](docs/TODO.md) | Task list, progress tracking and real-device acceptance records (M1-M4 + ENH-01~21) |
 | [docs/COMPLIANCE.md](docs/COMPLIANCE.md) | Privacy policy, data-security notes and store-listing points |
 
 (The docs above are written in Chinese.)

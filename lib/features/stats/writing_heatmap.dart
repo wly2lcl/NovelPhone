@@ -57,97 +57,104 @@ class WritingHeatmap extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              const double gap = 1.5;
-              const double labelWidth = 14;
-              final count = weeks.length;
-              final cell =
-                  ((constraints.maxWidth - labelWidth - (count - 1) * gap) /
-                          count)
-                      .clamp(2.5, 12.0);
-              final monthLabels = _monthLabels(weeks, localeName);
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Padding(
-                    padding: const EdgeInsets.only(left: labelWidth),
-                    child: SizedBox(
-                      height: 12,
-                      child: Stack(
-                        children: <Widget>[
-                          for (final entry in monthLabels.entries)
-                            Positioned(
-                              left: entry.key * (cell + gap),
-                              top: 0,
-                              child: Text(
-                                entry.value,
-                                style: TextStyle(
-                                  fontSize: 9,
-                                  color: context.paper.inkSoft,
+          Semantics(
+            label: l10n.a11yHeatmapLabel,
+            container: true,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                const double gap = 1.5;
+                const double labelWidth = 14;
+                final count = weeks.length;
+                final cell =
+                    ((constraints.maxWidth - labelWidth - (count - 1) * gap) /
+                            count)
+                        .clamp(2.5, 12.0);
+                final monthLabels = _monthLabels(weeks, localeName);
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Padding(
+                      padding: const EdgeInsets.only(left: labelWidth),
+                      child: SizedBox(
+                        height: 12,
+                        child: Stack(
+                          children: <Widget>[
+                            for (final entry in monthLabels.entries)
+                              Positioned(
+                                left: entry.key * (cell + gap),
+                                top: 0,
+                                child: Text(
+                                  entry.value,
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    color: context.paper.inkSoft,
+                                  ),
                                 ),
                               ),
-                            ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      SizedBox(
-                        width: labelWidth,
-                        child: Column(
-                          children: <Widget>[
-                            for (var row = 0; row < 7; row++) ...<Widget>[
-                              SizedBox(
-                                height: cell,
-                                child: (row == 0 || row == 2 || row == 4)
-                                    ? Align(
-                                        alignment: Alignment.centerLeft,
-                                        child: Text(
-                                          row == 0
-                                              ? l10n.statsHeatmapWeekMon
-                                              : row == 2
-                                              ? l10n.statsHeatmapWeekWed
-                                              : l10n.statsHeatmapWeekFri,
-                                          style: TextStyle(
-                                            fontSize: 9,
-                                            color: context.paper.inkSoft,
+                    const SizedBox(height: 4),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        SizedBox(
+                          width: labelWidth,
+                          child: Column(
+                            children: <Widget>[
+                              for (var row = 0; row < 7; row++) ...<Widget>[
+                                SizedBox(
+                                  height: cell,
+                                  child: (row == 0 || row == 2 || row == 4)
+                                      ? Align(
+                                          alignment: Alignment.centerLeft,
+                                          child: Text(
+                                            row == 0
+                                                ? l10n.statsHeatmapWeekMon
+                                                : row == 2
+                                                ? l10n.statsHeatmapWeekWed
+                                                : l10n.statsHeatmapWeekFri,
+                                            style: TextStyle(
+                                              fontSize: 9,
+                                              color: context.paper.inkSoft,
+                                            ),
                                           ),
+                                        )
+                                      : null,
+                                ),
+                                if (row < 6) const SizedBox(height: gap),
+                              ],
+                            ],
+                          ),
+                        ),
+                        for (var w = 0; w < count; w++) ...<Widget>[
+                          Column(
+                            children: <Widget>[
+                              for (var row = 0; row < 7; row++) ...<Widget>[
+                                _cell(
+                                  context,
+                                  key: ValueKey<String>('heat-cell-$w-$row'),
+                                  size: cell,
+                                  level: weeks[w][row] == null
+                                      ? null
+                                      : _levelOf(
+                                          weeks[w][row]!.words,
+                                          maxWords,
                                         ),
-                                      )
-                                    : null,
-                              ),
-                              if (row < 6) const SizedBox(height: gap),
+                                ),
+                                if (row < 6) const SizedBox(height: gap),
+                              ],
                             ],
-                          ],
-                        ),
-                      ),
-                      for (var w = 0; w < count; w++) ...<Widget>[
-                        Column(
-                          children: <Widget>[
-                            for (var row = 0; row < 7; row++) ...<Widget>[
-                              _cell(
-                                context,
-                                key: ValueKey<String>('heat-cell-$w-$row'),
-                                size: cell,
-                                level: weeks[w][row] == null
-                                    ? null
-                                    : _levelOf(weeks[w][row]!.words, maxWords),
-                              ),
-                              if (row < 6) const SizedBox(height: gap),
-                            ],
-                          ],
-                        ),
-                        if (w < count - 1) const SizedBox(width: gap),
+                          ),
+                          if (w < count - 1) const SizedBox(width: gap),
+                        ],
                       ],
-                    ],
-                  ),
-                ],
-              );
-            },
+                    ),
+                  ],
+                );
+              },
+            ),
           ),
           const SizedBox(height: 10),
           Row(

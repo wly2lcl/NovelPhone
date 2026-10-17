@@ -4,6 +4,7 @@ import 'package:drift/drift.dart';
 
 import '../../core/ai/ai_client_factory.dart';
 import '../../core/ai/mcp/mcp_bridge.dart';
+import '../../core/ai/mcp/mcp_oauth.dart';
 import '../../core/ai/skills/skill.dart';
 import '../../core/writing_stats.dart';
 import '../../models/cloud_backup_config.dart';
@@ -261,6 +262,9 @@ class SettingsRepository {
   /// 认证头文本在安全存储中的引用键（与 apiKeyRef 同策略）。
   static String mcpAuthRef(int id) => 'mcp_server_$id';
 
+  /// OAuth 令牌在安全存储中的引用键（ENH-21；JSON：access/refresh/expiresAt）。
+  static String mcpOAuthRef(int id) => 'mcp_oauth_$id';
+
   Future<List<McpServerConfig>> listMcpServers() async {
     final raw = await getSetting(mcpServersKey);
     if (raw == null || raw.trim().isEmpty) return <McpServerConfig>[];
@@ -295,8 +299,12 @@ class SettingsRepository {
   Future<int> createMcpServer({
     required String name,
     required String url,
+    bool enabled = true,
     List<String> allowedTools = const <String>[],
     String? authHeaders,
+    McpAuthMode authMode = McpAuthMode.headers,
+    String oauthClientId = '',
+    List<String> oauthScopes = const <String>[],
   }) async {
     final servers = await listMcpServers();
     var nextId = 1;
@@ -308,7 +316,11 @@ class SettingsRepository {
         id: nextId,
         name: name,
         url: url,
+        enabled: enabled,
         allowedTools: allowedTools,
+        authMode: authMode,
+        oauthClientId: oauthClientId,
+        oauthScopes: oauthScopes,
       ),
     );
     await saveMcpServers(servers);
@@ -336,12 +348,13 @@ class SettingsRepository {
     }
   }
 
-  /// 删除 server：同时清除安全存储中的认证头。
+  /// 删除 server：同时清除安全存储中的认证头与 OAuth 令牌。
   Future<void> deleteMcpServer(int id) async {
     final servers = await listMcpServers();
     servers.removeWhere((s) => s.id == id);
     await saveMcpServers(servers);
     await _keyStore.delete(mcpAuthRef(id));
+    await _keyStore.delete(mcpOAuthRef(id));
   }
 
   Future<String?> readMcpAuthHeaders(int id) => _keyStore.read(mcpAuthRef(id));
@@ -354,6 +367,32 @@ class SettingsRepository {
   /// 读取 server 的认证头并解析为请求头 map。
   Future<Map<String, String>> resolveMcpHeaders(int id) async =>
       parseAuthHeaders(await readMcpAuthHeaders(id) ?? '');
+
+  // ---------- MCP OAuth 令牌（ENH-21）----------
+
+  /// 读取已持久化的 OAuth 令牌；无记录或数据损坏返回 null。
+  Future<McpOAuthTokens?> readMcpOAuthTokens(int id) async {
+    final raw = await _keyStore.read(mcpOAuthRef(id));
+    if (raw == null || raw.trim().isEmpty) return null;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map) {
+        return McpOAuthTokens.fromJson(decoded.cast<String, dynamic>());
+      }
+    } catch (_) {
+      // 容忍历史脏数据
+    }
+    return null;
+  }
+
+  /// 是否已有可用的 OAuth 令牌（设置页授权状态展示用）。
+  Future<bool> hasMcpOAuthTokens(int id) async =>
+      await readMcpOAuthTokens(id) != null;
+
+  Future<void> saveMcpOAuthTokens(int id, McpOAuthTokens tokens) =>
+      _keyStore.write(mcpOAuthRef(id), jsonEncode(tokens.toJson()));
+
+  Future<void> clearMcpOAuthTokens(int id) => _keyStore.delete(mcpOAuthRef(id));
 
   // ---------- 用户自定义 SKILL（B-03）----------
 
@@ -392,6 +431,7 @@ class SettingsRepository {
   Future<int> createSkill({
     required String name,
     required String instruction,
+    String description = '',
     List<String> allowedTools = const <String>[],
     Map<String, String> parameters = const <String, String>{},
   }) async {
@@ -405,6 +445,7 @@ class SettingsRepository {
         id: nextId,
         name: name,
         instruction: instruction,
+        description: description,
         allowedTools: allowedTools,
         parameters: parameters,
       ),

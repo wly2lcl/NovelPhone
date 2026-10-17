@@ -667,26 +667,29 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
 
   Widget _buildLengthRow() {
     if (_mode != AiPanelMode.continueWriting) return const SizedBox.shrink();
-    return Row(
-      children: <Widget>[
-        Text(
-          context.l10n.aiPanelLengthLabel(_length.round()),
-          style: TextStyle(fontSize: 12, color: context.paper.inkSoft),
-        ),
-        Expanded(
-          child: Slider(
-            value: _length,
-            min: 300,
-            max: 800,
-            divisions: 10,
-            activeColor: context.paper.accent,
-            onChanged: _streaming
-                ? null
-                : (value) =>
-                      setState(() => _length = (value / 50).round() * 50.0),
+    // 合并篇幅标签与滑杆，读屏可听到「篇幅：N 字」并直接调整。
+    return MergeSemantics(
+      child: Row(
+        children: <Widget>[
+          Text(
+            context.l10n.aiPanelLengthLabel(_length.round()),
+            style: TextStyle(fontSize: 12, color: context.paper.inkSoft),
           ),
-        ),
-      ],
+          Expanded(
+            child: Slider(
+              value: _length,
+              min: 300,
+              max: 800,
+              divisions: 10,
+              activeColor: context.paper.accent,
+              onChanged: _streaming
+                  ? null
+                  : (value) =>
+                        setState(() => _length = (value / 50).round() * 50.0),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

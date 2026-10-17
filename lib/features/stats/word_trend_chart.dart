@@ -86,21 +86,25 @@ class _WordTrendChartState extends State<WordTrendChart> {
               ),
             )
           else ...<Widget>[
-            SizedBox(
-              height: 120,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: <Widget>[
-                  for (var i = 0; i < series.length; i++)
-                    Expanded(
-                      key: ValueKey<String>('trend-bar-$i'),
-                      child: _TrendBar(
-                        words: series[i].words,
-                        max: max,
-                        isToday: series[i].day == todayKey,
+            Semantics(
+              label: l10n.a11yTrendChartLabel,
+              container: true,
+              child: SizedBox(
+                height: 120,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: <Widget>[
+                    for (var i = 0; i < series.length; i++)
+                      Expanded(
+                        key: ValueKey<String>('trend-bar-$i'),
+                        child: _TrendBar(
+                          words: series[i].words,
+                          max: max,
+                          isToday: series[i].day == todayKey,
+                        ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 6),

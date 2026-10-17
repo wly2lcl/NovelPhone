@@ -33,11 +33,15 @@ class RelationGraphPage extends ConsumerWidget {
             width: double.infinity,
             child: characters.length < 2
                 ? const _EmptyGraphHint()
-                : CustomPaint(
-                    painter: _RelationGraphPainter(
-                      characters: characters,
-                      relations: relations,
-                      palette: context.paper,
+                : Semantics(
+                    label: context.l10n.a11yRelationGraphLabel,
+                    container: true,
+                    child: CustomPaint(
+                      painter: _RelationGraphPainter(
+                        characters: characters,
+                        relations: relations,
+                        palette: context.paper,
+                      ),
                     ),
                   ),
           ),

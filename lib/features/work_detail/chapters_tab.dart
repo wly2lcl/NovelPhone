@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -421,22 +422,30 @@ class _ChapterTile extends ConsumerWidget {
           style: TextStyle(color: context.paper.accent),
         ),
       ),
-      child: ListTile(
-        contentPadding: EdgeInsets.zero,
-        title: Text(
-          chapter.title.isEmpty
-              ? context.l10n.commonUntitledChapter
-              : chapter.title,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+      child: MergeSemantics(
+        child: Semantics(
+          customSemanticsActions: <CustomSemanticsAction, VoidCallback>{
+            CustomSemanticsAction(label: context.l10n.commonMoreActions): () =>
+                _showChapterActions(context, ref),
+          },
+          child: ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(
+              chapter.title.isEmpty
+                  ? context.l10n.commonUntitledChapter
+                  : chapter.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            subtitle: Text(
+              '${formatWordCount(chapter.wordCount, context.l10n)} · '
+              '${_statusLabel(context.l10n, status)}',
+            ),
+            trailing: Icon(Icons.chevron_right, color: context.paper.inkSoft),
+            onTap: () => context.push('/work/$workId/chapter/${chapter.id}'),
+            onLongPress: () => _showChapterActions(context, ref),
+          ),
         ),
-        subtitle: Text(
-          '${formatWordCount(chapter.wordCount, context.l10n)} · '
-          '${_statusLabel(context.l10n, status)}',
-        ),
-        trailing: Icon(Icons.chevron_right, color: context.paper.inkSoft),
-        onTap: () => context.push('/work/$workId/chapter/${chapter.id}'),
-        onLongPress: () => _showChapterActions(context, ref),
       ),
     );
   }

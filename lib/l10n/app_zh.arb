@@ -152,6 +152,7 @@
   "commonSave": "保存",
   "commonConfirm": "确定",
   "commonEdit": "编辑",
+  "commonMoreActions": "更多操作",
   "commonRename": "重命名",
   "commonRetry": "重试",
   "commonClose": "关闭",
@@ -1117,6 +1118,84 @@
   "mcpEnable": "启用",
   "mcpEnableSubtitle": "停用后其工具不会暴露给 AI",
   "mcpTestConnection": "测试连接",
+  "mcpEnableSwitch": "启用「{name}」",
+  "@mcpEnableSwitch": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "mcpAuthModeLabel": "认证方式",
+  "mcpAuthModeHeaders": "自定义请求头",
+  "mcpAuthModeOAuth": "OAuth 2.1（PKCE）",
+  "mcpOAuthClientIdLabel": "OAuth Client ID（选填）",
+  "mcpOAuthClientIdHint": "留空则自动动态注册",
+  "mcpOAuthClientIdHelper": "预注册的客户端 ID；动态注册成功后会自动回填并保存",
+  "mcpOAuthScopesLabel": "授权范围（选填）",
+  "mcpOAuthScopesHelper": "空格或逗号分隔；留空则由服务器决定",
+  "mcpOAuthStatusAuthorized": "已授权：访问令牌已保存在本机",
+  "mcpOAuthStatusNotAuthorized": "未授权：请先完成授权，OAuth 服务器才能使用",
+  "mcpOAuthAuthorize": "开始授权",
+  "mcpOAuthReauthorize": "重新授权",
+  "mcpOAuthClear": "清除授权",
+  "mcpOAuthClearTitle": "清除 OAuth 授权",
+  "mcpOAuthClearBody": "将删除本服务器已保存的访问令牌；之后使用该服务器的功能会提示重新授权。",
+  "mcpOAuthCleared": "已清除授权令牌",
+  "mcpOAuthSuccess": "授权成功，令牌已保存",
+  "mcpOAuthFailed": "授权失败：{detail}",
+  "@mcpOAuthFailed": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "mcpOAuthSaveFirst": "请先保存该服务，再测试连接或授权",
+  "mcpOAuthSecureHint": "令牌只保存在本机安全存储，不会随备份导出；授权在系统浏览器中完成（PKCE，无客户端密钥落地）。",
+  "skillImport": "导入技能",
+  "skillImportFromFile": "从文件导入",
+  "skillImportFromPaste": "粘贴导入",
+  "skillImportPasteTitle": "粘贴技能 Markdown",
+  "skillImportPasteHint": "粘贴以 front matter（---）开头的技能文本",
+  "skillImportPreviewTitle": "确认导入技能",
+  "skillImportOk": "已导入「{name}」",
+  "@skillImportOk": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "skillImportFailed": "导入失败：{detail}",
+  "@skillImportFailed": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "skillDescriptionLabel": "技能简介（选填）",
+  "skillDescriptionHint": "一句话说明这个技能的用途",
+  "commonToggleSwitch": "启用「{name}」",
+  "@commonToggleSwitch": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "newWorkCoverOptionLabel": "封面色块 {index}",
+  "@newWorkCoverOptionLabel": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "a11yHeatmapLabel": "写作热力图：色块越深，表示当天写下的字数越多",
+  "a11yTrendChartLabel": "字数趋势图：按天统计的写作字数",
+  "a11yRelationGraphLabel": "人物关系图，节点可拖动调整位置",
   "skillDeleteTitle": "删除技能",
   "skillDeleteBody": "删除「{name}」后，其指令不再注入 AI 生成。",
   "@skillDeleteBody": {

@@ -19,6 +19,7 @@ import '../../data/repositories/setting_repository.dart';
 import '../../data/repositories/settings_repository.dart';
 import '../../data/repositories/token_stats_repository.dart';
 import '../../data/repositories/work_repository.dart';
+import 'mcp_credentials.dart';
 
 /// 灵感模式。
 class InspireMode {
@@ -491,7 +492,11 @@ class AiService {
         try {
           final session = await (mcpOpener ?? openMcpTools)(
             server,
-            await settings.resolveMcpHeaders(server.id),
+            await resolveMcpCredentials(
+              settings,
+              server,
+              httpClient: httpClient,
+            ),
           );
           if (session.tools.isEmpty) {
             await session.close();
