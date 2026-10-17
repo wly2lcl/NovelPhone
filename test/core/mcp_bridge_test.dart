@@ -9,6 +9,7 @@ import 'package:novelphone/core/ai/mcp/mcp_oauth.dart';
 import 'package:novelphone/data/db.dart';
 import 'package:novelphone/data/repositories/chapter_repository.dart';
 import 'package:novelphone/data/repositories/character_repository.dart';
+import 'package:novelphone/data/repositories/mcp_audit_repository.dart';
 import 'package:novelphone/data/repositories/outline_repository.dart';
 import 'package:novelphone/data/repositories/settings_repository.dart';
 import 'package:novelphone/data/repositories/token_stats_repository.dart';
@@ -245,6 +246,7 @@ void main() {
         characters: CharacterRepository(db),
         outline: OutlineRepository(db),
         stats: TokenStatsRepository(db),
+        mcpAudit: McpAuditRepository(settings),
         httpClient: MockClient((_) async {
           final body = sseFor(round++);
           return httpResponse(body);
@@ -268,6 +270,15 @@ void main() {
       expect(session.closed, isTrue);
       final finished = events.whereType<AiFinished>().single;
       expect(finished.text, contains('点子一'));
+
+      // ENH-22：远程工具调用写入本地审计。
+      final audit = await McpAuditRepository(settings).list();
+      expect(audit, hasLength(1));
+      expect(audit.single.serverName, '测试 MCP');
+      expect(audit.single.toolName, '${mcpToolPrefix}echo');
+      expect(audit.single.argumentsSummary, contains('hi'));
+      expect(audit.single.resultSummary, contains('远程结果'));
+      expect(audit.single.success, isTrue);
     });
 
     test('会话打开失败时不阻断生成', () async {

@@ -60,7 +60,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get worksDeleteConfirmBody => '该作品的全部章节、角色卡与章纲会一并删除，此操作不可恢复。';
+  String get worksDeleteConfirmBody => '作品连同章节将移入回收站，30 天内可在回收站恢复。';
 
   @override
   String worksLastEdited(String time) {
@@ -245,6 +245,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get editorToolOutlineExpand => 'AI 扩写本章纲';
 
   @override
+  String get editorToolContinuity => '设定一致性检查';
+
+  @override
   String get editorToolEditSummary => '查看/编辑本章摘要';
 
   @override
@@ -270,6 +273,21 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get editorNoModelBody => '请先在设置中添加模型组并填写 API Key，再使用 AI 功能。';
+
+  @override
+  String get editorContinuityTitle => '设定一致性检查';
+
+  @override
+  String get editorContinuityRunning => '正在检查设定一致性…';
+
+  @override
+  String get editorContinuityEmpty => '本章还没有正文，先写一些内容再检查';
+
+  @override
+  String get editorContinuityEmptyResult => '模型未返回内容，请重试';
+
+  @override
+  String get editorContinuityTruncated => '上下文超出模型窗口，部分设定资料已被省略，结果可能不完整。';
 
   @override
   String get editorLater => '稍后';
@@ -833,7 +851,42 @@ class AppLocalizationsZh extends AppLocalizations {
   String get backupErrorNewerVersion => '备份来自更新版本的应用，请先升级 app';
 
   @override
+  String get backupErrorChecksumMismatch => '备份文件校验失败，内容可能已损坏';
+
+  @override
   String get backupErrorIncomplete => '备份内容不完整';
+
+  @override
+  String get backupPreviewTitle => '恢复前确认';
+
+  @override
+  String backupPreviewSource(String name) {
+    return '备份文件：$name';
+  }
+
+  @override
+  String backupPreviewExportedAt(String time) {
+    return '导出时间：$time';
+  }
+
+  @override
+  String backupPreviewSchema(int version) {
+    return '数据版本：v$version';
+  }
+
+  @override
+  String backupPreviewCounts(int works, int chapters, int characters) {
+    return '$works 部作品 · $chapters 章 · $characters 个角色卡';
+  }
+
+  @override
+  String get backupPreviewChecksumOk => 'SHA-256 完整性校验通过';
+
+  @override
+  String get backupPreviewChecksumLegacy => '旧版备份，未包含完整性校验信息';
+
+  @override
+  String get backupPreviewContinue => '继续恢复';
 
   @override
   String get modelTestOk => '连接成功';
@@ -1060,6 +1113,45 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsSkillsSubtitle => '附加指令与工具白名单，注入续写与灵感生成';
 
   @override
+  String get settingsMcpAudit => 'MCP 调用审计';
+
+  @override
+  String get settingsMcpAuditSubtitle => '最近 100 次远程工具调用记录（仅存本机）';
+
+  @override
+  String get mcpAuditTitle => 'MCP 调用审计';
+
+  @override
+  String get mcpAuditEmpty => '还没有 MCP 工具调用记录';
+
+  @override
+  String get mcpAuditEmptyHint => '在灵感生成中启用 MCP 服务器后，远程工具调用会记录在这里。';
+
+  @override
+  String get mcpAuditClear => '清空记录';
+
+  @override
+  String get mcpAuditClearConfirmTitle => '清空调用审计？';
+
+  @override
+  String get mcpAuditClearConfirmBody => '全部调用记录将从本机删除，此操作不可恢复。';
+
+  @override
+  String get mcpAuditCleared => '调用记录已清空';
+
+  @override
+  String get mcpAuditSuccess => '成功';
+
+  @override
+  String get mcpAuditFailure => '失败';
+
+  @override
+  String get mcpAuditArguments => '参数';
+
+  @override
+  String get mcpAuditResult => '结果';
+
+  @override
   String get settingsSectionWriting => '写作';
 
   @override
@@ -1113,6 +1205,93 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get settingsCloudBackupSubtitle =>
       '备份到你自己的对象存储（S3 / OSS / COS 等），默认关闭';
+
+  @override
+  String get settingsTrash => '回收站';
+
+  @override
+  String get settingsTrashSubtitle => '恢复误删的作品与章节（保留 30 天）';
+
+  @override
+  String get trashTitle => '回收站';
+
+  @override
+  String get trashHint => '回收站中的内容保留 30 天，到期后自动永久删除。';
+
+  @override
+  String get trashTabWorks => '作品';
+
+  @override
+  String get trashTabChapters => '章节';
+
+  @override
+  String get trashEmptyWorks => '回收站里没有作品';
+
+  @override
+  String get trashEmptyChapters => '回收站里没有章节';
+
+  @override
+  String trashDeletedAt(String time) {
+    return '删除于 $time';
+  }
+
+  @override
+  String trashChapterMeta(String work, String volume) {
+    return '《$work》· $volume';
+  }
+
+  @override
+  String get trashRestore => '恢复';
+
+  @override
+  String get trashDeleteForever => '永久删除';
+
+  @override
+  String trashPurgeTitle(String title) {
+    return '永久删除「$title」？';
+  }
+
+  @override
+  String get trashPurgeWorkBody => '作品的全部章节、角色卡与章纲将被永久删除，且无法恢复。';
+
+  @override
+  String get trashPurgeChapterBody => '本章正文与版本历史将被永久删除，且无法恢复。';
+
+  @override
+  String get trashPurged => '已永久删除';
+
+  @override
+  String trashRestored(String title) {
+    return '已恢复「$title」';
+  }
+
+  @override
+  String get trashEmptyAction => '清空回收站';
+
+  @override
+  String get trashEmptyConfirmTitle => '清空回收站？';
+
+  @override
+  String get trashEmptyConfirmBody => '回收站中的全部作品与章节将被永久删除，且无法恢复。';
+
+  @override
+  String get trashEmptyDone => '回收站已清空';
+
+  @override
+  String trashLoadFailed(String detail) {
+    return '加载失败：$detail';
+  }
+
+  @override
+  String worksMovedToTrash(String title) {
+    return '《$title》已移入回收站';
+  }
+
+  @override
+  String get chaptersMovedToTrash => '章节已移入回收站';
+
+  @override
+  String get commonUndo => '撤销';
 
   @override
   String get modelGroupsNew => '新增模型组';
@@ -1254,6 +1433,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aiTaskVolumeSummary => 'AI 本卷前情回顾';
+
+  @override
+  String get aiTaskContinuity => 'AI 设定一致性检查';
 
   @override
   String get tokenStatsResetTitle => '重置统计';
@@ -1679,6 +1861,14 @@ class AppLocalizationsZh extends AppLocalizations {
   String get skillImport => '导入技能';
 
   @override
+  String get skillExport => '导出 / 分享';
+
+  @override
+  String skillExportFailed(String detail) {
+    return '导出失败：$detail';
+  }
+
+  @override
   String get skillImportFromFile => '从文件导入';
 
   @override
@@ -1954,7 +2144,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get chaptersDeleteChapterBody => '删除后本章正文不可恢复。';
+  String get chaptersDeleteChapterBody => '章节将移入回收站，30 天内可在回收站恢复。';
 
   @override
   String get outlineOrphanSection => '未关联章节的梗概';

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -8,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/theme.dart';
 import '../../core/ai/skills/skill.dart';
 import '../../core/ai/skills/skill_front_matter.dart';
+import '../../core/exporter/share_export.dart';
 import '../../data/data_providers.dart';
 import '../../l10n/l10n.dart';
 
@@ -44,6 +46,24 @@ class _SkillsPageState extends ConsumerState<SkillsPage> {
         .read(settingsRepositoryProvider)
         .setSkillEnabled(skill.id, enabled);
     await _load();
+  }
+
+  /// 导出单个技能为带 front matter 的 Markdown 并唤起系统分享（ENH-22）。
+  Future<void> _exportSkill(Skill skill) async {
+    final l10n = context.l10n;
+    try {
+      final markdown = skillToMarkdown(skill);
+      await shareExport(
+        fileName: safeExportFileName(skill.name, 'md'),
+        bytes: Uint8List.fromList(utf8.encode(markdown)),
+        title: skill.name,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.skillExportFailed('$e'))));
+    }
   }
 
   Future<void> _confirmDelete(Skill skill) async {
@@ -262,6 +282,8 @@ class _SkillsPageState extends ConsumerState<SkillsPage> {
                         tooltip: l10n.commonMoreActions,
                         onSelected: (value) async {
                           switch (value) {
+                            case 'export':
+                              await _exportSkill(skill);
                             case 'edit':
                               await _openEdit(skill.id);
                             case 'delete':
@@ -269,6 +291,10 @@ class _SkillsPageState extends ConsumerState<SkillsPage> {
                           }
                         },
                         itemBuilder: (context) => <PopupMenuEntry<String>>[
+                          PopupMenuItem<String>(
+                            value: 'export',
+                            child: Text(context.l10n.skillExport),
+                          ),
                           PopupMenuItem<String>(
                             value: 'edit',
                             child: Text(context.l10n.commonEdit),

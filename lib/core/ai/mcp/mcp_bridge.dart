@@ -6,6 +6,9 @@ import 'mcp_oauth.dart';
 /// MCP 远程工具在本地工具集中的命名前缀，避免与内置工具（get_chapter 等）重名。
 const String mcpToolPrefix = 'mcp_';
 
+/// 远程工具返回 isError 时的文本前缀（审计据此判定调用失败）。
+const String mcpToolErrorPrefix = '远程工具返回错误：';
+
 /// 认证方式（ENH-21）。
 enum McpAuthMode {
   /// 自定义请求头（可空；密钥只存安全存储，不随配置 JSON 落库）。
@@ -307,7 +310,7 @@ Future<String> _callTool(
     mcp.CallToolRequest(name: name, arguments: args),
   );
   final text = _contentText(result.content);
-  if (result.isError) return '远程工具返回错误：$text';
+  if (result.isError) return '$mcpToolErrorPrefix$text';
   return text.isEmpty ? '（远程工具无文本输出）' : text;
 }
 

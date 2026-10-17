@@ -119,6 +119,8 @@ String backupErrorText(AppLocalizations l10n, Object error) {
       return l10n.backupErrorWrongFormat;
     case BackupErrorKind.newerVersion:
       return l10n.backupErrorNewerVersion;
+    case BackupErrorKind.checksumMismatch:
+      return l10n.backupErrorChecksumMismatch;
     case BackupErrorKind.incomplete:
       return l10n.backupErrorIncomplete;
   }

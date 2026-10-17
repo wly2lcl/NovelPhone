@@ -634,6 +634,17 @@ class _ChapterTile extends ConsumerWidget {
       ),
     );
     if (confirmed != true) return;
-    await ref.read(chapterRepositoryProvider).deleteChapter(chapter.id);
+    final repository = ref.read(chapterRepositoryProvider);
+    await repository.moveChapterToTrash(chapter.id);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(context.l10n.chaptersMovedToTrash),
+        action: SnackBarAction(
+          label: context.l10n.commonUndo,
+          onPressed: () => repository.restoreChapterFromTrash(chapter.id),
+        ),
+      ),
+    );
   }
 }

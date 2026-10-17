@@ -29,6 +29,9 @@ class AiTask {
   /// ENH-06：本卷前情回顾（滚动摘要）。
   static const String volumeSummary = 'volume';
 
+  /// ENH-22：设定一致性检查。
+  static const String continuity = 'continuity';
+
   static const List<String> all = <String>[
     continueWriting,
     inspire,
@@ -37,6 +40,7 @@ class AiTask {
     summary,
     outlineExpand,
     volumeSummary,
+    continuity,
   ];
 
   static String label(String task) {
@@ -55,6 +59,8 @@ class AiTask {
         return 'AI 章纲扩写';
       case volumeSummary:
         return 'AI 本卷前情回顾';
+      case continuity:
+        return 'AI 设定一致性检查';
       default:
         return task;
     }

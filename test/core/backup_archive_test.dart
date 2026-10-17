@@ -99,4 +99,103 @@ void main() {
       throwsA(isA<FormatException>()),
     );
   });
+
+  group('ENH-22 完整性校验与恢复预览', () {
+    final previewData = <String, dynamic>{
+      'format': kBackupFormat,
+      'version': kBackupFormatVersion,
+      'schemaVersion': 11,
+      'exportedAt': '2026-10-16T12:34:56.000',
+      'tables': <String, dynamic>{
+        'works': <dynamic>[
+          <String, dynamic>{'id': 1},
+        ],
+        'chapters': <dynamic>[
+          <String, dynamic>{'id': 1},
+          <String, dynamic>{'id': 2},
+        ],
+        'characters': <dynamic>[],
+      },
+    };
+
+    test('产物包含 manifest.json 且 SHA-256 校验通过', () {
+      final bytes = buildBackupZip(
+        data: previewData,
+        workMarkdowns: const <String, String>{},
+      );
+
+      final archive = ZipDecoder().decodeBytes(bytes);
+      expect(
+        archive.files.where((f) => f.name == kBackupManifestEntry),
+        hasLength(1),
+      );
+
+      final parsed = inspectBackupZip(bytes);
+      expect(parsed.preview.checksumVerified, isTrue);
+      expect(parsed.preview.schemaVersion, 11);
+      expect(parsed.preview.exportedAt, DateTime(2026, 10, 16, 12, 34, 56));
+      expect(parsed.preview.works, 1);
+      expect(parsed.preview.chapters, 2);
+      expect(parsed.preview.characters, 0);
+    });
+
+    test('data.json 被篡改时报校验失败', () {
+      final bytes = buildBackupZip(
+        data: previewData,
+        workMarkdowns: const <String, String>{},
+      );
+      final archive = ZipDecoder().decodeBytes(bytes);
+      final tampered = Archive();
+      for (final file in archive.files) {
+        if (file.name == kBackupDataEntry) {
+          tampered.add(
+            ArchiveFile.string(
+              kBackupDataEntry,
+              jsonEncode(<String, dynamic>{
+                ...previewData,
+                'exportedAt': '2020-01-01T00:00:00.000',
+              }),
+            ),
+          );
+        } else {
+          tampered.add(file);
+        }
+      }
+      final tamperedBytes = ZipEncoder().encodeBytes(tampered);
+
+      expect(
+        () => inspectBackupZip(tamperedBytes),
+        throwsA(
+          isA<BackupException>().having(
+            (e) => e.kind,
+            'kind',
+            BackupErrorKind.checksumMismatch,
+          ),
+        ),
+      );
+    });
+
+    test('旧版备份（无 manifest）仍可解析，但标记为未校验', () {
+      final bytes = ZipEncoder().encodeBytes(
+        Archive()
+          ..add(ArchiveFile.string(kBackupDataEntry, jsonEncode(previewData))),
+      );
+
+      final parsed = inspectBackupZip(bytes);
+      expect(parsed.data['format'], kBackupFormat);
+      expect(parsed.preview.checksumVerified, isFalse);
+      expect(parsed.preview.works, 1);
+    });
+
+    test('isolate 异步解析同时返回校验状态与预览（ENH-22）', () async {
+      final bytes = buildBackupZip(
+        data: previewData,
+        workMarkdowns: const <String, String>{},
+      );
+
+      final parsed = await inspectBackupZipAsync(bytes);
+      expect(parsed.preview.checksumVerified, isTrue);
+      expect(parsed.preview.chapters, 2);
+    });
+  });
 }

@@ -62,7 +62,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get worksDeleteConfirmBody =>
-      'All chapters, character cards, and outlines in this work will be deleted. This cannot be undone.';
+      'The work and its chapters will be moved to trash and can be restored within 30 days.';
 
   @override
   String worksLastEdited(String time) {
@@ -271,6 +271,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get editorToolOutlineExpand => 'Expand chapter outline with AI';
 
   @override
+  String get editorToolContinuity => 'Check setting consistency';
+
+  @override
   String get editorToolEditSummary => 'View/edit chapter summary';
 
   @override
@@ -299,6 +302,24 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get editorNoModelBody =>
       'Add a model group and fill in the API key in Settings before using AI features.';
+
+  @override
+  String get editorContinuityTitle => 'Setting Consistency Check';
+
+  @override
+  String get editorContinuityRunning => 'Checking setting consistency…';
+
+  @override
+  String get editorContinuityEmpty =>
+      'This chapter has no text yet. Write something before checking.';
+
+  @override
+  String get editorContinuityEmptyResult =>
+      'The model returned no content. Please try again.';
+
+  @override
+  String get editorContinuityTruncated =>
+      'The context exceeded the model window; some setting material was omitted, so results may be incomplete.';
 
   @override
   String get editorLater => 'Later';
@@ -957,7 +978,44 @@ class AppLocalizationsEn extends AppLocalizations {
       'This backup is from a newer app version. Please update the app first';
 
   @override
+  String get backupErrorChecksumMismatch =>
+      'Backup integrity check failed; the file may be corrupted';
+
+  @override
   String get backupErrorIncomplete => 'The backup content is incomplete';
+
+  @override
+  String get backupPreviewTitle => 'Confirm restore';
+
+  @override
+  String backupPreviewSource(String name) {
+    return 'Backup file: $name';
+  }
+
+  @override
+  String backupPreviewExportedAt(String time) {
+    return 'Exported: $time';
+  }
+
+  @override
+  String backupPreviewSchema(int version) {
+    return 'Data version: v$version';
+  }
+
+  @override
+  String backupPreviewCounts(int works, int chapters, int characters) {
+    return '$works works · $chapters chapters · $characters character cards';
+  }
+
+  @override
+  String get backupPreviewChecksumOk => 'SHA-256 integrity check passed';
+
+  @override
+  String get backupPreviewChecksumLegacy =>
+      'Legacy backup without integrity data';
+
+  @override
+  String get backupPreviewContinue => 'Continue';
 
   @override
   String get modelTestOk => 'Connection successful';
@@ -1233,6 +1291,48 @@ class AppLocalizationsEn extends AppLocalizations {
       'Extra instructions and tool allowlists injected into continue writing and inspiration';
 
   @override
+  String get settingsMcpAudit => 'MCP Call Audit';
+
+  @override
+  String get settingsMcpAuditSubtitle =>
+      'Last 100 remote tool calls, stored on this device only';
+
+  @override
+  String get mcpAuditTitle => 'MCP Call Audit';
+
+  @override
+  String get mcpAuditEmpty => 'No MCP tool calls yet';
+
+  @override
+  String get mcpAuditEmptyHint =>
+      'Once an MCP server is enabled for inspiration, remote tool calls will be recorded here.';
+
+  @override
+  String get mcpAuditClear => 'Clear log';
+
+  @override
+  String get mcpAuditClearConfirmTitle => 'Clear call audit?';
+
+  @override
+  String get mcpAuditClearConfirmBody =>
+      'All call records will be deleted from this device. This cannot be undone.';
+
+  @override
+  String get mcpAuditCleared => 'Call log cleared';
+
+  @override
+  String get mcpAuditSuccess => 'Success';
+
+  @override
+  String get mcpAuditFailure => 'Failed';
+
+  @override
+  String get mcpAuditArguments => 'Arguments';
+
+  @override
+  String get mcpAuditResult => 'Result';
+
+  @override
   String get settingsSectionWriting => 'Writing';
 
   @override
@@ -1291,6 +1391,98 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get settingsCloudBackupSubtitle =>
       'Back up to your own object storage (S3 / OSS / COS, etc.), off by default';
+
+  @override
+  String get settingsTrash => 'Trash';
+
+  @override
+  String get settingsTrashSubtitle =>
+      'Restore deleted works and chapters (kept for 30 days)';
+
+  @override
+  String get trashTitle => 'Trash';
+
+  @override
+  String get trashHint =>
+      'Items in trash are kept for 30 days, then permanently deleted automatically.';
+
+  @override
+  String get trashTabWorks => 'Works';
+
+  @override
+  String get trashTabChapters => 'Chapters';
+
+  @override
+  String get trashEmptyWorks => 'No works in trash';
+
+  @override
+  String get trashEmptyChapters => 'No chapters in trash';
+
+  @override
+  String trashDeletedAt(String time) {
+    return 'Deleted $time';
+  }
+
+  @override
+  String trashChapterMeta(String work, String volume) {
+    return '\"$work\" · $volume';
+  }
+
+  @override
+  String get trashRestore => 'Restore';
+
+  @override
+  String get trashDeleteForever => 'Delete permanently';
+
+  @override
+  String trashPurgeTitle(String title) {
+    return 'Permanently delete \"$title\"?';
+  }
+
+  @override
+  String get trashPurgeWorkBody =>
+      'All chapters, character cards, and outlines of this work will be permanently deleted. This cannot be undone.';
+
+  @override
+  String get trashPurgeChapterBody =>
+      'This chapter\'s text and version history will be permanently deleted. This cannot be undone.';
+
+  @override
+  String get trashPurged => 'Permanently deleted';
+
+  @override
+  String trashRestored(String title) {
+    return 'Restored \"$title\"';
+  }
+
+  @override
+  String get trashEmptyAction => 'Empty trash';
+
+  @override
+  String get trashEmptyConfirmTitle => 'Empty trash?';
+
+  @override
+  String get trashEmptyConfirmBody =>
+      'All works and chapters in trash will be permanently deleted. This cannot be undone.';
+
+  @override
+  String get trashEmptyDone => 'Trash emptied';
+
+  @override
+  String trashLoadFailed(String detail) {
+    return 'Failed to load: $detail';
+  }
+
+  @override
+  String worksMovedToTrash(String title) {
+    return '\"$title\" moved to trash';
+  }
+
+  @override
+  String get chaptersMovedToTrash => 'Chapter moved to trash';
+
+  @override
+  String get commonUndo => 'Undo';
 
   @override
   String get modelGroupsNew => 'New model group';
@@ -1440,6 +1632,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aiTaskVolumeSummary => 'Volume Recap';
+
+  @override
+  String get aiTaskContinuity => 'AI Consistency Check';
 
   @override
   String get tokenStatsResetTitle => 'Reset stats';
@@ -1933,6 +2128,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get skillImport => 'Import skill';
 
   @override
+  String get skillExport => 'Export / Share';
+
+  @override
+  String skillExportFailed(String detail) {
+    return 'Export failed: $detail';
+  }
+
+  @override
   String get skillImportFromFile => 'Import from file';
 
   @override
@@ -2238,7 +2441,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chaptersDeleteChapterBody =>
-      'The content of this chapter cannot be restored after deletion.';
+      'The chapter will be moved to trash and can be restored within 30 days.';
 
   @override
   String get outlineOrphanSection => 'Summaries not linked to chapters';

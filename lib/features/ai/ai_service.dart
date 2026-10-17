@@ -1,5 +1,7 @@
 import 'dart:isolate';
 
+import 'dart:convert';
+
 import 'package:http/http.dart' as http;
 
 import '../../core/ai/agent_core.dart';
@@ -14,11 +16,13 @@ import '../../core/ai_flavor_rules.dart';
 import '../../data/db.dart';
 import '../../data/repositories/chapter_repository.dart';
 import '../../data/repositories/character_repository.dart';
+import '../../data/repositories/mcp_audit_repository.dart';
 import '../../data/repositories/outline_repository.dart';
 import '../../data/repositories/setting_repository.dart';
 import '../../data/repositories/settings_repository.dart';
 import '../../data/repositories/token_stats_repository.dart';
 import '../../data/repositories/work_repository.dart';
+import '../../models/mcp_audit_entry.dart';
 import 'mcp_credentials.dart';
 
 /// 灵感模式。
@@ -111,6 +115,49 @@ class AiFailed extends AiEvent {
 /// 未配置可用的模型组或 key：UI 引导至设置页而非报错（PRD 5.8）。
 class AiNeedsConfig extends AiEvent {
   const AiNeedsConfig();
+}
+
+// ---------- 设定一致性检查（ENH-22）----------
+
+/// 设定一致性检查结果（一次性调用，不流式）。
+class ContinuityReport {
+  const ContinuityReport({
+    required this.text,
+    required this.promptTokens,
+    required this.completionTokens,
+    required this.usageId,
+    required this.truncated,
+  });
+
+  final String text;
+  final int promptTokens;
+  final int completionTokens;
+  final int usageId;
+
+  /// 上下文超出模型窗口、已省略部分设定资料（结果可能不完整）。
+  final bool truncated;
+}
+
+/// 设定一致性检查失败（携带结构化信息供展示时本地化）。
+class ContinuityException implements Exception {
+  const ContinuityException({
+    required this.kind,
+    required this.message,
+    this.statusCode,
+    this.code,
+    this.detail,
+  });
+
+  final AiErrorKind kind;
+  final String message;
+  final int? statusCode;
+  final String? code;
+  final String? detail;
+}
+
+/// 尚未配置可用模型组：UI 引导至设置页。
+class ContinuityNeedsConfig implements Exception {
+  const ContinuityNeedsConfig();
 }
 
 // ---------- AI 感检查事件（M4-06 / M4-09）----------
@@ -248,6 +295,7 @@ class AiService {
     this.settingRepository,
     this.httpClient,
     this.mcpOpener,
+    this.mcpAudit,
   }) {
     contexts = ContextBuilder(
       works: works,
@@ -272,6 +320,9 @@ class AiService {
 
   /// MCP 会话打开方式（默认 [openMcpTools]；测试可注入假实现避免真实联网）。
   final McpToolOpener? mcpOpener;
+
+  /// MCP 工具调用审计（ENH-22；可空，未注入则不记录）。
+  final McpAuditRepository? mcpAudit;
   late final ContextBuilder contexts;
 
   /// 该任务是否已具备可用配置。
@@ -283,6 +334,9 @@ class AiService {
     }
     if (task == AiTask.volumeSummary) {
       return await _resolveVolumeSummaryModel() != null;
+    }
+    if (task == AiTask.continuity) {
+      return await _resolveContinuityModel() != null;
     }
     return await settings.resolveTaskModelWithKey(task) != null;
   }
@@ -487,10 +541,15 @@ class AiService {
     );
     // B-02：把已启用的远程 MCP server 工具并入同一套 Tool，用完即关闭会话。
     final sessions = <McpToolSession>[];
+    // openMcpTools 使用命名参数，不能直接按位置参数调用（运行时 NoSuchMethodError）。
+    final opener =
+        mcpOpener ??
+        (McpServerConfig config, McpCredentials credentials) =>
+            openMcpTools(config: config, credentials: credentials);
     try {
       for (final server in await settings.listEnabledMcpServers()) {
         try {
-          final session = await (mcpOpener ?? openMcpTools)(
+          final session = await opener(
             server,
             await resolveMcpCredentials(
               settings,
@@ -503,7 +562,9 @@ class AiService {
             continue;
           }
           sessions.add(session);
-          tools.addAll(session.tools);
+          for (final tool in session.tools) {
+            tools.add(_withAudit(tool, session.serverName));
+          }
         } catch (_) {
           // 单个 MCP server 连接失败不阻断生成（可在设置页单独「测试连接」）。
         }
@@ -640,7 +701,93 @@ class AiService {
       await settings.resolveTaskModelWithKey(AiTask.summary) ??
       await settings.resolveTaskModelWithKey(AiTask.continueWriting);
 
-  // ---------- 章纲扩写（ENH-05）----------
+  // ---------- 设定一致性检查（ENH-22）----------
+
+  /// 检查本章正文与角色卡 / 设定集 / 前情摘要 / 本章章纲是否冲突。
+  /// 结果一次性返回（非流式），由 UI 以报告对话框展示。
+  Future<ContinuityReport> checkContinuity({
+    required int workId,
+    required int chapterId,
+  }) async {
+    final resolved = await _resolveContinuityModel();
+    if (resolved == null) throw const ContinuityNeedsConfig();
+    final group = resolved.group;
+    final model = _firstModel(group);
+    if (model == null) {
+      throw ContinuityException(
+        kind: AiErrorKind.badRequest,
+        message: '模型组「${group.name}」未填写模型名，请到设置页补充',
+      );
+    }
+
+    final built = await contexts.buildContinuityCheck(
+      workId: workId,
+      chapterId: chapterId,
+      contextWindow: group.contextWindow,
+    );
+    final injected = _withSkills(built, await settings.listEnabledSkills());
+    final client = buildAiClient(
+      provider: group.provider,
+      baseUrl: group.baseUrl,
+      apiKey: resolved.apiKey,
+      httpClient: httpClient,
+    );
+    final request = injected.toRequest(
+      model: model,
+      temperature: group.temperature,
+      maxTokens: group.maxTokens,
+    );
+
+    final buffer = StringBuffer();
+    var promptTokens = 0;
+    var completionTokens = 0;
+    await for (final chunk in client.streamChat(request)) {
+      switch (chunk) {
+        case ChatTextDelta():
+          buffer.write(chunk.text);
+        case ChatUsage():
+          promptTokens = chunk.promptTokens;
+          completionTokens = chunk.completionTokens;
+        case ChatError():
+          throw ContinuityException(
+            kind: chunk.kind,
+            message: chunk.message,
+            statusCode: chunk.statusCode,
+            code: chunk.code,
+            detail: chunk.detail,
+          );
+        case ChatDone():
+        case ChatToolCalls():
+          break;
+      }
+    }
+
+    final text = buffer.toString().trim();
+    final usageId = await stats.record(
+      task: AiTask.continuity,
+      model: model,
+      workId: workId,
+      chapterId: chapterId,
+      promptTokens: promptTokens,
+      completionTokens: completionTokens,
+      outputChars: text.length,
+    );
+    return ContinuityReport(
+      text: text,
+      promptTokens: promptTokens,
+      completionTokens: completionTokens,
+      usageId: usageId,
+      truncated: injected.truncated,
+    );
+  }
+
+  /// 检查模型组解析：优先专用配置，其次 AI 感深检组，最后回退续写组。
+  Future<ResolvedModel?> _resolveContinuityModel() async =>
+      await settings.resolveTaskModelWithKey(AiTask.continuity) ??
+      await settings.resolveTaskModelWithKey(AiTask.check) ??
+      await settings.resolveTaskModelWithKey(AiTask.continueWriting);
+
+  // ---------- AI 感检查（M4-06）----------
 
   /// 把本章一句话梗概扩写为分场大纲，结果由 UI 写回本章章纲。
   Stream<AiEvent> expandOutline({
@@ -1114,6 +1261,76 @@ class AiService {
       ),
     );
   }
+
+  /// 包装远程工具（ENH-22）：记录每次调用的参数 / 结果摘要与耗时。
+  /// 审计写入失败不影响工具调用本身。
+  Tool _withAudit(Tool tool, String serverName) {
+    final audit = mcpAudit;
+    if (audit == null) return tool;
+    return Tool(
+      name: tool.name,
+      description: tool.description,
+      inputSchema: tool.inputSchema,
+      execute: (args) async {
+        final stopwatch = Stopwatch()..start();
+        try {
+          final result = await tool.execute(args);
+          stopwatch.stop();
+          await _recordAudit(
+            audit,
+            serverName: serverName,
+            toolName: tool.name,
+            args: args,
+            result: result,
+            success: !result.startsWith(mcpToolErrorPrefix),
+            durationMs: stopwatch.elapsedMilliseconds,
+          );
+          return result;
+        } catch (error) {
+          stopwatch.stop();
+          await _recordAudit(
+            audit,
+            serverName: serverName,
+            toolName: tool.name,
+            args: args,
+            result: '工具执行失败：$error',
+            success: false,
+            durationMs: stopwatch.elapsedMilliseconds,
+          );
+          rethrow;
+        }
+      },
+    );
+  }
+
+  Future<void> _recordAudit(
+    McpAuditRepository audit, {
+    required String serverName,
+    required String toolName,
+    required Map<String, dynamic> args,
+    required String result,
+    required bool success,
+    required int durationMs,
+  }) async {
+    try {
+      await audit.add(
+        McpAuditEntry(
+          serverName: serverName,
+          toolName: toolName,
+          argumentsSummary: _summarize(jsonEncode(args)),
+          resultSummary: _summarize(result),
+          success: success,
+          durationMs: durationMs,
+          createdAt: DateTime.now(),
+        ),
+      );
+    } catch (_) {
+      // 审计失败不阻断生成。
+    }
+  }
+
+  static String _summarize(String text, {int max = 300}) =>
+      text.length <= max ? text : '${text.substring(0, max)}…';
 
   AiEvent _missingModelFailure(ModelGroup group) {
     return AiFailed(

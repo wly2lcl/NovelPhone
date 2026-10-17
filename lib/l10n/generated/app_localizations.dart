@@ -191,7 +191,7 @@ abstract class AppLocalizations {
   /// No description provided for @worksDeleteConfirmBody.
   ///
   /// In zh, this message translates to:
-  /// **'该作品的全部章节、角色卡与章纲会一并删除，此操作不可恢复。'**
+  /// **'作品连同章节将移入回收站，30 天内可在回收站恢复。'**
   String get worksDeleteConfirmBody;
 
   /// No description provided for @worksLastEdited.
@@ -506,6 +506,12 @@ abstract class AppLocalizations {
   /// **'AI 扩写本章纲'**
   String get editorToolOutlineExpand;
 
+  /// No description provided for @editorToolContinuity.
+  ///
+  /// In zh, this message translates to:
+  /// **'设定一致性检查'**
+  String get editorToolContinuity;
+
   /// No description provided for @editorToolEditSummary.
   ///
   /// In zh, this message translates to:
@@ -559,6 +565,36 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'请先在设置中添加模型组并填写 API Key，再使用 AI 功能。'**
   String get editorNoModelBody;
+
+  /// No description provided for @editorContinuityTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'设定一致性检查'**
+  String get editorContinuityTitle;
+
+  /// No description provided for @editorContinuityRunning.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在检查设定一致性…'**
+  String get editorContinuityRunning;
+
+  /// No description provided for @editorContinuityEmpty.
+  ///
+  /// In zh, this message translates to:
+  /// **'本章还没有正文，先写一些内容再检查'**
+  String get editorContinuityEmpty;
+
+  /// No description provided for @editorContinuityEmptyResult.
+  ///
+  /// In zh, this message translates to:
+  /// **'模型未返回内容，请重试'**
+  String get editorContinuityEmptyResult;
+
+  /// No description provided for @editorContinuityTruncated.
+  ///
+  /// In zh, this message translates to:
+  /// **'上下文超出模型窗口，部分设定资料已被省略，结果可能不完整。'**
+  String get editorContinuityTruncated;
 
   /// No description provided for @editorLater.
   ///
@@ -1526,11 +1562,65 @@ abstract class AppLocalizations {
   /// **'备份来自更新版本的应用，请先升级 app'**
   String get backupErrorNewerVersion;
 
+  /// No description provided for @backupErrorChecksumMismatch.
+  ///
+  /// In zh, this message translates to:
+  /// **'备份文件校验失败，内容可能已损坏'**
+  String get backupErrorChecksumMismatch;
+
   /// No description provided for @backupErrorIncomplete.
   ///
   /// In zh, this message translates to:
   /// **'备份内容不完整'**
   String get backupErrorIncomplete;
+
+  /// No description provided for @backupPreviewTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'恢复前确认'**
+  String get backupPreviewTitle;
+
+  /// No description provided for @backupPreviewSource.
+  ///
+  /// In zh, this message translates to:
+  /// **'备份文件：{name}'**
+  String backupPreviewSource(String name);
+
+  /// No description provided for @backupPreviewExportedAt.
+  ///
+  /// In zh, this message translates to:
+  /// **'导出时间：{time}'**
+  String backupPreviewExportedAt(String time);
+
+  /// No description provided for @backupPreviewSchema.
+  ///
+  /// In zh, this message translates to:
+  /// **'数据版本：v{version}'**
+  String backupPreviewSchema(int version);
+
+  /// No description provided for @backupPreviewCounts.
+  ///
+  /// In zh, this message translates to:
+  /// **'{works} 部作品 · {chapters} 章 · {characters} 个角色卡'**
+  String backupPreviewCounts(int works, int chapters, int characters);
+
+  /// No description provided for @backupPreviewChecksumOk.
+  ///
+  /// In zh, this message translates to:
+  /// **'SHA-256 完整性校验通过'**
+  String get backupPreviewChecksumOk;
+
+  /// No description provided for @backupPreviewChecksumLegacy.
+  ///
+  /// In zh, this message translates to:
+  /// **'旧版备份，未包含完整性校验信息'**
+  String get backupPreviewChecksumLegacy;
+
+  /// No description provided for @backupPreviewContinue.
+  ///
+  /// In zh, this message translates to:
+  /// **'继续恢复'**
+  String get backupPreviewContinue;
 
   /// No description provided for @modelTestOk.
   ///
@@ -1928,6 +2018,84 @@ abstract class AppLocalizations {
   /// **'附加指令与工具白名单，注入续写与灵感生成'**
   String get settingsSkillsSubtitle;
 
+  /// No description provided for @settingsMcpAudit.
+  ///
+  /// In zh, this message translates to:
+  /// **'MCP 调用审计'**
+  String get settingsMcpAudit;
+
+  /// No description provided for @settingsMcpAuditSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'最近 100 次远程工具调用记录（仅存本机）'**
+  String get settingsMcpAuditSubtitle;
+
+  /// No description provided for @mcpAuditTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'MCP 调用审计'**
+  String get mcpAuditTitle;
+
+  /// No description provided for @mcpAuditEmpty.
+  ///
+  /// In zh, this message translates to:
+  /// **'还没有 MCP 工具调用记录'**
+  String get mcpAuditEmpty;
+
+  /// No description provided for @mcpAuditEmptyHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'在灵感生成中启用 MCP 服务器后，远程工具调用会记录在这里。'**
+  String get mcpAuditEmptyHint;
+
+  /// No description provided for @mcpAuditClear.
+  ///
+  /// In zh, this message translates to:
+  /// **'清空记录'**
+  String get mcpAuditClear;
+
+  /// No description provided for @mcpAuditClearConfirmTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'清空调用审计？'**
+  String get mcpAuditClearConfirmTitle;
+
+  /// No description provided for @mcpAuditClearConfirmBody.
+  ///
+  /// In zh, this message translates to:
+  /// **'全部调用记录将从本机删除，此操作不可恢复。'**
+  String get mcpAuditClearConfirmBody;
+
+  /// No description provided for @mcpAuditCleared.
+  ///
+  /// In zh, this message translates to:
+  /// **'调用记录已清空'**
+  String get mcpAuditCleared;
+
+  /// No description provided for @mcpAuditSuccess.
+  ///
+  /// In zh, this message translates to:
+  /// **'成功'**
+  String get mcpAuditSuccess;
+
+  /// No description provided for @mcpAuditFailure.
+  ///
+  /// In zh, this message translates to:
+  /// **'失败'**
+  String get mcpAuditFailure;
+
+  /// No description provided for @mcpAuditArguments.
+  ///
+  /// In zh, this message translates to:
+  /// **'参数'**
+  String get mcpAuditArguments;
+
+  /// No description provided for @mcpAuditResult.
+  ///
+  /// In zh, this message translates to:
+  /// **'结果'**
+  String get mcpAuditResult;
+
   /// No description provided for @settingsSectionWriting.
   ///
   /// In zh, this message translates to:
@@ -2035,6 +2203,156 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'备份到你自己的对象存储（S3 / OSS / COS 等），默认关闭'**
   String get settingsCloudBackupSubtitle;
+
+  /// No description provided for @settingsTrash.
+  ///
+  /// In zh, this message translates to:
+  /// **'回收站'**
+  String get settingsTrash;
+
+  /// No description provided for @settingsTrashSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'恢复误删的作品与章节（保留 30 天）'**
+  String get settingsTrashSubtitle;
+
+  /// No description provided for @trashTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'回收站'**
+  String get trashTitle;
+
+  /// No description provided for @trashHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'回收站中的内容保留 30 天，到期后自动永久删除。'**
+  String get trashHint;
+
+  /// No description provided for @trashTabWorks.
+  ///
+  /// In zh, this message translates to:
+  /// **'作品'**
+  String get trashTabWorks;
+
+  /// No description provided for @trashTabChapters.
+  ///
+  /// In zh, this message translates to:
+  /// **'章节'**
+  String get trashTabChapters;
+
+  /// No description provided for @trashEmptyWorks.
+  ///
+  /// In zh, this message translates to:
+  /// **'回收站里没有作品'**
+  String get trashEmptyWorks;
+
+  /// No description provided for @trashEmptyChapters.
+  ///
+  /// In zh, this message translates to:
+  /// **'回收站里没有章节'**
+  String get trashEmptyChapters;
+
+  /// No description provided for @trashDeletedAt.
+  ///
+  /// In zh, this message translates to:
+  /// **'删除于 {time}'**
+  String trashDeletedAt(String time);
+
+  /// No description provided for @trashChapterMeta.
+  ///
+  /// In zh, this message translates to:
+  /// **'《{work}》· {volume}'**
+  String trashChapterMeta(String work, String volume);
+
+  /// No description provided for @trashRestore.
+  ///
+  /// In zh, this message translates to:
+  /// **'恢复'**
+  String get trashRestore;
+
+  /// No description provided for @trashDeleteForever.
+  ///
+  /// In zh, this message translates to:
+  /// **'永久删除'**
+  String get trashDeleteForever;
+
+  /// No description provided for @trashPurgeTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'永久删除「{title}」？'**
+  String trashPurgeTitle(String title);
+
+  /// No description provided for @trashPurgeWorkBody.
+  ///
+  /// In zh, this message translates to:
+  /// **'作品的全部章节、角色卡与章纲将被永久删除，且无法恢复。'**
+  String get trashPurgeWorkBody;
+
+  /// No description provided for @trashPurgeChapterBody.
+  ///
+  /// In zh, this message translates to:
+  /// **'本章正文与版本历史将被永久删除，且无法恢复。'**
+  String get trashPurgeChapterBody;
+
+  /// No description provided for @trashPurged.
+  ///
+  /// In zh, this message translates to:
+  /// **'已永久删除'**
+  String get trashPurged;
+
+  /// No description provided for @trashRestored.
+  ///
+  /// In zh, this message translates to:
+  /// **'已恢复「{title}」'**
+  String trashRestored(String title);
+
+  /// No description provided for @trashEmptyAction.
+  ///
+  /// In zh, this message translates to:
+  /// **'清空回收站'**
+  String get trashEmptyAction;
+
+  /// No description provided for @trashEmptyConfirmTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'清空回收站？'**
+  String get trashEmptyConfirmTitle;
+
+  /// No description provided for @trashEmptyConfirmBody.
+  ///
+  /// In zh, this message translates to:
+  /// **'回收站中的全部作品与章节将被永久删除，且无法恢复。'**
+  String get trashEmptyConfirmBody;
+
+  /// No description provided for @trashEmptyDone.
+  ///
+  /// In zh, this message translates to:
+  /// **'回收站已清空'**
+  String get trashEmptyDone;
+
+  /// No description provided for @trashLoadFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'加载失败：{detail}'**
+  String trashLoadFailed(String detail);
+
+  /// No description provided for @worksMovedToTrash.
+  ///
+  /// In zh, this message translates to:
+  /// **'《{title}》已移入回收站'**
+  String worksMovedToTrash(String title);
+
+  /// No description provided for @chaptersMovedToTrash.
+  ///
+  /// In zh, this message translates to:
+  /// **'章节已移入回收站'**
+  String get chaptersMovedToTrash;
+
+  /// No description provided for @commonUndo.
+  ///
+  /// In zh, this message translates to:
+  /// **'撤销'**
+  String get commonUndo;
 
   /// No description provided for @modelGroupsNew.
   ///
@@ -2305,6 +2623,12 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'AI 本卷前情回顾'**
   String get aiTaskVolumeSummary;
+
+  /// No description provided for @aiTaskContinuity.
+  ///
+  /// In zh, this message translates to:
+  /// **'AI 设定一致性检查'**
+  String get aiTaskContinuity;
 
   /// No description provided for @tokenStatsResetTitle.
   ///
@@ -3074,6 +3398,18 @@ abstract class AppLocalizations {
   /// **'导入技能'**
   String get skillImport;
 
+  /// No description provided for @skillExport.
+  ///
+  /// In zh, this message translates to:
+  /// **'导出 / 分享'**
+  String get skillExport;
+
+  /// No description provided for @skillExportFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'导出失败：{detail}'**
+  String skillExportFailed(String detail);
+
   /// No description provided for @skillImportFromFile.
   ///
   /// In zh, this message translates to:
@@ -3569,7 +3905,7 @@ abstract class AppLocalizations {
   /// No description provided for @chaptersDeleteChapterBody.
   ///
   /// In zh, this message translates to:
-  /// **'删除后本章正文不可恢复。'**
+  /// **'章节将移入回收站，30 天内可在回收站恢复。'**
   String get chaptersDeleteChapterBody;
 
   /// No description provided for @outlineOrphanSection.

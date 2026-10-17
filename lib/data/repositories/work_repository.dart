@@ -84,4 +84,16 @@ class WorkRepository {
       await _works.deleteById(id);
     });
   }
+
+  /// 移入回收站（ENH-22）：只打删除标记，作品内容与章节原样保留。
+  Future<void> moveWorkToTrash(int id) {
+    return _works.markDeleted(id, DateTime.now());
+  }
+
+  /// 回收站作品（最近删除在前）。
+  Stream<List<Work>> watchTrashedWorks() => _works.watchTrashed();
+
+  Future<List<Work>> listTrashedWorks() => _works.findTrashed();
+
+  Future<void> restoreWork(int id) => _works.restore(id);
 }

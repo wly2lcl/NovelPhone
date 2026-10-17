@@ -188,9 +188,7 @@ class FakeOAuthMcpServer {
             message['params'] as Map<String, dynamic>? ?? <String, dynamic>{};
         return <String, dynamic>{
           'protocolVersion': params['protocolVersion'] ?? '2025-06-18',
-          'capabilities': <String, dynamic>{
-            'tools': <String, dynamic>{},
-          },
+          'capabilities': <String, dynamic>{'tools': <String, dynamic>{}},
           'serverInfo': <String, dynamic>{
             'name': 'fake-oauth-mcp',
             'version': '1.0.0',
@@ -244,9 +242,9 @@ class FakeOAuthMcpServer {
     final code = 'code-${_codes.length + 1}';
     _codes[code] = challenge;
     _log('授权请求：client_id=${query['client_id']}，已签发 $code（302 回跳应用）');
-    final redirect = Uri.parse(redirectUri).replace(
-      queryParameters: <String, String>{'code': code, 'state': state},
-    );
+    final redirect = Uri.parse(
+      redirectUri,
+    ).replace(queryParameters: <String, String>{'code': code, 'state': state});
     request.response
       ..statusCode = 302
       ..headers.set('location', redirect.toString());
@@ -263,7 +261,9 @@ class FakeOAuthMcpServer {
         _bump('token');
         if (challenge == null) {
           _log('令牌请求失败：授权码不存在或已使用（$code）');
-          await _json(request, 400, <String, dynamic>{'error': 'invalid_grant'});
+          await _json(request, 400, <String, dynamic>{
+            'error': 'invalid_grant',
+          });
           return;
         }
         _codes.remove(code);
@@ -289,7 +289,9 @@ class FakeOAuthMcpServer {
       case 'refresh_token':
         _bump('refresh');
         if (form['refresh_token'] != _refreshToken) {
-          await _json(request, 400, <String, dynamic>{'error': 'invalid_grant'});
+          await _json(request, 400, <String, dynamic>{
+            'error': 'invalid_grant',
+          });
           return;
         }
         _accessToken = 'access-token-${DateTime.now().millisecondsSinceEpoch}';

@@ -492,4 +492,75 @@ void main() {
       expect(recorded.rows.single.task, AiTask.volumeSummary);
     });
   });
+
+  group('设定一致性检查用例（ENH-22）', () {
+    test('未配置任何模型时抛出引导异常且不联网', () async {
+      final service = serviceWith(
+        MockClient((req) async => throw StateError('不应发起网络请求')),
+      );
+
+      expect(await service.isReady(AiTask.continuity), isFalse);
+      await expectLater(
+        service.checkContinuity(workId: workId, chapterId: chapterId),
+        throwsA(isA<ContinuityNeedsConfig>()),
+      );
+    });
+
+    test('回退检查模型组，发送设定上下文并落 continuity 统计', () async {
+      await configureCheckModel();
+      await CharacterRepository(
+        db,
+      ).createCharacter(workId: workId, name: '苏晚', identity: '医女');
+      String? requestBody;
+      final service = serviceWith(
+        MockClient((req) async {
+          requestBody = req.body;
+          return sseResponse('未发现设定冲突');
+        }),
+      );
+
+      expect(await service.isReady(AiTask.continuity), isTrue);
+      final report = await service.checkContinuity(
+        workId: workId,
+        chapterId: chapterId,
+      );
+
+      expect(report.text, '未发现设定冲突');
+      expect(report.promptTokens, 20);
+      expect(report.completionTokens, 8);
+      expect(report.usageId, greaterThan(0));
+      expect(report.truncated, isFalse);
+
+      final body = jsonDecode(requestBody!) as Map<String, dynamic>;
+      final messages = body['messages'] as List<dynamic>;
+      final userText =
+          (messages.last as Map<String, dynamic>)['content'] as String;
+      expect(userText, contains(chapterText));
+      expect(userText, contains('苏晚'));
+      expect(userText, contains('只列冲突'));
+
+      final recorded = await stats.stats();
+      expect(recorded.calls, 1);
+      expect(recorded.rows.single.task, AiTask.continuity);
+      expect(recorded.promptTokens, 20);
+      expect(recorded.completionTokens, 8);
+    });
+
+    test('服务端错误映射为 ContinuityException（保留状态码，不落统计）', () async {
+      await configureCheckModel();
+      final service = serviceWith(
+        MockClient((req) async => http.Response('server down', 503)),
+      );
+
+      await expectLater(
+        service.checkContinuity(workId: workId, chapterId: chapterId),
+        throwsA(
+          isA<ContinuityException>()
+              .having((e) => e.kind, 'kind', AiErrorKind.server)
+              .having((e) => e.statusCode, 'statusCode', 503),
+        ),
+      );
+      expect((await stats.stats()).calls, 0);
+    });
+  });
 }

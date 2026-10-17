@@ -4,6 +4,7 @@ import '../features/editor/editor_page.dart';
 import '../features/settings/about_page.dart';
 import '../features/settings/appearance_page.dart';
 import '../features/settings/cloud_backup_page.dart';
+import '../features/settings/mcp_audit_page.dart';
 import '../features/settings/mcp_servers_page.dart';
 import '../features/settings/model_group_edit_page.dart';
 import '../features/settings/model_groups_page.dart';
@@ -11,6 +12,7 @@ import '../features/settings/settings_page.dart';
 import '../features/settings/skills_page.dart';
 import '../features/settings/task_mapping_page.dart';
 import '../features/settings/token_stats_page.dart';
+import '../features/settings/trash_page.dart';
 import '../features/stats/writing_stats_page.dart';
 import '../features/work_detail/import_page.dart';
 import '../features/work_detail/inspirations_page.dart';
@@ -66,6 +68,11 @@ final GoRouter appRouter = GoRouter(
           builder: (context, state) => const McpServersPage(),
         ),
         GoRoute(
+          path: 'mcp-audit',
+          name: 'mcpAudit',
+          builder: (context, state) => const McpAuditPage(),
+        ),
+        GoRoute(
           path: 'mcp-servers/:serverId',
           name: 'mcpServerEdit',
           builder: (context, state) {
@@ -102,6 +109,11 @@ final GoRouter appRouter = GoRouter(
           path: 'cloud-backup',
           name: 'cloudBackup',
           builder: (context, state) => const CloudBackupPage(),
+        ),
+        GoRoute(
+          path: 'trash',
+          name: 'trash',
+          builder: (context, state) => const TrashPage(),
         ),
         GoRoute(
           path: 'about',

@@ -18,6 +18,7 @@ class ChapterDao {
             ),
           ])
           ..where(_db.volumes.workId.equals(workId))
+          ..where(_db.chapters.deletedAt.isNull())
           ..orderBy([
             OrderingTerm.asc(_db.volumes.sortOrder),
             OrderingTerm.asc(_db.chapters.sortOrder),
@@ -37,6 +38,7 @@ class ChapterDao {
             ),
           ])
           ..where(_db.volumes.workId.equals(workId))
+          ..where(_db.chapters.deletedAt.isNull())
           ..orderBy([
             OrderingTerm.asc(_db.volumes.sortOrder),
             OrderingTerm.asc(_db.chapters.sortOrder),
@@ -69,6 +71,7 @@ class ChapterDao {
             _db.chapters.summaryUpdatedAt,
           ])
           ..where(_db.volumes.workId.equals(workId))
+          ..where(_db.chapters.deletedAt.isNull())
           ..orderBy([
             OrderingTerm.asc(_db.volumes.sortOrder),
             OrderingTerm.asc(_db.chapters.sortOrder),
@@ -103,6 +106,7 @@ class ChapterDao {
         _db.chapters.sortOrder,
       ])
       ..where(_db.chapters.volumeId.equals(volumeId))
+      ..where(_db.chapters.deletedAt.isNull())
       ..orderBy(<OrderingTerm>[OrderingTerm.asc(_db.chapters.sortOrder)]);
     final rows = await query.get();
     return rows
@@ -118,7 +122,7 @@ class ChapterDao {
   Future<Chapter?> findById(int id) {
     return (_db.select(
       _db.chapters,
-    )..where((t) => t.id.equals(id))).getSingleOrNull();
+    )..where((t) => t.id.equals(id) & t.deletedAt.isNull())).getSingleOrNull();
   }
 
   /// 章节的字数与所属作品（ENH-14，不含正文）：自动保存只需旧字数与作品 id
@@ -134,16 +138,17 @@ class ChapterDao {
             ),
           ])
           ..addColumns(<Expression<Object>>[wordCount, workId])
-          ..where(_db.chapters.id.equals(id));
+          ..where(_db.chapters.id.equals(id))
+          ..where(_db.chapters.deletedAt.isNull());
     final row = await query.getSingleOrNull();
     if (row == null) return null;
     return (wordCount: row.read(wordCount) ?? 0, workId: row.read(workId) ?? 0);
   }
 
   Stream<Chapter?> watchById(int id) {
-    return (_db.select(
-      _db.chapters,
-    )..where((t) => t.id.equals(id))).watchSingleOrNull();
+    return (_db.select(_db.chapters)
+          ..where((t) => t.id.equals(id) & t.deletedAt.isNull()))
+        .watchSingleOrNull();
   }
 
   /// 卷内下一个排序号。
@@ -168,7 +173,8 @@ class ChapterDao {
             ),
           ])
           ..addColumns([wordSum, chapterCount])
-          ..where(_db.volumes.workId.equals(workId));
+          ..where(_db.volumes.workId.equals(workId))
+          ..where(_db.chapters.deletedAt.isNull());
     final row = await query.getSingle();
     return (
       words: row.read(wordSum) ?? 0,
@@ -188,6 +194,67 @@ class ChapterDao {
 
   Future<void> deleteById(int id) {
     return (_db.delete(_db.chapters)..where((t) => t.id.equals(id))).go();
+  }
+
+  /// 回收站中的章节（ENH-22）：排除所属作品已删除的章节，
+  /// 返回章节本身 + 作品 / 卷标题，供回收站列表展示。
+  Future<List<({Chapter chapter, String workTitle, String volumeTitle})>>
+  findTrashed() async {
+    final query =
+        _db.select(_db.chapters).join([
+            innerJoin(
+              _db.volumes,
+              _db.volumes.id.equalsExp(_db.chapters.volumeId),
+            ),
+            innerJoin(_db.works, _db.works.id.equalsExp(_db.volumes.workId)),
+          ])
+          ..where(_db.chapters.deletedAt.isNotNull())
+          ..where(_db.works.deletedAt.isNull())
+          ..orderBy([
+            OrderingTerm.desc(_db.chapters.deletedAt),
+            OrderingTerm.desc(_db.chapters.updatedAt),
+          ]);
+    final rows = await query.get();
+    return rows
+        .map(
+          (row) => (
+            chapter: row.readTable(_db.chapters),
+            workTitle: row.readTable(_db.works).title,
+            volumeTitle: row.readTable(_db.volumes).name,
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  Future<void> markDeleted(int id, DateTime deletedAt) {
+    return (_db.update(_db.chapters)..where((t) => t.id.equals(id))).write(
+      ChaptersCompanion(deletedAt: Value(deletedAt)),
+    );
+  }
+
+  Future<void> restore(int id) {
+    return (_db.update(_db.chapters)..where((t) => t.id.equals(id))).write(
+      const ChaptersCompanion(deletedAt: Value(null)),
+    );
+  }
+
+  /// 删除标记 + 所属作品（恢复章节后重算汇总用），不读取正文。
+  Future<({int workId, int volumeId})?> findTrashedMeta(int id) async {
+    final workId = _db.volumes.workId;
+    final volumeId = _db.chapters.volumeId;
+    final query =
+        _db.selectOnly(_db.chapters).join([
+            innerJoin(
+              _db.volumes,
+              _db.volumes.id.equalsExp(_db.chapters.volumeId),
+            ),
+          ])
+          ..addColumns(<Expression<Object>>[workId, volumeId])
+          ..where(_db.chapters.id.equals(id))
+          ..where(_db.chapters.deletedAt.isNotNull());
+    final row = await query.getSingleOrNull();
+    if (row == null) return null;
+    return (workId: row.read(workId) ?? 0, volumeId: row.read(volumeId) ?? 0);
   }
 
   Future<void> deleteByVolume(int volumeId) {

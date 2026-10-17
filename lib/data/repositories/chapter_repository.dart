@@ -298,6 +298,39 @@ class ChapterRepository {
     });
   }
 
+  /// 移入回收站（ENH-22）：只打删除标记，30 天内可恢复。
+  /// 章纲引用与快照保持不变，恢复后原样可见；作品汇总排除该章。
+  Future<void> moveChapterToTrash(int chapterId) {
+    return _db.transaction(() async {
+      final meta = await _chapters.findLightById(chapterId);
+      if (meta == null) return;
+      await _chapters.markDeleted(chapterId, DateTime.now());
+      await _syncWorkAggregate(meta.workId);
+    });
+  }
+
+  /// 从回收站恢复章节（ENH-22），并重算作品汇总。
+  Future<void> restoreChapterFromTrash(int chapterId) {
+    return _db.transaction(() async {
+      final meta = await _chapters.findTrashedMeta(chapterId);
+      if (meta == null) return;
+      await _chapters.restore(chapterId);
+      await _syncWorkAggregate(meta.workId);
+    });
+  }
+
+  /// 从回收站彻底删除章节（ENH-22）：清理章纲引用后硬删除，
+  /// 快照随外键级联删除，最后重算作品汇总。
+  Future<void> purgeChapter(int chapterId) {
+    return _db.transaction(() async {
+      final meta = await _chapters.findTrashedMeta(chapterId);
+      if (meta == null) return;
+      await _outline.clearChapterRef(chapterId);
+      await _chapters.deleteById(chapterId);
+      await _syncWorkAggregate(meta.workId);
+    });
+  }
+
   /// 章节在其所属卷内上移/下移。
   Future<void> moveChapter(int chapterId, {required bool up}) {
     return _db.transaction(() async {
@@ -433,8 +466,10 @@ class ChapterRepository {
             headSnippet,
           ])
           ..where(
-            _db.chapters.title.like(pattern, escapeChar: '\\') |
-                content.like(pattern, escapeChar: '\\'),
+            (_db.chapters.title.like(pattern, escapeChar: '\\') |
+                    content.like(pattern, escapeChar: '\\')) &
+                _db.chapters.deletedAt.isNull() &
+                _db.works.deletedAt.isNull(),
           )
           ..orderBy(<OrderingTerm>[OrderingTerm.desc(_db.chapters.updatedAt)])
           ..limit(limit);

@@ -246,7 +246,18 @@ class _WorkCard extends ConsumerWidget {
       ),
     );
     if (confirmed != true || !context.mounted) return;
-    await ref.read(workRepositoryProvider).deleteWork(work.id);
+    final repository = ref.read(workRepositoryProvider);
+    await repository.moveWorkToTrash(work.id);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(context.l10n.worksMovedToTrash(work.title)),
+        action: SnackBarAction(
+          label: context.l10n.commonUndo,
+          onPressed: () => repository.restoreWork(work.id),
+        ),
+      ),
+    );
   }
 }
 

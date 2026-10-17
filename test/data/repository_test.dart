@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:drift/drift.dart' show driftRuntimeOptions;
+import 'package:drift/drift.dart' show Value, driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:novelphone/core/word_count.dart';
@@ -10,6 +10,7 @@ import 'package:novelphone/data/repositories/character_repository.dart';
 import 'package:novelphone/data/repositories/outline_repository.dart';
 import 'package:novelphone/data/repositories/settings_repository.dart';
 import 'package:novelphone/data/repositories/token_stats_repository.dart';
+import 'package:novelphone/data/repositories/trash_repository.dart';
 import 'package:novelphone/data/repositories/work_repository.dart';
 import 'package:novelphone/data/secure_key_store.dart';
 import 'package:novelphone/models/chapter_status.dart';
@@ -499,23 +500,29 @@ void main() {
       expect(names, containsAll(_hotspotIndexNames));
     });
 
-    test('v8 → v10 升级时为既有库补建索引', () async {
+    test('v8 → v11 升级时为既有库补建索引并追加回收站列', () async {
       final dir = await Directory.systemTemp.createTemp('novelphone_mig');
       final file = File(p.join(dir.path, 'migrate.sqlite'));
       // 同一插槽先后开关两个 AppDatabase 实例是刻意为之，关掉 drift 的重复实例告警。
       final previousWarn = driftRuntimeOptions.dontWarnAboutMultipleDatabases;
       driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
       try {
-        // v9 / v10 只新增索引、不动表结构：先按当前 schema 建库，再删掉索引并回写
-        // user_version = 8，即得到与线上旧库等价的 v8 底座。
+        // v9 / v10 只新增索引、v11 只新增回收站列：先按当前 schema 建库，
+        // 删掉索引与 v11 列并回写 user_version = 8，即得到与线上旧库等价的 v8 底座。
         final seeded = AppDatabase(NativeDatabase(file));
         for (final name in _allIndexNames) {
           await seeded.customStatement('DROP INDEX IF EXISTS $name');
         }
+        await seeded.customStatement(
+          'ALTER TABLE works DROP COLUMN deleted_at',
+        );
+        await seeded.customStatement(
+          'ALTER TABLE chapters DROP COLUMN deleted_at',
+        );
         await seeded.customStatement('PRAGMA user_version = 8');
         await seeded.close();
 
-        // 以 v8 身份重新打开：应触发 onUpgrade(8 → 10) 补建索引。
+        // 以 v8 身份重新打开：应触发 onUpgrade(8 → 11) 补建索引并加列。
         final upgraded = AppDatabase(NativeDatabase(file));
         final names =
             (await upgraded
@@ -525,9 +532,14 @@ void main() {
                     .get())
                 .map((r) => r.read<String>('name'))
                 .toSet();
+        final workColumns =
+            (await upgraded.customSelect('PRAGMA table_info(works)').get())
+                .map((r) => r.read<String>('name'))
+                .toSet();
         await upgraded.close();
 
         expect(names, containsAll(_allIndexNames));
+        expect(workColumns, contains('deleted_at'));
       } finally {
         driftRuntimeOptions.dontWarnAboutMultipleDatabases = previousWarn;
         if (dir.existsSync()) dir.deleteSync(recursive: true);
@@ -661,6 +673,128 @@ void main() {
         replacement: 'x',
       );
       expect(result.replaced, 0);
+    });
+  });
+
+  group('回收站（ENH-22）', () {
+    late TrashRepository trash;
+
+    setUp(() {
+      trash = TrashRepository(db);
+    });
+
+    test('章节移入回收站后从目录 / 搜索隐藏，汇总排除，恢复后回归', () async {
+      final workId = await works.createWork(title: '长夜行');
+      final chapterId = await chapters.createChapter(
+        workId: workId,
+        title: '第一章',
+      );
+      await chapters.saveChapter(
+        chapterId: chapterId,
+        title: '第一章',
+        content: '雨下了一整夜。',
+      );
+
+      await chapters.moveChapterToTrash(chapterId);
+
+      expect(await chapters.getChapter(chapterId), isNull);
+      expect(await chapters.watchChapterMetas(workId).first, isEmpty);
+      expect(await chapters.search('雨'), isEmpty);
+      expect(await trash.listChapters(), hasLength(1));
+      final trashed = await works.getWork(workId);
+      expect(trashed!.wordCount, 0);
+      expect(trashed.chapterCount, 0);
+
+      await trash.restoreChapter(chapterId);
+
+      expect((await chapters.getChapter(chapterId))!.content, '雨下了一整夜。');
+      expect(await trash.listChapters(), isEmpty);
+      final restored = await works.getWork(workId);
+      expect(restored!.chapterCount, 1);
+      expect(restored.wordCount, greaterThan(0));
+    });
+
+    test('作品移入回收站后从列表隐藏，其章节不单列，恢复后一并回归', () async {
+      final workId = await works.createWork(title: '长夜行');
+      final chapterId = await chapters.createChapter(
+        workId: workId,
+        title: '第一章',
+      );
+      await chapters.saveChapter(
+        chapterId: chapterId,
+        title: '第一章',
+        content: '雨夜。',
+      );
+
+      await works.moveWorkToTrash(workId);
+
+      expect(await works.getWork(workId), isNull);
+      expect(await works.listWorks(), isEmpty);
+      expect((await trash.listWorks()).single.id, workId);
+      expect(await trash.listChapters(), isEmpty);
+
+      await trash.restoreWork(workId);
+
+      expect((await works.getWork(workId))!.title, '长夜行');
+      expect(await chapters.getChapter(chapterId), isNotNull);
+    });
+
+    test('永久删除章节与作品会清除数据行', () async {
+      final workId = await works.createWork(title: '长夜行');
+      final chapterId = await chapters.createChapter(
+        workId: workId,
+        title: '第一章',
+      );
+
+      await chapters.moveChapterToTrash(chapterId);
+      await trash.purgeChapter(chapterId);
+      expect(
+        await (db.select(
+          db.chapters,
+        )..where((t) => t.id.equals(chapterId))).getSingleOrNull(),
+        isNull,
+      );
+
+      await works.moveWorkToTrash(workId);
+      await trash.purgeWork(workId);
+      expect(
+        await (db.select(
+          db.works,
+        )..where((t) => t.id.equals(workId))).getSingleOrNull(),
+        isNull,
+      );
+    });
+
+    test('清理仅删除超过 30 天的条目', () async {
+      final oldTime = DateTime.now().subtract(const Duration(days: 31));
+      final oldWorkId = await works.createWork(title: '旧作');
+      final freshWorkId = await works.createWork(title: '新作');
+      final chapterWorkId = await works.createWork(title: '章节作品');
+      final chapterId = await chapters.createChapter(
+        workId: chapterWorkId,
+        title: '第一章',
+      );
+      await (db.update(db.works)..where((t) => t.id.equals(oldWorkId))).write(
+        WorksCompanion(deletedAt: Value(oldTime)),
+      );
+      await works.moveWorkToTrash(freshWorkId);
+      await (db.update(db.chapters)..where((t) => t.id.equals(chapterId)))
+          .write(ChaptersCompanion(deletedAt: Value(oldTime)));
+
+      expect(await trash.purgeExpired(), 2);
+      expect((await trash.listWorks()).single.id, freshWorkId);
+      expect(
+        await (db.select(
+          db.works,
+        )..where((t) => t.id.equals(oldWorkId))).getSingleOrNull(),
+        isNull,
+      );
+      expect(
+        await (db.select(
+          db.chapters,
+        )..where((t) => t.id.equals(chapterId))).getSingleOrNull(),
+        isNull,
+      );
     });
   });
 }

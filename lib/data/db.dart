@@ -18,6 +18,9 @@ class Works extends Table {
   DateTimeColumn get lastEditedAt => dateTime()();
   BoolColumn get pinned => boolean().withDefault(const Constant(false))();
   DateTimeColumn get createdAt => dateTime()();
+
+  /// 回收站标记（ENH-22）：非空表示已移入回收站，30 天后彻底删除。
+  DateTimeColumn get deletedAt => dateTime().nullable()();
 }
 
 /// 卷。章节归属卷，卷按 sortOrder 上移/下移排序。
@@ -57,6 +60,9 @@ class Chapters extends Table {
 
   /// 摘要生成 / 更新时间（ENH-07 O4）：正文在此之后有改动时提示摘要可能过期。
   DateTimeColumn get summaryUpdatedAt => dateTime().nullable()();
+
+  /// 回收站标记（ENH-22）：非空表示已移入回收站，30 天后彻底删除。
+  DateTimeColumn get deletedAt => dateTime().nullable()();
 }
 
 /// 章节快照（B-05）：手动创建的版本历史，仅存标题与正文全文，随章节级联删除。
@@ -229,7 +235,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -280,6 +286,11 @@ class AppDatabase extends _$AppDatabase {
       if (from < 10) {
         await m.createIndex(settingEntriesWorkId);
         await m.createIndex(characterRelationsWorkId);
+      }
+      // v11（ENH-22）：作品 / 章节追加回收站标记列（软删除）。
+      if (from < 11) {
+        await m.addColumn(works, works.deletedAt);
+        await m.addColumn(chapters, chapters.deletedAt);
       }
     },
     beforeOpen: (details) async {

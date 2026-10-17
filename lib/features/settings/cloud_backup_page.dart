@@ -219,10 +219,11 @@ class _CloudBackupPageState extends ConsumerState<CloudBackupPage> {
     final service = await _buildService();
     if (service == null) return;
     setState(() => _busy = true);
-    Map<String, dynamic>? data;
+    ParsedBackup? parsed;
     try {
       // ENH-15：解压 + jsonDecode 放到 isolate，避免恢复大备份时卡住 UI。
-      data = await parseBackupZipAsync(await service.download(object.key));
+      // ENH-22：同时校验 SHA-256 并获取预览信息。
+      parsed = await inspectBackupZipAsync(await service.download(object.key));
     } on FormatException catch (e) {
       _showMessage(cloudErrorText(l10n, e), ok: false);
     } catch (e) {
@@ -231,14 +232,16 @@ class _CloudBackupPageState extends ConsumerState<CloudBackupPage> {
       service.dispose();
       if (mounted) setState(() => _busy = false);
     }
-    if (data == null || !mounted) return;
+    if (parsed == null || !mounted) return;
 
+    if (!await showBackupPreviewDialog(context, parsed.preview)) return;
+    if (!mounted) return;
     final overwrite = await pickRestoreMode(context);
     if (overwrite == null) return;
     try {
       final report = await ref
           .read(backupRepositoryProvider)
-          .restore(data, overwrite: overwrite);
+          .restore(parsed.data, overwrite: overwrite);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

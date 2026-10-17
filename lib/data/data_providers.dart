@@ -5,10 +5,12 @@ import 'repositories/backup_repository.dart';
 import 'repositories/chapter_repository.dart';
 import 'repositories/character_repository.dart';
 import 'repositories/inspiration_repository.dart';
+import 'repositories/mcp_audit_repository.dart';
 import 'repositories/outline_repository.dart';
 import 'repositories/setting_repository.dart';
 import 'repositories/settings_repository.dart';
 import 'repositories/token_stats_repository.dart';
+import 'repositories/trash_repository.dart';
 import 'repositories/work_repository.dart';
 import 'secure_key_store.dart';
 
@@ -25,6 +27,11 @@ final workRepositoryProvider = Provider<WorkRepository>(
 
 final chapterRepositoryProvider = Provider<ChapterRepository>(
   (ref) => ChapterRepository(ref.watch(databaseProvider)),
+);
+
+/// 回收站（ENH-22）：作品 / 章节软删除的恢复与永久删除。
+final trashRepositoryProvider = Provider<TrashRepository>(
+  (ref) => TrashRepository(ref.watch(databaseProvider)),
 );
 
 final characterRepositoryProvider = Provider<CharacterRepository>(
@@ -73,6 +80,11 @@ final settingsRepositoryProvider = Provider<SettingsRepository>(
     ref.watch(databaseProvider),
     ref.watch(secureKeyStoreProvider),
   ),
+);
+
+/// MCP 工具调用审计（ENH-22）：最近 100 次远程调用记录。
+final mcpAuditRepositoryProvider = Provider<McpAuditRepository>(
+  (ref) => McpAuditRepository(ref.watch(settingsRepositoryProvider)),
 );
 
 final tokenStatsRepositoryProvider = Provider<TokenStatsRepository>(

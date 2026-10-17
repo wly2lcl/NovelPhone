@@ -750,4 +750,100 @@ void main() {
     // 本章章纲来自大纲条目的摘要。
     expect(ctx.chapterOutline, contains('沈砚与苏晚对峙。'));
   });
+
+  // ---------- ENH-22：设定一致性检查上下文 ----------
+
+  test('buildContinuityCheck 汇总角色卡 / 设定集 / 前情摘要 / 章纲 / 正文', () async {
+    final workId = await seedWork();
+    final third = await chapters.createChapter(workId: workId, title: '第三章');
+    await chapters.saveChapter(
+      chapterId: third,
+      title: '第三章',
+      content: '沈砚在北境拔刀，苏晚却说他人在江南。',
+      cursorOffset: 0,
+      scrollOffset: 0,
+    );
+    await outline.saveChapterSummary(
+      workId: workId,
+      chapterId: third,
+      summary: '沈砚北境拔刀。',
+    );
+    await characters.createCharacter(
+      workId: workId,
+      name: '沈砚',
+      identity: '游侠',
+    );
+    await settings.createEntry(
+      workId: workId,
+      type: SettingType.worldview,
+      name: '玄洲',
+      content: '北境终年积雪。',
+    );
+
+    final context = await builder.buildContinuityCheck(
+      workId: workId,
+      chapterId: third,
+      contextWindow: 32000,
+    );
+
+    expect(context.sections.map((s) => s.label), <String>[
+      '角色卡',
+      '设定集',
+      '前情摘要',
+      '本章章纲',
+      '本章正文',
+    ]);
+    expect(context.system, contains('设定一致性校对'));
+    final prompt = context.messages.single.content;
+    expect(prompt, contains('作品：《长夜行》'));
+    expect(prompt, contains('沈砚在北境拔刀'));
+    expect(prompt, contains('北境终年积雪'));
+    expect(prompt, contains('沈砚北境拔刀'));
+    expect(prompt, contains('只列冲突'));
+    expect(context.truncated, isFalse);
+  });
+
+  test('buildContinuityCheck 超预算时依次丢弃低优先资料并截断正文', () async {
+    final workId = await seedWork();
+    final third = await chapters.createChapter(workId: workId, title: '第三章');
+    await chapters.saveChapter(
+      chapterId: third,
+      title: '第三章',
+      content: '雨' * 600,
+      cursorOffset: 0,
+      scrollOffset: 0,
+    );
+    await outline.saveChapterSummary(
+      workId: workId,
+      chapterId: third,
+      summary: '沈砚北境拔刀。',
+    );
+    await characters.createCharacter(
+      workId: workId,
+      name: '沈砚',
+      identity: '游侠',
+    );
+    await settings.createEntry(
+      workId: workId,
+      type: SettingType.worldview,
+      name: '玄洲',
+      content: '北境终年积雪。',
+    );
+
+    final context = await builder.buildContinuityCheck(
+      workId: workId,
+      chapterId: third,
+      contextWindow: 900,
+    );
+
+    expect(context.truncated, isTrue);
+    final labels = context.sections.map((s) => s.label).toList();
+    // 低优先资料先被丢弃，正文保留但截断。
+    expect(labels, isNot(contains('前情摘要')));
+    expect(labels, isNot(contains('本章章纲')));
+    expect(labels, isNot(contains('设定集')));
+    final body = context.sections.firstWhere((s) => s.label == '本章正文');
+    expect(body.content, contains('本章过长，已截断'));
+    expect(context.estimatedTokens, lessThanOrEqualTo(context.budgetTokens));
+  });
 }

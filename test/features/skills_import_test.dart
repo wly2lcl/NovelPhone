@@ -130,4 +130,19 @@ enabled: false
     expect(await repo.listSkills(), isEmpty);
     await flushSnackBar(tester);
   });
+
+  testWidgets('技能菜单提供导出 / 分享入口（ENH-22）', (tester) async {
+    final repo = SettingsRepository(db, InMemoryKeyStore());
+    await repo.createSkill(
+      name: '冷硬短句',
+      instruction: '只用短句。',
+      allowedTools: const <String>['get_chapter'],
+    );
+    await pumpSkills(tester);
+
+    await tester.tap(find.byType(PopupMenuButton<String>).first);
+    await tester.pumpAndSettle();
+    expect(find.text('导出 / 分享'), findsOneWidget);
+    expect(find.text('编辑'), findsOneWidget);
+  });
 }

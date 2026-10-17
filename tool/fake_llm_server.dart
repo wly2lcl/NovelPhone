@@ -9,6 +9,8 @@
 //
 // 场景（路径首段即场景名，其余路径忽略）：
 //   /openai              Chat Completions 正常流（delta 分片 + usage + [DONE]）
+//   /openai-tool         首次返回 tool_calls（优先选 mcp_ 前缀或名为 echo 的工具，
+//                        否则选第一个），收到 tool 结果后返回文本（验证 MCP 调用与审计）
 //   /openai-429-first    首次请求 429，之后正常（验证 RetryingAiClient 重试）
 //   /openai-429-always   始终 429
 //   /openai-500          始终 500（验证 5xx 重试后仍透出错误）
@@ -98,6 +100,8 @@ class FakeLlmServer {
     switch (scenario) {
       case 'openai':
         return _openaiStream(request.response);
+      case 'openai-tool':
+        return _openaiToolStream(request);
       case 'openai-429-first':
         if (_failedOnce.add(scenario)) {
           return _json(request.response, 429, _rateLimitBody);
@@ -156,6 +160,107 @@ class FakeLlmServer {
     await _sse(response, <String, dynamic>{
       'choices': <dynamic>[],
       'usage': <String, dynamic>{'prompt_tokens': 12, 'completion_tokens': 9},
+    });
+    response.write('data: [DONE]\n\n');
+    await response.flush();
+    await response.close();
+  }
+
+  /// 第一轮返回工具调用，收到工具结果后返回文本（用于验证 MCP 审计）。
+  Future<void> _openaiToolStream(HttpRequest request) async {
+    final raw = await utf8.decoder.bind(request).join();
+    final body = jsonDecode(raw) as Map<String, dynamic>;
+    final messages = (body['messages'] as List<dynamic>?) ?? const <dynamic>[];
+    final tools = (body['tools'] as List<dynamic>?) ?? const <dynamic>[];
+    final hasToolResult = messages.any((m) => m is Map && m['role'] == 'tool');
+    final toolNames = <String>[
+      for (final tool in tools)
+        if (tool is Map && tool['function'] is Map)
+          (tool['function'] as Map)['name'] as String? ?? '?',
+    ];
+    stdout.writeln(
+      '[fake-llm] openai-tool：roles=${messages.map((m) => m is Map ? m['role'] : '?').join(',')} '
+      'tools=$toolNames',
+    );
+    final response = request.response;
+    await _begin(response);
+    if (!hasToolResult && tools.isNotEmpty) {
+      final picked = tools.firstWhere((tool) {
+        if (tool is! Map || tool['function'] is! Map) return false;
+        final name = (tool['function'] as Map)['name'];
+        return name is String &&
+            (name.startsWith('mcp_') || name.contains('echo'));
+      }, orElse: () => tools.first);
+      final tool = picked as Map<String, dynamic>;
+      final function = tool['function'] as Map<String, dynamic>;
+      final name = function['name'] as String;
+      final schema = function['parameters'] as Map<String, dynamic>?;
+      final properties = schema?['properties'] as Map<String, dynamic>?;
+      final args = properties != null && properties.containsKey('text')
+          ? '{"text":"audit-check"}'
+          : '{}';
+      await _sse(response, <String, dynamic>{
+        'choices': <dynamic>[
+          <String, dynamic>{
+            'index': 0,
+            'delta': <String, dynamic>{
+              'tool_calls': <dynamic>[
+                <String, dynamic>{
+                  'index': 0,
+                  'id': 'call_fake_1',
+                  'type': 'function',
+                  'function': <String, dynamic>{
+                    'name': name,
+                    'arguments': args,
+                  },
+                },
+              ],
+            },
+            'finish_reason': null,
+          },
+        ],
+      });
+      await _sse(response, <String, dynamic>{
+        'choices': <dynamic>[
+          <String, dynamic>{
+            'index': 0,
+            'delta': <String, dynamic>{},
+            'finish_reason': 'tool_calls',
+          },
+        ],
+      });
+      await _sse(response, <String, dynamic>{
+        'choices': <dynamic>[],
+        'usage': <String, dynamic>{'prompt_tokens': 20, 'completion_tokens': 5},
+      });
+      response.write('data: [DONE]\n\n');
+      await response.flush();
+      await response.close();
+      return;
+    }
+    for (final piece in _reply) {
+      await _sse(response, <String, dynamic>{
+        'choices': <dynamic>[
+          <String, dynamic>{
+            'index': 0,
+            'delta': <String, dynamic>{'content': piece},
+            'finish_reason': null,
+          },
+        ],
+      });
+    }
+    await _sse(response, <String, dynamic>{
+      'choices': <dynamic>[
+        <String, dynamic>{
+          'index': 0,
+          'delta': <String, dynamic>{},
+          'finish_reason': 'stop',
+        },
+      ],
+    });
+    await _sse(response, <String, dynamic>{
+      'choices': <dynamic>[],
+      'usage': <String, dynamic>{'prompt_tokens': 30, 'completion_tokens': 9},
     });
     response.write('data: [DONE]\n\n');
     await response.flush();

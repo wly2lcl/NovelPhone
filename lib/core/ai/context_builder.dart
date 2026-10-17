@@ -495,6 +495,132 @@ class ContextBuilder {
     return (previousSummary: previousSummary, chapterOutline: chapterOutline);
   }
 
+  /// 设定一致性检查上下文（ENH-22）：本章正文 + 角色卡 + 设定集 + 前情摘要 /
+  /// 本章章纲，让模型只报告与既有设定明确冲突之处。超预算时依次丢弃
+  /// 前情摘要、章纲、设定集，再截断正文。
+  Future<BuiltContext> buildContinuityCheck({
+    required int workId,
+    required int chapterId,
+    int contextWindow = 32000,
+  }) async {
+    final budget = (contextWindow * 0.5).round();
+    final work = await works.getWork(workId);
+    final chapter = await chapters.getChapter(chapterId);
+    final content = chapter?.content ?? '';
+    final title = (chapter?.title ?? '').trim();
+    final recap = await _recapSource(workId, chapterId);
+    final volume = chapter == null
+        ? null
+        : await _volumeOf(workId, chapter.volumeId);
+    final outlineEntries = await outline.listOutline(workId);
+    final allCharacters = await characters.listCharacters(workId);
+
+    final titleText = title.isEmpty ? '未命名章节' : title;
+    final system = _continuitySystem();
+    final header = '作品：《${work?.title ?? ''}》\n本章：$titleText';
+
+    final chapterOutline = outlineEntries
+        .where((e) => e.chapterId == chapterId && e.summary.trim().isNotEmpty)
+        .map((e) => e.summary.trim())
+        .join('\n');
+    var previousSummary = _previousSummary(
+      recap.ordered,
+      chapterId,
+      volume?.summary.trim() ?? '',
+      fallbackContents: recap.fallbackContents,
+    );
+    var settingsText = await _settingsText(workId);
+    var charactersText = allCharacters.map(formatCharacter).join('\n');
+    var outlineText = chapterOutline;
+    var body = content;
+
+    int total() =>
+        estimateTokens(system) +
+        estimateTokens(header) +
+        estimateTokens(body) +
+        estimateTokens(charactersText) +
+        estimateTokens(settingsText) +
+        estimateTokens(previousSummary) +
+        estimateTokens(outlineText);
+
+    var truncated = false;
+    if (total() > budget && previousSummary.isNotEmpty) {
+      previousSummary = '';
+      truncated = true;
+    }
+    if (total() > budget && outlineText.isNotEmpty) {
+      outlineText = '';
+      truncated = true;
+    }
+    if (total() > budget && settingsText.isNotEmpty) {
+      settingsText = '';
+      truncated = true;
+    }
+    if (total() > budget && allCharacters.length > minCharacters) {
+      charactersText = allCharacters
+          .take(minCharacters)
+          .map(formatCharacter)
+          .join('\n');
+      truncated = true;
+    }
+    if (total() > budget) {
+      final room =
+          budget -
+          estimateTokens(system) -
+          estimateTokens(header) -
+          estimateTokens(charactersText) -
+          estimateTokens(settingsText) -
+          estimateTokens(previousSummary) -
+          estimateTokens(outlineText);
+      if (room <= 0) {
+        body = '';
+      } else if (body.length > room) {
+        const suffix = '…（本章过长，已截断）';
+        final keep = room > suffix.length ? room - suffix.length : 0;
+        body = '${body.substring(0, keep)}$suffix';
+      }
+      truncated = true;
+    }
+
+    final sections = <ContextSection>[
+      if (charactersText.isNotEmpty)
+        ContextSection(label: '角色卡', content: charactersText),
+      if (settingsText.isNotEmpty)
+        ContextSection(label: '设定集', content: settingsText),
+      if (previousSummary.isNotEmpty)
+        ContextSection(label: '前情摘要', content: previousSummary),
+      if (outlineText.isNotEmpty)
+        ContextSection(label: '本章章纲', content: outlineText),
+      ContextSection(label: '本章正文', content: body.isEmpty ? '（本章暂无正文）' : body),
+    ];
+    final userContent = <String>[
+      header,
+      for (final section in sections) '【${section.label}】\n${section.content}',
+      _continuityTask,
+    ].join('\n\n');
+
+    return BuiltContext(
+      system: system,
+      messages: <ChatMessage>[ChatMessage.user(userContent)],
+      sections: sections,
+      truncated: truncated,
+      estimatedTokens: total(),
+      budgetTokens: budget,
+    );
+  }
+
+  static const String _continuityTask =
+      '请检查【本章正文】是否存在与角色卡、设定集、前情摘要或本章章纲明确冲突的地方。'
+      '只列冲突，不评价文笔；最多 8 条，按严重程度排序。';
+
+  String _continuitySystem() =>
+      '你是一位严谨的中文小说责任编辑，负责设定一致性校对。\n'
+      '规则：\n'
+      '1. 只报告与给定设定资料明确冲突的内容，不推测、不评价文笔或剧情好坏；\n'
+      '2. 每条按「冲突原文 → 冲突的设定 → 建议改法」三段式说明，引用原文保持简短；\n'
+      '3. 没有发现冲突时，只回复「未发现设定冲突」；\n'
+      '4. 使用简体中文输出纯文本，不要使用 Markdown 代码块。';
+
   BuiltContext _assemble({
     required String workTitle,
     required int budget,

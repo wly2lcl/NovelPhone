@@ -54,6 +54,13 @@ class SettingsPage extends ConsumerWidget {
             trailing: Icon(Icons.chevron_right, color: context.paper.inkSoft),
             onTap: () => context.push('/settings/skills'),
           ),
+          ListTile(
+            leading: const Icon(Icons.fact_check_outlined),
+            title: Text(l10n.settingsMcpAudit),
+            subtitle: Text(l10n.settingsMcpAuditSubtitle),
+            trailing: Icon(Icons.chevron_right, color: context.paper.inkSoft),
+            onTap: () => context.push('/settings/mcp-audit'),
+          ),
           const Divider(),
           _SectionTitle(l10n.settingsSectionWriting),
           ListTile(
@@ -95,6 +102,13 @@ class SettingsPage extends ConsumerWidget {
             subtitle: Text(l10n.settingsCloudBackupSubtitle),
             trailing: Icon(Icons.chevron_right, color: context.paper.inkSoft),
             onTap: () => context.push('/settings/cloud-backup'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.delete_outline),
+            title: Text(l10n.settingsTrash),
+            subtitle: Text(l10n.settingsTrashSubtitle),
+            trailing: Icon(Icons.chevron_right, color: context.paper.inkSoft),
+            onTap: () => context.push('/settings/trash'),
           ),
           const Divider(),
           _SectionTitle(l10n.settingsSectionAbout),

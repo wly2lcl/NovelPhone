@@ -339,7 +339,7 @@ void main() {
 
   // ---------- ENH-06：AI 章节工具菜单 / 查看编辑本章摘要 ----------
 
-  testWidgets('AI 章节工具菜单四项可见，可查看/编辑本章摘要', (tester) async {
+  testWidgets('AI 章节工具菜单五项可见，可查看/编辑本章摘要', (tester) async {
     await seed('她不禁笑了。');
     await tester.pumpWidget(wrap());
     await settle(tester, find.byType(TextField));
@@ -352,6 +352,7 @@ void main() {
       '生成本章摘要',
       '生成本卷前情回顾',
       'AI 扩写本章纲',
+      '设定一致性检查',
       '查看/编辑本章摘要',
     ]) {
       expect(find.text(label), findsOneWidget, reason: label);
@@ -375,6 +376,65 @@ void main() {
     expect(tester.takeException(), isNull);
     final chapter = await chapters.getChapter(chapterId);
     expect(chapter!.summary, '手动摘要：她笑了。');
+
+    await closePage(tester);
+  });
+
+  testWidgets('设定一致性检查：展示报告对话框（ENH-22）', (tester) async {
+    await seed('她不禁笑了。', confirmAiNotice: true);
+    final settings = SettingsRepository(db, InMemoryKeyStore());
+    final groupId = await settings.createModelGroup(
+      name: '检查模型',
+      provider: 'openai_compat',
+      baseUrl: 'https://api.example.com/v1',
+      models: <String>['m1'],
+      apiKey: 'sk-test',
+    );
+    await settings.setTaskModel(AiTask.continuity, groupId);
+
+    final service = AiService(
+      settings: settings,
+      works: works,
+      chapters: chapters,
+      characters: CharacterRepository(db),
+      outline: OutlineRepository(db),
+      stats: TokenStatsRepository(db),
+      httpClient: MockClient((request) async {
+        final payload = jsonEncode(<String, dynamic>{
+          'choices': <dynamic>[
+            <String, dynamic>{
+              'delta': <String, dynamic>{'content': '「她不禁笑了」与角色卡「冷面剑客」冲突。'},
+              'finish_reason': 'stop',
+            },
+          ],
+          'usage': <String, dynamic>{
+            'prompt_tokens': 30,
+            'completion_tokens': 12,
+          },
+        });
+        return http.Response.bytes(
+          utf8.encode('data: $payload\n\ndata: [DONE]\n\n'),
+          200,
+          headers: <String, String>{'content-type': 'text/event-stream'},
+        );
+      }),
+    );
+
+    await tester.pumpWidget(wrap(service: service));
+    await settle(tester, find.byType(TextField));
+
+    await tester.tap(find.byTooltip('AI 章节工具'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.tap(find.text('设定一致性检查'));
+    await pumpReal(
+      tester,
+      until: () => find.textContaining('冷面剑客').evaluate().isNotEmpty,
+    );
+
+    expect(find.textContaining('冷面剑客'), findsOneWidget);
+    expect(find.text('关闭'), findsOneWidget);
+    expect(tester.takeException(), isNull);
 
     await closePage(tester);
   });

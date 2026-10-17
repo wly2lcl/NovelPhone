@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,9 +12,11 @@ import '../../core/formatting.dart';
 import '../../core/word_count.dart';
 import '../../data/data_providers.dart';
 import '../../data/repositories/settings_repository.dart';
+import '../../l10n/error_text.dart';
 import '../../l10n/l10n.dart';
 import '../ai/ai_notice.dart';
 import '../ai/ai_providers.dart';
+import '../ai/ai_service.dart';
 import '../work_detail/work_detail_providers.dart';
 import 'ai_confirm_panel.dart';
 import 'editor_controller.dart';
@@ -21,7 +25,13 @@ import 'flavor_check_panel.dart';
 import 'snapshot_panel.dart';
 
 /// AI 章节工具菜单项（ENH-06）：面板模式 + 非面板动作（查看/编辑摘要）。
-enum _ChapterTool { summarize, volumeSummary, outlineExpand, editSummary }
+enum _ChapterTool {
+  summarize,
+  volumeSummary,
+  outlineExpand,
+  consistency,
+  editSummary,
+}
 
 /// 编辑器（PRD 5.3）：正文编辑区 + 顶栏（标题 / 保存状态）+ 底部工具栏 + 状态栏。
 class EditorPage extends ConsumerStatefulWidget {
@@ -225,6 +235,10 @@ class _EditorPageState extends ConsumerState<EditorPage> {
                 child: Text(context.l10n.editorToolOutlineExpand),
               ),
               PopupMenuItem<_ChapterTool>(
+                value: _ChapterTool.consistency,
+                child: Text(context.l10n.editorToolContinuity),
+              ),
+              PopupMenuItem<_ChapterTool>(
                 value: _ChapterTool.editSummary,
                 child: Text(context.l10n.editorToolEditSummary),
               ),
@@ -401,6 +415,8 @@ class _EditorPageState extends ConsumerState<EditorPage> {
         await _openAi(AiPanelMode.volumeSummary);
       case _ChapterTool.outlineExpand:
         await _openAi(AiPanelMode.outlineExpand);
+      case _ChapterTool.consistency:
+        await _checkContinuity();
       case _ChapterTool.editSummary:
         await _editAiSummary();
     }
@@ -469,24 +485,7 @@ class _EditorPageState extends ConsumerState<EditorPage> {
     final ready = await ref.read(aiServiceProvider).isReady(task);
     if (!mounted) return;
     if (!ready) {
-      final go = await showDialog<bool>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: Text(context.l10n.editorNoModelTitle),
-          content: Text(context.l10n.editorNoModelBody),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: Text(context.l10n.editorLater),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: Text(context.l10n.editorGoSettings),
-            ),
-          ],
-        ),
-      );
-      if (go == true && mounted) context.push('/settings');
+      await _promptModelSetup();
       return;
     }
     // 首次联网前的告知（M4-16）。
@@ -498,6 +497,164 @@ class _EditorPageState extends ConsumerState<EditorPage> {
       _snapshotsVisible = false;
       _aiMode = mode;
     });
+  }
+
+  /// 未配置可用模型组时引导至设置页（AI 面板与设定检查共用）。
+  Future<void> _promptModelSetup() async {
+    final go = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(context.l10n.editorNoModelTitle),
+        content: Text(context.l10n.editorNoModelBody),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(context.l10n.editorLater),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(context.l10n.editorGoSettings),
+          ),
+        ],
+      ),
+    );
+    if (go == true && mounted) context.push('/settings');
+  }
+
+  /// 设定一致性检查（ENH-22）：一次性调用，结果以报告对话框展示。
+  Future<void> _checkContinuity() async {
+    if (_controller.textController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.editorContinuityEmpty)),
+      );
+      return;
+    }
+    final service = ref.read(aiServiceProvider);
+    final ready = await service.isReady(AiTask.continuity);
+    if (!mounted) return;
+    if (!ready) {
+      await _promptModelSetup();
+      return;
+    }
+    if (!await ensureAiNotice(context, ref)) return;
+    if (!mounted) return;
+
+    BuildContext? progressContext;
+    unawaited(
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) {
+          progressContext = dialogContext;
+          return AlertDialog(
+            content: Row(
+              children: <Widget>[
+                const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                const SizedBox(width: 16),
+                Expanded(child: Text(context.l10n.editorContinuityRunning)),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+
+    void closeProgress() {
+      if (progressContext?.mounted ?? false) {
+        Navigator.of(progressContext!).pop();
+      }
+    }
+
+    try {
+      final report = await service.checkContinuity(
+        workId: widget.workId,
+        chapterId: widget.chapterId,
+      );
+      closeProgress();
+      if (!mounted) return;
+      if (report.text.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.l10n.editorContinuityEmptyResult)),
+        );
+        return;
+      }
+      await _showContinuityReport(report);
+    } on ContinuityNeedsConfig {
+      closeProgress();
+      if (!mounted) return;
+      await _promptModelSetup();
+    } on ContinuityException catch (error) {
+      closeProgress();
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(context.l10n.editorContinuityTitle),
+          content: SelectableText(
+            aiFailureText(
+              context.l10n,
+              kind: error.kind,
+              message: error.message,
+              statusCode: error.statusCode,
+              code: error.code,
+              detail: error.detail,
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(context.l10n.commonClose),
+            ),
+          ],
+        ),
+      );
+    } catch (error) {
+      closeProgress();
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('$error')));
+    }
+  }
+
+  Future<void> _showContinuityReport(ContinuityReport report) {
+    return showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(context.l10n.editorContinuityTitle),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                if (report.truncated) ...<Widget>[
+                  Text(
+                    context.l10n.editorContinuityTruncated,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: context.paper.inkSoft,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                SelectableText(report.text),
+              ],
+            ),
+          ),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text(context.l10n.commonClose),
+          ),
+        ],
+      ),
+    );
   }
 
   /// 同步快照当前选区（ENH-04）：返回是否选中了非空白文本。

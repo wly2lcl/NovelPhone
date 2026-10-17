@@ -104,6 +104,17 @@ class $WorksTable extends Works with TableInfo<$WorksTable, Work> {
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -114,6 +125,7 @@ class $WorksTable extends Works with TableInfo<$WorksTable, Work> {
     lastEditedAt,
     pinned,
     createdAt,
+    deletedAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -186,6 +198,12 @@ class $WorksTable extends Works with TableInfo<$WorksTable, Work> {
     } else if (isInserting) {
       context.missing(_createdAtMeta);
     }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
     return context;
   }
 
@@ -227,6 +245,10 @@ class $WorksTable extends Works with TableInfo<$WorksTable, Work> {
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
       )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
     );
   }
 
@@ -245,6 +267,9 @@ class Work extends DataClass implements Insertable<Work> {
   final DateTime lastEditedAt;
   final bool pinned;
   final DateTime createdAt;
+
+  /// 回收站标记（ENH-22）：非空表示已移入回收站，30 天后彻底删除。
+  final DateTime? deletedAt;
   const Work({
     required this.id,
     required this.title,
@@ -254,6 +279,7 @@ class Work extends DataClass implements Insertable<Work> {
     required this.lastEditedAt,
     required this.pinned,
     required this.createdAt,
+    this.deletedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -266,6 +292,9 @@ class Work extends DataClass implements Insertable<Work> {
     map['last_edited_at'] = Variable<DateTime>(lastEditedAt);
     map['pinned'] = Variable<bool>(pinned);
     map['created_at'] = Variable<DateTime>(createdAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
     return map;
   }
 
@@ -279,6 +308,9 @@ class Work extends DataClass implements Insertable<Work> {
       lastEditedAt: Value(lastEditedAt),
       pinned: Value(pinned),
       createdAt: Value(createdAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
     );
   }
 
@@ -296,6 +328,7 @@ class Work extends DataClass implements Insertable<Work> {
       lastEditedAt: serializer.fromJson<DateTime>(json['lastEditedAt']),
       pinned: serializer.fromJson<bool>(json['pinned']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
     );
   }
   @override
@@ -310,6 +343,7 @@ class Work extends DataClass implements Insertable<Work> {
       'lastEditedAt': serializer.toJson<DateTime>(lastEditedAt),
       'pinned': serializer.toJson<bool>(pinned),
       'createdAt': serializer.toJson<DateTime>(createdAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
     };
   }
 
@@ -322,6 +356,7 @@ class Work extends DataClass implements Insertable<Work> {
     DateTime? lastEditedAt,
     bool? pinned,
     DateTime? createdAt,
+    Value<DateTime?> deletedAt = const Value.absent(),
   }) => Work(
     id: id ?? this.id,
     title: title ?? this.title,
@@ -331,6 +366,7 @@ class Work extends DataClass implements Insertable<Work> {
     lastEditedAt: lastEditedAt ?? this.lastEditedAt,
     pinned: pinned ?? this.pinned,
     createdAt: createdAt ?? this.createdAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
   );
   Work copyWithCompanion(WorksCompanion data) {
     return Work(
@@ -348,6 +384,7 @@ class Work extends DataClass implements Insertable<Work> {
           : this.lastEditedAt,
       pinned: data.pinned.present ? data.pinned.value : this.pinned,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
     );
   }
 
@@ -361,7 +398,8 @@ class Work extends DataClass implements Insertable<Work> {
           ..write('chapterCount: $chapterCount, ')
           ..write('lastEditedAt: $lastEditedAt, ')
           ..write('pinned: $pinned, ')
-          ..write('createdAt: $createdAt')
+          ..write('createdAt: $createdAt, ')
+          ..write('deletedAt: $deletedAt')
           ..write(')'))
         .toString();
   }
@@ -376,6 +414,7 @@ class Work extends DataClass implements Insertable<Work> {
     lastEditedAt,
     pinned,
     createdAt,
+    deletedAt,
   );
   @override
   bool operator ==(Object other) =>
@@ -388,7 +427,8 @@ class Work extends DataClass implements Insertable<Work> {
           other.chapterCount == this.chapterCount &&
           other.lastEditedAt == this.lastEditedAt &&
           other.pinned == this.pinned &&
-          other.createdAt == this.createdAt);
+          other.createdAt == this.createdAt &&
+          other.deletedAt == this.deletedAt);
 }
 
 class WorksCompanion extends UpdateCompanion<Work> {
@@ -400,6 +440,7 @@ class WorksCompanion extends UpdateCompanion<Work> {
   final Value<DateTime> lastEditedAt;
   final Value<bool> pinned;
   final Value<DateTime> createdAt;
+  final Value<DateTime?> deletedAt;
   const WorksCompanion({
     this.id = const Value.absent(),
     this.title = const Value.absent(),
@@ -409,6 +450,7 @@ class WorksCompanion extends UpdateCompanion<Work> {
     this.lastEditedAt = const Value.absent(),
     this.pinned = const Value.absent(),
     this.createdAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
   });
   WorksCompanion.insert({
     this.id = const Value.absent(),
@@ -419,6 +461,7 @@ class WorksCompanion extends UpdateCompanion<Work> {
     required DateTime lastEditedAt,
     this.pinned = const Value.absent(),
     required DateTime createdAt,
+    this.deletedAt = const Value.absent(),
   }) : title = Value(title),
        coverColor = Value(coverColor),
        lastEditedAt = Value(lastEditedAt),
@@ -432,6 +475,7 @@ class WorksCompanion extends UpdateCompanion<Work> {
     Expression<DateTime>? lastEditedAt,
     Expression<bool>? pinned,
     Expression<DateTime>? createdAt,
+    Expression<DateTime>? deletedAt,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -442,6 +486,7 @@ class WorksCompanion extends UpdateCompanion<Work> {
       if (lastEditedAt != null) 'last_edited_at': lastEditedAt,
       if (pinned != null) 'pinned': pinned,
       if (createdAt != null) 'created_at': createdAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
     });
   }
 
@@ -454,6 +499,7 @@ class WorksCompanion extends UpdateCompanion<Work> {
     Value<DateTime>? lastEditedAt,
     Value<bool>? pinned,
     Value<DateTime>? createdAt,
+    Value<DateTime?>? deletedAt,
   }) {
     return WorksCompanion(
       id: id ?? this.id,
@@ -464,6 +510,7 @@ class WorksCompanion extends UpdateCompanion<Work> {
       lastEditedAt: lastEditedAt ?? this.lastEditedAt,
       pinned: pinned ?? this.pinned,
       createdAt: createdAt ?? this.createdAt,
+      deletedAt: deletedAt ?? this.deletedAt,
     );
   }
 
@@ -494,6 +541,9 @@ class WorksCompanion extends UpdateCompanion<Work> {
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
     return map;
   }
 
@@ -507,7 +557,8 @@ class WorksCompanion extends UpdateCompanion<Work> {
           ..write('chapterCount: $chapterCount, ')
           ..write('lastEditedAt: $lastEditedAt, ')
           ..write('pinned: $pinned, ')
-          ..write('createdAt: $createdAt')
+          ..write('createdAt: $createdAt, ')
+          ..write('deletedAt: $deletedAt')
           ..write(')'))
         .toString();
   }
@@ -1069,6 +1120,17 @@ class $ChaptersTable extends Chapters with TableInfo<$ChaptersTable, Chapter> {
         type: DriftSqlType.dateTime,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1083,6 +1145,7 @@ class $ChaptersTable extends Chapters with TableInfo<$ChaptersTable, Chapter> {
     updatedAt,
     summary,
     summaryUpdatedAt,
+    deletedAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1182,6 +1245,12 @@ class $ChaptersTable extends Chapters with TableInfo<$ChaptersTable, Chapter> {
         ),
       );
     }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
     return context;
   }
 
@@ -1239,6 +1308,10 @@ class $ChaptersTable extends Chapters with TableInfo<$ChaptersTable, Chapter> {
         DriftSqlType.dateTime,
         data['${effectivePrefix}summary_updated_at'],
       ),
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
     );
   }
 
@@ -1266,6 +1339,9 @@ class Chapter extends DataClass implements Insertable<Chapter> {
 
   /// 摘要生成 / 更新时间（ENH-07 O4）：正文在此之后有改动时提示摘要可能过期。
   final DateTime? summaryUpdatedAt;
+
+  /// 回收站标记（ENH-22）：非空表示已移入回收站，30 天后彻底删除。
+  final DateTime? deletedAt;
   const Chapter({
     required this.id,
     required this.volumeId,
@@ -1279,6 +1355,7 @@ class Chapter extends DataClass implements Insertable<Chapter> {
     required this.updatedAt,
     required this.summary,
     this.summaryUpdatedAt,
+    this.deletedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1296,6 +1373,9 @@ class Chapter extends DataClass implements Insertable<Chapter> {
     map['summary'] = Variable<String>(summary);
     if (!nullToAbsent || summaryUpdatedAt != null) {
       map['summary_updated_at'] = Variable<DateTime>(summaryUpdatedAt);
+    }
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
     }
     return map;
   }
@@ -1316,6 +1396,9 @@ class Chapter extends DataClass implements Insertable<Chapter> {
       summaryUpdatedAt: summaryUpdatedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(summaryUpdatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
     );
   }
 
@@ -1339,6 +1422,7 @@ class Chapter extends DataClass implements Insertable<Chapter> {
       summaryUpdatedAt: serializer.fromJson<DateTime?>(
         json['summaryUpdatedAt'],
       ),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
     );
   }
   @override
@@ -1357,6 +1441,7 @@ class Chapter extends DataClass implements Insertable<Chapter> {
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
       'summary': serializer.toJson<String>(summary),
       'summaryUpdatedAt': serializer.toJson<DateTime?>(summaryUpdatedAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
     };
   }
 
@@ -1373,6 +1458,7 @@ class Chapter extends DataClass implements Insertable<Chapter> {
     DateTime? updatedAt,
     String? summary,
     Value<DateTime?> summaryUpdatedAt = const Value.absent(),
+    Value<DateTime?> deletedAt = const Value.absent(),
   }) => Chapter(
     id: id ?? this.id,
     volumeId: volumeId ?? this.volumeId,
@@ -1388,6 +1474,7 @@ class Chapter extends DataClass implements Insertable<Chapter> {
     summaryUpdatedAt: summaryUpdatedAt.present
         ? summaryUpdatedAt.value
         : this.summaryUpdatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
   );
   Chapter copyWithCompanion(ChaptersCompanion data) {
     return Chapter(
@@ -1409,6 +1496,7 @@ class Chapter extends DataClass implements Insertable<Chapter> {
       summaryUpdatedAt: data.summaryUpdatedAt.present
           ? data.summaryUpdatedAt.value
           : this.summaryUpdatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
     );
   }
 
@@ -1426,7 +1514,8 @@ class Chapter extends DataClass implements Insertable<Chapter> {
           ..write('scrollOffset: $scrollOffset, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('summary: $summary, ')
-          ..write('summaryUpdatedAt: $summaryUpdatedAt')
+          ..write('summaryUpdatedAt: $summaryUpdatedAt, ')
+          ..write('deletedAt: $deletedAt')
           ..write(')'))
         .toString();
   }
@@ -1445,6 +1534,7 @@ class Chapter extends DataClass implements Insertable<Chapter> {
     updatedAt,
     summary,
     summaryUpdatedAt,
+    deletedAt,
   );
   @override
   bool operator ==(Object other) =>
@@ -1461,7 +1551,8 @@ class Chapter extends DataClass implements Insertable<Chapter> {
           other.scrollOffset == this.scrollOffset &&
           other.updatedAt == this.updatedAt &&
           other.summary == this.summary &&
-          other.summaryUpdatedAt == this.summaryUpdatedAt);
+          other.summaryUpdatedAt == this.summaryUpdatedAt &&
+          other.deletedAt == this.deletedAt);
 }
 
 class ChaptersCompanion extends UpdateCompanion<Chapter> {
@@ -1477,6 +1568,7 @@ class ChaptersCompanion extends UpdateCompanion<Chapter> {
   final Value<DateTime> updatedAt;
   final Value<String> summary;
   final Value<DateTime?> summaryUpdatedAt;
+  final Value<DateTime?> deletedAt;
   const ChaptersCompanion({
     this.id = const Value.absent(),
     this.volumeId = const Value.absent(),
@@ -1490,6 +1582,7 @@ class ChaptersCompanion extends UpdateCompanion<Chapter> {
     this.updatedAt = const Value.absent(),
     this.summary = const Value.absent(),
     this.summaryUpdatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
   });
   ChaptersCompanion.insert({
     this.id = const Value.absent(),
@@ -1504,6 +1597,7 @@ class ChaptersCompanion extends UpdateCompanion<Chapter> {
     required DateTime updatedAt,
     this.summary = const Value.absent(),
     this.summaryUpdatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
   }) : volumeId = Value(volumeId),
        title = Value(title),
        sortOrder = Value(sortOrder),
@@ -1521,6 +1615,7 @@ class ChaptersCompanion extends UpdateCompanion<Chapter> {
     Expression<DateTime>? updatedAt,
     Expression<String>? summary,
     Expression<DateTime>? summaryUpdatedAt,
+    Expression<DateTime>? deletedAt,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -1535,6 +1630,7 @@ class ChaptersCompanion extends UpdateCompanion<Chapter> {
       if (updatedAt != null) 'updated_at': updatedAt,
       if (summary != null) 'summary': summary,
       if (summaryUpdatedAt != null) 'summary_updated_at': summaryUpdatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
     });
   }
 
@@ -1551,6 +1647,7 @@ class ChaptersCompanion extends UpdateCompanion<Chapter> {
     Value<DateTime>? updatedAt,
     Value<String>? summary,
     Value<DateTime?>? summaryUpdatedAt,
+    Value<DateTime?>? deletedAt,
   }) {
     return ChaptersCompanion(
       id: id ?? this.id,
@@ -1565,6 +1662,7 @@ class ChaptersCompanion extends UpdateCompanion<Chapter> {
       updatedAt: updatedAt ?? this.updatedAt,
       summary: summary ?? this.summary,
       summaryUpdatedAt: summaryUpdatedAt ?? this.summaryUpdatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
     );
   }
 
@@ -1607,6 +1705,9 @@ class ChaptersCompanion extends UpdateCompanion<Chapter> {
     if (summaryUpdatedAt.present) {
       map['summary_updated_at'] = Variable<DateTime>(summaryUpdatedAt.value);
     }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
     return map;
   }
 
@@ -1624,7 +1725,8 @@ class ChaptersCompanion extends UpdateCompanion<Chapter> {
           ..write('scrollOffset: $scrollOffset, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('summary: $summary, ')
-          ..write('summaryUpdatedAt: $summaryUpdatedAt')
+          ..write('summaryUpdatedAt: $summaryUpdatedAt, ')
+          ..write('deletedAt: $deletedAt')
           ..write(')'))
         .toString();
   }
@@ -5814,6 +5916,7 @@ typedef $$WorksTableCreateCompanionBuilder =
       required DateTime lastEditedAt,
       Value<bool> pinned,
       required DateTime createdAt,
+      Value<DateTime?> deletedAt,
     });
 typedef $$WorksTableUpdateCompanionBuilder =
     WorksCompanion Function({
@@ -5825,6 +5928,7 @@ typedef $$WorksTableUpdateCompanionBuilder =
       Value<DateTime> lastEditedAt,
       Value<bool> pinned,
       Value<DateTime> createdAt,
+      Value<DateTime?> deletedAt,
     });
 
 final class $$WorksTableReferences
@@ -6008,6 +6112,11 @@ class $$WorksTableFilterComposer extends Composer<_$AppDatabase, $WorksTable> {
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6235,6 +6344,11 @@ class $$WorksTableOrderingComposer
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$WorksTableAnnotationComposer
@@ -6275,6 +6389,9 @@ class $$WorksTableAnnotationComposer
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
 
   Expression<T> volumesRefs<T extends Object>(
     Expression<T> Function($$VolumesTableAnnotationComposer a) f,
@@ -6497,6 +6614,7 @@ class $$WorksTableTableManager
                 Value<DateTime> lastEditedAt = const Value.absent(),
                 Value<bool> pinned = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
               }) => WorksCompanion(
                 id: id,
                 title: title,
@@ -6506,6 +6624,7 @@ class $$WorksTableTableManager
                 lastEditedAt: lastEditedAt,
                 pinned: pinned,
                 createdAt: createdAt,
+                deletedAt: deletedAt,
               ),
           createCompanionCallback:
               ({
@@ -6517,6 +6636,7 @@ class $$WorksTableTableManager
                 required DateTime lastEditedAt,
                 Value<bool> pinned = const Value.absent(),
                 required DateTime createdAt,
+                Value<DateTime?> deletedAt = const Value.absent(),
               }) => WorksCompanion.insert(
                 id: id,
                 title: title,
@@ -6526,6 +6646,7 @@ class $$WorksTableTableManager
                 lastEditedAt: lastEditedAt,
                 pinned: pinned,
                 createdAt: createdAt,
+                deletedAt: deletedAt,
               ),
           withReferenceMapper: (p0) => p0
               .map(
@@ -7262,6 +7383,7 @@ typedef $$ChaptersTableCreateCompanionBuilder =
       required DateTime updatedAt,
       Value<String> summary,
       Value<DateTime?> summaryUpdatedAt,
+      Value<DateTime?> deletedAt,
     });
 typedef $$ChaptersTableUpdateCompanionBuilder =
     ChaptersCompanion Function({
@@ -7277,6 +7399,7 @@ typedef $$ChaptersTableUpdateCompanionBuilder =
       Value<DateTime> updatedAt,
       Value<String> summary,
       Value<DateTime?> summaryUpdatedAt,
+      Value<DateTime?> deletedAt,
     });
 
 final class $$ChaptersTableReferences
@@ -7419,6 +7542,11 @@ class $$ChaptersTableFilterComposer
 
   ColumnFilters<DateTime> get summaryUpdatedAt => $composableBuilder(
     column: $table.summaryUpdatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -7585,6 +7713,11 @@ class $$ChaptersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$VolumesTableOrderingComposer get volumeId {
     final $$VolumesTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -7656,6 +7789,9 @@ class $$ChaptersTableAnnotationComposer
     column: $table.summaryUpdatedAt,
     builder: (column) => column,
   );
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
 
   $$VolumesTableAnnotationComposer get volumeId {
     final $$VolumesTableAnnotationComposer composer = $composerBuilder(
@@ -7801,6 +7937,7 @@ class $$ChaptersTableTableManager
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<String> summary = const Value.absent(),
                 Value<DateTime?> summaryUpdatedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
               }) => ChaptersCompanion(
                 id: id,
                 volumeId: volumeId,
@@ -7814,6 +7951,7 @@ class $$ChaptersTableTableManager
                 updatedAt: updatedAt,
                 summary: summary,
                 summaryUpdatedAt: summaryUpdatedAt,
+                deletedAt: deletedAt,
               ),
           createCompanionCallback:
               ({
@@ -7829,6 +7967,7 @@ class $$ChaptersTableTableManager
                 required DateTime updatedAt,
                 Value<String> summary = const Value.absent(),
                 Value<DateTime?> summaryUpdatedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
               }) => ChaptersCompanion.insert(
                 id: id,
                 volumeId: volumeId,
@@ -7842,6 +7981,7 @@ class $$ChaptersTableTableManager
                 updatedAt: updatedAt,
                 summary: summary,
                 summaryUpdatedAt: summaryUpdatedAt,
+                deletedAt: deletedAt,
               ),
           withReferenceMapper: (p0) => p0
               .map(

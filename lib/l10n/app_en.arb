@@ -15,7 +15,7 @@
   "worksUnpin": "Unpin",
   "worksDelete": "Delete work",
   "worksDeleteConfirm": "Delete \"{title}\"?",
-  "worksDeleteConfirmBody": "All chapters, character cards, and outlines in this work will be deleted. This cannot be undone.",
+  "worksDeleteConfirmBody": "The work and its chapters will be moved to trash and can be restored within 30 days.",
   "worksLastEdited": "Last edited {time}",
   "worksLimitReached": "At most {max} works are allowed",
   "chapterCount": "{count, plural, =1{1 chapter} other{{count} chapters}}",
@@ -68,6 +68,7 @@
   "editorToolSummarize": "Generate chapter summary",
   "editorToolVolumeSummary": "Generate volume recap",
   "editorToolOutlineExpand": "Expand chapter outline with AI",
+  "editorToolContinuity": "Check setting consistency",
   "editorToolEditSummary": "View/edit chapter summary",
   "editorExitFocusMode": "Exit focus mode",
   "editorFocusMode": "Focus mode",
@@ -77,6 +78,11 @@
   "editorNoEarlierChapters": "No earlier chapters in this volume yet; the volume recap cannot be generated",
   "editorNoModelTitle": "No model configured",
   "editorNoModelBody": "Add a model group and fill in the API key in Settings before using AI features.",
+  "editorContinuityTitle": "Setting Consistency Check",
+  "editorContinuityRunning": "Checking setting consistency…",
+  "editorContinuityEmpty": "This chapter has no text yet. Write something before checking.",
+  "editorContinuityEmptyResult": "The model returned no content. Please try again.",
+  "editorContinuityTruncated": "The context exceeded the model window; some setting material was omitted, so results may be incomplete.",
   "editorLater": "Later",
   "editorGoSettings": "Go to Settings",
   "editorOriginalChanged": "The text has changed; select it again to rewrite",
@@ -238,6 +244,7 @@
   "backupErrorInvalidFormat": "The backup content has an invalid format",
   "backupErrorWrongFormat": "Not a NovelPhone backup file",
   "backupErrorNewerVersion": "This backup is from a newer app version. Please update the app first",
+  "backupErrorChecksumMismatch": "Backup integrity check failed; the file may be corrupted",
   "backupErrorIncomplete": "The backup content is incomplete",
   "modelTestOk": "Connection successful",
   "modelTestOkDetail": "Connection successful: {detail}",
@@ -305,6 +312,19 @@
   "settingsMcpServersSubtitle": "Connect remote MCP servers and expose their tools to the AI",
   "settingsSkills": "Custom Skills",
   "settingsSkillsSubtitle": "Extra instructions and tool allowlists injected into continue writing and inspiration",
+  "settingsMcpAudit": "MCP Call Audit",
+  "settingsMcpAuditSubtitle": "Last 100 remote tool calls, stored on this device only",
+  "mcpAuditTitle": "MCP Call Audit",
+  "mcpAuditEmpty": "No MCP tool calls yet",
+  "mcpAuditEmptyHint": "Once an MCP server is enabled for inspiration, remote tool calls will be recorded here.",
+  "mcpAuditClear": "Clear log",
+  "mcpAuditClearConfirmTitle": "Clear call audit?",
+  "mcpAuditClearConfirmBody": "All call records will be deleted from this device. This cannot be undone.",
+  "mcpAuditCleared": "Call log cleared",
+  "mcpAuditSuccess": "Success",
+  "mcpAuditFailure": "Failed",
+  "mcpAuditArguments": "Arguments",
+  "mcpAuditResult": "Result",
   "settingsSectionWriting": "Writing",
   "settingsAppearance": "Writing Appearance",
   "settingsAppearanceSubtitle": "Night paper, body text size, and line spacing",
@@ -323,6 +343,31 @@
   "settingsRestoreFromBackupSubtitle": "Pick a backup file to merge as a new work or overwrite local data",
   "settingsCloudBackup": "Cloud Backup",
   "settingsCloudBackupSubtitle": "Back up to your own object storage (S3 / OSS / COS, etc.), off by default",
+  "settingsTrash": "Trash",
+  "settingsTrashSubtitle": "Restore deleted works and chapters (kept for 30 days)",
+  "trashTitle": "Trash",
+  "trashHint": "Items in trash are kept for 30 days, then permanently deleted automatically.",
+  "trashTabWorks": "Works",
+  "trashTabChapters": "Chapters",
+  "trashEmptyWorks": "No works in trash",
+  "trashEmptyChapters": "No chapters in trash",
+  "trashDeletedAt": "Deleted {time}",
+  "trashChapterMeta": "\"{work}\" · {volume}",
+  "trashRestore": "Restore",
+  "trashDeleteForever": "Delete permanently",
+  "trashPurgeTitle": "Permanently delete \"{title}\"?",
+  "trashPurgeWorkBody": "All chapters, character cards, and outlines of this work will be permanently deleted. This cannot be undone.",
+  "trashPurgeChapterBody": "This chapter's text and version history will be permanently deleted. This cannot be undone.",
+  "trashPurged": "Permanently deleted",
+  "trashRestored": "Restored \"{title}\"",
+  "trashEmptyAction": "Empty trash",
+  "trashEmptyConfirmTitle": "Empty trash?",
+  "trashEmptyConfirmBody": "All works and chapters in trash will be permanently deleted. This cannot be undone.",
+  "trashEmptyDone": "Trash emptied",
+  "trashLoadFailed": "Failed to load: {detail}",
+  "worksMovedToTrash": "\"{title}\" moved to trash",
+  "chaptersMovedToTrash": "Chapter moved to trash",
+  "commonUndo": "Undo",
   "modelGroupsNew": "New model group",
   "modelGroupsLoadFailed": "Failed to load: {detail}",
   "modelGroupsEmptyTitle": "No model groups yet",
@@ -368,6 +413,7 @@
   "aiTaskSummary": "Chapter Summary",
   "aiTaskOutlineExpand": "Outline Expand",
   "aiTaskVolumeSummary": "Volume Recap",
+  "aiTaskContinuity": "AI Consistency Check",
   "tokenStatsResetTitle": "Reset stats",
   "tokenStatsResetBody": "Clear all generation and adoption records. This cannot be undone.",
   "tokenStatsLoadFailed": "Failed to load: {detail}",
@@ -392,6 +438,48 @@
   "backupRestoreModeBody": "Merge: import the works in the backup as new works without clearing existing data.\nOverwrite: clear all works on this device first, then restore exactly as in the backup. This cannot be undone.",
   "backupRestoreModeMerge": "Merge",
   "backupRestoreModeOverwrite": "Overwrite",
+  "backupPreviewTitle": "Confirm restore",
+  "backupPreviewSource": "Backup file: {name}",
+  "@backupPreviewSource": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "backupPreviewExportedAt": "Exported: {time}",
+  "@backupPreviewExportedAt": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "backupPreviewSchema": "Data version: v{version}",
+  "@backupPreviewSchema": {
+    "placeholders": {
+      "version": {
+        "type": "int"
+      }
+    }
+  },
+  "backupPreviewCounts": "{works} works · {chapters} chapters · {characters} character cards",
+  "@backupPreviewCounts": {
+    "placeholders": {
+      "works": {
+        "type": "int"
+      },
+      "chapters": {
+        "type": "int"
+      },
+      "characters": {
+        "type": "int"
+      }
+    }
+  },
+  "backupPreviewChecksumOk": "SHA-256 integrity check passed",
+  "backupPreviewChecksumLegacy": "Legacy backup without integrity data",
+  "backupPreviewContinue": "Continue",
   "cloudSaved": "Saved",
   "cloudTitle": "Cloud Backup",
   "cloudEnable": "Enable cloud backup",
@@ -496,6 +584,15 @@
   "mcpOAuthSaveFirst": "Save this server first, then test or authorize",
   "mcpOAuthSecureHint": "The token stays in on-device secure storage and is never exported with backups; authorization runs in your system browser (PKCE, no client secret stored).",
   "skillImport": "Import skill",
+  "skillExport": "Export / Share",
+  "skillExportFailed": "Export failed: {detail}",
+  "@skillExportFailed": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
   "skillImportFromFile": "Import from file",
   "skillImportFromPaste": "Paste to import",
   "skillImportPasteTitle": "Paste skill Markdown",
@@ -578,7 +675,7 @@
   "chaptersDeleteChapter": "Delete chapter",
   "chaptersNoOtherVolume": "No other volume to move to",
   "chaptersDeleteChapterConfirm": "Delete \"{title}\"?",
-  "chaptersDeleteChapterBody": "The content of this chapter cannot be restored after deletion.",
+  "chaptersDeleteChapterBody": "The chapter will be moved to trash and can be restored within 30 days.",
   "outlineOrphanSection": "Summaries not linked to chapters",
   "outlineEmptyEntry": "(Empty summary)",
   "outlineEmptyTitle": "No outline yet",

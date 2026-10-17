@@ -26,6 +26,9 @@ enum BackupErrorKind {
   /// 备份来自更新版本的应用。
   newerVersion,
 
+  /// manifest 声明存在但 SHA-256 与 data.json 不匹配（ENH-22）。
+  checksumMismatch,
+
   /// 备份表数据不完整。
   incomplete,
 }
