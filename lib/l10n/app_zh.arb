@@ -852,7 +852,7 @@
   "settingsModelGroups": "模型组与 API Key",
   "settingsModelGroupsSubtitle": "按服务商管理 key、baseUrl、模型列表与生成参数",
   "settingsTaskMapping": "任务与模型映射",
-  "settingsTaskMappingSubtitle": "为续写、灵感、AI 感检查分别指定模型组",
+  "settingsTaskMappingSubtitle": "为续写、问答、体检等各类 AI 任务指定模型组",
   "settingsTokenStats": "Token 与采纳统计",
   "settingsMcpServers": "MCP 工具服务",
   "settingsMcpServersSubtitle": "接入远程 MCP server，把其工具提供给 AI 调用",
@@ -1398,6 +1398,71 @@
   "workDetailImportTxtDocx": "导入 txt / docx",
   "workDetailInspirationsTitle": "灵感箱",
   "workDetailAiSettings": "AI 设置",
+  "workDetailStyleGuide": "文风档案",
+  "styleGuideTitle": "文风档案",
+  "styleGuideIntro": "文风档案会注入续写、改写、开篇与剧情推演，让 AI 更贴近你的写法。",
+  "styleGuidePerspective": "叙事人称与视角",
+  "styleGuidePerspectiveHint": "例如：第三人称限知，跟随女主",
+  "styleGuideTone": "语言风格与基调",
+  "styleGuideToneHint": "例如：冷峻克制，短句为主，少用形容词",
+  "styleGuideTaboos": "禁忌与偏好",
+  "styleGuideTaboosHint": "例如：不用网络流行语，少用感叹号",
+  "styleGuideSample": "示例段落",
+  "styleGuideSampleHint": "粘贴一段你的正文，AI 会模仿语感与节奏",
+  "styleGuideExtract": "AI 从最近章节提取",
+  "styleGuideExtracting": "正在分析最近章节…",
+  "styleGuideExtractTitle": "AI 提取结果",
+  "styleGuideExtractConfirm": "将用 AI 结果覆盖对应字段，是否继续？",
+  "styleGuideApply": "填入表单",
+  "styleGuideApplied": "已填入表单，确认后请保存",
+  "styleGuideSaved": "文风档案已保存",
+  "styleGuideExtractFailed": "提取失败：{message}",
+  "@styleGuideExtractFailed": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "modelEditInputPrice": "输入单价（元/百万 token）",
+  "modelEditOutputPrice": "输出单价（元/百万 token）",
+  "modelEditPriceHelper": "选填，用于 token 统计页估算费用",
+  "entityExtractTitle": "AI 设定补全",
+  "entityExtractIntro": "从最近章节抽取角色与世界观 / 地点 / 道具，预览去重后可一键建档。",
+  "entityExtractStart": "AI 抽取设定",
+  "entityExtractRunning": "正在阅读最近章节…",
+  "entityExtractEmpty": "没有发现可补充的新条目。",
+  "entityExtractParseFailed": "AI 返回内容无法解析，请重试。",
+  "entityExtractCharacters": "角色卡",
+  "entityExtractSettings": "设定条目",
+  "entityExtractExisting": "已存在",
+  "entityExtractApply": "应用所选（{count}）",
+  "@entityExtractApply": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "entityExtractApplied": "已添加 {characters} 个角色、{settings} 条设定",
+  "@entityExtractApplied": {
+    "placeholders": {
+      "characters": {
+        "type": "int"
+      },
+      "settings": {
+        "type": "int"
+      }
+    }
+  },
+  "entityExtractFailed": "抽取失败：{message}",
+  "@entityExtractFailed": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
   "workDetailRenameWork": "重命名作品",
   "workDetailImportedCount": "已导入 {count} 章",
   "@workDetailImportedCount": {
@@ -1638,5 +1703,132 @@
   "aboutPrivacyErase": "卸载应用即同时清除本地数据与安全区中的凭证。",
   "aboutLicenses": "开源许可",
   "aboutLicensesSubtitle": "NovelPhone 使用以下第三方开源组件，保留其原始许可。",
-  "aboutLicensesAction": "查看许可清单"
+  "aboutLicensesAction": "查看许可清单",
+  "plotPlanTitle": "剧情推演",
+  "plotPlanIntro": "基于已有章纲、角色与最近正文，推演后续走向与分章建议；满意的条目可存入灵感箱。",
+  "plotPlanDirection": "希望的方向（可选）",
+  "plotPlanDirectionHint": "例如：让女主主动摊牌，但暂时不要揭露身世",
+  "plotPlanStart": "开始推演",
+  "plotPlanRunning": "正在推演剧情…",
+  "plotPlanRegenerate": "重新推演",
+  "plotPlanDirections": "剧情走向",
+  "plotPlanChapters": "分章建议",
+  "plotPlanHook": "看点与风险",
+  "plotPlanSaveInspiration": "存入灵感箱",
+  "plotPlanSaved": "已存入灵感箱",
+  "plotPlanParseFailed": "AI 返回的不是结构化结果，已按原文展示。",
+  "plotPlanFailed": "推演失败：{message}",
+  "@plotPlanFailed": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "chatTitle": "作品问答",
+  "chatIntro": "基于作品设定、章纲与正文回答你的问题；需要细节时会自动检索相关章节。",
+  "chatEmpty": "和 AI 聊聊这部作品",
+  "chatInputHint": "输入问题…",
+  "chatSend": "发送",
+  "chatStop": "停止",
+  "chatThinking": "正在思考…",
+  "chatNoReply": "（没有返回内容）",
+  "chatClearTitle": "清空对话",
+  "chatClearBody": "将删除这部作品的问答记录，不影响作品内容。是否继续？",
+  "chatClearAction": "清空",
+  "chatContextTitle": "上下文详情",
+  "chatContextUsage": "已注入约 {estimated} / {budget} token",
+  "@chatContextUsage": {
+    "placeholders": {
+      "estimated": {
+        "type": "int"
+      },
+      "budget": {
+        "type": "int"
+      }
+    }
+  },
+  "chatSuggestionGoal": "主角目前的目标是什么？",
+  "chatSuggestionForeshadow": "哪些伏笔还没回收？",
+  "chatSuggestionRelationship": "梳理主要人物关系",
+  "editorContinuityStop": "停止",
+  "editorContinuityStopped": "已停止生成，以下是已生成的内容。",
+  "editorContinuityStoppedEmpty": "已停止，尚未收到内容。",
+  "continuityScanTitle": "全书一致性体检",
+  "continuityScanIntro": "逐章检查正文与角色卡、设定集、章纲、前情是否冲突。全书按顺序执行，避免并发触发服务商限流；可随时停止并保留已完成的结果。",
+  "continuityScanEmpty": "没有可检查的章节，请先写正文。",
+  "continuityScanStart": "开始全书体检",
+  "continuityScanRerun": "重新体检",
+  "continuityScanRunning": "正在检查第 {current} / {total} 章…",
+  "@continuityScanRunning": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "continuityScanStopping": "当前章完成后停止…",
+  "continuityScanCancel": "停止体检",
+  "continuityScanResult": "检查结果",
+  "continuityScanProgress": "已完成 {done} / {total} 章",
+  "@continuityScanProgress": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "continuityScanNoIssues": "未发现冲突",
+  "continuityScanHasIssues": "发现疑似冲突，点击查看",
+  "continuityScanChapterFailed": "本章检查失败",
+  "continuityScanFailedLine": "检查失败：{message}",
+  "@continuityScanFailedLine": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "continuityScanCopyAll": "复制全部结果",
+  "continuityScanCopied": "已复制到剪贴板",
+  "aiTaskStyle": "AI 文风提取",
+  "aiTaskExtract": "AI 设定补全",
+  "aiTaskPlan": "AI 剧情推演",
+  "aiTaskChat": "AI 作品问答",
+  "tokenStatsEstimatedCost": "预计费用",
+  "tokenStatsCostValue": "¥{amount}",
+  "@tokenStatsCostValue": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "tokenStatsCostHint": "在模型组中填写每百万 token 单价后，可在这里估算费用。",
+  "tokenStatsCostPartial": "{count} 个模型未填写单价，未计入费用。",
+  "@tokenStatsCostPartial": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "modelGroupsPriceLine": "¥{input} / ¥{output} 每百万 token",
+  "@modelGroupsPriceLine": {
+    "placeholders": {
+      "input": {
+        "type": "String"
+      },
+      "output": {
+        "type": "String"
+      }
+    }
+  },
+  "modelGroupsNoPrice": "未填单价"
 }

@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 
 import '../../models/work_cover_colors.dart';
+import '../../models/work_style_guide.dart';
 import '../dao/volume_dao.dart';
 import '../dao/work_dao.dart';
 import '../db.dart';
@@ -58,6 +59,14 @@ class WorkRepository {
 
   Future<void> setPinned(int id, bool pinned) {
     return _works.updateWork(id, WorksCompanion(pinned: Value(pinned)));
+  }
+
+  /// 保存作品文风档案（ENH-23）。
+  Future<void> updateStyleGuide(int id, WorkStyleGuide guide) {
+    return _works.updateWork(
+      id,
+      WorksCompanion(styleGuide: Value(guide.isEmpty ? '' : guide.encode())),
+    );
   }
 
   /// 删除作品：单事务删除其全部关联行（PRD 5.1，不可恢复）。

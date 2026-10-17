@@ -21,6 +21,9 @@ class Works extends Table {
 
   /// 回收站标记（ENH-22）：非空表示已移入回收站，30 天后彻底删除。
   DateTimeColumn get deletedAt => dateTime().nullable()();
+
+  /// 作品级文风档案（ENH-23）：JSON 字符串，见 `WorkStyleGuide`。
+  TextColumn get styleGuide => text().withDefault(const Constant(''))();
 }
 
 /// 卷。章节归属卷，卷按 sortOrder 上移/下移排序。
@@ -164,6 +167,12 @@ class ModelGroups extends Table {
   IntColumn get maxTokens => integer().withDefault(const Constant(1024))();
   IntColumn get contextWindow => integer().withDefault(const Constant(32000))();
   BoolColumn get enabled => boolean().withDefault(const Constant(true))();
+
+  /// 费用估算（ENH-23）：每百万 token 单价（元），0 表示未填写。
+  RealColumn get inputPricePerMillion =>
+      real().withDefault(const Constant(0))();
+  RealColumn get outputPricePerMillion =>
+      real().withDefault(const Constant(0))();
 }
 
 /// 全局键值设置（M3 引入）：默认模型、任务→模型映射（task_model_*）等，不含凭证。
@@ -235,7 +244,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -291,6 +300,12 @@ class AppDatabase extends _$AppDatabase {
       if (from < 11) {
         await m.addColumn(works, works.deletedAt);
         await m.addColumn(chapters, chapters.deletedAt);
+      }
+      // v12（ENH-23）：作品追加文风档案；模型组追加费用估算单价。
+      if (from < 12) {
+        await m.addColumn(works, works.styleGuide);
+        await m.addColumn(modelGroups, modelGroups.inputPricePerMillion);
+        await m.addColumn(modelGroups, modelGroups.outputPricePerMillion);
       }
     },
     beforeOpen: (details) async {

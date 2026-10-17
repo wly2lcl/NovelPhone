@@ -32,6 +32,12 @@ class AiTask {
   /// ENH-22：设定一致性检查。
   static const String continuity = 'continuity';
 
+  /// ENH-23：文风提取、设定补全、剧情推演、作品问答。
+  static const String style = 'style';
+  static const String extract = 'extract';
+  static const String plan = 'plan';
+  static const String chat = 'chat';
+
   static const List<String> all = <String>[
     continueWriting,
     inspire,
@@ -41,6 +47,10 @@ class AiTask {
     outlineExpand,
     volumeSummary,
     continuity,
+    style,
+    extract,
+    plan,
+    chat,
   ];
 
   static String label(String task) {
@@ -61,6 +71,14 @@ class AiTask {
         return 'AI 本卷前情回顾';
       case continuity:
         return 'AI 设定一致性检查';
+      case style:
+        return 'AI 文风提取';
+      case extract:
+        return 'AI 设定补全';
+      case plan:
+        return 'AI 剧情推演';
+      case chat:
+        return 'AI 作品问答';
       default:
         return task;
     }
@@ -106,6 +124,8 @@ class SettingsRepository {
     double temperature = 0.8,
     int maxTokens = 1024,
     int contextWindow = 32000,
+    double inputPricePerMillion = 0,
+    double outputPricePerMillion = 0,
     bool enabled = true,
     String? apiKey,
   }) async {
@@ -118,6 +138,8 @@ class SettingsRepository {
         temperature: Value(temperature),
         maxTokens: Value(maxTokens),
         contextWindow: Value(contextWindow),
+        inputPricePerMillion: Value(inputPricePerMillion),
+        outputPricePerMillion: Value(outputPricePerMillion),
         enabled: Value(enabled),
       ),
     );
@@ -139,6 +161,8 @@ class SettingsRepository {
     required int maxTokens,
     required int contextWindow,
     required bool enabled,
+    double inputPricePerMillion = 0,
+    double outputPricePerMillion = 0,
     String? apiKey,
   }) async {
     await _groups.updateGroup(
@@ -151,6 +175,8 @@ class SettingsRepository {
         temperature: Value(temperature),
         maxTokens: Value(maxTokens),
         contextWindow: Value(contextWindow),
+        inputPricePerMillion: Value(inputPricePerMillion),
+        outputPricePerMillion: Value(outputPricePerMillion),
         enabled: Value(enabled),
       ),
     );

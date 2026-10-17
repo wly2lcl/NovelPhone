@@ -7,6 +7,7 @@ import 'package:novelphone/data/repositories/outline_repository.dart';
 import 'package:novelphone/data/repositories/setting_repository.dart';
 import 'package:novelphone/data/repositories/work_repository.dart';
 import 'package:novelphone/models/setting_type.dart';
+import 'package:novelphone/models/work_style_guide.dart';
 
 /// 计数用的章节仓储替身（ENH-12）：整部作品正文读取与按 id 取正文各发生几次。
 class _CountingChapters extends ChapterRepository {
@@ -845,5 +846,155 @@ void main() {
     final body = context.sections.firstWhere((s) => s.label == '本章正文');
     expect(body.content, contains('本章过长，已截断'));
     expect(context.estimatedTokens, lessThanOrEqualTo(context.budgetTokens));
+  });
+
+  test('文风档案只进入 system 与上下文详情，不重复进入用户消息（ENH-23）', () async {
+    final workId = await seedWork();
+    await works.updateStyleGuide(
+      workId,
+      const WorkStyleGuide(
+        perspective: '第三人称限知，跟随沈砚',
+        tone: '冷峻克制，短句为主',
+        taboos: '不用网络流行语',
+        sample: '雨落在刀鞘上，他没有回头。',
+      ),
+    );
+    final third = await chapters.createChapter(workId: workId, title: '第三章');
+    await chapters.saveChapter(
+      chapterId: third,
+      title: '第三章',
+      content: '沈砚握紧了刀。',
+      cursorOffset: 0,
+      scrollOffset: 0,
+    );
+
+    final context = await builder.buildContinue(
+      workId: workId,
+      chapterId: third,
+      contextWindow: 32000,
+    );
+
+    expect(context.system, contains('【作品文风档案】'));
+    expect(context.system, contains('第三人称限知，跟随沈砚'));
+    expect(context.system, contains('雨落在刀鞘上，他没有回头。'));
+    expect(context.messages.single.content, isNot(contains('雨落在刀鞘上')));
+    expect(context.sections.map((s) => s.label), contains('作品文风档案'));
+    expect(context.estimatedTokens, lessThanOrEqualTo(context.budgetTokens));
+  });
+
+  test('文风提取注入近期章节与已有档案（ENH-23）', () async {
+    final workId = await seedWork();
+    await works.updateStyleGuide(workId, const WorkStyleGuide(tone: '克制的白描'));
+    final chapterList = await chapters.listChapters(workId);
+
+    final context = await builder.buildStyleExtraction(
+      workId: workId,
+      chapterList: chapterList,
+      contextWindow: 32000,
+    );
+
+    final prompt = context.messages.single.content;
+    expect(prompt, contains('作品：《长夜行》'));
+    expect(prompt, contains('【近期正文节选】'));
+    expect(prompt, contains('少年推开木门'));
+    expect(prompt, contains('克制的白描'));
+    expect(context.system, contains('perspective'));
+    expect(context.truncated, isFalse);
+  });
+
+  test('设定补全携带已有角色与设定，避免重复建档（ENH-23）', () async {
+    final workId = await seedWork();
+    await characters.createCharacter(
+      workId: workId,
+      name: '沈砚',
+      identity: '游侠',
+    );
+    await settings.createEntry(
+      workId: workId,
+      type: SettingType.location,
+      name: '长夜城',
+      content: '北境边城。',
+    );
+    final chapterList = await chapters.listChapters(workId);
+
+    final context = await builder.buildEntityExtraction(
+      workId: workId,
+      chapterList: chapterList,
+      contextWindow: 32000,
+    );
+
+    final prompt = context.messages.single.content;
+    expect(prompt, contains('【已有角色】'));
+    expect(prompt, contains('- 沈砚（游侠）'));
+    expect(prompt, contains('【已有设定】'));
+    expect(prompt, contains('长夜城'));
+    expect(prompt, contains('【正文节选】'));
+    final labels = context.sections.map((s) => s.label).toList();
+    expect(labels, containsAll(<String>['已有角色', '已有设定', '正文节选']));
+  });
+
+  test('剧情推演携带章纲、角色与作者方向（ENH-23）', () async {
+    final workId = await seedWork();
+    await characters.createCharacter(
+      workId: workId,
+      name: '沈砚',
+      identity: '游侠',
+    );
+    final chapterList = await chapters.listChapters(workId);
+
+    final context = await builder.buildPlotPlan(
+      workId: workId,
+      chapterList: chapterList,
+      direction: '让苏晚主动摊牌',
+      contextWindow: 32000,
+    );
+
+    final prompt = context.messages.single.content;
+    expect(prompt, contains('【已有章纲】'));
+    expect(prompt, contains('开篇：沈砚离乡。'));
+    expect(prompt, contains('【主要角色】'));
+    expect(prompt, contains('沈砚'));
+    expect(prompt, contains('作者希望的方向：让苏晚主动摊牌'));
+    expect(context.messages, hasLength(1));
+  });
+
+  test('作品问答按顺序注入历史并在超预算时丢弃最早一轮（ENH-23）', () async {
+    final workId = await seedWork();
+    final chapterList = await chapters.listChapters(workId);
+    final history = <ChatContextTurn>[
+      ChatContextTurn(role: 'user', content: '第一章讲了什么？'),
+      ChatContextTurn(role: 'assistant', content: '沈砚离乡。'),
+    ];
+
+    final context = await builder.buildChat(
+      workId: workId,
+      chapterList: chapterList,
+      history: history,
+      message: '苏晚是谁？',
+      contextWindow: 32000,
+    );
+
+    expect(context.messages, hasLength(3));
+    expect(context.messages[0].role, 'user');
+    expect(context.messages[1].role, 'assistant');
+    expect(context.messages.last.role, 'user');
+    expect(context.messages.last.content, '苏晚是谁？');
+    expect(context.system, contains('【作品资料】'));
+    expect(context.system, contains('章节目录'));
+    expect(
+      context.sections.map((s) => s.label),
+      containsAll(<String>['作品资料', '对话历史']),
+    );
+
+    final tight = await builder.buildChat(
+      workId: workId,
+      chapterList: chapterList,
+      history: history,
+      message: '苏晚是谁？',
+      contextWindow: 200,
+    );
+    expect(tight.truncated, isTrue);
+    expect(tight.messages.length, lessThan(3));
+    expect(tight.messages.last.content, '苏晚是谁？');
   });
 }

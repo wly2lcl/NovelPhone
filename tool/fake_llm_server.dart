@@ -9,6 +9,9 @@
 //
 // 场景（路径首段即场景名，其余路径忽略）：
 //   /openai              Chat Completions 正常流（delta 分片 + usage + [DONE]）
+//   /openai-style        返回文风档案 JSON（验证 ENH-23 文风提取）
+//   /openai-extract      返回角色 / 设定抽取 JSON（验证 ENH-23 设定补全）
+//   /openai-plan         返回剧情走向与分章建议 JSON（验证 ENH-23 剧情推演）
 //   /openai-tool         首次返回 tool_calls（优先选 mcp_ 前缀或名为 echo 的工具，
 //                        否则选第一个），收到 tool 结果后返回文本（验证 MCP 调用与审计）
 //   /openai-429-first    首次请求 429，之后正常（验证 RetryingAiClient 重试）
@@ -31,8 +34,9 @@ Future<void> main(List<String> args) async {
   await server.start(port);
   stdout.writeln('fake-llm 已启动：http://127.0.0.1:$port （分片间隔 ${delayMs}ms）');
   stdout.writeln(
-    '场景基址：http://127.0.0.1:$port/openai、/openai-429-first、'
-    '/openai-429-always、/openai-500、/openai-filter、/anthropic、/anthropic-429',
+    '场景基址：http://127.0.0.1:$port/openai、/openai-style、/openai-extract、'
+    '/openai-plan、/openai-429-first、/openai-429-always、/openai-500、'
+    '/openai-filter、/anthropic、/anthropic-429',
   );
   stdout.writeln('观测：GET /stats、GET /stats/reset');
 }
@@ -100,6 +104,18 @@ class FakeLlmServer {
     switch (scenario) {
       case 'openai':
         return _openaiStream(request.response);
+      case 'openai-style':
+        return _openaiStream(
+          request.response,
+          pieces: <String>[_styleGuideJson],
+        );
+      case 'openai-extract':
+        return _openaiStream(
+          request.response,
+          pieces: <String>[_entityExtractionJson],
+        );
+      case 'openai-plan':
+        return _openaiStream(request.response, pieces: <String>[_plotPlanJson]);
       case 'openai-tool':
         return _openaiToolStream(request);
       case 'openai-429-first':
@@ -126,7 +142,10 @@ class FakeLlmServer {
 
   // ---------- 正常流 ----------
 
-  Future<void> _openaiStream(HttpResponse response) async {
+  Future<void> _openaiStream(
+    HttpResponse response, {
+    List<String>? pieces,
+  }) async {
     await _begin(response);
     await _sse(response, <String, dynamic>{
       'choices': <dynamic>[
@@ -137,7 +156,7 @@ class FakeLlmServer {
         },
       ],
     });
-    for (final piece in _reply) {
+    for (final piece in pieces ?? _reply) {
       await _sse(response, <String, dynamic>{
         'choices': <dynamic>[
           <String, dynamic>{
@@ -308,6 +327,9 @@ class FakeLlmServer {
 
   Future<void> _begin(HttpResponse response) async {
     response.statusCode = 200;
+    // 关闭输出缓冲，否则 SDK 会把整段流攒到连接结束才发给客户端，
+    // 真机上无法观察增量输出与“停止保留部分结果”。
+    response.bufferOutput = false;
     response.headers.contentType = ContentType(
       'text',
       'event-stream',
@@ -331,6 +353,25 @@ class FakeLlmServer {
     response.write(jsonEncode(body));
     await response.close();
   }
+
+  static const String _styleGuideJson =
+      '{"perspective":"第三人称限知，跟随女主",'
+      '"tone":"冷峻克制，短句为主，少用形容词",'
+      '"taboos":["不用网络流行语","少用感叹号"],'
+      '"sample":"雪落无声。她把伞收起来，推门走了进去。"}';
+
+  static const String _entityExtractionJson =
+      '{"characters":[{"name":"沈砚","identity":"离乡的少年","personality":'
+      '["冷静","固执"],"appearance":"眉骨很高，常穿旧呢大衣"},'
+      '{"name":"苏晚","identity":"诊所医生","personality":["温和","敏锐"]}],'
+      '"settings":[{"type":"location","name":"雾港","content":"常年被雾笼罩的港口"},'
+      '{"type":"item","name":"旧怀表","content":"沈砚父亲留下的银质怀表"}]}';
+
+  static const String _plotPlanJson =
+      '{"directions":[{"title":"雪夜决裂","summary":"苏晚主动摊牌，沈砚被迫在旧案与她之间选择。",'
+      '"beats":["苏晚拿出旧照片","沈砚否认","两人不欢而散"],'
+      '"hook":"灭门案线索浮出水面，但真相可能伤到苏晚"}],'
+      '"chapters":[{"title":"第十二章 雪夜","summary":"两人在诊所对质，旧案时间线出现矛盾。"}]}';
 
   static const Map<String, dynamic> _rateLimitBody = <String, dynamic>{
     'error': <String, dynamic>{

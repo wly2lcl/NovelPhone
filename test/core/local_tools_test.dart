@@ -63,7 +63,7 @@ void main() {
 
     final result = await tool.execute(<String, dynamic>{'workId': workId});
 
-    expect(result, contains('第一章：开篇：沈砚离乡。'));
+    expect(result, contains('第一章（id=$first）：开篇：沈砚离乡。'));
     expect(chapters.fullWorkReads, 0);
   });
 }

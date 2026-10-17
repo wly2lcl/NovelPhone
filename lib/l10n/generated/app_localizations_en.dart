@@ -1271,7 +1271,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsTaskMappingSubtitle =>
-      'Assign model groups for continue writing, inspiration, and AI-flavor checks';
+      'Assign model groups for writing, Q&A, consistency scans, and other AI tasks';
 
   @override
   String get settingsTokenStats => 'Token & Adoption Stats';
@@ -2308,6 +2308,137 @@ class AppLocalizationsEn extends AppLocalizations {
   String get workDetailAiSettings => 'AI settings';
 
   @override
+  String get workDetailStyleGuide => 'Style profile';
+
+  @override
+  String get styleGuideTitle => 'Style profile';
+
+  @override
+  String get styleGuideIntro =>
+      'The style profile is injected into continuation, rewrite, opening, and plot planning so AI follows your voice.';
+
+  @override
+  String get styleGuidePerspective => 'Narrative person & viewpoint';
+
+  @override
+  String get styleGuidePerspectiveHint =>
+      'e.g. third-person limited, following the heroine';
+
+  @override
+  String get styleGuideTone => 'Voice & tone';
+
+  @override
+  String get styleGuideToneHint =>
+      'e.g. restrained and cool, short sentences, few adjectives';
+
+  @override
+  String get styleGuideTaboos => 'Taboos & preferences';
+
+  @override
+  String get styleGuideTaboosHint =>
+      'e.g. no internet slang, avoid exclamation marks';
+
+  @override
+  String get styleGuideSample => 'Sample paragraph';
+
+  @override
+  String get styleGuideSampleHint =>
+      'Paste a passage of your prose; AI will mimic its rhythm';
+
+  @override
+  String get styleGuideExtract => 'Extract with AI from recent chapters';
+
+  @override
+  String get styleGuideExtracting => 'Analyzing recent chapters…';
+
+  @override
+  String get styleGuideExtractTitle => 'AI extraction result';
+
+  @override
+  String get styleGuideExtractConfirm =>
+      'AI results will overwrite the matching fields. Continue?';
+
+  @override
+  String get styleGuideApply => 'Fill the form';
+
+  @override
+  String get styleGuideApplied => 'Filled the form — remember to save';
+
+  @override
+  String get styleGuideSaved => 'Style profile saved';
+
+  @override
+  String styleGuideExtractFailed(String message) {
+    return 'Extraction failed: $message';
+  }
+
+  @override
+  String get modelEditInputPrice => 'Input price (CNY / 1M tokens)';
+
+  @override
+  String get modelEditOutputPrice => 'Output price (CNY / 1M tokens)';
+
+  @override
+  String get modelEditPriceHelper =>
+      'Optional; used to estimate cost on the token stats page';
+
+  @override
+  String get entityExtractTitle => 'AI setting completion';
+
+  @override
+  String get entityExtractIntro =>
+      'Extract characters and worldbuilding / locations / items from recent chapters, review duplicates, then add them in one tap.';
+
+  @override
+  String get entityExtractStart => 'Extract with AI';
+
+  @override
+  String get entityExtractRunning => 'Reading recent chapters…';
+
+  @override
+  String get entityExtractEmpty => 'No new entries to add.';
+
+  @override
+  String get entityExtractParseFailed =>
+      'AI returned unparseable content. Try again.';
+
+  @override
+  String get entityExtractCharacters => 'Characters';
+
+  @override
+  String get entityExtractSettings => 'Setting entries';
+
+  @override
+  String get entityExtractExisting => 'Exists';
+
+  @override
+  String entityExtractApply(int count) {
+    return 'Apply selected ($count)';
+  }
+
+  @override
+  String entityExtractApplied(int characters, int settings) {
+    String _temp0 = intl.Intl.pluralLogic(
+      characters,
+      locale: localeName,
+      other: '$characters characters',
+      one: '1 character',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      settings,
+      locale: localeName,
+      other: '$settings settings',
+      one: '1 setting',
+    );
+    return 'Added $_temp0 and $_temp1';
+  }
+
+  @override
+  String entityExtractFailed(String message) {
+    return 'Extraction failed: $message';
+  }
+
+  @override
   String get workDetailRenameWork => 'Rename work';
 
   @override
@@ -2741,4 +2872,211 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aboutLicensesAction => 'View licenses';
+
+  @override
+  String get plotPlanTitle => 'Plot planning';
+
+  @override
+  String get plotPlanIntro =>
+      'Based on your existing outline, characters and recent chapters, sketch what happens next and how to split it into chapters. Save any idea you like to the inspiration box.';
+
+  @override
+  String get plotPlanDirection => 'Preferred direction (optional)';
+
+  @override
+  String get plotPlanDirectionHint =>
+      'e.g. Have the heroine confront him, but keep her origin secret for now';
+
+  @override
+  String get plotPlanStart => 'Generate plot directions';
+
+  @override
+  String get plotPlanRunning => 'Thinking through the plot...';
+
+  @override
+  String get plotPlanRegenerate => 'Regenerate';
+
+  @override
+  String get plotPlanDirections => 'Plot directions';
+
+  @override
+  String get plotPlanChapters => 'Chapter suggestions';
+
+  @override
+  String get plotPlanHook => 'Hook & risks';
+
+  @override
+  String get plotPlanSaveInspiration => 'Save to inspiration box';
+
+  @override
+  String get plotPlanSaved => 'Saved to the inspiration box';
+
+  @override
+  String get plotPlanParseFailed =>
+      'The model did not return structured JSON; showing its raw response instead.';
+
+  @override
+  String plotPlanFailed(String message) {
+    return 'Plot planning failed: $message';
+  }
+
+  @override
+  String get chatTitle => 'Ask this work';
+
+  @override
+  String get chatIntro =>
+      'Ask questions grounded in this work\'s story bible, outline and chapters; details are looked up on demand.';
+
+  @override
+  String get chatEmpty => 'Chat about this work';
+
+  @override
+  String get chatInputHint => 'Type a question...';
+
+  @override
+  String get chatSend => 'Send';
+
+  @override
+  String get chatStop => 'Stop';
+
+  @override
+  String get chatThinking => 'Thinking...';
+
+  @override
+  String get chatNoReply => '(No reply content)';
+
+  @override
+  String get chatClearTitle => 'Clear conversation';
+
+  @override
+  String get chatClearBody =>
+      'This deletes the Q&A history for this work, without touching the manuscript. Continue?';
+
+  @override
+  String get chatClearAction => 'Clear';
+
+  @override
+  String get chatContextTitle => 'Context details';
+
+  @override
+  String chatContextUsage(int estimated, int budget) {
+    return 'About $estimated / $budget tokens injected';
+  }
+
+  @override
+  String get chatSuggestionGoal =>
+      'What is the protagonist trying to do right now?';
+
+  @override
+  String get chatSuggestionForeshadow =>
+      'Which foreshadowing threads are still unresolved?';
+
+  @override
+  String get chatSuggestionRelationship =>
+      'Summarize the main character relationships';
+
+  @override
+  String get editorContinuityStop => 'Stop';
+
+  @override
+  String get editorContinuityStopped =>
+      'Generation stopped; here is what was produced so far.';
+
+  @override
+  String get editorContinuityStoppedEmpty =>
+      'Stopped before any content arrived.';
+
+  @override
+  String get continuityScanTitle => 'Whole-work consistency check';
+
+  @override
+  String get continuityScanIntro =>
+      'Checks every chapter against character cards, the story bible, outline and previous summaries. Chapters run sequentially to avoid provider rate limits; you can stop anytime and keep finished results.';
+
+  @override
+  String get continuityScanEmpty =>
+      'No chapters to check. Write some content first.';
+
+  @override
+  String get continuityScanStart => 'Start whole-work check';
+
+  @override
+  String get continuityScanRerun => 'Run again';
+
+  @override
+  String continuityScanRunning(int current, int total) {
+    return 'Checking chapter $current of $total...';
+  }
+
+  @override
+  String get continuityScanStopping => 'Stopping after the current chapter...';
+
+  @override
+  String get continuityScanCancel => 'Stop check';
+
+  @override
+  String get continuityScanResult => 'Results';
+
+  @override
+  String continuityScanProgress(int done, int total) {
+    return '$done of $total chapters checked';
+  }
+
+  @override
+  String get continuityScanNoIssues => 'No conflicts found';
+
+  @override
+  String get continuityScanHasIssues =>
+      'Possible conflicts found - tap to view';
+
+  @override
+  String get continuityScanChapterFailed => 'Check failed for this chapter';
+
+  @override
+  String continuityScanFailedLine(String message) {
+    return 'Check failed: $message';
+  }
+
+  @override
+  String get continuityScanCopyAll => 'Copy all results';
+
+  @override
+  String get continuityScanCopied => 'Copied to clipboard';
+
+  @override
+  String get aiTaskStyle => 'AI style extraction';
+
+  @override
+  String get aiTaskExtract => 'AI setting completion';
+
+  @override
+  String get aiTaskPlan => 'AI plot planning';
+
+  @override
+  String get aiTaskChat => 'AI work Q&A';
+
+  @override
+  String get tokenStatsEstimatedCost => 'Estimated cost';
+
+  @override
+  String tokenStatsCostValue(String amount) {
+    return '¥$amount';
+  }
+
+  @override
+  String get tokenStatsCostHint =>
+      'Add per-million-token prices in a model group to estimate cost here.';
+
+  @override
+  String tokenStatsCostPartial(int count) {
+    return '$count models have no price and are excluded.';
+  }
+
+  @override
+  String modelGroupsPriceLine(String input, String output) {
+    return '¥$input / ¥$output per 1M tokens';
+  }
+
+  @override
+  String get modelGroupsNoPrice => 'No price set';
 }

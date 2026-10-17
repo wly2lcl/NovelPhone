@@ -500,15 +500,16 @@ void main() {
       expect(names, containsAll(_hotspotIndexNames));
     });
 
-    test('v8 → v11 升级时为既有库补建索引并追加回收站列', () async {
+    test('v8 → v12 升级时为既有库补建索引并追加新列', () async {
       final dir = await Directory.systemTemp.createTemp('novelphone_mig');
       final file = File(p.join(dir.path, 'migrate.sqlite'));
       // 同一插槽先后开关两个 AppDatabase 实例是刻意为之，关掉 drift 的重复实例告警。
       final previousWarn = driftRuntimeOptions.dontWarnAboutMultipleDatabases;
       driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
       try {
-        // v9 / v10 只新增索引、v11 只新增回收站列：先按当前 schema 建库，
-        // 删掉索引与 v11 列并回写 user_version = 8，即得到与线上旧库等价的 v8 底座。
+        // v9 / v10 只新增索引、v11 新增回收站列、v12 新增文风与费用列：
+        // 先按当前 schema 建库，删掉这些增量并回写 user_version = 8，
+        // 即得到与线上旧库等价的 v8 底座。
         final seeded = AppDatabase(NativeDatabase(file));
         for (final name in _allIndexNames) {
           await seeded.customStatement('DROP INDEX IF EXISTS $name');
@@ -519,10 +520,19 @@ void main() {
         await seeded.customStatement(
           'ALTER TABLE chapters DROP COLUMN deleted_at',
         );
+        await seeded.customStatement(
+          'ALTER TABLE works DROP COLUMN style_guide',
+        );
+        await seeded.customStatement(
+          'ALTER TABLE model_groups DROP COLUMN input_price_per_million',
+        );
+        await seeded.customStatement(
+          'ALTER TABLE model_groups DROP COLUMN output_price_per_million',
+        );
         await seeded.customStatement('PRAGMA user_version = 8');
         await seeded.close();
 
-        // 以 v8 身份重新打开：应触发 onUpgrade(8 → 11) 补建索引并加列。
+        // 以 v8 身份重新打开：应触发 onUpgrade(8 → 12) 补建索引并加列。
         final upgraded = AppDatabase(NativeDatabase(file));
         final names =
             (await upgraded
@@ -536,10 +546,23 @@ void main() {
             (await upgraded.customSelect('PRAGMA table_info(works)').get())
                 .map((r) => r.read<String>('name'))
                 .toSet();
+        final modelGroupColumns =
+            (await upgraded
+                    .customSelect('PRAGMA table_info(model_groups)')
+                    .get())
+                .map((r) => r.read<String>('name'))
+                .toSet();
         await upgraded.close();
 
         expect(names, containsAll(_allIndexNames));
-        expect(workColumns, contains('deleted_at'));
+        expect(workColumns, containsAll(<String>['deleted_at', 'style_guide']));
+        expect(
+          modelGroupColumns,
+          containsAll(<String>[
+            'input_price_per_million',
+            'output_price_per_million',
+          ]),
+        );
       } finally {
         driftRuntimeOptions.dontWarnAboutMultipleDatabases = previousWarn;
         if (dir.existsSync()) dir.deleteSync(recursive: true);

@@ -167,7 +167,10 @@ class BackupRepository {
 
       var workCount = 0;
       for (final raw in _asList(tables['works'])) {
-        final work = Work.fromJson(raw);
+        // ENH-23：v12 之前导出的备份不含 styleGuide 键，补默认空串。
+        final json = Map<String, dynamic>.from(raw as Map);
+        json.putIfAbsent('styleGuide', () => '');
+        final work = Work.fromJson(json);
         final newId = await _db
             .into(_db.works)
             .insert(
@@ -180,6 +183,7 @@ class BackupRepository {
                 wordCount: Value(work.wordCount),
                 chapterCount: Value(work.chapterCount),
                 pinned: Value(work.pinned),
+                styleGuide: Value(work.styleGuide),
               ),
             );
         workIdMap[work.id] = newId;

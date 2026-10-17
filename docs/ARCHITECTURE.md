@@ -136,24 +136,27 @@ lib/
 ├── main.dart                     # 入口：初始化 drift、secure storage、ProviderScope
 ├── app/                          # 应用壳：主题（PaperPalette 亮/暗调色板 + 全局深浅模式）、go_router 路由表、应用内语言（app/locale.dart，ENH-17）
 ├── l10n/                         # 国际化（ENH-17）：app_zh.arb / app_en.arb（zh 为模板）+ generated/（gen-l10n 产物）+ l10n.dart（context.l10n 扩展）+ error_text.dart（错误文案展示时本地化）
-├── models/                       # 数据模型（与 drift 表对应的实体；含 MCP 审计条目 mcp_audit_entry.dart，ENH-22）
+├── models/                       # 数据模型（与 drift 表对应的实体；含 MCP 审计条目 mcp_audit_entry.dart，ENH-22；文风档案 work_style_guide.dart 与问答轮次 work_chat_turn.dart，ENH-23）
 ├── data/
 │   ├── db.dart                   # drift 数据库定义与迁移
 │   ├── dao/                      # 各表 DAO
-│   └── repositories/             # Repository：领域操作的唯一入口（含回收站 trash_repository.dart 与 MCP 审计 mcp_audit_repository.dart，ENH-22）
+│   └── repositories/             # Repository：领域操作的唯一入口（含回收站 trash_repository.dart 与 MCP 审计 mcp_audit_repository.dart，ENH-22；作品问答记录 chat_repository.dart，ENH-23）
 ├── core/
 │   ├── ai/
 │   │   ├── ai_client.dart        # AiClient 抽象 + 统一请求/响应模型
 │   │   ├── chat_completions_adapter.dart
 │   │   ├── messages_adapter.dart
+│   │   ├── responses_adapter.dart # OpenAI Responses 端点（B-01）
+│   │   ├── ai_timeouts.dart      # 连接 / 流式空闲超时（ENH-23）
 │   │   ├── sse.dart              # SSE 行解析（三个端点共用骨架）
-│   │   ├── context_builder.dart  # 上下文组装（PRD 6.2 的实现）
+│   │   ├── context_builder.dart  # 上下文组装（PRD 6.2 的实现；文风 / 抽取 / 推演 / 问答，ENH-23）
+│   │   ├── structured_response.dart # 宽松 JSON 解析：文风 / 实体抽取 / 剧情推演（ENH-23）
 │   │   ├── agent_core.dart       # Tool 抽象 + ReAct 循环
 │   │   ├── mcp/mcp_bridge.dart   # 远程 MCP 工具源（B-02）+ OAuth 令牌接入（ENH-21）
 │   │   ├── mcp/mcp_oauth.dart    # MCP OAuth 2.1 PKCE 授权流程（ENH-21）
 │   │   ├── skills/skill.dart     # 用户自定义 SKILL：指令 / 白名单 / 参数模板与注入（B-03）
 │   │   ├── skills/skill_front_matter.dart # SKILL.md front matter 解析 / 导出（ENH-21）
-│   │   └── tools/                # 内置工具：get_chapter、get_character 等
+│   │   └── tools/                # 内置工具：get_chapter、search_chapters、get_characters、get_settings、get_outline 等（ENH-23 扩充为作品问答检索集）
 │   ├── ai_flavor_rules.dart      # AI 味规则引擎（问题模型 + 句式模式 + 指标 + 纯函数检测）
 │   ├── flavor_lexicon.dart       # 套话词库（约 200 条，按权重分级）
 │   ├── text_diff.dart            # 段落级文本 diff（ENH-18）：快照与当前文本对比（LCS + 超限回退）
@@ -164,12 +167,12 @@ lib/
 │   └── cloud/                    # 云备份（B-08）：S3 兼容客户端（SigV4 签名）与备份编排
 └── features/
     ├── works/                    # 作品列表
-    ├── work_detail/              # 作品详情（卷/章/角色卡/设定集/章纲/人物关系图/导入/导出）+ 全书查找替换（ENH-19）
-    ├── editor/                   # 编辑器 + AI 待确认面板 + AI 感检查面板 + 版本历史（含快照差异对比，ENH-18）
-    ├── ai/                       # 续写/灵感用例编排
+    ├── work_detail/              # 作品详情（卷/章/角色卡/设定集/章纲/人物关系图/导入/导出）+ 全书查找替换（ENH-19）+ 文风档案 / AI 设定补全 / 剧情推演 / 作品问答 / 全书体检（ENH-23）
+    ├── editor/                   # 编辑器 + AI 待确认面板 + AI 感检查面板 + 版本历史（含快照差异对比，ENH-18）+ 流式一致性检查弹窗（ENH-23）
+    ├── ai/                       # 续写 / 灵感 / 文风 / 抽取 / 推演 / 问答 / 一致性检查用例编排
     ├── search/                   # 全局搜索（B-06）：跨作品检索章节标题与正文；公共高亮组件（ENH-19，search 与全书替换共用）
     ├── stats/                    # 写作统计（B-07）：每日目标、连击、番茄钟、近 7/30 天字数趋势图（ENH-18）与全年写作热力图（ENH-19）
-    └── settings/                 # key 与模型配置、token 统计、本地备份与恢复（含校验预览）、云备份（B-08）、回收站与 MCP 调用审计（ENH-22）、关于页（ENH-19）、MCP OAuth 授权与技能导入导出（ENH-21 / ENH-22）
+    └── settings/                 # key 与模型配置（含每百万 token 价格，ENH-23）、token 统计（含估算费用，ENH-23）、本地备份与恢复（含校验预览）、云备份（B-08）、回收站与 MCP 调用审计（ENH-22）、关于页（ENH-19）、MCP OAuth 授权与技能导入导出（ENH-21 / ENH-22）
 ```
 
 | 模块 | 职责 | 输入 | 输出 | 依赖 | 明确不做 |
@@ -191,7 +194,7 @@ lib/
 | core/exporter | 导出文本生成与备份 zip 组装/解析（组装与解析的重活经 isolate 执行，ENH-14 / ENH-15）；备份 manifest 与 SHA-256 校验预览（ENH-22） | 章节数据、导出数据 Map | txt/md/docx bytes、zip bytes、BackupPreview | archive、crypto | 不写库、不直接调分享面板（由 features 触发） |
 | core/cloud | 云备份（B-08）：S3 兼容对象存储读写（SigV4 签名）与备份/恢复编排（上传、列举、清理、下载） | 服务商配置（endpoint/region/bucket/凭证）+ zip bytes / 远端对象列表 | 远端对象列表、下载 bytes、操作结果 | http、core/exporter（zip 组装） | 不直接读写数据库（配置与编排由 features/settings 与 SettingsRepository 协作），不含中心化服务器与账号体系 |
 | features/settings | key/模型配置、token 累计、本地备份与恢复（恢复前校验预览，ENH-22）、云备份配置与触发（B-08）、语言设置（ENH-17）、回收站（ENH-22）、MCP 调用审计（ENH-22）、关于页（ENH-19，package_info_plus 读取版本号 + 隐私说明 + 开源许可）、MCP OAuth 授权（ENH-21，系统浏览器 + loopback 回调）与技能文件 / 粘贴导入、导出分享（ENH-21 / ENH-22） | 用户输入 / 文件 bytes / 粘贴文本 | 经 Repository 落库、经安全存储存 key / 令牌、经 core/cloud 上传下载 | SettingsRepository、TokenStatsRepository、TrashRepository、McpAuditRepository、AiUseCase(testConnection / checkContinuity)、CloudBackupService、McpOAuthClient | 不直接接触数据库、安全存储与网络（file_picker 例外：仅读取用户选中的文件） |
-| l10n | 国际化（ENH-17）：ARB 资源（zh 模板 + en 翻译，约 715 键）、`context.l10n` 读取扩展、错误文案展示时本地化（error_text.dart） | ARB 生成代码、结构化错误（kind/code/detail） | 本地化文案 | Flutter gen-l10n（编译期生成） | 不翻译 AI 提示词与中文语料域数据（flavor 词库/规则名/导出内容/DB 默认值） |
+| l10n | 国际化（ENH-17）：ARB 资源（zh 模板 + en 翻译，约 808 键）、`context.l10n` 读取扩展、错误文案展示时本地化（error_text.dart） | ARB 生成代码、结构化错误（kind/code/detail） | 本地化文案 | Flutter gen-l10n（编译期生成） | 不翻译 AI 提示词与中文语料域数据（flavor 词库/规则名/导出内容/DB 默认值） |
 
 依赖方向：features → repositories / ai 用例 → core/ai → ai_client；无环 `[Expert judgment]`。
 
@@ -251,6 +254,7 @@ erDiagram
         boolean pinned
         datetime createdAt
         datetime deletedAt "ENH-22：软删除标记，非空即在回收站"
+        string styleGuide "ENH-23：文风档案 JSON（视角/基调/禁忌/示例），空串=未配置"
     }
     VOLUME {
         int id PK
@@ -348,6 +352,8 @@ erDiagram
         double temperature "该模型组默认温度"
         int maxTokens "该模型组默认输出上限"
         int contextWindow "上下文窗口，预算取其 50%"
+        double inputPricePerMillion "ENH-23：输入每百万 token 单价（CNY，费用估算用）"
+        double outputPricePerMillion "ENH-23：输出每百万 token 单价（CNY，费用估算用）"
         boolean enabled
     }
     APP_SETTING {
@@ -385,6 +391,7 @@ erDiagram
 - WORK.deletedAt / CHAPTER.deletedAt（ENH-22）：可空时间戳，非空即表示已移入回收站（软删除）。所有作品 / 章节列表查询（`watchWorks`、`watchByWork`、`watchChapterMetas` 等）追加 `deletedAt IS NULL` 过滤，回收站查询反之；章节软删除只打标记并重算作品汇总，章纲引用与快照原样保留，恢复后仍可见。列随 ENH-22 落地（schemaVersion 10 → 11，`if (from < 11)` 块两次 `m.addColumn`）；恢复旧备份（无该键）时 `putIfAbsent('deletedAt', null)` 兜底。
 - 备份校验清单（ENH-22）：备份 zip 在 `data.json` 与各作品 markdown 之外新增 `manifest.json`（`format` / `version` / `schemaVersion` / `exportedAt` / `dataEntry` / `dataSize` / `dataSha256`），导出时对 `data.json` 字节算 SHA-256。恢复前经 `inspectBackupZipAsync`（`Isolate.run`）解析并校验哈希，产出 `BackupPreview`（校验是否通过、导出时间、schema 版本、作品 / 章节 / 角色数量）供确认弹窗展示；旧备份无 manifest 时 `checksumVerified = false` 但仍可恢复（向后兼容）。
 - MCP 调用审计（ENH-22）：不新增表，落 APP_SETTING 的 `mcp_audit_log`（JSON 数组，新记录置顶、最多 100 条），字段为时间 / 服务名 / 工具名 / 参数摘要 / 结果摘要（各 300 字）/ 成功标记 / 耗时；不记录认证头与令牌，不随任何备份导出。
+- WORK.styleGuide（ENH-23）：TEXT NOT NULL DEFAULT ''，内容为 `WorkStyleGuide` 的 JSON（perspective / tone / taboos / sample 四字段，脏数据按空档案容错）；空串表示未配置，注入时 `toPromptText` 生成「【作品文风档案】」段落。列随 ENH-23 落地（schemaVersion 11 → 12，`if (from < 12)` 块 `m.addColumn`）；备份的 WORK 映射含该列，恢复旧备份（无该键）按默认空串处理。同版本为 `MODEL_GROUP` 增加 `inputPricePerMillion` / `outputPricePerMillion`（默认 0；0 表示未填，费用不可估算），供 token 统计页按模型组单价估算 CNY 费用。作品问答历史不新增表：按作品存 APP_SETTING 的 `work_chat_<workId>`（JSON 轮次数组，只保留最近 40 轮），清空即删除，不进入任何备份。
 
 ### 4.3 一致性规则
 
@@ -392,6 +399,7 @@ erDiagram
 - 恢复备份时，设定集按 `workIdMap`、人物关系按 `workIdMap` 与角色 `characterIdMap` 重映射外键，避免跨库 id 不一致导致的悬空引用。
 - 恢复备份的叶表批量写入（ENH-15）：`chapterSnapshots` / `dailyWritingStats` / `settingEntries` / `characterRelations` / `outlineEntries` / `inspirations` 六表的外键在上一阶段已映射完成、新 id 不被下游使用，故先攒成 Companion 列表再 `insertAll` 一次写入（取代逐行 `await insert` 的数千次往返）；`works` / `volumes` / `chapters` / `characters` 需回传新 id 供后续重映射，仍逐行插入。批量写入仍在 `restore` 的单个事务内（drift 在事务中的 `Batch` 不会开嵌套事务），原子性不变；`dailyWritingStats` 沿用 `InsertMode.insertOrIgnore` 的「已有日期以本机为准」合并语义。
 - 回收站（ENH-22）：`TrashRepository` 提供 `watchWorks` / `listChapters` / `restoreWork` / `restoreChapter` / `purgeWork` / `purgeChapter` / `empty` / `purgeExpired`。保留期 30 天，`purgeExpired` 在应用启动（`lib/app/startup_maintenance.dart`）与打开回收站时清理过期项；「永久删除 / 清空回收站 / 过期清理」才真正事务删除关联行——作品永久删除连带卷、章、章纲、角色、灵感、设定集、人物关系与快照；章节永久删除先置空章纲引用再硬删除（快照随外键级联）。恢复章节与永久删除章节均重算作品汇总。回收站列表只列出「所属作品未进回收站」的已删章节，作品与旗下章节随作品条目整体恢复。
+- 作品级扩展数据（ENH-23）：`WORK.styleGuide` 为作品唯一文风来源，保存空档案时写空串；恢复旧备份无该键时以 `''` 兜底。作品问答历史按作品存 APP_SETTING（`work_chat_<workId>`，最多 40 轮），清空只影响当前作品，不随备份迁移；文风档案与问答历史均不含凭证。
 - 自动保存与字数汇总在同一事务，杜绝"正文新、字数旧"；汇总按差量增量维护（ENH-14）：保存正文只改字数、不改章节数，`_bumpWorkAggregate` 用 `delta = 新字数 - 旧字数` 更新 `WORK.wordCount` 与 `lastEditedAt`，不再每次自动保存都 `SUM` 扫该作品全部章节正文；删章 / 删卷 / 导入等仍走 `_syncWorkAggregate` 全量重算。
 - 编辑器仅在正文/标题相对上次落库确有变化时才重写整章（ENH-09）：`TextEditingController` 在选区变化时也会通知，`EditorController` 用 `_lastSavedText` / `_lastSavedTitle` 比对，纯移光标/改选区时只落库光标与滚动位置（`saveCursorPosition`），不触发 `saveChapter`、不重算字数、不闪「保存中」。
 - 编辑器撤销栈按「条数 + 累计字符数」双重裁剪（ENH-10）：每步快照保存整章副本（10 万字章节单条约 20 万字符），除 `_maxHistory`（100 条）外新增 `_maxHistoryChars`（200 万字符）与 `_minHistoryKeep`（10 条），超限时从最旧开始丢弃且始终保留最近 10 步可撤销；「同内容合并」与「新输入截断重做栈」逻辑不变。
@@ -450,6 +458,8 @@ abstract interface class AiClient {
 
 自动重试由 `lib/core/ai/retrying_ai_client.dart` 的 `RetryingAiClient` 装饰器统一实现（`buildAiClient` 出口统一包装）：仅对**已收到首个文本增量之前**的 429 / 5xx 重试（首个文本增量之前收到的 usage / 工具调用先缓冲，重试时丢弃），一旦已吐出文本增量即不再重试，避免产生重复内容与重复扣费；`baseDelay` 默认 1s、按次数线性退避，`maxRetries` 默认 1 次。
 
+超时（ENH-23）：`lib/core/ai/ai_timeouts.dart` 定义连接 30 秒（`aiConnectTimeout`）与流式空闲 90 秒（`aiStreamIdleTimeout`），三类适配器在 `client.send(...)` 上与原始 `response.stream` 上分别施加 `timeout`——空闲超时必须套在原始字节流上，若套在 `parseSse` 的 `async*` 输出上，消费端收不到 `TimeoutException`（真机实测）；超时统一映射为 `AiErrorKind.network` 的可读错误并保留已收流。
+
 ### 5.3 上下文组装（ContextBuilder）
 
 按 PRD 6.2 的优先级装配，实现要点：
@@ -465,6 +475,7 @@ abstract interface class AiClient {
 9. AI 灵感（ENH-07，`buildInspireContext`）：桥段点子模式补注入「前文摘要」（复用续写的前文摘要逻辑，含卷级/跨卷前情）与「本章章纲」两段；上下文详情同步展示「前文摘要」「本章章纲」条目。
 10. 前情摘要取数改按需读正文（ENH-12）：续写 / 改写 / 灵感三处原用 `chapters.watchChapters(workId).first` 取「最近 1-2 章摘要」，为一段摘要把整部作品正文读进内存；现改为 `watchChapterMetas(workId)`（元数据投影，`content` 置空），仅对「近期且尚无 `CHAPTER.summary`」的章节按 id 单取正文做抽句兜底（`_recapSource` 返回 `ordered` + `fallbackContents`，`_previousSummary` 用可选 `fallbackContents` 兜底，摘要优先逻辑不变）。ENH-13 起 `buildVolumeSummary` 同样改为 `watchChapterMetas(workId)` 取顺序，仅对「本卷待归并且无 AI 摘要」的章节按 id 单取正文做抽句兜底（原「例外」消除）；单章 AI 感检查也只 `getChapter(chapterId)` 单取该章而非整部作品。
 11. 设定一致性检查（ENH-22，`buildContinuityCheck`）：预注入式上下文（非工具循环）——system 为「设定校对」指令（只报告与既有设定明确冲突处、不臆测、输出编号清单）；user 段落依次为角色卡 → 设定集 → 前情摘要 → 本章章纲 → 本章正文 + 固定校验任务。预算与续写同为 `contextWindow * 0.5`，超预算时依次丢弃前情摘要、本章章纲、设定集，再把角色卡缩到最少张数，最后截断正文并标注 `truncated`；各段落同时进 `sections`，可在报告弹窗的上下文详情中查看。
+12. 创作型增强（ENH-23）：`buildStyleExtraction`（文风提取）以最近若干章正文为材料，要求模型产出 `perspective` / `tone` / `taboos` / `sample` 四字段 JSON；`buildEntityExtraction`（设定补全）以章节正文与既有角色/设定为材料产出条目 JSON，已存在名称在应用侧去重；`buildPlotPlan`（剧情推演）注入章纲、角色卡、设定集与最近正文（可附作者方向）；`buildChat`（作品问答）注入作品资料、文风档案与章节目录并挂载本地检索工具。续写 / 开篇 / 改写 / 剧情推演 / 作品问答在 system 前统一注入 `【作品文风档案】`（示例段落截断 1200 字），未配置时整段省略。
 
 ### 5.4 Agent Core 与 Tool 抽象
 
@@ -485,7 +496,8 @@ class Tool {
 - **MCP OAuth 2.1 PKCE（ENH-21 已实现）**：`core/ai/mcp/mcp_oauth.dart` 按 MCP 授权规范（2025-06-18）实现移动端公开客户端流程——① RFC 9728 受保护资源元数据发现：先读 401 `WWW-Authenticate` 的 `resource_metadata`，兜底 `/.well-known/oauth-protected-resource`（含路径变体）；② RFC 8414 授权服务器元数据（`/.well-known/oauth-authorization-server`，兜底 OIDC discovery）；③ RFC 7591 动态客户端注册（可预填 client_id；注册结果回填保存）；④ RFC 7636 S256 PKCE + state 校验；⑤ RFC 8252 loopback 回调 `http://127.0.0.1:<随机端口>/callback`，授权在系统浏览器完成、回调后换令牌并展示成功页；⑥ RFC 8707 `resource` 参数绑定 MCP 服务器地址。令牌（access / refresh / expiresAt）由 `SettingsRepository` 以 `mcp_oauth_<id>` 写入安全存储，access 令牌过期前 30 秒视为失效，桥接层自动用 refresh_token 换新；刷新失败或 HTTP 401/403 映射为 `McpAuthRequiredException`，设置页提示重新授权。删除 server 时同步清除认证头与令牌。`tool/fake_mcp_oauth_server.dart` 为本地回环假授权服务器 + MCP server（`/stats` 观测各步骤计数），集成测试覆盖完整授权、PKCE 失败、令牌刷新、401 映射与 UI 全流程。
 - tool calling 的端点差异（Chat Completions 的 `tools`/`tool_calls`、Messages 的 `tool_use`/`tool_result`）收敛在适配器内，Agent Core 只见统一表示 `[Expert judgment]`。
 - **MCP 调用审计（ENH-22 已实现）**：远程工具并入编排前经 `AiService._withAudit` 包一层——记录服务名 / 工具名 / 参数 JSON 摘要 / 结果摘要（各 300 字）/ 成功标记（结果以 `mcpToolErrorPrefix` 开头或抛异常记为失败）/ 耗时，写入 `McpAuditRepository`（APP_SETTING `mcp_audit_log`，新记录置顶、最多 100 条，设置页「MCP 调用审计」可查看、展开与清空）。审计只覆盖远程 MCP 工具（内置工具不记）、不含认证头与令牌；审计写入失败被吞掉，不阻断生成。默认 opener 必须用显式带类型闭包注入（`McpToolOpener` 是位置参数 typedef，而 `openMcpTools` 用命名参数，直接传函数引用会退化为 `Function`，analyzer 不报、运行时 `NoSuchMethodError` 会被「单 server 连接失败不阻断」的兜底静默吞掉）。
-- 与 ContextBuilder 的职责边界：续写与开篇助手走 ContextBuilder 预注入（内容确定、一次成文）；桥段点子走工具按需取数（需跨章检索、按需展开）。同一任务不同时使用两种方式，避免数据重复注入 `[Expert judgment]`。
+- **作品问答检索工具（ENH-23）**：内置工具扩充为 `list_chapters` / `search_chapters` / `get_chapter` / `get_characters` / `get_settings` / `get_outline`；作品问答经 AgentCore 的 tool 循环按需取数（目录、关键字检索、按 id 读正文），避免一次性塞满上下文，长篇作品下仍可定位到具体章节。
+- 与 ContextBuilder 的职责边界：续写与开篇助手走 ContextBuilder 预注入（内容确定、一次成文）；桥段点子与作品问答走工具按需取数（需跨章检索、按需展开）。同一任务不同时使用两种方式，避免数据重复注入 `[Expert judgment]`。
 
 ### 5.5 AI 感检查流水线
 
@@ -547,7 +559,7 @@ sequenceDiagram
 
 | 接口 | 方法 | 说明 |
 |---|---|---|
-| WorkRepository | `watchWorks()` / `createWork(...)` / `moveWorkToTrash(id)` / `deleteWork(id)` | 作品列表响应式流（过滤回收站条目）；`moveWorkToTrash`（ENH-22）只打 `deletedAt` 标记，`deleteWork` 为永久删除（单事务清理全部关联行，由回收站清理 / 永久删除调用） |
+| WorkRepository | `watchWorks()` / `createWork(...)` / `moveWorkToTrash(id)` / `deleteWork(id)` / `updateStyleGuide(id, guide)` | 作品列表响应式流（过滤回收站条目）；`moveWorkToTrash`（ENH-22）只打 `deletedAt` 标记，`deleteWork` 为永久删除（单事务清理全部关联行，由回收站清理 / 永久删除调用）；`updateStyleGuide`（ENH-23）写 `WORK.styleGuide`，空档案写空串 |
 | ChapterRepository | `watchChapters(workId)` / `watchChapterMetas(workId)` / `saveChapter(...)` / `search(keyword)` / `reorder(...)` / `saveChapterSummary(chapterId, summary)` / `saveVolumeSummary(volumeId, summary)` / `moveChapterToTrash(id)` / `restoreChapterFromTrash(id)` / `purgeChapter(id)` | 保存内含字数汇总事务（ENH-14 起只读轻量投影 `findLightById` 并按差量增量维护 `WORK.wordCount`）；`search` 在 SQL 内计算命中位置与片段（ENH-14）；`saveChapterSummary`（ENH-05）只改 `CHAPTER.summary`、`saveVolumeSummary`（ENH-06）只改 `VOLUME.summary`，均不触碰正文与汇总；ENH-22 的移入回收站 / 恢复 / 永久删除均重算作品汇总（快照与章纲引用在软删除期间保持不变） |
 | TrashRepository（ENH-22） | `watchWorks()` / `listChapters()` / `restoreWork(id)` / `restoreChapter(id)` / `purgeWork(id)` / `purgeChapter(id)` / `empty()` / `purgeExpired({now})` | 回收站视图与生命周期操作；保留期 30 天，过期项在应用启动 / 打开回收站时清理；数据全在本机 |
 | CharacterRepository | `watchCharacters(workId)` / CRUD | — |
@@ -556,6 +568,12 @@ sequenceDiagram
 | AiUseCase.inspire | `(workId, mode, anchorChapterId?, direction?) → Stream<AiEvent>` | mode = ideas/opening；anchorChapterId 表示当前进度位置；桥段点子分支并入已启用 MCP 工具的远程 Tool，调用经 `_withAudit` 记录审计（ENH-22） |
 | AiUseCase.checkContinuity | `(workId, chapterId) → Future<ContinuityReport>` | ENH-22：非流式设定一致性检查，返回冲突清单文本 + usage + `truncated`；模型组优先 `task_model_continuity` → `task_model_check` → 续写组；上下文走 `buildContinuityCheck`；只读不写库 |
 | McpAuditRepository（ENH-22） | `add(entry)` / `list()` / `clear()` | MCP 远程工具调用审计，落 APP_SETTING `mcp_audit_log`（新记录置顶、最多 100 条）；不含认证信息、不联网 |
+| ChatRepository（ENH-23） | `load(workId)` / `save(workId, turns)` / `clear(workId)` | 作品问答多轮记录，按作品存 APP_SETTING `work_chat_<workId>`，最多保留 40 轮；仅本机、不随备份导出 |
+| AiUseCase.extractStyleGuide（ENH-23） | `(workId) → Future<StyleExtractionResult>` | 最近章节正文 → 文风档案 JSON；无正文时直接报错不请求；返回解析后的档案与 usage |
+| AiUseCase.extractEntities（ENH-23） | `(workId) → Future<EntityExtractionResult>` | 章节正文 + 既有角色/设定 → 条目 JSON；返回角色与设定候选列表 |
+| AiUseCase.planPlot（ENH-23） | `(workId, direction?) → Future<PlotPlanResult>` | 章纲 + 角色卡 + 设定集 + 最近正文 → 后续剧情推演文本；结果可一键存入灵感箱 |
+| AiUseCase.chat（ENH-23） | `(workId, history, message) → Stream<AiEvent>` | 作品问答：预注入作品资料 + 文风档案 + 章节目录，挂载本地检索工具；历史由 UI 经 ChatRepository 持久化 |
+| AiUseCase.streamContinuity（ENH-23） | `(workId, chapterId) → Stream<AiEvent>` | 流式设定一致性检查；可取消，已收内容随结果保留（`stopped` 标记），全书扫描逐章串行执行 |
 | AiUseCase.rewrite | `(workId, chapterId, selectedText, intent, instruction?) → Stream<AiEvent>` | intent = polish/expand/condense/tone（ENH-04）；模型组优先 `task_model_rewrite`，未配置回退续写组；上下文走 `buildRewrite`（末尾为【待改写原文】） |
 | AiUseCase.summarizeChapter | `(workId, chapterId) → Stream<AiEvent>` | ENH-05：模型组优先 `task_model_summary`，未配置回退续写组；上下文走 `buildSummary`（本章正文为主材料，超预算截断） |
 | AiUseCase.expandOutline | `(workId, chapterId, seed) → Stream<AiEvent>` | ENH-05：种子为作者一句话梗概；模型组优先 `task_model_outline`，未配置回退续写组；上下文走 `buildOutlineExpand` |
@@ -664,8 +682,9 @@ Responses（OpenAI Responses 端点，B-01 已实现）：
 - Android release 签名（ENH-16）：keystore（`android/upload-keystore.jks`）与 `android/key.properties`（storeFile / storePassword / keyAlias / keyPassword）均不入库（`.gitignore`），**需离线备份**——丢失将无法对已发布应用做覆盖升级；`app/build.gradle.kts` 的 release 构建读 `key.properties` 并挂 `signingConfigs.release`，启用 R8（`isMinifyEnabled` + `isShrinkResources`）与 `proguard-rules.pro`（keep `io.flutter.**`；`-dontwarn com.google.android.play.core.**` 对应 Flutter 延迟组件按需引用的可选类）。
 - 发布产物与备份语义（ENH-20）：正式产物为 AAB（`flutter build appbundle --release`，Google Play 上架格式）+ 分 ABI APK（`flutter build apk --release --split-per-abi`，侧载分发）；AAB 构建完成后 flutter 会用 SDK `cmdline-tools` 的 `apkanalyzer` 校验调试符号已随 `BUNDLE-METADATA` 剥离，SDK 缺 `cmdline-tools` 时会误报「failed to strip debug symbols」并中断构建（产物本身正常，本机经符号链接接入 Homebrew 的 cmdline-tools 修复）。备份语义：`AndroidManifest.xml` 的 `<application>` 显式 `android:allowBackup="false"` + `android:dataExtractionRules="@xml/data_extraction_rules"`（Android 12+ 将 cloud-backup 全部 9 个数据域排除）——系统自动云备份（Google Drive）彻底关闭，与隐私声明「数据只存本机、卸载即清除」及商店 Data Safety 口径一致，备份能力收敛到应用内「备份到文件 / 云备份（用户自持对象存储）」；`device-transfer`（D2D 换机直传，不经云端）刻意保持系统默认开启。
 - CI（ENH-16 / ENH-21）：`.github/workflows/ci.yml` 在 push / PR to main 上执行 `flutter pub get` → `dart format --output=none --set-exit-if-changed lib test` → `flutter analyze` → `flutter test`，Flutter 版本固定 3.44.3 与本地一致；格式校验只覆盖 `lib` / `test`（`tool/` 为开发工具，只参与 analyze）。ENH-21 新增 `ios-build` job（`macos-latest`）：同一 Flutter 版本下执行 `flutter build ios --release --no-codesign`，尽早发现 iOS 工程 / 插件集成问题；只做编译校验、不产出可分发产物，也不需要签名证书。
-- 假 LLM 服务（ENH-16 / ENH-22，开发工具）：`tool/fake_llm_server.dart` 在本机回环模拟 Chat Completions / Messages 正常流与 429 / 5xx / 内容过滤错误（分场景路径 `openai` / `anthropic` / `openai-429-first` / `openai-429-always` / `openai-500` / `openai-filter` 等，`GET /stats` 观测请求计数、`GET /stats/reset` 重置），`dart run tool/fake_llm_server.dart [port] [chunkDelayMs]` 启动；配合 `adb reverse tcp:8899 tcp:8899` 可在真机验证重试与错误分类路径，无需真实供应商 Key，不随应用产物发布。ENH-22 新增 `/openai-tool` 场景：按请求里的工具清单优先选 `mcp_` 前缀（或名字含 echo）的工具先返回 `tool_calls`，收到 `role: tool` 结果后再输出文本——用于真机贯通「MCP 工具注入 → 远程调用 → 结果回传 → 审计落库」。`tool/fake_mcp_oauth_server.dart` 提供对应的假 MCP / 授权服务器。
-- 本地增强约定（ENH-22）：schemaVersion 11（WORK / CHAPTER 的 `deletedAt` 软删除列）；回收站保留 30 天，`TrashRepository.purgeExpired` 由启动维护（`lib/app/startup_maintenance.dart`）与回收站页触发，永久删除才清理关联行；MCP 审计最多 100 条、存 APP_SETTING、不含认证信息；备份 zip 的 `manifest.json` 带 `dataSha256`，旧备份无 manifest 仍可恢复；设定一致性检查任务键 `task_model_continuity`（回退 `task_model_check` → 续写组）。ARB zh / en 各 715 键；当前 `flutter test` 408 用例。
+- 假 LLM 服务（ENH-16 / ENH-22，开发工具）：`tool/fake_llm_server.dart` 在本机回环模拟 Chat Completions / Messages 正常流与 429 / 5xx / 内容过滤错误（分场景路径 `openai` / `anthropic` / `openai-429-first` / `openai-429-always` / `openai-500` / `openai-filter` 等，`GET /stats` 观测请求计数、`GET /stats/reset` 重置），`dart run tool/fake_llm_server.dart [port] [chunkDelayMs]` 启动；配合 `adb reverse tcp:8899 tcp:8899` 可在真机验证重试与错误分类路径，无需真实供应商 Key，不随应用产物发布。ENH-22 新增 `/openai-tool` 场景：按请求里的工具清单优先选 `mcp_` 前缀（或名字含 echo）的工具先返回 `tool_calls`，收到 `role: tool` 结果后再输出文本——用于真机贯通「MCP 工具注入 → 远程调用 → 结果回传 → 审计落库」；ENH-23 新增 `/openai-style`（文风档案 JSON）、`/openai-extract`（角色/设定抽取 JSON）与 `/openai-plan`（剧情推演 JSON）三个场景，供真机验证文风提取、设定补全与剧情推演。SSE 响应显式 `bufferOutput = false`：Dart `HttpResponse` 默认缓冲输出，整段流会攒到连接关闭才发给客户端，导致真机无法观察增量输出与「停止保留部分结果」。`tool/fake_mcp_oauth_server.dart` 提供对应的假 MCP / 授权服务器。
+- 本地增强约定（ENH-22）：schemaVersion 11（WORK / CHAPTER 的 `deletedAt` 软删除列）；回收站保留 30 天，`TrashRepository.purgeExpired` 由启动维护（`lib/app/startup_maintenance.dart`）与回收站页触发，永久删除才清理关联行；MCP 审计最多 100 条、存 APP_SETTING、不含认证信息；备份 zip 的 `manifest.json` 带 `dataSha256`，旧备份无 manifest 仍可恢复；设定一致性检查任务键 `task_model_continuity`（回退 `task_model_check` → 续写组）。
+- 本地增强约定（ENH-23）：schemaVersion 12（`WORK.styleGuide` 文风档案 JSON 列 + `MODEL_GROUP.inputPricePerMillion` / `outputPricePerMillion` 费用单价列，`if (from < 12)` 块三次 `m.addColumn`）；文风档案空串表示未配置，备份按普通字段映射；作品问答历史存 APP_SETTING `work_chat_<workId>`、最多 40 轮、不随备份导出；AI 连接超时 30 秒（`aiConnectTimeout`）、流空闲超时 90 秒（`aiStreamIdleTimeout`，直接作用于原始 `response.stream`），均映射为 `AiErrorKind.network`；token 统计页按模型组每百万 token 单价（CNY）估算费用，未填单价时提示不可估算。ARB zh / en 各 808 键；当前 `flutter test` 445 用例。
 - 国际化（ENH-17）：`l10n.yaml` 配置 `arb-dir: lib/l10n`、`template-arb-file: app_zh.arb`（zh 为模板）、输出 `lib/l10n/generated/`、`nullable-getter: false`；`pubspec.yaml` 开启 `flutter: generate: true`，`flutter pub get` 自动重新生成（产物确定性、经 `dart format` 保持整洁）。UI 读取统一 `context.l10n.x`（`lib/l10n/l10n.dart` 扩展）；新增 UI 文案一律加键到两份 ARB，禁止硬编码中文（AI 提示词、`flavor_lexicon.dart` / `ai_flavor_rules.dart` 语料、导出内容与 DB 默认数据除外）；en 计数文案用 ICU plural，zh 模板值为原硬编码串（保证 zh 行为与全部既有测试断言不变）；iOS 侧 `Info.plist` 声明 `CFBundleLocalizations`。
 - iOS 构建基线（ENH-18）：`ios/Runner.xcodeproj/project.pbxproj` 的 `IPHONEOS_DEPLOYMENT_TARGET` 为 15.0（Xcode 27 最低支持的部署目标即 15.0，13.0 会被直接拒绝构建）；Flutter 3.44.3 走 Swift Package Manager（`ios/Flutter/ephemeral/Packages`），本机未安装 CocoaPods 也可 `flutter build ios --no-codesign --release` 构建通过。iOS 侧暂以无签名 release 构建为验证基线（本机无 Apple 签名证书，未做真机 / 模拟器安装），Android 仍为主要交付与真机验收目标。
 - 品牌资源（ENH-19）：应用图标为钢笔笔尖主题自适应图标（Android `mipmap-anydpi-v26/ic_launcher.xml` 前景/背景分层 + 各密度 PNG 回退；iOS `Assets.xcassets/AppIcon.appiconset` 全尺寸替换；源图在 `vibe_images/`，不入库）。启动闪屏在 Android 12+ 由 `values-v31` 主题（`windowSplashScreenBackground` + `windowSplashScreenAnimatedIcon`）呈现，旧版本走 `launch_background.xml`（暖纸色 + 居中图标），深浅配色见 `values/colors.xml` 与 `values-night/colors.xml`（另有 `values-night-v31/`）；iOS 侧 `LaunchScreen.storyboard` + `LaunchBackground.colorset` 同理，均随 release 构建验证。关于页（`features/settings/about_page.dart`）展示应用名、版本号（package_info_plus）、隐私说明要点与开源许可清单入口。

@@ -1,8 +1,7 @@
-import 'dart:convert';
-
 import '../../data/db.dart';
 import '../ai_flavor_rules.dart';
 import '../word_count.dart';
+import 'json_extract.dart';
 
 /// 检查范围中的一章：记录该章在拼接文本中的起始偏移，供问题定位回跳到章内位置。
 class CheckScopeSegment {
@@ -162,7 +161,7 @@ FlavorDeepCheckOutcome parseDeepCheckResponse(
   required String segmentText,
   required int segmentOffset,
 }) {
-  final decoded = _extractJson(raw);
+  final decoded = extractJson(raw);
   if (decoded == null) {
     final trimmed = raw.trim();
     return FlavorDeepCheckOutcome(
@@ -221,39 +220,6 @@ FlavorDeepCheckOutcome parseDeepCheckResponse(
     );
   }
   return FlavorDeepCheckOutcome(issues: issues);
-}
-
-/// 从模型输出中抽取 JSON：容忍代码块包裹与前后解释文字。
-dynamic _extractJson(String raw) {
-  final cleaned = raw
-      .replaceAll('```json', '')
-      .replaceAll('```JSON', '')
-      .replaceAll('```', '')
-      .trim();
-  if (cleaned.isEmpty) return null;
-  final direct = _tryDecode(cleaned);
-  if (direct != null) return direct;
-
-  final objectStart = cleaned.indexOf('{');
-  final objectEnd = cleaned.lastIndexOf('}');
-  if (objectStart != -1 && objectEnd > objectStart) {
-    final decoded = _tryDecode(cleaned.substring(objectStart, objectEnd + 1));
-    if (decoded != null) return decoded;
-  }
-  final arrayStart = cleaned.indexOf('[');
-  final arrayEnd = cleaned.lastIndexOf(']');
-  if (arrayStart != -1 && arrayEnd > arrayStart) {
-    return _tryDecode(cleaned.substring(arrayStart, arrayEnd + 1));
-  }
-  return null;
-}
-
-dynamic _tryDecode(String text) {
-  try {
-    return jsonDecode(text);
-  } catch (_) {
-    return null;
-  }
 }
 
 String _readString(Map<dynamic, dynamic> map, List<String> keys) {

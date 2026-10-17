@@ -14,10 +14,15 @@ import '../features/settings/task_mapping_page.dart';
 import '../features/settings/token_stats_page.dart';
 import '../features/settings/trash_page.dart';
 import '../features/stats/writing_stats_page.dart';
+import '../features/work_detail/entity_extraction_page.dart';
 import '../features/work_detail/import_page.dart';
 import '../features/work_detail/inspirations_page.dart';
+import '../features/work_detail/plot_plan_page.dart';
+import '../features/work_detail/continuity_scan_page.dart';
 import '../features/work_detail/relation_graph_page.dart';
 import '../features/work_detail/replace_page.dart';
+import '../features/work_detail/style_guide_page.dart';
+import '../features/work_detail/work_chat_page.dart';
 import '../features/work_detail/work_detail_page.dart';
 import '../features/works/new_work_page.dart';
 import '../features/works/works_page.dart';
@@ -174,6 +179,39 @@ final GoRouter appRouter = GoRouter(
           path: 'replace',
           name: 'workReplace',
           builder: (context, state) => WorkReplacePage(
+            workId: int.parse(state.pathParameters['workId']!),
+          ),
+        ),
+        GoRoute(
+          path: 'style',
+          name: 'workStyle',
+          builder: (context, state) => StyleGuidePage(
+            workId: int.parse(state.pathParameters['workId']!),
+          ),
+        ),
+        GoRoute(
+          path: 'extract',
+          name: 'workExtract',
+          builder: (context, state) => EntityExtractionPage(
+            workId: int.parse(state.pathParameters['workId']!),
+          ),
+        ),
+        GoRoute(
+          path: 'plot',
+          name: 'workPlot',
+          builder: (context, state) =>
+              PlotPlanPage(workId: int.parse(state.pathParameters['workId']!)),
+        ),
+        GoRoute(
+          path: 'chat',
+          name: 'workChat',
+          builder: (context, state) =>
+              WorkChatPage(workId: int.parse(state.pathParameters['workId']!)),
+        ),
+        GoRoute(
+          path: 'continuity',
+          name: 'workContinuity',
+          builder: (context, state) => ContinuityScanPage(
             workId: int.parse(state.pathParameters['workId']!),
           ),
         ),

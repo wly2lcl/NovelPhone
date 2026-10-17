@@ -95,5 +95,9 @@ String _aiTaskLabel(AppLocalizations l10n, String task) => switch (task) {
   AiTask.outlineExpand => l10n.aiTaskOutlineExpand,
   AiTask.volumeSummary => l10n.aiTaskVolumeSummary,
   AiTask.continuity => l10n.aiTaskContinuity,
+  AiTask.style => l10n.aiTaskStyle,
+  AiTask.extract => l10n.aiTaskExtract,
+  AiTask.plan => l10n.aiTaskPlan,
+  AiTask.chat => l10n.aiTaskChat,
   _ => task,
 };

@@ -11,6 +11,7 @@ import '../../core/ai/context_builder.dart';
 import '../../core/ai/flavor_check.dart';
 import '../../core/ai/mcp/mcp_bridge.dart';
 import '../../core/ai/skills/skill.dart';
+import '../../core/ai/structured_response.dart';
 import '../../core/ai/tools/local_tools.dart';
 import '../../core/ai_flavor_rules.dart';
 import '../../data/db.dart';
@@ -23,6 +24,7 @@ import '../../data/repositories/settings_repository.dart';
 import '../../data/repositories/token_stats_repository.dart';
 import '../../data/repositories/work_repository.dart';
 import '../../models/mcp_audit_entry.dart';
+import '../../models/work_style_guide.dart';
 import 'mcp_credentials.dart';
 
 /// 灵感模式。
@@ -158,6 +160,74 @@ class ContinuityException implements Exception {
 /// 尚未配置可用模型组：UI 引导至设置页。
 class ContinuityNeedsConfig implements Exception {
   const ContinuityNeedsConfig();
+}
+
+// ---------- 一次性结构化解说结果（ENH-23）----------
+
+/// 尚未配置可用模型组（ENH-23 新任务）。
+class AiServiceNeedsConfig implements Exception {
+  const AiServiceNeedsConfig();
+}
+
+/// 一次性调用失败（保留结构化信息供 UI 本地化）。
+class AiServiceException implements Exception {
+  const AiServiceException({
+    required this.kind,
+    required this.message,
+    this.statusCode,
+    this.code,
+    this.detail,
+  });
+
+  final AiErrorKind kind;
+  final String message;
+  final int? statusCode;
+  final String? code;
+  final String? detail;
+}
+
+/// 一次性调用的原始返回与用量。
+class AiOneShotResult {
+  const AiOneShotResult({
+    required this.text,
+    required this.promptTokens,
+    required this.completionTokens,
+    required this.usageId,
+    required this.truncated,
+  });
+
+  final String text;
+  final int promptTokens;
+  final int completionTokens;
+  final int usageId;
+  final bool truncated;
+}
+
+/// 文风提取结果（ENH-23）。
+class StyleExtractionResult {
+  const StyleExtractionResult({required this.guide, required this.result});
+
+  final WorkStyleGuide guide;
+  final AiOneShotResult result;
+}
+
+/// 设定补全结果（ENH-23）。
+class EntityExtractionResult {
+  const EntityExtractionResult({
+    required this.extraction,
+    required this.result,
+  });
+
+  final EntityExtraction extraction;
+  final AiOneShotResult result;
+}
+
+/// 剧情推演结果（ENH-23）。
+class PlotPlanResult {
+  const PlotPlanResult({required this.plan, required this.result});
+
+  final PlotPlan plan;
+  final AiOneShotResult result;
 }
 
 // ---------- AI 感检查事件（M4-06 / M4-09）----------
@@ -338,6 +408,10 @@ class AiService {
     if (task == AiTask.continuity) {
       return await _resolveContinuityModel() != null;
     }
+    if (task == AiTask.style) return await _resolveStyleModel() != null;
+    if (task == AiTask.extract) return await _resolveExtractModel() != null;
+    if (task == AiTask.plan) return await _resolvePlanModel() != null;
+    if (task == AiTask.chat) return await _resolveChatModel() != null;
     return await settings.resolveTaskModelWithKey(task) != null;
   }
 
@@ -746,8 +820,9 @@ class AiService {
         case ChatTextDelta():
           buffer.write(chunk.text);
         case ChatUsage():
-          promptTokens = chunk.promptTokens;
-          completionTokens = chunk.completionTokens;
+          // ENH-23：工具循环可能多轮返回 usage，逐轮累加而非覆盖。
+          promptTokens += chunk.promptTokens;
+          completionTokens += chunk.completionTokens;
         case ChatError():
           throw ContinuityException(
             kind: chunk.kind,
@@ -786,6 +861,276 @@ class AiService {
       await settings.resolveTaskModelWithKey(AiTask.continuity) ??
       await settings.resolveTaskModelWithKey(AiTask.check) ??
       await settings.resolveTaskModelWithKey(AiTask.continueWriting);
+
+  // ---------- ENH-23：文风提取 / 设定补全 / 剧情推演 / 作品问答 ----------
+
+  /// 从最近章节提取文风档案；未配置时抛 [AiServiceNeedsConfig]。
+  Future<StyleExtractionResult> extractStyleGuide({required int workId}) async {
+    final resolved = await _resolveStyleModel();
+    if (resolved == null) throw const AiServiceNeedsConfig();
+    final chapterList = await chapters.listChapters(workId);
+    if (chapterList.every((c) => c.content.trim().isEmpty)) {
+      throw const AiServiceException(
+        kind: AiErrorKind.badRequest,
+        message: '作品还没有正文，先写几章再提取文风',
+      );
+    }
+    final work = await works.getWork(workId);
+    final built = await contexts.buildStyleExtraction(
+      workId: workId,
+      chapterList: chapterList,
+      contextWindow: resolved.group.contextWindow,
+    );
+    final result = await _completeOnce(
+      resolved: resolved,
+      built: built,
+      task: AiTask.style,
+      workId: workId,
+    );
+    final current = WorkStyleGuide.decode(work?.styleGuide ?? '');
+    final guide = parseStyleGuideResponse(result.text, fallback: current);
+    if (guide == null) {
+      throw const AiServiceException(
+        kind: AiErrorKind.badRequest,
+        message: 'AI 返回的文风档案无法解析，请重试',
+      );
+    }
+    return StyleExtractionResult(guide: guide, result: result);
+  }
+
+  /// 从正文抽取角色与设定条目（设定补全）。
+  Future<EntityExtractionResult> extractEntities({required int workId}) async {
+    final resolved = await _resolveExtractModel();
+    if (resolved == null) throw const AiServiceNeedsConfig();
+    final chapterList = await chapters.listChapters(workId);
+    if (chapterList.every((c) => c.content.trim().isEmpty)) {
+      throw const AiServiceException(
+        kind: AiErrorKind.badRequest,
+        message: '作品还没有正文，无法抽取设定',
+      );
+    }
+    final built = await contexts.buildEntityExtraction(
+      workId: workId,
+      chapterList: chapterList,
+      contextWindow: resolved.group.contextWindow,
+    );
+    final result = await _completeOnce(
+      resolved: resolved,
+      built: built,
+      task: AiTask.extract,
+      workId: workId,
+    );
+    final extraction = parseEntityExtractionResponse(result.text);
+    return EntityExtractionResult(extraction: extraction, result: result);
+  }
+
+  /// 基于已有章纲与最近正文推演后续剧情。
+  Future<PlotPlanResult> planPlot({
+    required int workId,
+    String? direction,
+  }) async {
+    final resolved = await _resolvePlanModel();
+    if (resolved == null) throw const AiServiceNeedsConfig();
+    final chapterList = await chapters.listChapters(workId);
+    final built = await contexts.buildPlotPlan(
+      workId: workId,
+      chapterList: chapterList,
+      direction: direction,
+      contextWindow: resolved.group.contextWindow,
+    );
+    final result = await _completeOnce(
+      resolved: resolved,
+      built: built,
+      task: AiTask.plan,
+      workId: workId,
+    );
+    final plan = parsePlotPlanResponse(result.text);
+    return PlotPlanResult(plan: plan, result: result);
+  }
+
+  /// 作品问答：注入作品资料 + 本地检索工具，多轮对话由 UI 持久化。
+  Stream<AiEvent> chat({
+    required int workId,
+    required List<ChatContextTurn> history,
+    required String message,
+  }) async* {
+    final resolved = await _resolveChatModel();
+    if (resolved == null) {
+      yield const AiNeedsConfig();
+      return;
+    }
+    final group = resolved.group;
+    final model = _firstModel(group);
+    if (model == null) {
+      yield _missingModelFailure(group);
+      return;
+    }
+    final chapterList = await chapters.listChapters(workId);
+    final built = await contexts.buildChat(
+      workId: workId,
+      chapterList: chapterList,
+      history: history,
+      message: message,
+      contextWindow: group.contextWindow,
+    );
+    final injected = _withSkills(built, await settings.listEnabledSkills());
+    yield AiContextBuilt(injected);
+    final tools = buildLocalTools(
+      chapters: chapters,
+      characters: characters,
+      outline: outline,
+      settings: settingRepository,
+    );
+    final client = buildAiClient(
+      provider: group.provider,
+      baseUrl: group.baseUrl,
+      apiKey: resolved.apiKey,
+      httpClient: httpClient,
+    );
+    final request = injected.toRequest(
+      model: model,
+      temperature: group.temperature,
+      maxTokens: group.maxTokens,
+      tools: tools.map((t) => t.spec).toList(),
+    );
+    yield* _run(
+      chunks: AgentCore(client: client).run(request: request, tools: tools),
+      task: AiTask.chat,
+      model: model,
+      workId: workId,
+    );
+  }
+
+  /// 流式设定一致性检查（ENH-23）：可取消，已收内容保留在报告中。
+  Stream<AiEvent> streamContinuity({
+    required int workId,
+    required int chapterId,
+  }) async* {
+    final resolved = await _resolveContinuityModel();
+    if (resolved == null) {
+      yield const AiNeedsConfig();
+      return;
+    }
+    final group = resolved.group;
+    final model = _firstModel(group);
+    if (model == null) {
+      yield _missingModelFailure(group);
+      return;
+    }
+    final built = await contexts.buildContinuityCheck(
+      workId: workId,
+      chapterId: chapterId,
+      contextWindow: group.contextWindow,
+    );
+    final injected = _withSkills(built, await settings.listEnabledSkills());
+    yield AiContextBuilt(injected);
+    final client = buildAiClient(
+      provider: group.provider,
+      baseUrl: group.baseUrl,
+      apiKey: resolved.apiKey,
+      httpClient: httpClient,
+    );
+    final request = injected.toRequest(
+      model: model,
+      temperature: group.temperature,
+      maxTokens: group.maxTokens,
+    );
+    yield* _run(
+      client: client,
+      request: request,
+      task: AiTask.continuity,
+      model: model,
+      workId: workId,
+      chapterId: chapterId,
+    );
+  }
+
+  Future<ResolvedModel?> _resolveStyleModel() async =>
+      await settings.resolveTaskModelWithKey(AiTask.style) ??
+      await settings.resolveTaskModelWithKey(AiTask.continueWriting);
+
+  Future<ResolvedModel?> _resolveExtractModel() async =>
+      await settings.resolveTaskModelWithKey(AiTask.extract) ??
+      await settings.resolveTaskModelWithKey(AiTask.continueWriting);
+
+  Future<ResolvedModel?> _resolvePlanModel() async =>
+      await settings.resolveTaskModelWithKey(AiTask.plan) ??
+      await settings.resolveTaskModelWithKey(AiTask.outlineExpand) ??
+      await settings.resolveTaskModelWithKey(AiTask.continueWriting);
+
+  Future<ResolvedModel?> _resolveChatModel() async =>
+      await settings.resolveTaskModelWithKey(AiTask.chat) ??
+      await settings.resolveTaskModelWithKey(AiTask.continueWriting);
+
+  /// 非流式一次性调用（文风 / 设定补全 / 剧情推演共用）。
+  Future<AiOneShotResult> _completeOnce({
+    required ResolvedModel resolved,
+    required BuiltContext built,
+    required String task,
+    required int workId,
+    int? chapterId,
+  }) async {
+    final group = resolved.group;
+    final model = _firstModel(group);
+    if (model == null) {
+      throw AiServiceException(
+        kind: AiErrorKind.badRequest,
+        message: '模型组「${group.name}」未填写模型名，请到设置页补充',
+      );
+    }
+    final injected = _withSkills(built, await settings.listEnabledSkills());
+    final client = buildAiClient(
+      provider: group.provider,
+      baseUrl: group.baseUrl,
+      apiKey: resolved.apiKey,
+      httpClient: httpClient,
+    );
+    final request = injected.toRequest(
+      model: model,
+      temperature: group.temperature,
+      maxTokens: group.maxTokens,
+    );
+    final buffer = StringBuffer();
+    var promptTokens = 0;
+    var completionTokens = 0;
+    await for (final chunk in client.streamChat(request)) {
+      switch (chunk) {
+        case ChatTextDelta():
+          buffer.write(chunk.text);
+        case ChatUsage():
+          promptTokens += chunk.promptTokens;
+          completionTokens += chunk.completionTokens;
+        case ChatError():
+          throw AiServiceException(
+            kind: chunk.kind,
+            message: chunk.message,
+            statusCode: chunk.statusCode,
+            code: chunk.code,
+            detail: chunk.detail,
+          );
+        case ChatDone():
+        case ChatToolCalls():
+          break;
+      }
+    }
+    final text = buffer.toString().trim();
+    final usageId = await stats.record(
+      task: task,
+      model: model,
+      workId: workId,
+      chapterId: chapterId,
+      promptTokens: promptTokens,
+      completionTokens: completionTokens,
+      outputChars: text.length,
+    );
+    return AiOneShotResult(
+      text: text,
+      promptTokens: promptTokens,
+      completionTokens: completionTokens,
+      usageId: usageId,
+      truncated: injected.truncated,
+    );
+  }
 
   // ---------- AI 感检查（M4-06）----------
 
@@ -1157,8 +1502,9 @@ class AiService {
           buffer.write(chunk.text);
           yield AiTextChunk(chunk.text);
         case ChatUsage():
-          promptTokens = chunk.promptTokens;
-          completionTokens = chunk.completionTokens;
+          // ENH-23：工具循环可能多轮返回 usage，逐轮累加而非覆盖。
+          promptTokens += chunk.promptTokens;
+          completionTokens += chunk.completionTokens;
         case ChatError():
           // 已生成内容保留在面板中可手动保存（PRD 5.5 边界异常）。
           if (buffer.isNotEmpty) {

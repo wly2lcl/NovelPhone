@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -441,6 +442,83 @@ void main() {
       expect(calls, 1);
       expect(chunks.whereType<ChatError>().single.kind, AiErrorKind.auth);
     });
+  });
+
+  group('超时保护（ENH-23）', () {
+    const timeout = Duration(milliseconds: 50);
+
+    final builders =
+        <String, ({AiClient Function(http.Client) build, String firstEvent})>{
+          'ChatCompletions': (
+            build: (client) => ChatCompletionsAdapter(
+              baseUrl: 'https://api.example.com/v1',
+              apiKey: 'sk-test',
+              client: client,
+              connectTimeout: timeout,
+              idleTimeout: timeout,
+            ),
+            firstEvent: 'data: {"choices":[{"delta":{"content":"雨"}}]}\n\n',
+          ),
+          'Messages': (
+            build: (client) => MessagesAdapter(
+              baseUrl: 'https://api.example.com',
+              apiKey: 'sk-test',
+              client: client,
+              connectTimeout: timeout,
+              idleTimeout: timeout,
+            ),
+            firstEvent:
+                'data: {"type":"content_block_delta","index":0,'
+                '"delta":{"type":"text_delta","text":"雨"}}\n\n',
+          ),
+          'Responses': (
+            build: (client) => ResponsesAdapter(
+              baseUrl: 'https://api.example.com/v1',
+              apiKey: 'sk-test',
+              client: client,
+              connectTimeout: timeout,
+              idleTimeout: timeout,
+            ),
+            firstEvent:
+                'data: {"type":"response.output_text.delta","delta":"雨"}\n\n',
+          ),
+        };
+
+    for (final entry in builders.entries) {
+      test('${entry.key}：连接超时给出 network 错误', () async {
+        final client = entry.value.build(
+          MockClient((_) => Completer<http.Response>().future),
+        );
+
+        final chunks = await run(client, request());
+
+        final error = chunks.whereType<ChatError>().single;
+        expect(error.kind, AiErrorKind.network);
+        expect(error.message, contains('连接超时'));
+        expect(error.detail, 'TimeoutException');
+      });
+
+      test('${entry.key}：流式空闲超时保留已收文本并提示超时', () async {
+        final controller = StreamController<List<int>>();
+        final client = entry.value.build(
+          MockClient.streaming(
+            (_, _) async => http.StreamedResponse(controller.stream, 200),
+          ),
+        );
+        controller.add(utf8.encode(entry.value.firstEvent));
+
+        final chunks = await run(client, request());
+        await controller.close();
+
+        expect(
+          chunks.whereType<ChatTextDelta>().map((c) => c.text).join(),
+          contains('雨'),
+        );
+        final error = chunks.whereType<ChatError>().single;
+        expect(error.kind, AiErrorKind.network);
+        expect(error.message, contains('响应超时'));
+      });
+    }
   });
 }
 

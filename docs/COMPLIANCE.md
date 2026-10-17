@@ -48,6 +48,7 @@
 | MCP OAuth 令牌 | access / refresh 令牌与过期时间以 JSON 只存 flutter_secure_storage（`mcp_oauth_<id>`），不落库、不随备份导出、不写日志；授权走 PKCE（S256）、无客户端密钥落地，令牌过期自动用 refresh_token 续期，刷新失败提示重新授权；删除 MCP 服务或「清除授权」时立即删除 |
 | 备份文件 | zip 导出时过滤 Key 字段；恢复后需重新填写 Key |
 | 云备份凭证 | 与 API Key 同策略：AccessKey / SecretKey 仅存 flutter_secure_storage；配置 JSON（服务商 / endpoint / region / bucket / 前缀 / 保留份数）存 APP_SETTING，不含凭证、不随备份导出 |
+| 作品问答历史 | 按作品存 APP_SETTING（`work_chat_<workId>`，最多保留 40 轮），仅保存在本机、不随备份导出、不写日志；在作品问答页清空后立即删除。使用作品问答时，最近对话会作为上下文直接发送给你配置的模型服务商 |
 | 出网面 | 除用户配置的模型服务端点、MCP 服务地址（可选）与用户开启并触发时的云备份对象存储地址外，无任何出网请求（无更新检查、无遥测、无广告） |
 | 系统备份 | Android `allowBackup="false"` + Android 12+ `dataExtractionRules`（cloud-backup 全数据域排除）；换机设备直传（D2D）按系统默认保留、不经云端 |
 | 传输内容 | 最小可用上下文；本地规则引擎检查不联网 |

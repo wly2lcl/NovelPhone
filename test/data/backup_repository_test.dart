@@ -8,6 +8,7 @@ import 'package:novelphone/data/repositories/outline_repository.dart';
 import 'package:novelphone/data/repositories/setting_repository.dart';
 import 'package:novelphone/data/repositories/work_repository.dart';
 import 'package:novelphone/models/setting_type.dart';
+import 'package:novelphone/models/work_style_guide.dart';
 
 /// M2-10 / M2-11：整库备份导出与恢复（覆盖 / 合并）。
 void main() {
@@ -241,5 +242,40 @@ void main() {
     expect(restored.single.summaryUpdatedAt, isNull);
     final volumes = await chapters.listVolumes(workId);
     expect(volumes.single.summaryChapterId, 0);
+  });
+
+  test('文风档案随备份导出与恢复（ENH-23）', () async {
+    final workId = await seedWork();
+    const guide = WorkStyleGuide(
+      perspective: '第三人称限知',
+      tone: '克制、冷峻',
+      taboos: '不用网络流行语',
+      sample: '雨落在瓦上，像谁在数更漏。',
+    );
+    await works.updateStyleGuide(workId, guide);
+    final data = await backup.exportData();
+    await works.deleteWork(workId);
+
+    final report = await backup.restore(data, overwrite: true);
+
+    expect(report.works, 1);
+    final restored = await works.getWork(workId);
+    expect(WorkStyleGuide.decode(restored!.styleGuide), guide);
+  });
+
+  test('旧备份作品缺少 styleGuide 字段仍可恢复（ENH-23）', () async {
+    final workId = await seedWork();
+    final data = await backup.exportData();
+    // 模拟 v12 之前的备份：作品行里没有 styleGuide 键。
+    for (final row in (data['tables'] as Map)['works'] as List) {
+      (row as Map).remove('styleGuide');
+    }
+    await works.deleteWork(workId);
+
+    final report = await backup.restore(data, overwrite: true);
+
+    expect(report.works, 1);
+    final restored = await works.getWork(workId);
+    expect(restored!.styleGuide, '');
   });
 }

@@ -134,6 +134,46 @@ class WorkDetailPage extends ConsumerWidget {
                 },
               ),
               ListTile(
+                leading: const Icon(Icons.style_outlined),
+                title: Text(l10n.workDetailStyleGuide),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  context.push('/work/$workId/style');
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.person_add_alt_1_outlined),
+                title: Text(l10n.entityExtractTitle),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  context.push('/work/$workId/extract');
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.route_outlined),
+                title: Text(l10n.plotPlanTitle),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  context.push('/work/$workId/plot');
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.forum_outlined),
+                title: Text(l10n.chatTitle),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  context.push('/work/$workId/chat');
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.fact_check_outlined),
+                title: Text(l10n.continuityScanTitle),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  context.push('/work/$workId/continuity');
+                },
+              ),
+              ListTile(
                 leading: const Icon(Icons.file_download_outlined),
                 title: Text(l10n.exportActionsExportWorkTitle),
                 onTap: () async {

@@ -73,6 +73,7 @@ void main() {
       lastEditedAt: DateTime(2026, 9, 30, 12),
       pinned: false,
       createdAt: DateTime(2026, 9, 30, 12),
+      styleGuide: '',
     );
     final handle = tester.ensureSemantics();
     await tester.pumpWidget(

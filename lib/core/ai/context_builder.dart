@@ -5,6 +5,7 @@ import '../../data/repositories/outline_repository.dart';
 import '../../data/repositories/setting_repository.dart';
 import '../../data/repositories/work_repository.dart';
 import '../../models/setting_type.dart';
+import '../../models/work_style_guide.dart';
 import 'ai_client.dart';
 
 /// 组装后的一段上下文，供待确认面板"上下文详情"展开查看
@@ -19,6 +20,14 @@ class ContextSection {
   final String label;
   final String content;
   final bool truncated;
+}
+
+/// 作品问答的一轮历史消息（ENH-23）。
+class ChatContextTurn {
+  const ChatContextTurn({required this.role, required this.content});
+
+  final String role;
+  final String content;
 }
 
 /// 上下文组装结果。
@@ -206,6 +215,7 @@ class ContextBuilder {
       settingsText: settingsText,
       volumeOutline: volumeOutline,
       task: _continueTask(direction: direction, length: length),
+      styleText: _styleText(work),
     );
   }
 
@@ -247,6 +257,7 @@ class ContextBuilder {
       settingsText: await _settingsText(workId),
       volumeOutline: buffer.toString().trim(),
       task: _openingTask(direction),
+      styleText: _styleText(work),
     );
   }
 
@@ -302,6 +313,7 @@ class ContextBuilder {
       task: _rewriteTask(intent, instruction),
       payload: '【待改写原文】\n$selectedText',
       systemOverride: _rewriteSystem(),
+      styleText: _styleText(work),
     );
   }
 
@@ -621,6 +633,420 @@ class ContextBuilder {
       '3. 没有发现冲突时，只回复「未发现设定冲突」；\n'
       '4. 使用简体中文输出纯文本，不要使用 Markdown 代码块。';
 
+  // ---------- ENH-23：文风提取 / 设定补全 / 剧情推演 / 作品问答 ----------
+
+  /// 文风提取（ENH-23）：从最近几章正文归纳叙事人称、语气、禁忌与示例段落。
+  Future<BuiltContext> buildStyleExtraction({
+    required int workId,
+    required List<Chapter> chapterList,
+    int contextWindow = 32000,
+  }) async {
+    final budget = (contextWindow * 0.5).round();
+    final work = await works.getWork(workId);
+    final system = _styleExtractionSystem();
+    final header = '作品：《${work?.title ?? ''}》';
+    final task = _styleExtractionTask;
+    final existing = WorkStyleGuide.decode(
+      work?.styleGuide ?? '',
+    ).toPromptText();
+    var samples = _chapterSamples(
+      chapterList,
+      maxChapters: 3,
+      perChapter: 2200,
+    );
+    var truncated = false;
+    var room =
+        budget -
+        estimateTokens(system) -
+        estimateTokens(header) -
+        estimateTokens(task) -
+        estimateTokens(existing);
+    if (room <= 0) {
+      samples = '';
+      truncated = true;
+    } else if (samples.length > room) {
+      samples = '${samples.substring(0, room > 1 ? room - 1 : 0)}…';
+      truncated = true;
+    }
+    final userContent = <String>[
+      header,
+      if (existing.isNotEmpty) existing,
+      if (samples.isNotEmpty) '【近期正文节选】\n$samples',
+      task,
+    ].join('\n\n');
+    return BuiltContext(
+      system: system,
+      messages: <ChatMessage>[ChatMessage.user(userContent)],
+      sections: <ContextSection>[
+        if (existing.isNotEmpty)
+          ContextSection(label: '现有文风档案', content: existing),
+        ContextSection(
+          label: '近期正文节选',
+          content: samples.isEmpty ? '（暂无正文）' : samples,
+          truncated: truncated,
+        ),
+      ],
+      truncated: truncated,
+      estimatedTokens: estimateTokens(userContent) + estimateTokens(system),
+      budgetTokens: budget,
+    );
+  }
+
+  /// 设定补全（ENH-23）：从正文抽取尚未建档的角色与世界观 / 地点 / 道具。
+  Future<BuiltContext> buildEntityExtraction({
+    required int workId,
+    required List<Chapter> chapterList,
+    int contextWindow = 32000,
+  }) async {
+    final budget = (contextWindow * 0.5).round();
+    final work = await works.getWork(workId);
+    final system = _entityExtractionSystem();
+    final charactersText = (await characters.listCharacters(workId))
+        .map((c) => '- ${c.name}${c.identity.isEmpty ? '' : '（${c.identity}）'}')
+        .join('\n');
+    final settingsText = await _settingsText(workId);
+    final existing = <String>[
+      if (charactersText.isNotEmpty) '【已有角色】\n$charactersText',
+      if (settingsText.isNotEmpty) '【已有设定】\n$settingsText',
+    ].join('\n\n');
+    final header = '作品：《${work?.title ?? ''}》';
+    final task = _entityExtractionTask;
+    var samples = _chapterSamples(
+      chapterList,
+      maxChapters: 3,
+      perChapter: 2000,
+    );
+    var truncated = false;
+    final room =
+        budget -
+        estimateTokens(system) -
+        estimateTokens(header) -
+        estimateTokens(task) -
+        estimateTokens(existing);
+    if (room <= 0) {
+      samples = '';
+      truncated = true;
+    } else if (samples.length > room) {
+      samples = '${samples.substring(0, room > 1 ? room - 1 : 0)}…';
+      truncated = true;
+    }
+    final userContent = <String>[
+      header,
+      if (existing.isNotEmpty) existing,
+      if (samples.isNotEmpty) '【正文节选】\n$samples',
+      task,
+    ].join('\n\n');
+    return BuiltContext(
+      system: system,
+      messages: <ChatMessage>[ChatMessage.user(userContent)],
+      sections: <ContextSection>[
+        if (charactersText.isNotEmpty)
+          ContextSection(label: '已有角色', content: charactersText),
+        if (settingsText.isNotEmpty)
+          ContextSection(label: '已有设定', content: settingsText),
+        ContextSection(
+          label: '正文节选',
+          content: samples.isEmpty ? '（暂无正文）' : samples,
+          truncated: truncated,
+        ),
+      ],
+      truncated: truncated,
+      estimatedTokens: estimateTokens(userContent) + estimateTokens(system),
+      budgetTokens: budget,
+    );
+  }
+
+  /// 剧情推演（ENH-23）：基于章纲、角色与最近正文给出后续走向与分章建议。
+  Future<BuiltContext> buildPlotPlan({
+    required int workId,
+    required List<Chapter> chapterList,
+    String? direction,
+    int contextWindow = 32000,
+  }) async {
+    final budget = (contextWindow * 0.5).round();
+    final work = await works.getWork(workId);
+    final allCharacters = await characters.listCharacters(workId);
+    final outlineEntries = await outline.listOutline(workId);
+    final titleById = <int, String>{
+      for (final c in chapterList)
+        c.id: c.title.trim().isEmpty ? '未命名章节' : c.title,
+    };
+    final outlineText = outlineEntries
+        .where((e) => e.summary.trim().isNotEmpty)
+        .take(40)
+        .map((e) {
+          final title = e.chapterId == null
+              ? '未关联章节'
+              : (titleById[e.chapterId] ?? '章节 ${e.chapterId}');
+          return '- $title：${e.summary.trim()}';
+        })
+        .join('\n');
+    final charactersText = allCharacters
+        .take(24)
+        .map((c) => '- ${c.name}${c.identity.isEmpty ? '' : '（${c.identity}）'}')
+        .join('\n');
+    final settingsText = await _settingsText(workId);
+    final styleText = _styleText(work);
+    final system = _plotPlanSystem();
+    final header = '作品：《${work?.title ?? ''}》';
+    final directionText = direction?.trim() ?? '';
+    final task = directionText.isEmpty
+        ? _plotPlanTask
+        : '$_plotPlanTask\n作者希望的方向：$directionText';
+
+    var samples = _chapterSamples(
+      chapterList,
+      maxChapters: 2,
+      perChapter: 1400,
+    );
+    var outlineBlock = outlineText;
+    var characterBlock = charactersText;
+    var settingsBlock = settingsText;
+    var truncated = false;
+    int total() =>
+        estimateTokens(system) +
+        estimateTokens(header) +
+        estimateTokens(task) +
+        estimateTokens(styleText) +
+        estimateTokens(outlineBlock) +
+        estimateTokens(characterBlock) +
+        estimateTokens(settingsBlock) +
+        estimateTokens(samples);
+    if (total() > budget && samples.isNotEmpty) {
+      samples = '';
+      truncated = true;
+    }
+    if (total() > budget && settingsBlock.isNotEmpty) {
+      settingsBlock = '';
+      truncated = true;
+    }
+    if (total() > budget && characterBlock.length > 800) {
+      characterBlock = '${characterBlock.substring(0, 800)}…';
+      truncated = true;
+    }
+    if (total() > budget && outlineBlock.length > 1200) {
+      outlineBlock = '${outlineBlock.substring(0, 1200)}…';
+      truncated = true;
+    }
+    final userContent = <String>[
+      header,
+      if (styleText.isNotEmpty) styleText,
+      if (outlineBlock.isNotEmpty) '【已有章纲】\n$outlineBlock',
+      if (characterBlock.isNotEmpty) '【主要角色】\n$characterBlock',
+      if (settingsBlock.isNotEmpty) '【设定集】\n$settingsBlock',
+      if (samples.isNotEmpty) '【最近正文节选】\n$samples',
+      task,
+    ].join('\n\n');
+    return BuiltContext(
+      system: system,
+      messages: <ChatMessage>[ChatMessage.user(userContent)],
+      sections: <ContextSection>[
+        if (styleText.isNotEmpty)
+          ContextSection(label: '作品文风档案', content: styleText),
+        if (outlineBlock.isNotEmpty)
+          ContextSection(label: '已有章纲', content: outlineBlock),
+        if (characterBlock.isNotEmpty)
+          ContextSection(label: '主要角色', content: characterBlock),
+        if (settingsBlock.isNotEmpty)
+          ContextSection(label: '设定集', content: settingsBlock),
+        if (samples.isNotEmpty)
+          ContextSection(label: '最近正文节选', content: samples),
+      ],
+      truncated: truncated,
+      estimatedTokens: estimateTokens(userContent) + estimateTokens(system),
+      budgetTokens: budget,
+    );
+  }
+
+  /// 作品问答（ENH-23）：注入作品资料与最近对话，深度内容由工具按需检索。
+  Future<BuiltContext> buildChat({
+    required int workId,
+    required List<Chapter> chapterList,
+    required List<ChatContextTurn> history,
+    required String message,
+    int contextWindow = 32000,
+  }) async {
+    final budget = (contextWindow * 0.5).round();
+    final work = await works.getWork(workId);
+    final allCharacters = await characters.listCharacters(workId);
+    final outlineEntries = await outline.listOutline(workId);
+    final titleById = <int, String>{
+      for (final c in chapterList)
+        c.id: c.title.trim().isEmpty ? '未命名章节' : c.title,
+    };
+    final charactersText = allCharacters
+        .take(20)
+        .map(formatCharacter)
+        .join('\n');
+    final settingsText = await _settingsText(workId);
+    final outlineText = outlineEntries
+        .where((e) => e.summary.trim().isNotEmpty)
+        .take(30)
+        .map((e) {
+          final title = e.chapterId == null
+              ? '未关联章节'
+              : (titleById[e.chapterId] ?? '章节 ${e.chapterId}');
+          return '- $title：${e.summary.trim()}';
+        })
+        .join('\n');
+    final styleText = _styleText(work);
+    final catalogText = chapterList
+        .take(60)
+        .map(
+          (c) =>
+              '${c.id}|${c.title.trim().isEmpty ? '未命名章节' : c.title.trim()}|${c.wordCount} 字',
+        )
+        .join('\n');
+    final instructions = _chatSystem(work?.title ?? '');
+
+    // 资料区按预算收缩：先保目录与文风，再依次丢弃设定 / 章纲 / 角色卡。
+    final parts = <String>[
+      if (outlineText.isNotEmpty) '【章纲摘要】\n$outlineText',
+      if (charactersText.isNotEmpty) '【角色卡】\n$charactersText',
+      if (settingsText.isNotEmpty) '【设定集】\n$settingsText',
+      if (catalogText.isNotEmpty) '【章节目录（id|标题|字数）】\n$catalogText',
+    ];
+    var truncated = false;
+    var room =
+        budget -
+        estimateTokens(instructions) -
+        estimateTokens(styleText) -
+        estimateTokens(message) -
+        history.fold<int>(0, (sum, turn) => sum + estimateTokens(turn.content));
+    while (parts.length > 1 && estimateTokens(parts.join('\n\n')) > room) {
+      // 丢弃顺序与优先级相反：设定 → 角色 → 章纲，目录最后保留。
+      final dropIndex = parts.length > 1 ? parts.length - 2 : 0;
+      parts.removeAt(dropIndex < 0 ? 0 : dropIndex);
+      truncated = true;
+    }
+    var materials = parts.join('\n\n');
+    if (materials.length > room) {
+      materials = '${materials.substring(0, room > 1 ? room - 1 : 0)}…';
+      truncated = true;
+    }
+    final system = <String>[
+      instructions,
+      if (styleText.isNotEmpty) styleText,
+      if (materials.isNotEmpty) '【作品资料】\n$materials',
+    ].join('\n\n');
+
+    // 历史过长时从最早一轮开始丢弃，保留最近对话。
+    final kept = List<ChatContextTurn>.of(history);
+    while (kept.length > 1 &&
+        estimateTokens(system) +
+                estimateTokens(message) +
+                kept.fold(
+                  0,
+                  (sum, turn) => sum + estimateTokens(turn.content),
+                ) >
+            budget) {
+      kept.removeAt(0);
+      truncated = true;
+    }
+    final messages = <ChatMessage>[
+      for (final turn in kept)
+        ChatMessage(
+          turn.role == 'assistant' ? 'assistant' : 'user',
+          turn.content,
+        ),
+      ChatMessage.user(message),
+    ];
+    return BuiltContext(
+      system: system,
+      messages: messages,
+      sections: <ContextSection>[
+        if (styleText.isNotEmpty)
+          ContextSection(label: '作品文风档案', content: styleText),
+        if (materials.isNotEmpty)
+          ContextSection(label: '作品资料', content: materials),
+        ContextSection(
+          label: '对话历史',
+          content: kept.isEmpty ? '（无）' : '${kept.length} 条（已注入）',
+        ),
+      ],
+      truncated: truncated,
+      estimatedTokens:
+          estimateTokens(system) +
+          messages.fold(0, (sum, m) => sum + estimateTokens(m.content)),
+      budgetTokens: budget,
+    );
+  }
+
+  String _styleExtractionSystem() =>
+      '你是一位中文小说编辑。请根据作者近期章节正文，归纳可复用的作品文风档案。\n'
+      '规则：\n'
+      '1. 只归纳正文中真实体现的特征，不评价好坏、不推断剧情；\n'
+      '2. perspective 写叙事人称与视角（如「第三人称限知，跟随男主」）；\n'
+      '3. tone 写语言风格与基调（句式、节奏、用词、氛围）；\n'
+      '4. taboos 写应避免的写法（与现有文风冲突的表达习惯）；\n'
+      '5. sample 从正文中摘录 80~150 字的代表性段落，必须原文连续摘录，不得改写；\n'
+      '6. 严格输出 JSON，不要 markdown 代码块或解释：\n'
+      '{"perspective":"...","tone":"...","taboos":"...","sample":"..."}';
+
+  static const String _styleExtractionTask = '请分析以上【近期正文节选】，输出作品文风档案 JSON。';
+
+  String _entityExtractionSystem() =>
+      '你是一位中文小说设定编辑。请从正文中抽取尚未建档的角色与设定条目。\n'
+      '规则：\n'
+      '1. 只抽取正文中明确出现或可直接确认的信息，不编造；\n'
+      '2. 已在【已有角色】【已有设定】中出现的条目不要重复输出；\n'
+      '3. 角色字段：name、identity、personality、appearance、relations、arc，未知留空；\n'
+      '4. 设定条目字段：type（worldview/location/item）、name、content；\n'
+      '5. 严格输出 JSON，不要 markdown 代码块或解释：\n'
+      '{"characters":[{"name":"","identity":"","personality":"","appearance":"","relations":"","arc":""}],'
+      '"settings":[{"type":"location","name":"","content":""}]}';
+
+  static const String _entityExtractionTask =
+      '请从以上【正文节选】中抽取可补充到角色卡与设定集的新条目，输出 JSON。';
+
+  String _plotPlanSystem() =>
+      '你是一位中文网络小说策划。请基于已有章纲、角色与最近正文，推演后续剧情。\n'
+      '规则：\n'
+      '1. 给出 3 个差异明显的后续走向，每个包含一句话概括、2~4 个推进步骤、看点或风险；\n'
+      '2. 再给出 3~5 章的连续性分章建议，每章有标题与梗概；\n'
+      '3. 不得与既有设定、章纲和已发生事实冲突，不强行复活已死亡角色；\n'
+      '4. 严格输出 JSON，不要 markdown 代码块或解释：\n'
+      '{"directions":[{"title":"","summary":"","beats":["",""],"hook":""}],'
+      '"chapters":[{"title":"","summary":""}]}';
+
+  static const String _plotPlanTask = '请推演后续剧情并给出分章建议，输出 JSON。';
+
+  String _chatSystem(String workTitle) =>
+      '你是作者的创作助手，熟悉作品${workTitle.isEmpty ? '' : '《$workTitle》'}。\n'
+      '规则：\n'
+      '1. 回答必须基于【作品资料】与工具查询结果，不得编造未出现的事实；\n'
+      '2. 资料不足时先调用工具：list_chapters 看目录，search_chapters 检索正文，'
+      'get_chapter 读具体章节，get_characters / get_settings / get_outline 查设定；\n'
+      '3. 引用剧情时标注章节名，必要时给出原文短引；\n'
+      '4. 使用简体中文，回答简洁直接，不写与问题无关的客套话。';
+
+  /// 取最近 [maxChapters] 章正文节选，供一次性分析任务使用。
+  String _chapterSamples(
+    List<Chapter> chapterList, {
+    int maxChapters = 3,
+    int perChapter = 2000,
+  }) {
+    final withContent = chapterList
+        .where((c) => c.content.trim().isNotEmpty)
+        .toList();
+    if (withContent.isEmpty) return '';
+    final recent = withContent.length > maxChapters
+        ? withContent.sublist(withContent.length - maxChapters)
+        : withContent;
+    final buffer = StringBuffer();
+    for (final chapter in recent) {
+      final title = chapter.title.trim().isEmpty
+          ? '未命名章节'
+          : chapter.title.trim();
+      final content = chapter.content.trim();
+      final body = content.length > perChapter
+          ? '${content.substring(0, perChapter)}…'
+          : content;
+      buffer.writeln('【$title】\n$body\n');
+    }
+    return buffer.toString().trim();
+  }
+
   BuiltContext _assemble({
     required String workTitle,
     required int budget,
@@ -635,8 +1061,14 @@ class ContextBuilder {
     String payload = '',
     // ENH-04：改写时替换 system（默认 null → 沿用续写 system）。
     String? systemOverride,
+    // ENH-23：作品文风档案，非空时追加到 system 并在上下文详情中展示。
+    String styleText = '',
   }) {
-    final system = systemOverride ?? _systemPrompt(workTitle);
+    final baseSystem = systemOverride ?? _systemPrompt(workTitle);
+    final styleBlock = styleText.trim();
+    final system = styleBlock.isEmpty
+        ? baseSystem
+        : '$baseSystem\n\n$styleBlock';
 
     var volumeText = volumeOutline;
     var charactersText = matchedCharacters.map(formatCharacter).join('\n');
@@ -725,16 +1157,26 @@ class ContextBuilder {
       task,
       if (payload.isNotEmpty) payload,
     ].join('\n\n');
+    // 文风档案已在 system 中，详情里只展示、不重复进入用户消息。
+    final displaySections = <ContextSection>[
+      if (styleBlock.isNotEmpty)
+        ContextSection(label: '作品文风档案', content: styleBlock),
+      ...sections,
+    ];
 
     return BuiltContext(
       system: system,
       messages: <ChatMessage>[ChatMessage.user(userContent)],
-      sections: sections,
+      sections: displaySections,
       truncated: truncated,
       estimatedTokens: total(),
       budgetTokens: budget,
     );
   }
+
+  /// 作品文风档案的注入文本（ENH-23）。
+  String _styleText(Work? work) =>
+      WorkStyleGuide.decode(work?.styleGuide ?? '').toPromptText();
 
   String _systemPrompt(String workTitle) {
     final buffer = StringBuffer()

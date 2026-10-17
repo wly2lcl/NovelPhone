@@ -44,7 +44,6 @@ class ModelGroupsPage extends ConsumerWidget {
 
 class _EmptyHint extends StatelessWidget {
   const _EmptyHint();
-
   @override
   Widget build(BuildContext context) {
     return Center(
@@ -102,6 +101,14 @@ class _ModelGroupTileState extends ConsumerState<_ModelGroupTile> {
     final providerLabel = group.provider == AiProvider.anthropic
         ? 'Anthropic Messages'
         : l10n.modelGroupsOpenAiCompat;
+    final hasPrice =
+        group.inputPricePerMillion > 0 || group.outputPricePerMillion > 0;
+    final priceLine = hasPrice
+        ? l10n.modelGroupsPriceLine(
+            _formatPrice(group.inputPricePerMillion),
+            _formatPrice(group.outputPricePerMillion),
+          )
+        : l10n.modelGroupsNoPrice;
     return ListTile(
       leading: Icon(
         _hasKey ? Icons.key : Icons.key_off_outlined,
@@ -111,8 +118,9 @@ class _ModelGroupTileState extends ConsumerState<_ModelGroupTile> {
       subtitle: Text(
         '$providerLabel · ${group.baseUrl}\n'
         '${models.isEmpty ? l10n.modelGroupsNoModel : models.join(l10n.modelGroupsModelSeparator)}'
-        '${_hasKey ? '' : ' · ${l10n.modelGroupsNoKey}'}',
-        maxLines: 3,
+        '${_hasKey ? '' : ' · ${l10n.modelGroupsNoKey}'}\n'
+        '$priceLine',
+        maxLines: 4,
         style: TextStyle(fontSize: 12, color: context.paper.inkSoft),
       ),
       isThreeLine: true,
@@ -186,4 +194,10 @@ class _ModelGroupTileState extends ConsumerState<_ModelGroupTile> {
       ).showSnackBar(SnackBar(content: Text(l10n.modelGroupsDeleted)));
     }
   }
+}
+
+/// 单价展示：最多两位小数，去掉无意义的尾零（12.00 → 12，0.50 → 0.5）。
+String _formatPrice(double value) {
+  final fixed = value.toStringAsFixed(2);
+  return fixed.replaceFirst(RegExp(r'\.?0+$'), '');
 }

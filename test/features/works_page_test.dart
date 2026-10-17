@@ -32,6 +32,7 @@ void main() {
     lastEditedAt: DateTime(2026, 9, 30, 12),
     pinned: false,
     createdAt: DateTime(2026, 9, 30, 12),
+    styleGuide: '',
   );
 
   testWidgets('无作品时展示空状态引导', (tester) async {

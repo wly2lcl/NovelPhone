@@ -16,9 +16,9 @@ import '../../l10n/error_text.dart';
 import '../../l10n/l10n.dart';
 import '../ai/ai_notice.dart';
 import '../ai/ai_providers.dart';
-import '../ai/ai_service.dart';
 import '../work_detail/work_detail_providers.dart';
 import 'ai_confirm_panel.dart';
+import 'continuity_stream_dialog.dart';
 import 'editor_controller.dart';
 import 'find_replace_panel.dart';
 import 'flavor_check_panel.dart';
@@ -521,7 +521,7 @@ class _EditorPageState extends ConsumerState<EditorPage> {
     if (go == true && mounted) context.push('/settings');
   }
 
-  /// 设定一致性检查（ENH-22）：一次性调用，结果以报告对话框展示。
+  /// 设定一致性检查（ENH-22 / ENH-23）：流式返回，对话框内可停止并保留部分结果。
   Future<void> _checkContinuity() async {
     if (_controller.textController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -539,57 +539,24 @@ class _EditorPageState extends ConsumerState<EditorPage> {
     if (!await ensureAiNotice(context, ref)) return;
     if (!mounted) return;
 
-    BuildContext? progressContext;
-    unawaited(
-      showDialog<void>(
-        context: context,
-        barrierDismissible: false,
-        builder: (dialogContext) {
-          progressContext = dialogContext;
-          return AlertDialog(
-            content: Row(
-              children: <Widget>[
-                const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-                const SizedBox(width: 16),
-                Expanded(child: Text(context.l10n.editorContinuityRunning)),
-              ],
-            ),
-          );
-        },
+    final result = await showDialog<ContinuityStreamResult>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => ContinuityStreamDialog(
+        stream: service.streamContinuity(
+          workId: widget.workId,
+          chapterId: widget.chapterId,
+        ),
       ),
     );
+    if (result == null || !mounted) return;
 
-    void closeProgress() {
-      if (progressContext?.mounted ?? false) {
-        Navigator.of(progressContext!).pop();
-      }
-    }
-
-    try {
-      final report = await service.checkContinuity(
-        workId: widget.workId,
-        chapterId: widget.chapterId,
-      );
-      closeProgress();
-      if (!mounted) return;
-      if (report.text.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.editorContinuityEmptyResult)),
-        );
-        return;
-      }
-      await _showContinuityReport(report);
-    } on ContinuityNeedsConfig {
-      closeProgress();
-      if (!mounted) return;
+    if (result.needsConfig) {
       await _promptModelSetup();
-    } on ContinuityException catch (error) {
-      closeProgress();
-      if (!mounted) return;
+      return;
+    }
+    final failure = result.failure;
+    if (failure != null) {
       await showDialog<void>(
         context: context,
         builder: (dialogContext) => AlertDialog(
@@ -597,11 +564,11 @@ class _EditorPageState extends ConsumerState<EditorPage> {
           content: SelectableText(
             aiFailureText(
               context.l10n,
-              kind: error.kind,
-              message: error.message,
-              statusCode: error.statusCode,
-              code: error.code,
-              detail: error.detail,
+              kind: failure.kind,
+              message: failure.message,
+              statusCode: failure.statusCode,
+              code: failure.code,
+              detail: failure.detail,
             ),
           ),
           actions: <Widget>[
@@ -612,16 +579,38 @@ class _EditorPageState extends ConsumerState<EditorPage> {
           ],
         ),
       );
-    } catch (error) {
-      closeProgress();
-      if (!mounted) return;
+      return;
+    }
+    if (result.rawError != null) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('$error')));
+      ).showSnackBar(SnackBar(content: Text(result.rawError!)));
+      return;
     }
+    if (result.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            result.stopped
+                ? context.l10n.editorContinuityStoppedEmpty
+                : context.l10n.editorContinuityEmptyResult,
+          ),
+        ),
+      );
+      return;
+    }
+    await _showContinuityReport(
+      text: result.text,
+      truncated: result.truncated,
+      stopped: result.stopped,
+    );
   }
 
-  Future<void> _showContinuityReport(ContinuityReport report) {
+  Future<void> _showContinuityReport({
+    required String text,
+    required bool truncated,
+    bool stopped = false,
+  }) {
     return showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -632,7 +621,17 @@ class _EditorPageState extends ConsumerState<EditorPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                if (report.truncated) ...<Widget>[
+                if (stopped) ...<Widget>[
+                  Text(
+                    context.l10n.editorContinuityStopped,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: context.paper.inkSoft,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                if (truncated) ...<Widget>[
                   Text(
                     context.l10n.editorContinuityTruncated,
                     style: TextStyle(
@@ -642,7 +641,7 @@ class _EditorPageState extends ConsumerState<EditorPage> {
                   ),
                   const SizedBox(height: 12),
                 ],
-                SelectableText(report.text),
+                SelectableText(text),
               ],
             ),
           ),

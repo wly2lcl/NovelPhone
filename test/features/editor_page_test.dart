@@ -380,7 +380,7 @@ void main() {
     await closePage(tester);
   });
 
-  testWidgets('设定一致性检查：展示报告对话框（ENH-22）', (tester) async {
+  testWidgets('一致性检查：流式展示结束后可查看报告（ENH-22 / ENH-23）', (tester) async {
     await seed('她不禁笑了。', confirmAiNotice: true);
     final settings = SettingsRepository(db, InMemoryKeyStore());
     final groupId = await settings.createModelGroup(
@@ -427,10 +427,8 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 350));
     await tester.tap(find.text('设定一致性检查'));
-    await pumpReal(
-      tester,
-      until: () => find.textContaining('冷面剑客').evaluate().isNotEmpty,
-    );
+    // 流式弹窗先实时展示增量，结束后自动切换为带「关闭」的报告弹窗。
+    await pumpReal(tester, until: () => find.text('关闭').evaluate().isNotEmpty);
 
     expect(find.textContaining('冷面剑客'), findsOneWidget);
     expect(find.text('关闭'), findsOneWidget);

@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
 import 'ai_client.dart';
 import 'ai_error.dart';
+import 'ai_timeouts.dart';
 import 'sse.dart';
 
 /// Responses 适配器（OpenAI Responses 端点，架构 9 章 B-01）。
@@ -15,11 +17,17 @@ class ResponsesAdapter implements AiClient {
     required this.baseUrl,
     required this.apiKey,
     http.Client? client,
+    this.connectTimeout = aiConnectTimeout,
+    this.idleTimeout = aiStreamIdleTimeout,
   }) : _client = client ?? http.Client();
 
   final String baseUrl;
   final String apiKey;
   final http.Client _client;
+
+  /// 连接 / 流式空闲超时（ENH-23）。
+  final Duration connectTimeout;
+  final Duration idleTimeout;
 
   Uri get _uri {
     final trimmed = _trimSlash(baseUrl);
@@ -63,7 +71,14 @@ class ResponsesAdapter implements AiClient {
           'Authorization': 'Bearer $apiKey',
         })
         ..body = jsonEncode(body);
-      response = await _client.send(request);
+      response = await _client.send(request).timeout(connectTimeout);
+    } on TimeoutException {
+      yield ChatError(
+        kind: AiErrorKind.network,
+        message: '连接超时：${connectTimeout.inSeconds} 秒内未收到响应',
+        detail: 'TimeoutException',
+      );
+      return;
     } catch (e) {
       yield ChatError(
         kind: AiErrorKind.network,
@@ -86,7 +101,11 @@ class ResponsesAdapter implements AiClient {
     String? finishReason;
 
     try {
-      await for (final event in parseSse(response.stream)) {
+      // 空闲超时必须施加在原始字节流上：若套在 parseSse 的 async* 输出上，
+      // await for 消费端收不到 TimeoutException（ENH-23 实测）。
+      await for (final event in parseSse(
+        response.stream.timeout(idleTimeout),
+      )) {
         final data = event.data;
         if (data.isEmpty) continue;
         if (data == '[DONE]') break;
@@ -153,6 +172,13 @@ class ResponsesAdapter implements AiClient {
           return;
         }
       }
+    } on TimeoutException {
+      yield ChatError(
+        kind: AiErrorKind.network,
+        message: '响应超时：${idleTimeout.inSeconds} 秒内没有新数据',
+        detail: 'TimeoutException',
+      );
+      return;
     } catch (e) {
       // 网络中断：保留已收流，由 UI 提供重试（ARCHITECTURE 5.2）。
       yield ChatError(

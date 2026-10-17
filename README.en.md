@@ -13,7 +13,7 @@ Two design principles:
 - **Your data stays yours** — SQLite storage on device, API keys in the OS secure store, backups to local files or your own object storage;
 - **Curating the "AI flavor"** — a built-in rule engine plus optional LLM deep-check flags clichés and repetitive sentence patterns with locate-and-replace actions; AI continuation generates multiple candidates in parallel for you to compare.
 
-Status: the MVP scope (78 / 78) is complete, followed by 22 enhancements (ENH-01~22, including a full Simplified-Chinese / English bilingual UI, MCP OAuth 2.1 PKCE and skill front-matter import, accessibility semantics, a branded app icon / launch splash, release-artifact delivery, plus the recycle bin, MCP call audit, backup checksum preview, skill export and AI setting-consistency check). Android release signing, AAB / split-ABI APKs and GitHub Actions CI (including an iOS unsigned-build job) are in place; the iOS unsigned release build passes and 408 automated tests pass. Real-device acceptance records are in [docs/TODO.md](docs/TODO.md) (Chinese).
+Status: the MVP scope (78 / 78) is complete, followed by 23 enhancements (ENH-01~23, including a full Simplified-Chinese / English bilingual UI, MCP OAuth 2.1 PKCE and skill front-matter import, accessibility semantics, a branded app icon / launch splash, release-artifact delivery, plus the recycle bin, MCP call audit, backup checksum preview, skill export, style profile, AI setting completion, plot brainstorming, work Q&A, whole-work consistency scan and stability hardening). Android release signing, AAB / split-ABI APKs and GitHub Actions CI (including an iOS unsigned-build job) are in place; the iOS unsigned release build passes and 445 automated tests pass. Real-device acceptance records are in [docs/TODO.md](docs/TODO.md) (Chinese).
 
 ## Screenshots
 
@@ -54,13 +54,18 @@ Status: the MVP scope (78 / 78) is complete, followed by 22 enhancements (ENH-01
 - **AI per-chapter summaries + volume recaps**: rolling summaries fight long-novel "amnesia"; summaries are viewable / editable and warn when stale
 - **AI outline expansion**: turn a one-line premise into a scene-by-scene outline written back to the chapter
 - **AI setting-consistency check**: combines the current chapter, character cards, story bible and outline into a one-shot report of character / setting / timeline conflicts with fix suggestions; results are read-only and never modify the manuscript
+- **Whole-work consistency scan**: scans every chapter and expands per-chapter conflict details; generation streams live and can be stopped at any time while keeping the partial report
+- **Style profile**: extracts narrative perspective, tone, sentence-length and wording preferences from sample chapters into the work, then injects them into writing and Q&A context automatically
+- **AI setting completion**: extracts characters and story-bible entries from chapter text, previews the merged result with automatic deduplication, and applies it to character cards / the story bible in one step
+- **Plot brainstorming**: proposes multiple directions and per-chapter suggestions from existing settings, outlines and the latest progress, saveable to the inspiration box
+- **Work Q&A**: multi-turn conversation about a whole work, answering after retrieving chapters, characters, settings and outlines locally; history persists per work (latest 40 turns), with a context preview for the current turn and a clear action
 - **AI-flavor check**: two tiers — a rule engine (~200 phrase entries, sentence-pattern repetition, punctuation density) and an optional LLM deep check. The panel supports scope stats, type filters, in-place highlight & locate, one-tap replace, ignore / bulk-ignore, and handling-rate stats; runs without freezing the UI for both single chapters and entire works
 
 ### Models & extensibility
 
 - Model groups: OpenAI-compatible / Anthropic / Responses endpoint protocols, multiple groups with enable toggles, baseUrl and model list, per-task generation parameters
 - Task-to-model mapping: continuation / inspiration / rewrite / check / summary / outline / volume-recap / setting-consistency check each bind to their own group; unconfigured states guide you to Settings. The consistency check falls back to the AI-flavor check group and then the continuation group
-- Network resilience: exponential backoff retry on 429 / 5xx before the first text delta; classified, readable errors for content-filtering and other failures
+- Network resilience: exponential backoff retry on 429 / 5xx before the first text delta; classified, readable errors for content-filtering and other failures; 30-second connect timeout and 90-second stream-idle timeout so requests cannot hang forever
 - MCP tool service: connect a remote Streamable HTTP server and let AI call its tools; authentication supports custom headers and **OAuth 2.1 PKCE** (authorization in the system browser, loopback callback, dynamic client registration, automatic refresh_token renewal; tokens stay in the on-device secure store). The **MCP call audit** keeps the latest 100 remote tool calls on device (tool name, argument / result summaries, duration, success flag), expandable and clearable, with no network access and no credentials
 - Custom skills: extra instruction text plus a tool allowlist, injected into continuation and inspiration orchestration; **front matter** import from a file or pasted text following the Anthropic SKILL.md convention (name / description / allowed-tools / parameters / enabled, previewed before saving), plus Markdown export shared through the system share sheet
 
@@ -76,7 +81,7 @@ Status: the MVP scope (78 / 78) is complete, followed by 22 enhancements (ENH-01
 - Backup to file: whole-database zip (`data.json` + `manifest.json` + per-work markdown). Before restoring, a preview shows the export time, data version and work / chapter / character counts and verifies the **SHA-256** checksum (legacy backups without a manifest are clearly labeled); restore either as "merge as new works" or "overwrite local data"
 - Cloud backup: bring your own S3-compatible storage (AWS S3 / Alibaba Cloud OSS / Qiniu Kodo / Tencent COS / Huawei OBS), SigV4 signed directly, off by default, manual and interval-based automatic backups
 - Writing stats: daily word-count goal progress, writing streak, pomodoro, a 7 / 30-day word-count trend chart and a year-long writing heatmap
-- Token & adoption stats: grouped by task · model, tracking generations, token usage, adoption and ignore rates
+- Token & adoption stats: grouped by task · model, tracking generations, token usage, adoption and ignore rates; model groups accept per-million input / output token prices, and the stats page estimates cost in CNY
 - Privacy: API keys live in the OS secure store (keychain / keystore), never in the database and never in backups; a first-network-use notice gates every AI feature. See [docs/COMPLIANCE.md](docs/COMPLIANCE.md) (Chinese)
 
 ## Tech stack
@@ -84,7 +89,7 @@ Status: the MVP scope (78 / 78) is complete, followed by 22 enhancements (ENH-01
 | Layer | Choice |
 |---|---|
 | UI / state | Flutter 3.44 · Riverpod · go_router |
-| Data | Drift (SQLite, schema v11 with a full migration chain) |
+| Data | Drift (SQLite, schema v12 with a full migration chain) |
 | Secure storage | flutter_secure_storage (keychain / keystore) |
 | Network | http (SSE stream parsing), crypto (cloud-backup SigV4 signing) |
 | AI interop | three endpoint-protocol adapters, mcp_dart (remote MCP), custom-skill orchestration |
@@ -137,12 +142,12 @@ dart run build_runner build --delete-conflicting-outputs
 ```bash
 dart format --output=none --set-exit-if-changed lib test
 flutter analyze
-flutter test    # 408 cases: data layer / editor controller / AI client & orchestration / MCP OAuth, audit and skill import-export / check engine / widgets
+flutter test    # 445 cases: data layer / editor controller / AI client & orchestration / style profiles and structured output / work Q&A and retrieval / MCP OAuth, audit and skill import-export / check engine / widgets
 ```
 
 GitHub Actions ([ci.yml](.github/workflows/ci.yml)) runs the three checks on pushes and pull requests and additionally runs an unsigned iOS release build (`flutter build ios --release --no-codesign`) on `macos-latest` to catch iOS project / plugin integration issues early.
 
-Dev helpers: [tool/fake_llm_server.dart](tool/fake_llm_server.dart) simulates Chat Completions / Messages success streams plus 429 / 5xx / content-filtering scenarios on loopback (`GET /stats` reports request counts; the `/openai-tool` scenario issues a tool call first and answers once the tool result arrives, exercising the MCP call and audit path). With `adb reverse` it lets you exercise AI error and retry paths on a real device without a real API key. [tool/fake_mcp_oauth_server.dart](tool/fake_mcp_oauth_server.dart) simulates an MCP server with an OAuth 2.1 PKCE authorization server (dynamic registration, S256 verification, refresh_token) and an echo tool for exercising the full authorization chain.
+Dev helpers: [tool/fake_llm_server.dart](tool/fake_llm_server.dart) simulates Chat Completions / Messages success streams plus 429 / 5xx / content-filtering scenarios, and provides JSON scenarios for style / entity extraction / plot planning (`/openai-style`, `/openai-extract`, `/openai-plan`); stream chunks are flushed immediately so incremental output and stop-with-partial-result can be observed (`GET /stats` reports request counts; the `/openai-tool` scenario issues a tool call first and answers once the tool result arrives, exercising the MCP call and audit path). With `adb reverse` it lets you exercise AI error and retry paths on a real device without a real API key. [tool/fake_mcp_oauth_server.dart](tool/fake_mcp_oauth_server.dart) simulates an MCP server with an OAuth 2.1 PKCE authorization server (dynamic registration, S256 verification, refresh_token) and an echo tool for exercising the full authorization chain.
 
 ## Documentation
 
@@ -150,7 +155,7 @@ Dev helpers: [tool/fake_llm_server.dart](tool/fake_llm_server.dart) simulates Ch
 |---|---|
 | [docs/PRD.md](docs/PRD.md) | Product positioning, scope and acceptance criteria |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Tech choices, layering, data model and AI-layer design |
-| [docs/TODO.md](docs/TODO.md) | Task list, progress tracking and real-device acceptance records (M1-M4 + ENH-01~22) |
+| [docs/TODO.md](docs/TODO.md) | Task list, progress tracking and real-device acceptance records (M1-M4 + ENH-01~23) |
 | [docs/COMPLIANCE.md](docs/COMPLIANCE.md) | Privacy policy, data-security notes and store-listing points |
 
 (The docs above are written in Chinese.)

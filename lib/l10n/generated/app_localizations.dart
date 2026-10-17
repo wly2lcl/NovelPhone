@@ -1985,7 +1985,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsTaskMappingSubtitle.
   ///
   /// In zh, this message translates to:
-  /// **'为续写、灵感、AI 感检查分别指定模型组'**
+  /// **'为续写、问答、体检等各类 AI 任务指定模型组'**
   String get settingsTaskMappingSubtitle;
 
   /// No description provided for @settingsTokenStats.
@@ -3710,6 +3710,210 @@ abstract class AppLocalizations {
   /// **'AI 设置'**
   String get workDetailAiSettings;
 
+  /// No description provided for @workDetailStyleGuide.
+  ///
+  /// In zh, this message translates to:
+  /// **'文风档案'**
+  String get workDetailStyleGuide;
+
+  /// No description provided for @styleGuideTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'文风档案'**
+  String get styleGuideTitle;
+
+  /// No description provided for @styleGuideIntro.
+  ///
+  /// In zh, this message translates to:
+  /// **'文风档案会注入续写、改写、开篇与剧情推演，让 AI 更贴近你的写法。'**
+  String get styleGuideIntro;
+
+  /// No description provided for @styleGuidePerspective.
+  ///
+  /// In zh, this message translates to:
+  /// **'叙事人称与视角'**
+  String get styleGuidePerspective;
+
+  /// No description provided for @styleGuidePerspectiveHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'例如：第三人称限知，跟随女主'**
+  String get styleGuidePerspectiveHint;
+
+  /// No description provided for @styleGuideTone.
+  ///
+  /// In zh, this message translates to:
+  /// **'语言风格与基调'**
+  String get styleGuideTone;
+
+  /// No description provided for @styleGuideToneHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'例如：冷峻克制，短句为主，少用形容词'**
+  String get styleGuideToneHint;
+
+  /// No description provided for @styleGuideTaboos.
+  ///
+  /// In zh, this message translates to:
+  /// **'禁忌与偏好'**
+  String get styleGuideTaboos;
+
+  /// No description provided for @styleGuideTaboosHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'例如：不用网络流行语，少用感叹号'**
+  String get styleGuideTaboosHint;
+
+  /// No description provided for @styleGuideSample.
+  ///
+  /// In zh, this message translates to:
+  /// **'示例段落'**
+  String get styleGuideSample;
+
+  /// No description provided for @styleGuideSampleHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'粘贴一段你的正文，AI 会模仿语感与节奏'**
+  String get styleGuideSampleHint;
+
+  /// No description provided for @styleGuideExtract.
+  ///
+  /// In zh, this message translates to:
+  /// **'AI 从最近章节提取'**
+  String get styleGuideExtract;
+
+  /// No description provided for @styleGuideExtracting.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在分析最近章节…'**
+  String get styleGuideExtracting;
+
+  /// No description provided for @styleGuideExtractTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'AI 提取结果'**
+  String get styleGuideExtractTitle;
+
+  /// No description provided for @styleGuideExtractConfirm.
+  ///
+  /// In zh, this message translates to:
+  /// **'将用 AI 结果覆盖对应字段，是否继续？'**
+  String get styleGuideExtractConfirm;
+
+  /// No description provided for @styleGuideApply.
+  ///
+  /// In zh, this message translates to:
+  /// **'填入表单'**
+  String get styleGuideApply;
+
+  /// No description provided for @styleGuideApplied.
+  ///
+  /// In zh, this message translates to:
+  /// **'已填入表单，确认后请保存'**
+  String get styleGuideApplied;
+
+  /// No description provided for @styleGuideSaved.
+  ///
+  /// In zh, this message translates to:
+  /// **'文风档案已保存'**
+  String get styleGuideSaved;
+
+  /// No description provided for @styleGuideExtractFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'提取失败：{message}'**
+  String styleGuideExtractFailed(String message);
+
+  /// No description provided for @modelEditInputPrice.
+  ///
+  /// In zh, this message translates to:
+  /// **'输入单价（元/百万 token）'**
+  String get modelEditInputPrice;
+
+  /// No description provided for @modelEditOutputPrice.
+  ///
+  /// In zh, this message translates to:
+  /// **'输出单价（元/百万 token）'**
+  String get modelEditOutputPrice;
+
+  /// No description provided for @modelEditPriceHelper.
+  ///
+  /// In zh, this message translates to:
+  /// **'选填，用于 token 统计页估算费用'**
+  String get modelEditPriceHelper;
+
+  /// No description provided for @entityExtractTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'AI 设定补全'**
+  String get entityExtractTitle;
+
+  /// No description provided for @entityExtractIntro.
+  ///
+  /// In zh, this message translates to:
+  /// **'从最近章节抽取角色与世界观 / 地点 / 道具，预览去重后可一键建档。'**
+  String get entityExtractIntro;
+
+  /// No description provided for @entityExtractStart.
+  ///
+  /// In zh, this message translates to:
+  /// **'AI 抽取设定'**
+  String get entityExtractStart;
+
+  /// No description provided for @entityExtractRunning.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在阅读最近章节…'**
+  String get entityExtractRunning;
+
+  /// No description provided for @entityExtractEmpty.
+  ///
+  /// In zh, this message translates to:
+  /// **'没有发现可补充的新条目。'**
+  String get entityExtractEmpty;
+
+  /// No description provided for @entityExtractParseFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'AI 返回内容无法解析，请重试。'**
+  String get entityExtractParseFailed;
+
+  /// No description provided for @entityExtractCharacters.
+  ///
+  /// In zh, this message translates to:
+  /// **'角色卡'**
+  String get entityExtractCharacters;
+
+  /// No description provided for @entityExtractSettings.
+  ///
+  /// In zh, this message translates to:
+  /// **'设定条目'**
+  String get entityExtractSettings;
+
+  /// No description provided for @entityExtractExisting.
+  ///
+  /// In zh, this message translates to:
+  /// **'已存在'**
+  String get entityExtractExisting;
+
+  /// No description provided for @entityExtractApply.
+  ///
+  /// In zh, this message translates to:
+  /// **'应用所选（{count}）'**
+  String entityExtractApply(int count);
+
+  /// No description provided for @entityExtractApplied.
+  ///
+  /// In zh, this message translates to:
+  /// **'已添加 {characters} 个角色、{settings} 条设定'**
+  String entityExtractApplied(int characters, int settings);
+
+  /// No description provided for @entityExtractFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'抽取失败：{message}'**
+  String entityExtractFailed(String message);
+
   /// No description provided for @workDetailRenameWork.
   ///
   /// In zh, this message translates to:
@@ -4387,6 +4591,360 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'查看许可清单'**
   String get aboutLicensesAction;
+
+  /// No description provided for @plotPlanTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'剧情推演'**
+  String get plotPlanTitle;
+
+  /// No description provided for @plotPlanIntro.
+  ///
+  /// In zh, this message translates to:
+  /// **'基于已有章纲、角色与最近正文，推演后续走向与分章建议；满意的条目可存入灵感箱。'**
+  String get plotPlanIntro;
+
+  /// No description provided for @plotPlanDirection.
+  ///
+  /// In zh, this message translates to:
+  /// **'希望的方向（可选）'**
+  String get plotPlanDirection;
+
+  /// No description provided for @plotPlanDirectionHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'例如：让女主主动摊牌，但暂时不要揭露身世'**
+  String get plotPlanDirectionHint;
+
+  /// No description provided for @plotPlanStart.
+  ///
+  /// In zh, this message translates to:
+  /// **'开始推演'**
+  String get plotPlanStart;
+
+  /// No description provided for @plotPlanRunning.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在推演剧情…'**
+  String get plotPlanRunning;
+
+  /// No description provided for @plotPlanRegenerate.
+  ///
+  /// In zh, this message translates to:
+  /// **'重新推演'**
+  String get plotPlanRegenerate;
+
+  /// No description provided for @plotPlanDirections.
+  ///
+  /// In zh, this message translates to:
+  /// **'剧情走向'**
+  String get plotPlanDirections;
+
+  /// No description provided for @plotPlanChapters.
+  ///
+  /// In zh, this message translates to:
+  /// **'分章建议'**
+  String get plotPlanChapters;
+
+  /// No description provided for @plotPlanHook.
+  ///
+  /// In zh, this message translates to:
+  /// **'看点与风险'**
+  String get plotPlanHook;
+
+  /// No description provided for @plotPlanSaveInspiration.
+  ///
+  /// In zh, this message translates to:
+  /// **'存入灵感箱'**
+  String get plotPlanSaveInspiration;
+
+  /// No description provided for @plotPlanSaved.
+  ///
+  /// In zh, this message translates to:
+  /// **'已存入灵感箱'**
+  String get plotPlanSaved;
+
+  /// No description provided for @plotPlanParseFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'AI 返回的不是结构化结果，已按原文展示。'**
+  String get plotPlanParseFailed;
+
+  /// No description provided for @plotPlanFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'推演失败：{message}'**
+  String plotPlanFailed(String message);
+
+  /// No description provided for @chatTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'作品问答'**
+  String get chatTitle;
+
+  /// No description provided for @chatIntro.
+  ///
+  /// In zh, this message translates to:
+  /// **'基于作品设定、章纲与正文回答你的问题；需要细节时会自动检索相关章节。'**
+  String get chatIntro;
+
+  /// No description provided for @chatEmpty.
+  ///
+  /// In zh, this message translates to:
+  /// **'和 AI 聊聊这部作品'**
+  String get chatEmpty;
+
+  /// No description provided for @chatInputHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'输入问题…'**
+  String get chatInputHint;
+
+  /// No description provided for @chatSend.
+  ///
+  /// In zh, this message translates to:
+  /// **'发送'**
+  String get chatSend;
+
+  /// No description provided for @chatStop.
+  ///
+  /// In zh, this message translates to:
+  /// **'停止'**
+  String get chatStop;
+
+  /// No description provided for @chatThinking.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在思考…'**
+  String get chatThinking;
+
+  /// No description provided for @chatNoReply.
+  ///
+  /// In zh, this message translates to:
+  /// **'（没有返回内容）'**
+  String get chatNoReply;
+
+  /// No description provided for @chatClearTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'清空对话'**
+  String get chatClearTitle;
+
+  /// No description provided for @chatClearBody.
+  ///
+  /// In zh, this message translates to:
+  /// **'将删除这部作品的问答记录，不影响作品内容。是否继续？'**
+  String get chatClearBody;
+
+  /// No description provided for @chatClearAction.
+  ///
+  /// In zh, this message translates to:
+  /// **'清空'**
+  String get chatClearAction;
+
+  /// No description provided for @chatContextTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'上下文详情'**
+  String get chatContextTitle;
+
+  /// No description provided for @chatContextUsage.
+  ///
+  /// In zh, this message translates to:
+  /// **'已注入约 {estimated} / {budget} token'**
+  String chatContextUsage(int estimated, int budget);
+
+  /// No description provided for @chatSuggestionGoal.
+  ///
+  /// In zh, this message translates to:
+  /// **'主角目前的目标是什么？'**
+  String get chatSuggestionGoal;
+
+  /// No description provided for @chatSuggestionForeshadow.
+  ///
+  /// In zh, this message translates to:
+  /// **'哪些伏笔还没回收？'**
+  String get chatSuggestionForeshadow;
+
+  /// No description provided for @chatSuggestionRelationship.
+  ///
+  /// In zh, this message translates to:
+  /// **'梳理主要人物关系'**
+  String get chatSuggestionRelationship;
+
+  /// No description provided for @editorContinuityStop.
+  ///
+  /// In zh, this message translates to:
+  /// **'停止'**
+  String get editorContinuityStop;
+
+  /// No description provided for @editorContinuityStopped.
+  ///
+  /// In zh, this message translates to:
+  /// **'已停止生成，以下是已生成的内容。'**
+  String get editorContinuityStopped;
+
+  /// No description provided for @editorContinuityStoppedEmpty.
+  ///
+  /// In zh, this message translates to:
+  /// **'已停止，尚未收到内容。'**
+  String get editorContinuityStoppedEmpty;
+
+  /// No description provided for @continuityScanTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'全书一致性体检'**
+  String get continuityScanTitle;
+
+  /// No description provided for @continuityScanIntro.
+  ///
+  /// In zh, this message translates to:
+  /// **'逐章检查正文与角色卡、设定集、章纲、前情是否冲突。全书按顺序执行，避免并发触发服务商限流；可随时停止并保留已完成的结果。'**
+  String get continuityScanIntro;
+
+  /// No description provided for @continuityScanEmpty.
+  ///
+  /// In zh, this message translates to:
+  /// **'没有可检查的章节，请先写正文。'**
+  String get continuityScanEmpty;
+
+  /// No description provided for @continuityScanStart.
+  ///
+  /// In zh, this message translates to:
+  /// **'开始全书体检'**
+  String get continuityScanStart;
+
+  /// No description provided for @continuityScanRerun.
+  ///
+  /// In zh, this message translates to:
+  /// **'重新体检'**
+  String get continuityScanRerun;
+
+  /// No description provided for @continuityScanRunning.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在检查第 {current} / {total} 章…'**
+  String continuityScanRunning(int current, int total);
+
+  /// No description provided for @continuityScanStopping.
+  ///
+  /// In zh, this message translates to:
+  /// **'当前章完成后停止…'**
+  String get continuityScanStopping;
+
+  /// No description provided for @continuityScanCancel.
+  ///
+  /// In zh, this message translates to:
+  /// **'停止体检'**
+  String get continuityScanCancel;
+
+  /// No description provided for @continuityScanResult.
+  ///
+  /// In zh, this message translates to:
+  /// **'检查结果'**
+  String get continuityScanResult;
+
+  /// No description provided for @continuityScanProgress.
+  ///
+  /// In zh, this message translates to:
+  /// **'已完成 {done} / {total} 章'**
+  String continuityScanProgress(int done, int total);
+
+  /// No description provided for @continuityScanNoIssues.
+  ///
+  /// In zh, this message translates to:
+  /// **'未发现冲突'**
+  String get continuityScanNoIssues;
+
+  /// No description provided for @continuityScanHasIssues.
+  ///
+  /// In zh, this message translates to:
+  /// **'发现疑似冲突，点击查看'**
+  String get continuityScanHasIssues;
+
+  /// No description provided for @continuityScanChapterFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'本章检查失败'**
+  String get continuityScanChapterFailed;
+
+  /// No description provided for @continuityScanFailedLine.
+  ///
+  /// In zh, this message translates to:
+  /// **'检查失败：{message}'**
+  String continuityScanFailedLine(String message);
+
+  /// No description provided for @continuityScanCopyAll.
+  ///
+  /// In zh, this message translates to:
+  /// **'复制全部结果'**
+  String get continuityScanCopyAll;
+
+  /// No description provided for @continuityScanCopied.
+  ///
+  /// In zh, this message translates to:
+  /// **'已复制到剪贴板'**
+  String get continuityScanCopied;
+
+  /// No description provided for @aiTaskStyle.
+  ///
+  /// In zh, this message translates to:
+  /// **'AI 文风提取'**
+  String get aiTaskStyle;
+
+  /// No description provided for @aiTaskExtract.
+  ///
+  /// In zh, this message translates to:
+  /// **'AI 设定补全'**
+  String get aiTaskExtract;
+
+  /// No description provided for @aiTaskPlan.
+  ///
+  /// In zh, this message translates to:
+  /// **'AI 剧情推演'**
+  String get aiTaskPlan;
+
+  /// No description provided for @aiTaskChat.
+  ///
+  /// In zh, this message translates to:
+  /// **'AI 作品问答'**
+  String get aiTaskChat;
+
+  /// No description provided for @tokenStatsEstimatedCost.
+  ///
+  /// In zh, this message translates to:
+  /// **'预计费用'**
+  String get tokenStatsEstimatedCost;
+
+  /// No description provided for @tokenStatsCostValue.
+  ///
+  /// In zh, this message translates to:
+  /// **'¥{amount}'**
+  String tokenStatsCostValue(String amount);
+
+  /// No description provided for @tokenStatsCostHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'在模型组中填写每百万 token 单价后，可在这里估算费用。'**
+  String get tokenStatsCostHint;
+
+  /// No description provided for @tokenStatsCostPartial.
+  ///
+  /// In zh, this message translates to:
+  /// **'{count} 个模型未填写单价，未计入费用。'**
+  String tokenStatsCostPartial(int count);
+
+  /// No description provided for @modelGroupsPriceLine.
+  ///
+  /// In zh, this message translates to:
+  /// **'¥{input} / ¥{output} 每百万 token'**
+  String modelGroupsPriceLine(String input, String output);
+
+  /// No description provided for @modelGroupsNoPrice.
+  ///
+  /// In zh, this message translates to:
+  /// **'未填单价'**
+  String get modelGroupsNoPrice;
 }
 
 class _AppLocalizationsDelegate

@@ -115,6 +115,18 @@ class $WorksTable extends Works with TableInfo<$WorksTable, Work> {
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _styleGuideMeta = const VerificationMeta(
+    'styleGuide',
+  );
+  @override
+  late final GeneratedColumn<String> styleGuide = GeneratedColumn<String>(
+    'style_guide',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -126,6 +138,7 @@ class $WorksTable extends Works with TableInfo<$WorksTable, Work> {
     pinned,
     createdAt,
     deletedAt,
+    styleGuide,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -204,6 +217,12 @@ class $WorksTable extends Works with TableInfo<$WorksTable, Work> {
         deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
       );
     }
+    if (data.containsKey('style_guide')) {
+      context.handle(
+        _styleGuideMeta,
+        styleGuide.isAcceptableOrUnknown(data['style_guide']!, _styleGuideMeta),
+      );
+    }
     return context;
   }
 
@@ -249,6 +268,10 @@ class $WorksTable extends Works with TableInfo<$WorksTable, Work> {
         DriftSqlType.dateTime,
         data['${effectivePrefix}deleted_at'],
       ),
+      styleGuide: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}style_guide'],
+      )!,
     );
   }
 
@@ -270,6 +293,9 @@ class Work extends DataClass implements Insertable<Work> {
 
   /// 回收站标记（ENH-22）：非空表示已移入回收站，30 天后彻底删除。
   final DateTime? deletedAt;
+
+  /// 作品级文风档案（ENH-23）：JSON 字符串，见 `WorkStyleGuide`。
+  final String styleGuide;
   const Work({
     required this.id,
     required this.title,
@@ -280,6 +306,7 @@ class Work extends DataClass implements Insertable<Work> {
     required this.pinned,
     required this.createdAt,
     this.deletedAt,
+    required this.styleGuide,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -295,6 +322,7 @@ class Work extends DataClass implements Insertable<Work> {
     if (!nullToAbsent || deletedAt != null) {
       map['deleted_at'] = Variable<DateTime>(deletedAt);
     }
+    map['style_guide'] = Variable<String>(styleGuide);
     return map;
   }
 
@@ -311,6 +339,7 @@ class Work extends DataClass implements Insertable<Work> {
       deletedAt: deletedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(deletedAt),
+      styleGuide: Value(styleGuide),
     );
   }
 
@@ -329,6 +358,7 @@ class Work extends DataClass implements Insertable<Work> {
       pinned: serializer.fromJson<bool>(json['pinned']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+      styleGuide: serializer.fromJson<String>(json['styleGuide']),
     );
   }
   @override
@@ -344,6 +374,7 @@ class Work extends DataClass implements Insertable<Work> {
       'pinned': serializer.toJson<bool>(pinned),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+      'styleGuide': serializer.toJson<String>(styleGuide),
     };
   }
 
@@ -357,6 +388,7 @@ class Work extends DataClass implements Insertable<Work> {
     bool? pinned,
     DateTime? createdAt,
     Value<DateTime?> deletedAt = const Value.absent(),
+    String? styleGuide,
   }) => Work(
     id: id ?? this.id,
     title: title ?? this.title,
@@ -367,6 +399,7 @@ class Work extends DataClass implements Insertable<Work> {
     pinned: pinned ?? this.pinned,
     createdAt: createdAt ?? this.createdAt,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    styleGuide: styleGuide ?? this.styleGuide,
   );
   Work copyWithCompanion(WorksCompanion data) {
     return Work(
@@ -385,6 +418,9 @@ class Work extends DataClass implements Insertable<Work> {
       pinned: data.pinned.present ? data.pinned.value : this.pinned,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      styleGuide: data.styleGuide.present
+          ? data.styleGuide.value
+          : this.styleGuide,
     );
   }
 
@@ -399,7 +435,8 @@ class Work extends DataClass implements Insertable<Work> {
           ..write('lastEditedAt: $lastEditedAt, ')
           ..write('pinned: $pinned, ')
           ..write('createdAt: $createdAt, ')
-          ..write('deletedAt: $deletedAt')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('styleGuide: $styleGuide')
           ..write(')'))
         .toString();
   }
@@ -415,6 +452,7 @@ class Work extends DataClass implements Insertable<Work> {
     pinned,
     createdAt,
     deletedAt,
+    styleGuide,
   );
   @override
   bool operator ==(Object other) =>
@@ -428,7 +466,8 @@ class Work extends DataClass implements Insertable<Work> {
           other.lastEditedAt == this.lastEditedAt &&
           other.pinned == this.pinned &&
           other.createdAt == this.createdAt &&
-          other.deletedAt == this.deletedAt);
+          other.deletedAt == this.deletedAt &&
+          other.styleGuide == this.styleGuide);
 }
 
 class WorksCompanion extends UpdateCompanion<Work> {
@@ -441,6 +480,7 @@ class WorksCompanion extends UpdateCompanion<Work> {
   final Value<bool> pinned;
   final Value<DateTime> createdAt;
   final Value<DateTime?> deletedAt;
+  final Value<String> styleGuide;
   const WorksCompanion({
     this.id = const Value.absent(),
     this.title = const Value.absent(),
@@ -451,6 +491,7 @@ class WorksCompanion extends UpdateCompanion<Work> {
     this.pinned = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.deletedAt = const Value.absent(),
+    this.styleGuide = const Value.absent(),
   });
   WorksCompanion.insert({
     this.id = const Value.absent(),
@@ -462,6 +503,7 @@ class WorksCompanion extends UpdateCompanion<Work> {
     this.pinned = const Value.absent(),
     required DateTime createdAt,
     this.deletedAt = const Value.absent(),
+    this.styleGuide = const Value.absent(),
   }) : title = Value(title),
        coverColor = Value(coverColor),
        lastEditedAt = Value(lastEditedAt),
@@ -476,6 +518,7 @@ class WorksCompanion extends UpdateCompanion<Work> {
     Expression<bool>? pinned,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? deletedAt,
+    Expression<String>? styleGuide,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -487,6 +530,7 @@ class WorksCompanion extends UpdateCompanion<Work> {
       if (pinned != null) 'pinned': pinned,
       if (createdAt != null) 'created_at': createdAt,
       if (deletedAt != null) 'deleted_at': deletedAt,
+      if (styleGuide != null) 'style_guide': styleGuide,
     });
   }
 
@@ -500,6 +544,7 @@ class WorksCompanion extends UpdateCompanion<Work> {
     Value<bool>? pinned,
     Value<DateTime>? createdAt,
     Value<DateTime?>? deletedAt,
+    Value<String>? styleGuide,
   }) {
     return WorksCompanion(
       id: id ?? this.id,
@@ -511,6 +556,7 @@ class WorksCompanion extends UpdateCompanion<Work> {
       pinned: pinned ?? this.pinned,
       createdAt: createdAt ?? this.createdAt,
       deletedAt: deletedAt ?? this.deletedAt,
+      styleGuide: styleGuide ?? this.styleGuide,
     );
   }
 
@@ -544,6 +590,9 @@ class WorksCompanion extends UpdateCompanion<Work> {
     if (deletedAt.present) {
       map['deleted_at'] = Variable<DateTime>(deletedAt.value);
     }
+    if (styleGuide.present) {
+      map['style_guide'] = Variable<String>(styleGuide.value);
+    }
     return map;
   }
 
@@ -558,7 +607,8 @@ class WorksCompanion extends UpdateCompanion<Work> {
           ..write('lastEditedAt: $lastEditedAt, ')
           ..write('pinned: $pinned, ')
           ..write('createdAt: $createdAt, ')
-          ..write('deletedAt: $deletedAt')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('styleGuide: $styleGuide')
           ..write(')'))
         .toString();
   }
@@ -4074,6 +4124,30 @@ class $ModelGroupsTable extends ModelGroups
     ),
     defaultValue: const Constant(true),
   );
+  static const VerificationMeta _inputPricePerMillionMeta =
+      const VerificationMeta('inputPricePerMillion');
+  @override
+  late final GeneratedColumn<double> inputPricePerMillion =
+      GeneratedColumn<double>(
+        'input_price_per_million',
+        aliasedName,
+        false,
+        type: DriftSqlType.double,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(0),
+      );
+  static const VerificationMeta _outputPricePerMillionMeta =
+      const VerificationMeta('outputPricePerMillion');
+  @override
+  late final GeneratedColumn<double> outputPricePerMillion =
+      GeneratedColumn<double>(
+        'output_price_per_million',
+        aliasedName,
+        false,
+        type: DriftSqlType.double,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(0),
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -4086,6 +4160,8 @@ class $ModelGroupsTable extends ModelGroups
     maxTokens,
     contextWindow,
     enabled,
+    inputPricePerMillion,
+    outputPricePerMillion,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -4166,6 +4242,24 @@ class $ModelGroupsTable extends ModelGroups
         enabled.isAcceptableOrUnknown(data['enabled']!, _enabledMeta),
       );
     }
+    if (data.containsKey('input_price_per_million')) {
+      context.handle(
+        _inputPricePerMillionMeta,
+        inputPricePerMillion.isAcceptableOrUnknown(
+          data['input_price_per_million']!,
+          _inputPricePerMillionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('output_price_per_million')) {
+      context.handle(
+        _outputPricePerMillionMeta,
+        outputPricePerMillion.isAcceptableOrUnknown(
+          data['output_price_per_million']!,
+          _outputPricePerMillionMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -4215,6 +4309,14 @@ class $ModelGroupsTable extends ModelGroups
         DriftSqlType.bool,
         data['${effectivePrefix}enabled'],
       )!,
+      inputPricePerMillion: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}input_price_per_million'],
+      )!,
+      outputPricePerMillion: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}output_price_per_million'],
+      )!,
     );
   }
 
@@ -4235,6 +4337,10 @@ class ModelGroup extends DataClass implements Insertable<ModelGroup> {
   final int maxTokens;
   final int contextWindow;
   final bool enabled;
+
+  /// 费用估算（ENH-23）：每百万 token 单价（元），0 表示未填写。
+  final double inputPricePerMillion;
+  final double outputPricePerMillion;
   const ModelGroup({
     required this.id,
     required this.provider,
@@ -4246,6 +4352,8 @@ class ModelGroup extends DataClass implements Insertable<ModelGroup> {
     required this.maxTokens,
     required this.contextWindow,
     required this.enabled,
+    required this.inputPricePerMillion,
+    required this.outputPricePerMillion,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -4260,6 +4368,8 @@ class ModelGroup extends DataClass implements Insertable<ModelGroup> {
     map['max_tokens'] = Variable<int>(maxTokens);
     map['context_window'] = Variable<int>(contextWindow);
     map['enabled'] = Variable<bool>(enabled);
+    map['input_price_per_million'] = Variable<double>(inputPricePerMillion);
+    map['output_price_per_million'] = Variable<double>(outputPricePerMillion);
     return map;
   }
 
@@ -4275,6 +4385,8 @@ class ModelGroup extends DataClass implements Insertable<ModelGroup> {
       maxTokens: Value(maxTokens),
       contextWindow: Value(contextWindow),
       enabled: Value(enabled),
+      inputPricePerMillion: Value(inputPricePerMillion),
+      outputPricePerMillion: Value(outputPricePerMillion),
     );
   }
 
@@ -4294,6 +4406,12 @@ class ModelGroup extends DataClass implements Insertable<ModelGroup> {
       maxTokens: serializer.fromJson<int>(json['maxTokens']),
       contextWindow: serializer.fromJson<int>(json['contextWindow']),
       enabled: serializer.fromJson<bool>(json['enabled']),
+      inputPricePerMillion: serializer.fromJson<double>(
+        json['inputPricePerMillion'],
+      ),
+      outputPricePerMillion: serializer.fromJson<double>(
+        json['outputPricePerMillion'],
+      ),
     );
   }
   @override
@@ -4310,6 +4428,8 @@ class ModelGroup extends DataClass implements Insertable<ModelGroup> {
       'maxTokens': serializer.toJson<int>(maxTokens),
       'contextWindow': serializer.toJson<int>(contextWindow),
       'enabled': serializer.toJson<bool>(enabled),
+      'inputPricePerMillion': serializer.toJson<double>(inputPricePerMillion),
+      'outputPricePerMillion': serializer.toJson<double>(outputPricePerMillion),
     };
   }
 
@@ -4324,6 +4444,8 @@ class ModelGroup extends DataClass implements Insertable<ModelGroup> {
     int? maxTokens,
     int? contextWindow,
     bool? enabled,
+    double? inputPricePerMillion,
+    double? outputPricePerMillion,
   }) => ModelGroup(
     id: id ?? this.id,
     provider: provider ?? this.provider,
@@ -4335,6 +4457,8 @@ class ModelGroup extends DataClass implements Insertable<ModelGroup> {
     maxTokens: maxTokens ?? this.maxTokens,
     contextWindow: contextWindow ?? this.contextWindow,
     enabled: enabled ?? this.enabled,
+    inputPricePerMillion: inputPricePerMillion ?? this.inputPricePerMillion,
+    outputPricePerMillion: outputPricePerMillion ?? this.outputPricePerMillion,
   );
   ModelGroup copyWithCompanion(ModelGroupsCompanion data) {
     return ModelGroup(
@@ -4352,6 +4476,12 @@ class ModelGroup extends DataClass implements Insertable<ModelGroup> {
           ? data.contextWindow.value
           : this.contextWindow,
       enabled: data.enabled.present ? data.enabled.value : this.enabled,
+      inputPricePerMillion: data.inputPricePerMillion.present
+          ? data.inputPricePerMillion.value
+          : this.inputPricePerMillion,
+      outputPricePerMillion: data.outputPricePerMillion.present
+          ? data.outputPricePerMillion.value
+          : this.outputPricePerMillion,
     );
   }
 
@@ -4367,7 +4497,9 @@ class ModelGroup extends DataClass implements Insertable<ModelGroup> {
           ..write('temperature: $temperature, ')
           ..write('maxTokens: $maxTokens, ')
           ..write('contextWindow: $contextWindow, ')
-          ..write('enabled: $enabled')
+          ..write('enabled: $enabled, ')
+          ..write('inputPricePerMillion: $inputPricePerMillion, ')
+          ..write('outputPricePerMillion: $outputPricePerMillion')
           ..write(')'))
         .toString();
   }
@@ -4384,6 +4516,8 @@ class ModelGroup extends DataClass implements Insertable<ModelGroup> {
     maxTokens,
     contextWindow,
     enabled,
+    inputPricePerMillion,
+    outputPricePerMillion,
   );
   @override
   bool operator ==(Object other) =>
@@ -4398,7 +4532,9 @@ class ModelGroup extends DataClass implements Insertable<ModelGroup> {
           other.temperature == this.temperature &&
           other.maxTokens == this.maxTokens &&
           other.contextWindow == this.contextWindow &&
-          other.enabled == this.enabled);
+          other.enabled == this.enabled &&
+          other.inputPricePerMillion == this.inputPricePerMillion &&
+          other.outputPricePerMillion == this.outputPricePerMillion);
 }
 
 class ModelGroupsCompanion extends UpdateCompanion<ModelGroup> {
@@ -4412,6 +4548,8 @@ class ModelGroupsCompanion extends UpdateCompanion<ModelGroup> {
   final Value<int> maxTokens;
   final Value<int> contextWindow;
   final Value<bool> enabled;
+  final Value<double> inputPricePerMillion;
+  final Value<double> outputPricePerMillion;
   const ModelGroupsCompanion({
     this.id = const Value.absent(),
     this.provider = const Value.absent(),
@@ -4423,6 +4561,8 @@ class ModelGroupsCompanion extends UpdateCompanion<ModelGroup> {
     this.maxTokens = const Value.absent(),
     this.contextWindow = const Value.absent(),
     this.enabled = const Value.absent(),
+    this.inputPricePerMillion = const Value.absent(),
+    this.outputPricePerMillion = const Value.absent(),
   });
   ModelGroupsCompanion.insert({
     this.id = const Value.absent(),
@@ -4435,6 +4575,8 @@ class ModelGroupsCompanion extends UpdateCompanion<ModelGroup> {
     this.maxTokens = const Value.absent(),
     this.contextWindow = const Value.absent(),
     this.enabled = const Value.absent(),
+    this.inputPricePerMillion = const Value.absent(),
+    this.outputPricePerMillion = const Value.absent(),
   }) : name = Value(name),
        baseUrl = Value(baseUrl);
   static Insertable<ModelGroup> custom({
@@ -4448,6 +4590,8 @@ class ModelGroupsCompanion extends UpdateCompanion<ModelGroup> {
     Expression<int>? maxTokens,
     Expression<int>? contextWindow,
     Expression<bool>? enabled,
+    Expression<double>? inputPricePerMillion,
+    Expression<double>? outputPricePerMillion,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -4460,6 +4604,10 @@ class ModelGroupsCompanion extends UpdateCompanion<ModelGroup> {
       if (maxTokens != null) 'max_tokens': maxTokens,
       if (contextWindow != null) 'context_window': contextWindow,
       if (enabled != null) 'enabled': enabled,
+      if (inputPricePerMillion != null)
+        'input_price_per_million': inputPricePerMillion,
+      if (outputPricePerMillion != null)
+        'output_price_per_million': outputPricePerMillion,
     });
   }
 
@@ -4474,6 +4622,8 @@ class ModelGroupsCompanion extends UpdateCompanion<ModelGroup> {
     Value<int>? maxTokens,
     Value<int>? contextWindow,
     Value<bool>? enabled,
+    Value<double>? inputPricePerMillion,
+    Value<double>? outputPricePerMillion,
   }) {
     return ModelGroupsCompanion(
       id: id ?? this.id,
@@ -4486,6 +4636,9 @@ class ModelGroupsCompanion extends UpdateCompanion<ModelGroup> {
       maxTokens: maxTokens ?? this.maxTokens,
       contextWindow: contextWindow ?? this.contextWindow,
       enabled: enabled ?? this.enabled,
+      inputPricePerMillion: inputPricePerMillion ?? this.inputPricePerMillion,
+      outputPricePerMillion:
+          outputPricePerMillion ?? this.outputPricePerMillion,
     );
   }
 
@@ -4522,6 +4675,16 @@ class ModelGroupsCompanion extends UpdateCompanion<ModelGroup> {
     if (enabled.present) {
       map['enabled'] = Variable<bool>(enabled.value);
     }
+    if (inputPricePerMillion.present) {
+      map['input_price_per_million'] = Variable<double>(
+        inputPricePerMillion.value,
+      );
+    }
+    if (outputPricePerMillion.present) {
+      map['output_price_per_million'] = Variable<double>(
+        outputPricePerMillion.value,
+      );
+    }
     return map;
   }
 
@@ -4537,7 +4700,9 @@ class ModelGroupsCompanion extends UpdateCompanion<ModelGroup> {
           ..write('temperature: $temperature, ')
           ..write('maxTokens: $maxTokens, ')
           ..write('contextWindow: $contextWindow, ')
-          ..write('enabled: $enabled')
+          ..write('enabled: $enabled, ')
+          ..write('inputPricePerMillion: $inputPricePerMillion, ')
+          ..write('outputPricePerMillion: $outputPricePerMillion')
           ..write(')'))
         .toString();
   }
@@ -5917,6 +6082,7 @@ typedef $$WorksTableCreateCompanionBuilder =
       Value<bool> pinned,
       required DateTime createdAt,
       Value<DateTime?> deletedAt,
+      Value<String> styleGuide,
     });
 typedef $$WorksTableUpdateCompanionBuilder =
     WorksCompanion Function({
@@ -5929,6 +6095,7 @@ typedef $$WorksTableUpdateCompanionBuilder =
       Value<bool> pinned,
       Value<DateTime> createdAt,
       Value<DateTime?> deletedAt,
+      Value<String> styleGuide,
     });
 
 final class $$WorksTableReferences
@@ -6117,6 +6284,11 @@ class $$WorksTableFilterComposer extends Composer<_$AppDatabase, $WorksTable> {
 
   ColumnFilters<DateTime> get deletedAt => $composableBuilder(
     column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get styleGuide => $composableBuilder(
+    column: $table.styleGuide,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6349,6 +6521,11 @@ class $$WorksTableOrderingComposer
     column: $table.deletedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get styleGuide => $composableBuilder(
+    column: $table.styleGuide,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$WorksTableAnnotationComposer
@@ -6392,6 +6569,11 @@ class $$WorksTableAnnotationComposer
 
   GeneratedColumn<DateTime> get deletedAt =>
       $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get styleGuide => $composableBuilder(
+    column: $table.styleGuide,
+    builder: (column) => column,
+  );
 
   Expression<T> volumesRefs<T extends Object>(
     Expression<T> Function($$VolumesTableAnnotationComposer a) f,
@@ -6615,6 +6797,7 @@ class $$WorksTableTableManager
                 Value<bool> pinned = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime?> deletedAt = const Value.absent(),
+                Value<String> styleGuide = const Value.absent(),
               }) => WorksCompanion(
                 id: id,
                 title: title,
@@ -6625,6 +6808,7 @@ class $$WorksTableTableManager
                 pinned: pinned,
                 createdAt: createdAt,
                 deletedAt: deletedAt,
+                styleGuide: styleGuide,
               ),
           createCompanionCallback:
               ({
@@ -6637,6 +6821,7 @@ class $$WorksTableTableManager
                 Value<bool> pinned = const Value.absent(),
                 required DateTime createdAt,
                 Value<DateTime?> deletedAt = const Value.absent(),
+                Value<String> styleGuide = const Value.absent(),
               }) => WorksCompanion.insert(
                 id: id,
                 title: title,
@@ -6647,6 +6832,7 @@ class $$WorksTableTableManager
                 pinned: pinned,
                 createdAt: createdAt,
                 deletedAt: deletedAt,
+                styleGuide: styleGuide,
               ),
           withReferenceMapper: (p0) => p0
               .map(
@@ -10357,6 +10543,8 @@ typedef $$ModelGroupsTableCreateCompanionBuilder =
       Value<int> maxTokens,
       Value<int> contextWindow,
       Value<bool> enabled,
+      Value<double> inputPricePerMillion,
+      Value<double> outputPricePerMillion,
     });
 typedef $$ModelGroupsTableUpdateCompanionBuilder =
     ModelGroupsCompanion Function({
@@ -10370,6 +10558,8 @@ typedef $$ModelGroupsTableUpdateCompanionBuilder =
       Value<int> maxTokens,
       Value<int> contextWindow,
       Value<bool> enabled,
+      Value<double> inputPricePerMillion,
+      Value<double> outputPricePerMillion,
     });
 
 class $$ModelGroupsTableFilterComposer
@@ -10428,6 +10618,16 @@ class $$ModelGroupsTableFilterComposer
 
   ColumnFilters<bool> get enabled => $composableBuilder(
     column: $table.enabled,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get inputPricePerMillion => $composableBuilder(
+    column: $table.inputPricePerMillion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get outputPricePerMillion => $composableBuilder(
+    column: $table.outputPricePerMillion,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -10490,6 +10690,16 @@ class $$ModelGroupsTableOrderingComposer
     column: $table.enabled,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<double> get inputPricePerMillion => $composableBuilder(
+    column: $table.inputPricePerMillion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get outputPricePerMillion => $composableBuilder(
+    column: $table.outputPricePerMillion,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ModelGroupsTableAnnotationComposer
@@ -10534,6 +10744,16 @@ class $$ModelGroupsTableAnnotationComposer
 
   GeneratedColumn<bool> get enabled =>
       $composableBuilder(column: $table.enabled, builder: (column) => column);
+
+  GeneratedColumn<double> get inputPricePerMillion => $composableBuilder(
+    column: $table.inputPricePerMillion,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get outputPricePerMillion => $composableBuilder(
+    column: $table.outputPricePerMillion,
+    builder: (column) => column,
+  );
 }
 
 class $$ModelGroupsTableTableManager
@@ -10577,6 +10797,8 @@ class $$ModelGroupsTableTableManager
                 Value<int> maxTokens = const Value.absent(),
                 Value<int> contextWindow = const Value.absent(),
                 Value<bool> enabled = const Value.absent(),
+                Value<double> inputPricePerMillion = const Value.absent(),
+                Value<double> outputPricePerMillion = const Value.absent(),
               }) => ModelGroupsCompanion(
                 id: id,
                 provider: provider,
@@ -10588,6 +10810,8 @@ class $$ModelGroupsTableTableManager
                 maxTokens: maxTokens,
                 contextWindow: contextWindow,
                 enabled: enabled,
+                inputPricePerMillion: inputPricePerMillion,
+                outputPricePerMillion: outputPricePerMillion,
               ),
           createCompanionCallback:
               ({
@@ -10601,6 +10825,8 @@ class $$ModelGroupsTableTableManager
                 Value<int> maxTokens = const Value.absent(),
                 Value<int> contextWindow = const Value.absent(),
                 Value<bool> enabled = const Value.absent(),
+                Value<double> inputPricePerMillion = const Value.absent(),
+                Value<double> outputPricePerMillion = const Value.absent(),
               }) => ModelGroupsCompanion.insert(
                 id: id,
                 provider: provider,
@@ -10612,6 +10838,8 @@ class $$ModelGroupsTableTableManager
                 maxTokens: maxTokens,
                 contextWindow: contextWindow,
                 enabled: enabled,
+                inputPricePerMillion: inputPricePerMillion,
+                outputPricePerMillion: outputPricePerMillion,
               ),
           withReferenceMapper: (p0) => p0
               .map(

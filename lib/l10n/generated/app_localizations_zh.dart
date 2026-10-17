@@ -1095,7 +1095,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsTaskMapping => '任务与模型映射';
 
   @override
-  String get settingsTaskMappingSubtitle => '为续写、灵感、AI 感检查分别指定模型组';
+  String get settingsTaskMappingSubtitle => '为续写、问答、体检等各类 AI 任务指定模型组';
 
   @override
   String get settingsTokenStats => 'Token 与采纳统计';
@@ -2035,6 +2035,116 @@ class AppLocalizationsZh extends AppLocalizations {
   String get workDetailAiSettings => 'AI 设置';
 
   @override
+  String get workDetailStyleGuide => '文风档案';
+
+  @override
+  String get styleGuideTitle => '文风档案';
+
+  @override
+  String get styleGuideIntro => '文风档案会注入续写、改写、开篇与剧情推演，让 AI 更贴近你的写法。';
+
+  @override
+  String get styleGuidePerspective => '叙事人称与视角';
+
+  @override
+  String get styleGuidePerspectiveHint => '例如：第三人称限知，跟随女主';
+
+  @override
+  String get styleGuideTone => '语言风格与基调';
+
+  @override
+  String get styleGuideToneHint => '例如：冷峻克制，短句为主，少用形容词';
+
+  @override
+  String get styleGuideTaboos => '禁忌与偏好';
+
+  @override
+  String get styleGuideTaboosHint => '例如：不用网络流行语，少用感叹号';
+
+  @override
+  String get styleGuideSample => '示例段落';
+
+  @override
+  String get styleGuideSampleHint => '粘贴一段你的正文，AI 会模仿语感与节奏';
+
+  @override
+  String get styleGuideExtract => 'AI 从最近章节提取';
+
+  @override
+  String get styleGuideExtracting => '正在分析最近章节…';
+
+  @override
+  String get styleGuideExtractTitle => 'AI 提取结果';
+
+  @override
+  String get styleGuideExtractConfirm => '将用 AI 结果覆盖对应字段，是否继续？';
+
+  @override
+  String get styleGuideApply => '填入表单';
+
+  @override
+  String get styleGuideApplied => '已填入表单，确认后请保存';
+
+  @override
+  String get styleGuideSaved => '文风档案已保存';
+
+  @override
+  String styleGuideExtractFailed(String message) {
+    return '提取失败：$message';
+  }
+
+  @override
+  String get modelEditInputPrice => '输入单价（元/百万 token）';
+
+  @override
+  String get modelEditOutputPrice => '输出单价（元/百万 token）';
+
+  @override
+  String get modelEditPriceHelper => '选填，用于 token 统计页估算费用';
+
+  @override
+  String get entityExtractTitle => 'AI 设定补全';
+
+  @override
+  String get entityExtractIntro => '从最近章节抽取角色与世界观 / 地点 / 道具，预览去重后可一键建档。';
+
+  @override
+  String get entityExtractStart => 'AI 抽取设定';
+
+  @override
+  String get entityExtractRunning => '正在阅读最近章节…';
+
+  @override
+  String get entityExtractEmpty => '没有发现可补充的新条目。';
+
+  @override
+  String get entityExtractParseFailed => 'AI 返回内容无法解析，请重试。';
+
+  @override
+  String get entityExtractCharacters => '角色卡';
+
+  @override
+  String get entityExtractSettings => '设定条目';
+
+  @override
+  String get entityExtractExisting => '已存在';
+
+  @override
+  String entityExtractApply(int count) {
+    return '应用所选（$count）';
+  }
+
+  @override
+  String entityExtractApplied(int characters, int settings) {
+    return '已添加 $characters 个角色、$settings 条设定';
+  }
+
+  @override
+  String entityExtractFailed(String message) {
+    return '抽取失败：$message';
+  }
+
+  @override
   String get workDetailRenameWork => '重命名作品';
 
   @override
@@ -2410,4 +2520,198 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aboutLicensesAction => '查看许可清单';
+
+  @override
+  String get plotPlanTitle => '剧情推演';
+
+  @override
+  String get plotPlanIntro => '基于已有章纲、角色与最近正文，推演后续走向与分章建议；满意的条目可存入灵感箱。';
+
+  @override
+  String get plotPlanDirection => '希望的方向（可选）';
+
+  @override
+  String get plotPlanDirectionHint => '例如：让女主主动摊牌，但暂时不要揭露身世';
+
+  @override
+  String get plotPlanStart => '开始推演';
+
+  @override
+  String get plotPlanRunning => '正在推演剧情…';
+
+  @override
+  String get plotPlanRegenerate => '重新推演';
+
+  @override
+  String get plotPlanDirections => '剧情走向';
+
+  @override
+  String get plotPlanChapters => '分章建议';
+
+  @override
+  String get plotPlanHook => '看点与风险';
+
+  @override
+  String get plotPlanSaveInspiration => '存入灵感箱';
+
+  @override
+  String get plotPlanSaved => '已存入灵感箱';
+
+  @override
+  String get plotPlanParseFailed => 'AI 返回的不是结构化结果，已按原文展示。';
+
+  @override
+  String plotPlanFailed(String message) {
+    return '推演失败：$message';
+  }
+
+  @override
+  String get chatTitle => '作品问答';
+
+  @override
+  String get chatIntro => '基于作品设定、章纲与正文回答你的问题；需要细节时会自动检索相关章节。';
+
+  @override
+  String get chatEmpty => '和 AI 聊聊这部作品';
+
+  @override
+  String get chatInputHint => '输入问题…';
+
+  @override
+  String get chatSend => '发送';
+
+  @override
+  String get chatStop => '停止';
+
+  @override
+  String get chatThinking => '正在思考…';
+
+  @override
+  String get chatNoReply => '（没有返回内容）';
+
+  @override
+  String get chatClearTitle => '清空对话';
+
+  @override
+  String get chatClearBody => '将删除这部作品的问答记录，不影响作品内容。是否继续？';
+
+  @override
+  String get chatClearAction => '清空';
+
+  @override
+  String get chatContextTitle => '上下文详情';
+
+  @override
+  String chatContextUsage(int estimated, int budget) {
+    return '已注入约 $estimated / $budget token';
+  }
+
+  @override
+  String get chatSuggestionGoal => '主角目前的目标是什么？';
+
+  @override
+  String get chatSuggestionForeshadow => '哪些伏笔还没回收？';
+
+  @override
+  String get chatSuggestionRelationship => '梳理主要人物关系';
+
+  @override
+  String get editorContinuityStop => '停止';
+
+  @override
+  String get editorContinuityStopped => '已停止生成，以下是已生成的内容。';
+
+  @override
+  String get editorContinuityStoppedEmpty => '已停止，尚未收到内容。';
+
+  @override
+  String get continuityScanTitle => '全书一致性体检';
+
+  @override
+  String get continuityScanIntro =>
+      '逐章检查正文与角色卡、设定集、章纲、前情是否冲突。全书按顺序执行，避免并发触发服务商限流；可随时停止并保留已完成的结果。';
+
+  @override
+  String get continuityScanEmpty => '没有可检查的章节，请先写正文。';
+
+  @override
+  String get continuityScanStart => '开始全书体检';
+
+  @override
+  String get continuityScanRerun => '重新体检';
+
+  @override
+  String continuityScanRunning(int current, int total) {
+    return '正在检查第 $current / $total 章…';
+  }
+
+  @override
+  String get continuityScanStopping => '当前章完成后停止…';
+
+  @override
+  String get continuityScanCancel => '停止体检';
+
+  @override
+  String get continuityScanResult => '检查结果';
+
+  @override
+  String continuityScanProgress(int done, int total) {
+    return '已完成 $done / $total 章';
+  }
+
+  @override
+  String get continuityScanNoIssues => '未发现冲突';
+
+  @override
+  String get continuityScanHasIssues => '发现疑似冲突，点击查看';
+
+  @override
+  String get continuityScanChapterFailed => '本章检查失败';
+
+  @override
+  String continuityScanFailedLine(String message) {
+    return '检查失败：$message';
+  }
+
+  @override
+  String get continuityScanCopyAll => '复制全部结果';
+
+  @override
+  String get continuityScanCopied => '已复制到剪贴板';
+
+  @override
+  String get aiTaskStyle => 'AI 文风提取';
+
+  @override
+  String get aiTaskExtract => 'AI 设定补全';
+
+  @override
+  String get aiTaskPlan => 'AI 剧情推演';
+
+  @override
+  String get aiTaskChat => 'AI 作品问答';
+
+  @override
+  String get tokenStatsEstimatedCost => '预计费用';
+
+  @override
+  String tokenStatsCostValue(String amount) {
+    return '¥$amount';
+  }
+
+  @override
+  String get tokenStatsCostHint => '在模型组中填写每百万 token 单价后，可在这里估算费用。';
+
+  @override
+  String tokenStatsCostPartial(int count) {
+    return '$count 个模型未填写单价，未计入费用。';
+  }
+
+  @override
+  String modelGroupsPriceLine(String input, String output) {
+    return '¥$input / ¥$output 每百万 token';
+  }
+
+  @override
+  String get modelGroupsNoPrice => '未填单价';
 }

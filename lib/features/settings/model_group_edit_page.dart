@@ -29,6 +29,8 @@ class _ModelGroupEditPageState extends ConsumerState<ModelGroupEditPage> {
   final _apiKey = TextEditingController();
   final _maxTokens = TextEditingController(text: '1024');
   final _contextWindow = TextEditingController(text: '32000');
+  final _inputPrice = TextEditingController();
+  final _outputPrice = TextEditingController();
 
   String _provider = AiProvider.openaiCompat;
   double _temperature = 0.8;
@@ -55,6 +57,8 @@ class _ModelGroupEditPageState extends ConsumerState<ModelGroupEditPage> {
     _apiKey.dispose();
     _maxTokens.dispose();
     _contextWindow.dispose();
+    _inputPrice.dispose();
+    _outputPrice.dispose();
     super.dispose();
   }
 
@@ -80,6 +84,12 @@ class _ModelGroupEditPageState extends ConsumerState<ModelGroupEditPage> {
       _temperature = group.temperature;
       _maxTokens.text = '${group.maxTokens}';
       _contextWindow.text = '${group.contextWindow}';
+      _inputPrice.text = group.inputPricePerMillion > 0
+          ? '${group.inputPricePerMillion}'
+          : '';
+      _outputPrice.text = group.outputPricePerMillion > 0
+          ? '${group.outputPricePerMillion}'
+          : '';
       _enabled = group.enabled;
       _hasKey = hasKey;
       _loading = false;
@@ -103,6 +113,8 @@ class _ModelGroupEditPageState extends ConsumerState<ModelGroupEditPage> {
     final models = _modelList;
     final maxTokens = int.tryParse(_maxTokens.text.trim()) ?? 1024;
     final contextWindow = int.tryParse(_contextWindow.text.trim()) ?? 32000;
+    final inputPrice = double.tryParse(_inputPrice.text.trim()) ?? 0;
+    final outputPrice = double.tryParse(_outputPrice.text.trim()) ?? 0;
     final apiKey = _apiKey.text.trim();
 
     if (_isNew) {
@@ -114,6 +126,8 @@ class _ModelGroupEditPageState extends ConsumerState<ModelGroupEditPage> {
         temperature: _temperature,
         maxTokens: maxTokens,
         contextWindow: contextWindow,
+        inputPricePerMillion: inputPrice,
+        outputPricePerMillion: outputPrice,
         enabled: _enabled,
         apiKey: apiKey.isEmpty ? null : apiKey,
       );
@@ -127,6 +141,8 @@ class _ModelGroupEditPageState extends ConsumerState<ModelGroupEditPage> {
         temperature: _temperature,
         maxTokens: maxTokens,
         contextWindow: contextWindow,
+        inputPricePerMillion: inputPrice,
+        outputPricePerMillion: outputPrice,
         enabled: _enabled,
         apiKey: apiKey.isEmpty ? null : apiKey,
       );
@@ -177,6 +193,8 @@ class _ModelGroupEditPageState extends ConsumerState<ModelGroupEditPage> {
       temperature: _temperature,
       maxTokens: int.tryParse(_maxTokens.text.trim()) ?? 1024,
       contextWindow: int.tryParse(_contextWindow.text.trim()) ?? 32000,
+      inputPricePerMillion: double.tryParse(_inputPrice.text.trim()) ?? 0,
+      outputPricePerMillion: double.tryParse(_outputPrice.text.trim()) ?? 0,
       enabled: _enabled,
     );
     final result = await ref
@@ -327,6 +345,44 @@ class _ModelGroupEditPageState extends ConsumerState<ModelGroupEditPage> {
                         ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: TextFormField(
+                          controller: _inputPrice,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          decoration: InputDecoration(
+                            labelText: l10n.modelEditInputPrice,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextFormField(
+                          controller: _outputPrice,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          decoration: InputDecoration(
+                            labelText: l10n.modelEditOutputPrice,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      l10n.modelEditPriceHelper,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: context.paper.inkSoft,
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 12),
                   SwitchListTile(

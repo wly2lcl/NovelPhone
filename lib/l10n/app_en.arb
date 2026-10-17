@@ -306,7 +306,7 @@
   "settingsModelGroups": "Model Groups & API Keys",
   "settingsModelGroupsSubtitle": "Manage keys, base URLs, models, and generation settings per provider",
   "settingsTaskMapping": "Task & Model Mapping",
-  "settingsTaskMappingSubtitle": "Assign model groups for continue writing, inspiration, and AI-flavor checks",
+  "settingsTaskMappingSubtitle": "Assign model groups for writing, Q&A, consistency scans, and other AI tasks",
   "settingsTokenStats": "Token & Adoption Stats",
   "settingsMcpServers": "MCP Tool Servers",
   "settingsMcpServersSubtitle": "Connect remote MCP servers and expose their tools to the AI",
@@ -643,6 +643,71 @@
   "workDetailImportTxtDocx": "Import txt / docx",
   "workDetailInspirationsTitle": "Inspiration box",
   "workDetailAiSettings": "AI settings",
+  "workDetailStyleGuide": "Style profile",
+  "styleGuideTitle": "Style profile",
+  "styleGuideIntro": "The style profile is injected into continuation, rewrite, opening, and plot planning so AI follows your voice.",
+  "styleGuidePerspective": "Narrative person & viewpoint",
+  "styleGuidePerspectiveHint": "e.g. third-person limited, following the heroine",
+  "styleGuideTone": "Voice & tone",
+  "styleGuideToneHint": "e.g. restrained and cool, short sentences, few adjectives",
+  "styleGuideTaboos": "Taboos & preferences",
+  "styleGuideTaboosHint": "e.g. no internet slang, avoid exclamation marks",
+  "styleGuideSample": "Sample paragraph",
+  "styleGuideSampleHint": "Paste a passage of your prose; AI will mimic its rhythm",
+  "styleGuideExtract": "Extract with AI from recent chapters",
+  "styleGuideExtracting": "Analyzing recent chapters…",
+  "styleGuideExtractTitle": "AI extraction result",
+  "styleGuideExtractConfirm": "AI results will overwrite the matching fields. Continue?",
+  "styleGuideApply": "Fill the form",
+  "styleGuideApplied": "Filled the form — remember to save",
+  "styleGuideSaved": "Style profile saved",
+  "styleGuideExtractFailed": "Extraction failed: {message}",
+  "@styleGuideExtractFailed": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "modelEditInputPrice": "Input price (CNY / 1M tokens)",
+  "modelEditOutputPrice": "Output price (CNY / 1M tokens)",
+  "modelEditPriceHelper": "Optional; used to estimate cost on the token stats page",
+  "entityExtractTitle": "AI setting completion",
+  "entityExtractIntro": "Extract characters and worldbuilding / locations / items from recent chapters, review duplicates, then add them in one tap.",
+  "entityExtractStart": "Extract with AI",
+  "entityExtractRunning": "Reading recent chapters…",
+  "entityExtractEmpty": "No new entries to add.",
+  "entityExtractParseFailed": "AI returned unparseable content. Try again.",
+  "entityExtractCharacters": "Characters",
+  "entityExtractSettings": "Setting entries",
+  "entityExtractExisting": "Exists",
+  "entityExtractApply": "Apply selected ({count})",
+  "@entityExtractApply": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "entityExtractApplied": "Added {characters, plural, =1{1 character} other{{characters} characters}} and {settings, plural, =1{1 setting} other{{settings} settings}}",
+  "@entityExtractApplied": {
+    "placeholders": {
+      "characters": {
+        "type": "int"
+      },
+      "settings": {
+        "type": "int"
+      }
+    }
+  },
+  "entityExtractFailed": "Extraction failed: {message}",
+  "@entityExtractFailed": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
   "workDetailRenameWork": "Rename work",
   "workDetailImportedCount": "{count, plural, =1{Imported 1 chapter} other{Imported {count} chapters}}",
   "workDetailRecordInspiration": "New inspiration",
@@ -755,5 +820,64 @@
   "aboutPrivacyErase": "Uninstalling the app clears both the local data and the credentials in the secure store.",
   "aboutLicenses": "Open-source licenses",
   "aboutLicensesSubtitle": "NovelPhone bundles the following third-party open-source components, retaining their original licenses.",
-  "aboutLicensesAction": "View licenses"
+  "aboutLicensesAction": "View licenses",
+  "plotPlanTitle": "Plot planning",
+  "plotPlanIntro": "Based on your existing outline, characters and recent chapters, sketch what happens next and how to split it into chapters. Save any idea you like to the inspiration box.",
+  "plotPlanDirection": "Preferred direction (optional)",
+  "plotPlanDirectionHint": "e.g. Have the heroine confront him, but keep her origin secret for now",
+  "plotPlanStart": "Generate plot directions",
+  "plotPlanRunning": "Thinking through the plot...",
+  "plotPlanRegenerate": "Regenerate",
+  "plotPlanDirections": "Plot directions",
+  "plotPlanChapters": "Chapter suggestions",
+  "plotPlanHook": "Hook & risks",
+  "plotPlanSaveInspiration": "Save to inspiration box",
+  "plotPlanSaved": "Saved to the inspiration box",
+  "plotPlanParseFailed": "The model did not return structured JSON; showing its raw response instead.",
+  "plotPlanFailed": "Plot planning failed: {message}",
+  "chatTitle": "Ask this work",
+  "chatIntro": "Ask questions grounded in this work's story bible, outline and chapters; details are looked up on demand.",
+  "chatEmpty": "Chat about this work",
+  "chatInputHint": "Type a question...",
+  "chatSend": "Send",
+  "chatStop": "Stop",
+  "chatThinking": "Thinking...",
+  "chatNoReply": "(No reply content)",
+  "chatClearTitle": "Clear conversation",
+  "chatClearBody": "This deletes the Q&A history for this work, without touching the manuscript. Continue?",
+  "chatClearAction": "Clear",
+  "chatContextTitle": "Context details",
+  "chatContextUsage": "About {estimated} / {budget} tokens injected",
+  "chatSuggestionGoal": "What is the protagonist trying to do right now?",
+  "chatSuggestionForeshadow": "Which foreshadowing threads are still unresolved?",
+  "chatSuggestionRelationship": "Summarize the main character relationships",
+  "editorContinuityStop": "Stop",
+  "editorContinuityStopped": "Generation stopped; here is what was produced so far.",
+  "editorContinuityStoppedEmpty": "Stopped before any content arrived.",
+  "continuityScanTitle": "Whole-work consistency check",
+  "continuityScanIntro": "Checks every chapter against character cards, the story bible, outline and previous summaries. Chapters run sequentially to avoid provider rate limits; you can stop anytime and keep finished results.",
+  "continuityScanEmpty": "No chapters to check. Write some content first.",
+  "continuityScanStart": "Start whole-work check",
+  "continuityScanRerun": "Run again",
+  "continuityScanRunning": "Checking chapter {current} of {total}...",
+  "continuityScanStopping": "Stopping after the current chapter...",
+  "continuityScanCancel": "Stop check",
+  "continuityScanResult": "Results",
+  "continuityScanProgress": "{done} of {total} chapters checked",
+  "continuityScanNoIssues": "No conflicts found",
+  "continuityScanHasIssues": "Possible conflicts found - tap to view",
+  "continuityScanChapterFailed": "Check failed for this chapter",
+  "continuityScanFailedLine": "Check failed: {message}",
+  "continuityScanCopyAll": "Copy all results",
+  "continuityScanCopied": "Copied to clipboard",
+  "aiTaskStyle": "AI style extraction",
+  "aiTaskExtract": "AI setting completion",
+  "aiTaskPlan": "AI plot planning",
+  "aiTaskChat": "AI work Q&A",
+  "tokenStatsEstimatedCost": "Estimated cost",
+  "tokenStatsCostValue": "¥{amount}",
+  "tokenStatsCostHint": "Add per-million-token prices in a model group to estimate cost here.",
+  "tokenStatsCostPartial": "{count} models have no price and are excluded.",
+  "modelGroupsPriceLine": "¥{input} / ¥{output} per 1M tokens",
+  "modelGroupsNoPrice": "No price set"
 }

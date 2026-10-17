@@ -1,9 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'db.dart';
+import 'dao/app_setting_dao.dart';
 import 'repositories/backup_repository.dart';
 import 'repositories/chapter_repository.dart';
 import 'repositories/character_repository.dart';
+import 'repositories/chat_repository.dart';
 import 'repositories/inspiration_repository.dart';
 import 'repositories/mcp_audit_repository.dart';
 import 'repositories/outline_repository.dart';
@@ -64,6 +66,11 @@ final outlineRepositoryProvider = Provider<OutlineRepository>(
 
 final inspirationRepositoryProvider = Provider<InspirationRepository>(
   (ref) => InspirationRepository(ref.watch(databaseProvider)),
+);
+
+/// 作品问答历史（ENH-23）：按作品存于 APP_SETTING，最多 40 条。
+final chatRepositoryProvider = Provider<ChatRepository>(
+  (ref) => ChatRepository(AppSettingDao(ref.watch(databaseProvider))),
 );
 
 final backupRepositoryProvider = Provider<BackupRepository>(

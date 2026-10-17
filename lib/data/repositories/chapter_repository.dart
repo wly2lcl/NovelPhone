@@ -96,6 +96,10 @@ class ChapterRepository {
   Stream<List<Chapter>> watchChapters(int workId) =>
       _chapters.watchByWork(workId);
 
+  /// 作品全部章节（含正文），按目录顺序（ENH-23 批量分析 / 检索）。
+  Future<List<Chapter>> listChapters(int workId) =>
+      _chapters.findByWork(workId);
+
   /// 目录 / 大纲等 UI 只需章节元数据（ENH-10）：不读取正文，避免自动保存时重读全书。
   Stream<List<Chapter>> watchChapterMetas(int workId) =>
       _chapters.watchMetaByWork(workId);
