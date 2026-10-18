@@ -4526,6 +4526,84 @@ abstract class AppLocalizations {
   /// **'导出失败：{detail}'**
   String exportActionsShareFailed(String detail);
 
+  /// No description provided for @settingsSectionSecurity.
+  ///
+  /// In zh, this message translates to:
+  /// **'安全'**
+  String get settingsSectionSecurity;
+
+  /// No description provided for @settingsAppLock.
+  ///
+  /// In zh, this message translates to:
+  /// **'应用锁'**
+  String get settingsAppLock;
+
+  /// No description provided for @settingsAppLockSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'启动或回到前台时验证指纹 / 面容 / 锁屏密码'**
+  String get settingsAppLockSubtitle;
+
+  /// No description provided for @settingsAppLockUnavailable.
+  ///
+  /// In zh, this message translates to:
+  /// **'设备未设置锁屏或生物识别，无法启用应用锁'**
+  String get settingsAppLockUnavailable;
+
+  /// No description provided for @settingsAppLockDenied.
+  ///
+  /// In zh, this message translates to:
+  /// **'验证未通过，应用锁设置未变更'**
+  String get settingsAppLockDenied;
+
+  /// No description provided for @settingsAppLockEnabled.
+  ///
+  /// In zh, this message translates to:
+  /// **'应用锁已开启'**
+  String get settingsAppLockEnabled;
+
+  /// No description provided for @settingsAppLockDisabled.
+  ///
+  /// In zh, this message translates to:
+  /// **'应用锁已关闭'**
+  String get settingsAppLockDisabled;
+
+  /// No description provided for @settingsAppLockAuthReason.
+  ///
+  /// In zh, this message translates to:
+  /// **'验证身份以修改应用锁'**
+  String get settingsAppLockAuthReason;
+
+  /// No description provided for @appLockTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'应用已锁定'**
+  String get appLockTitle;
+
+  /// No description provided for @appLockMessage.
+  ///
+  /// In zh, this message translates to:
+  /// **'验证身份后继续写作'**
+  String get appLockMessage;
+
+  /// No description provided for @appLockReason.
+  ///
+  /// In zh, this message translates to:
+  /// **'解锁 NovelPhone'**
+  String get appLockReason;
+
+  /// No description provided for @appLockUnlock.
+  ///
+  /// In zh, this message translates to:
+  /// **'解锁'**
+  String get appLockUnlock;
+
+  /// No description provided for @appLockFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'验证未通过，请重试'**
+  String get appLockFailed;
+
   /// No description provided for @settingsSectionAbout.
   ///
   /// In zh, this message translates to:

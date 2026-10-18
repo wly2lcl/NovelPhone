@@ -13,7 +13,7 @@
 - **数据归你**——SQLite 本地存储、API Key 存系统安全区、备份导出到本地文件或你自己的对象存储；
 - **治理「AI 味」**——内置规则引擎与可选 LLM 深检标记套话、重复句式等问题，支持定位与一键替换；AI 续写默认并发生成多个候选，供你对照挑选。
 
-当前状态：MVP 功能范围（78 / 78）已收口，此后 24 项增强（ENH-01~24，含全 App 简体中文 / English 双语 UI、MCP OAuth 2.1 PKCE 与技能 front matter 导入、无障碍语义、应用图标 / 启动闪屏品牌化、发布产物交付，以及回收站、MCP 调用审计、备份校验预览、技能导出、文风档案、AI 设定补全、剧情推演、作品问答、全书一致性体检与稳定性增强；ENH-24 补齐 Markdown / EPUB 导入、推演转章纲、角色关系抽取、批量摘要、月度 AI 预算与发布收口）全部落地；Android release 签名、AAB / 分 ABI APK 产物与 GitHub Actions CI（含 iOS 无签名构建 job 与 release 产物归档）就绪，iOS 无签名 release 构建通过，450 个自动化用例通过，真机验收记录见 [docs/TODO.md](docs/TODO.md)。ENH-23 的文风档案、AI 设定补全与剧情推演已于 2026-10-18 经 `deepseek-v4-flash` / `agnes-3.0-flash` 两个真实模型通道复验（竖屏对比截图见下）。
+当前状态：MVP 功能范围（78 / 78）已收口，此后 25 项增强（ENH-01~25，含全 App 简体中文 / English 双语 UI、MCP OAuth 2.1 PKCE 与技能 front matter 导入、无障碍语义、应用图标 / 启动闪屏品牌化、发布产物交付，以及回收站、MCP 调用审计、备份校验预览、技能导出、文风档案、AI 设定补全、剧情推演、作品问答、全书一致性体检与稳定性增强；ENH-24 补齐 Markdown / EPUB 导入、推演转章纲、角色关系抽取、批量摘要、月度 AI 预算与发布收口；ENH-25 新增推理模型空正文自动提高输出上限重试与系统生物识别 / 设备凭证应用锁）全部落地；Android release 签名、AAB / 分 ABI APK 产物与 GitHub Actions CI（含 iOS 无签名构建 job 与 release 产物归档）就绪，iOS 无签名 release 构建通过，458 个自动化用例通过，真机验收记录见 [docs/TODO.md](docs/TODO.md)。ENH-23 的文风档案、AI 设定补全与剧情推演已于 2026-10-18 经 `deepseek-v4-flash` / `agnes-3.0-flash` 两个真实模型通道复验（竖屏对比截图见下）。
 
 ## 截图
 
@@ -71,6 +71,7 @@
 - **剧情推演**：结合既有设定、章纲与最新进度给出多条走向与分章建议，可一键存入灵感箱或转为章纲
 - **作品问答**：针对整部作品的多轮对话，本地检索章节、角色、设定与章纲后作答；对话按作品持久化（保留最近 40 轮），可查看本轮注入的上下文并清空
 - **AI 感检查**：约 200 条词库规则引擎（套话 + 句式重复率 + 标点密度）与可选 LLM 深检两层级联；面板支持范围统计、类型筛选、就地高亮定位、一键替换、忽略与批量忽略同类、处置率计数；单章与整作检查均不冻结界面
+- **空正文自动重试**：推理型模型把输出预算耗在推理阶段、没有可见正文时，自动把输出上限翻倍并重试一次（以模型上下文窗口与 16384 为上限）；仍无正文才提示失败，每次尝试的 Token 用量分别计入统计
 
 ### 模型与开放能力
 
@@ -86,6 +87,7 @@
 - 全 App 深色模式：跟随系统 / 浅色 / 深色三态，暖色纸质调色板亮暗两套随主题切换
 - 品牌化外观：钢笔笔尖主题应用图标与暖色启动闪屏；「关于」页展示版本号、隐私说明要点与开源许可清单
 - 无障碍：开关 / 色块 / 弹层菜单带语义标签，仅长按可达的操作（作品卡、章节行）暴露为屏幕阅读器自定义动作，图表提供摘要描述，滑杆与标签合并播报
+- 应用锁：可选开启（默认关闭），启动与从后台返回时用系统生物识别或锁屏密码 / 图案解锁；开启与关闭都需要先通过系统验证，锁定期间仅遮挡界面、不销毁导航树，解锁后仍停留在原编辑位置；设备未设置安全锁屏时给出明确提示，不降级为明文保护
 
 ### 数据、统计与隐私
 
@@ -103,6 +105,7 @@
 | UI / 状态 | Flutter 3.44 · Riverpod · go_router |
 | 数据 | Drift（SQLite，schema v12，含完整迁移链） |
 | 安全存储 | flutter_secure_storage（keychain / keystore） |
+| 应用锁 | local_auth（系统生物识别 / 设备凭证，Android FlutterFragmentActivity + USE_BIOMETRIC，iOS Face ID 用途说明） |
 | 网络 | http（SSE 流式解析）、crypto（云备份 SigV4 直签） |
 | AI 互操作 | 三类端点协议适配、mcp_dart（远程 MCP）、自定义技能编排 |
 | 平台 | 单代码库交付 iOS / Android；当前以 Android 为主要交付与真机验收目标（iOS 已通过无签名 release 构建验证） |
@@ -154,12 +157,12 @@ dart run build_runner build --delete-conflicting-outputs
 ```bash
 dart format --output=none --set-exit-if-changed lib test
 flutter analyze
-flutter test    # 450 个用例：数据层 / 编辑器控制器 / AI 客户端与编排 / 文风与结构化输出 / 作品问答与检索 / 导入解析（txt / Markdown / EPUB）/ MCP OAuth、审计与技能导入导出 / 检查引擎 / 页面 widget
+flutter test    # 458 个用例：数据层 / 编辑器控制器 / AI 客户端与编排 / 空正文重试 / 应用锁 / 文风与结构化输出 / 作品问答与检索 / 导入解析（txt / Markdown / EPUB）/ MCP OAuth、审计与技能导入导出 / 检查引擎 / 页面 widget
 ```
 
 GitHub Actions（[ci.yml](.github/workflows/ci.yml)）在 push 与 PR 上执行上述三项检查，并在 `macos-latest` 上额外执行 iOS 无签名 release 构建（`flutter build ios --release --no-codesign`）以尽早发现 iOS 工程 / 插件集成问题；`main` push 或手动触发时还会用临时 keystore 构建 AAB 与分 ABI APK 并归档 14 天（仅供构建验证，正式上架需用离线发布证书重建，见 [docs/RELEASE.md](docs/RELEASE.md)）。
 
-开发辅助工具：[tool/fake_llm_server.dart](tool/fake_llm_server.dart) 在本机回环模拟 Chat Completions / Messages 的正常流与 429 / 5xx / 内容过滤场景，并提供文风 / 设定抽取 / 剧情推演的 JSON 场景（`/openai-style`、`/openai-extract`、`/openai-plan`）；流式分片即时 flush，可观察增量输出与「停止保留部分结果」（`GET /stats` 观测请求计数；`/openai-tool` 场景优先选 MCP 工具先发 `tool_calls`、收到工具结果后再输出文本，可贯通 MCP 调用与审计），配合 `adb reverse` 可在真机验证 AI 错误与重试路径，无需真实 API Key；[tool/fake_mcp_oauth_server.dart](tool/fake_mcp_oauth_server.dart) 模拟带 OAuth 2.1 PKCE 授权服务器（含动态注册、S256 校验、refresh_token）的 MCP server 与 echo 工具，用于验证完整授权链路。
+开发辅助工具：[tool/fake_llm_server.dart](tool/fake_llm_server.dart) 在本机回环模拟 Chat Completions / Messages 的正常流与 429 / 5xx / 内容过滤场景，并提供文风 / 设定抽取 / 剧情推演的 JSON 场景（`/openai-style`、`/openai-extract`、`/openai-plan`）与首次空正文、之后正常的 `/openai-empty-first`（记录两次请求的 `max_tokens`，用于验证自动加倍重试）；流式分片即时 flush，可观察增量输出与「停止保留部分结果」（`GET /stats` 观测请求计数；`/openai-tool` 场景优先选 MCP 工具先发 `tool_calls`、收到工具结果后再输出文本，可贯通 MCP 调用与审计），配合 `adb reverse` 可在真机验证 AI 错误与重试路径，无需真实 API Key；[tool/fake_mcp_oauth_server.dart](tool/fake_mcp_oauth_server.dart) 模拟带 OAuth 2.1 PKCE 授权服务器（含动态注册、S256 校验、refresh_token）的 MCP server 与 echo 工具，用于验证完整授权链路。
 
 ## 文档
 
@@ -167,7 +170,7 @@ GitHub Actions（[ci.yml](.github/workflows/ci.yml)）在 push 与 PR 上执行�
 |---|---|
 | [docs/PRD.md](docs/PRD.md) | 产品定位、功能范围与验收标准 |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 技术选型、分层模块、数据模型与 AI 层设计 |
-| [docs/TODO.md](docs/TODO.md) | 任务清单、进度跟踪与真机验收记录（M1-M4 + ENH-01~24） |
+| [docs/TODO.md](docs/TODO.md) | 任务清单、进度跟踪与真机验收记录（M1-M4 + ENH-01~25） |
 | [docs/RELEASE.md](docs/RELEASE.md) | 发布命令、商店资料、Data safety 口径与已知限制 |
 | [docs/PRIVACY.md](docs/PRIVACY.md) | 对外隐私政策（中英双语，商店与应用内共用） |
 | [docs/COMPLIANCE.md](docs/COMPLIANCE.md) | 隐私政策、数据安全说明与上架资料要点 |

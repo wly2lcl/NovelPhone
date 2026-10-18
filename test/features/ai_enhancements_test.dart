@@ -170,9 +170,13 @@ void main() {
     expect(result.plan.parseFailed, isFalse);
   });
 
-  test('模型只输出推理而无可见正文时抛出明确错误并保留用量', () async {
+  test('模型只输出推理而无可见正文时抛出明确错误并保留两次用量', () async {
     await configure(AiTask.plan);
-    final client = MockClient((request) async => sseResponse(''));
+    var calls = 0;
+    final client = MockClient((request) async {
+      calls++;
+      return sseResponse('');
+    });
 
     await expectLater(
       serviceWith(client).planPlot(workId: workId),
@@ -180,13 +184,38 @@ void main() {
         isA<AiServiceException>().having(
           (e) => e.message,
           'message',
-          contains('未返回内容'),
+          contains('已自动提高输出上限重试'),
         ),
       ),
     );
+    expect(calls, 2);
     final summary = await stats.stats();
     expect(summary.rows.single.task, AiTask.plan);
-    expect(summary.rows.single.completionTokens, 30);
+    expect(summary.rows.single.calls, 2);
+    expect(summary.rows.single.completionTokens, 60);
+  });
+
+  test('空正文自动提高输出上限重试一次并返回内容', () async {
+    await configure(AiTask.plan);
+    final maxTokens = <int>[];
+    final client = MockClient((request) async {
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      maxTokens.add(body['max_tokens'] as int);
+      if (maxTokens.length == 1) return sseResponse('');
+      return sseResponse(
+        '{"directions":[{"title":"雪夜来客","summary":"门外有人求见",'
+        '"beats":["开门","认出旧识"],"hook":"来客带着染血的剑穗"}],'
+        '"chapters":[{"title":"第十三章 雪夜来客","summary":"旧识登场"}]}',
+      );
+    });
+
+    final result = await serviceWith(client).planPlot(workId: workId);
+
+    expect(maxTokens, <int>[1024, 2048]);
+    expect(result.plan.directions.single.title, '雪夜来客');
+    final summary = await stats.stats();
+    expect(summary.rows.single.calls, 2);
+    expect(summary.rows.single.completionTokens, 60);
   });
 
   test('作品问答：注入历史、返回流式回答并记录 chat 用量', () async {

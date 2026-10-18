@@ -2,6 +2,8 @@
     <!-- 联网权限：AI（续写/灵感/AI 感检查）与云备份均需联网；
          Flutter 模板只在 debug/profile 清单里声明，release 构建必须在此显式声明。 -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- 应用锁（ENH-25）：local_auth 通过 BiometricPrompt 验证指纹 / 面容。 -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
     <application
         android:label="NovelPhone"
         android:name="${applicationName}"

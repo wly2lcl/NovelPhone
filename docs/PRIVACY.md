@@ -10,6 +10,7 @@ NovelPhone（以下简称「本应用」）是一款本地优先的手机小说�
 - 不接入广告、分析、崩溃上报或遥测 SDK。
 - 不上传、不备份你的作品正文、设定、角色卡、章纲、灵感、写作统计到 NovelPhone 的任何服务器（本应用没有中转服务器）。
 - 不读取与写作无关的设备信息（通讯录、位置、相册、剪贴板等）。
+- 应用锁（可选，默认关闭）只调用系统提供的生物识别 / 设备凭证校验，不读取、不存储、不上传指纹或人脸等生物识别数据。
 
 ## 2. 数据保存在哪里
 
@@ -20,6 +21,8 @@ NovelPhone（以下简称「本应用」）是一款本地优先的手机小说�
 - 作品问答历史（每部作品最多 40 轮，在本机保存，可随时清空）。
 
 API Key、MCP 认证头、MCP OAuth 令牌与云备份凭证仅保存在操作系统的安全存储（iOS Keychain / Android Keystore），数据库中只保存引用标识。
+
+应用锁的开关状态保存在本机设置中；解锁所需的指纹 / 人脸模板由操作系统保管，本应用只接收「校验通过 / 未通过」的结果。
 
 ## 3. 何时联网
 
@@ -60,6 +63,7 @@ Effective date: 2026-10-18
 NovelPhone is a local-first novel-writing app. **It collects no data by default; your manuscripts stay on your device.**
 
 - No accounts, ads, analytics, crash reporting or telemetry SDKs.
+- The optional app lock (off by default) delegates verification to the OS biometric / device-credential prompt. The app never reads, stores or uploads fingerprint or face data; it only receives a pass/fail result.
 - Manuscripts, story bible, outlines, inspirations and writing stats are stored only in the app's private SQLite database on your device. API keys and cloud-backup credentials live in the OS secure store (Keychain / Keystore).
 - The app connects to the network only when you actively use AI features, an MCP tool server, or cloud backup. Requests go **directly to the provider you configure**; NovelPhone operates no relay server. The minimum context needed for each request is sent, authenticated with your own key.
 - Optional cloud backup is off by default and uploads directly to your own S3-compatible storage.

@@ -14,6 +14,8 @@
 //   /openai-plan         返回剧情走向与分章建议 JSON（验证 ENH-23 剧情推演）
 //   /openai-tool         首次返回 tool_calls（优先选 mcp_ 前缀或名为 echo 的工具，
 //                        否则选第一个），收到 tool 结果后返回文本（验证 MCP 调用与审计）
+//   /openai-empty-first  首次只返回空正文（模拟推理模型耗尽输出预算），之后正常
+//                        （验证 ENH-25 空正文自动提高上限重试）
 //   /openai-429-first    首次请求 429，之后正常（验证 RetryingAiClient 重试）
 //   /openai-429-always   始终 429
 //   /openai-500          始终 500（验证 5xx 重试后仍透出错误）
@@ -35,8 +37,8 @@ Future<void> main(List<String> args) async {
   stdout.writeln('fake-llm 已启动：http://127.0.0.1:$port （分片间隔 ${delayMs}ms）');
   stdout.writeln(
     '场景基址：http://127.0.0.1:$port/openai、/openai-style、/openai-extract、'
-    '/openai-plan、/openai-429-first、/openai-429-always、/openai-500、'
-    '/openai-filter、/anthropic、/anthropic-429',
+    '/openai-plan、/openai-tool、/openai-empty-first、/openai-429-first、'
+    '/openai-429-always、/openai-500、/openai-filter、/anthropic、/anthropic-429',
   );
   stdout.writeln('观测：GET /stats、GET /stats/reset');
 }
@@ -118,6 +120,8 @@ class FakeLlmServer {
         return _openaiStream(request.response, pieces: <String>[_plotPlanJson]);
       case 'openai-tool':
         return _openaiToolStream(request);
+      case 'openai-empty-first':
+        return _openaiEmptyFirst(request);
       case 'openai-429-first':
         if (_failedOnce.add(scenario)) {
           return _json(request.response, 429, _rateLimitBody);
@@ -179,6 +183,49 @@ class FakeLlmServer {
     await _sse(response, <String, dynamic>{
       'choices': <dynamic>[],
       'usage': <String, dynamic>{'prompt_tokens': 12, 'completion_tokens': 9},
+    });
+    response.write('data: [DONE]\n\n');
+    await response.flush();
+    await response.close();
+  }
+
+  /// 首次无可见正文，之后正常；两次请求都打印 max_tokens 以便核对自动加倍。
+  Future<void> _openaiEmptyFirst(HttpRequest request) async {
+    final raw = await utf8.decoder.bind(request).join();
+    final body = jsonDecode(raw) as Map<String, dynamic>;
+    stdout.writeln(
+      '[fake-llm] openai-empty-first：max_tokens=${body['max_tokens']}',
+    );
+    if (_failedOnce.add('openai-empty-first')) {
+      return _openaiEmptyResponse(request.response);
+    }
+    return _openaiStream(request.response);
+  }
+
+  /// 无可见正文的流：只有角色行、结束标记与用量，模拟推理阶段吃光输出预算。
+  Future<void> _openaiEmptyResponse(HttpResponse response) async {
+    await _begin(response);
+    await _sse(response, <String, dynamic>{
+      'choices': <dynamic>[
+        <String, dynamic>{
+          'index': 0,
+          'delta': <String, dynamic>{'role': 'assistant'},
+          'finish_reason': null,
+        },
+      ],
+    });
+    await _sse(response, <String, dynamic>{
+      'choices': <dynamic>[
+        <String, dynamic>{
+          'index': 0,
+          'delta': <String, dynamic>{},
+          'finish_reason': 'length',
+        },
+      ],
+    });
+    await _sse(response, <String, dynamic>{
+      'choices': <dynamic>[],
+      'usage': <String, dynamic>{'prompt_tokens': 12, 'completion_tokens': 30},
     });
     response.write('data: [DONE]\n\n');
     await response.flush();

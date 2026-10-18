@@ -66,3 +66,8 @@ kotlin {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    // local_auth 要求 LaunchTheme 继承 AppCompat（见 res/values/styles.xml）。
+    implementation("androidx.appcompat:appcompat:1.7.1")
+}

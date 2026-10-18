@@ -7,6 +7,7 @@ import '../../app/theme.dart';
 import '../../data/data_providers.dart';
 import '../../l10n/l10n.dart';
 import '../ai/ai_providers.dart';
+import 'app_lock_controller.dart';
 import 'backup_actions.dart';
 import 'monthly_budget_dialog.dart';
 
@@ -114,6 +115,9 @@ class SettingsPage extends ConsumerWidget {
             onTap: () => context.push('/settings/trash'),
           ),
           const Divider(),
+          _SectionTitle(l10n.settingsSectionSecurity),
+          const _AppLockTile(),
+          const Divider(),
           _SectionTitle(l10n.settingsSectionAbout),
           ListTile(
             leading: const Icon(Icons.info_outline),
@@ -146,6 +150,59 @@ class _BudgetTile extends ConsumerWidget {
       ),
       trailing: Icon(Icons.chevron_right, color: context.paper.inkSoft),
       onTap: () => showMonthlyBudgetDialog(context, ref),
+    );
+  }
+}
+
+/// 应用锁开关（ENH-25）：开启 / 关闭都需要先通过系统验证。
+class _AppLockTile extends ConsumerStatefulWidget {
+  const _AppLockTile();
+
+  @override
+  ConsumerState<_AppLockTile> createState() => _AppLockTileState();
+}
+
+class _AppLockTileState extends ConsumerState<_AppLockTile> {
+  bool _busy = false;
+
+  Future<void> _toggle(bool enable) async {
+    final l10n = context.l10n;
+    final controller = ref.read(appLockControllerProvider);
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _busy = true);
+    final result = enable
+        ? await controller.enable(reason: l10n.settingsAppLockAuthReason)
+        : await controller.disable(reason: l10n.settingsAppLockAuthReason);
+    if (!mounted) return;
+    setState(() => _busy = false);
+    final message = switch (result) {
+      AppLockToggleResult.enabled => l10n.settingsAppLockEnabled,
+      AppLockToggleResult.disabled => l10n.settingsAppLockDisabled,
+      AppLockToggleResult.unavailable => l10n.settingsAppLockUnavailable,
+      AppLockToggleResult.denied => l10n.settingsAppLockDenied,
+      AppLockToggleResult.busy => null,
+    };
+    if (message != null) {
+      messenger.showSnackBar(SnackBar(content: Text(message)));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final enabled = ref.watch(appLockEnabledProvider).value ?? false;
+    return SwitchListTile(
+      secondary: _busy
+          ? const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(Icons.lock_outline),
+      title: Text(l10n.settingsAppLock),
+      subtitle: Text(l10n.settingsAppLockSubtitle),
+      value: enabled,
+      onChanged: _busy ? null : _toggle,
     );
   }
 }

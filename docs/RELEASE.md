@@ -68,6 +68,13 @@ flutter build ios --release --no-codesign   # CI 已覆盖，可验证 Pod / Xco
 3. `flutter build ipa --release` 后通过 Transporter / Xcode 上传构建。
 4. 填写 App Privacy、年龄分级、审核备注（审核员需自备模型 API Key 才能体验 AI；建议提供演示 Key 或说明「AI 功能需自行配置」，并确保未配置时其余功能可完整体验）。
 
+### 2.4 应用锁（ENH-25）的平台前置
+
+- Android：`MainActivity` 必须继承 `FlutterFragmentActivity`（`local_auth` 使用 BiometricPrompt）；清单声明 `android.permission.USE_BIOMETRIC`；日间 / 夜间启动主题继承 AppCompat（仓库已内置 `androidx.appcompat:appcompat:1.7.1`）。minSdk 24 已满足 BiometricPrompt 要求。
+- iOS：`Info.plist` 已声明 `NSFaceIDUsageDescription`；未配置该键时 Face ID 认证会直接失败。
+- 功能默认关闭，不改变商店 Data safety 的「不收集」口径；生物识别数据由系统保管，应用只接收校验结果。
+- 验收：开启应用锁（需先通过一次系统认证）→ 冷启动应出现解锁页 → 解锁后回到原页面；切到后台再返回应重新锁定；关闭应用锁同样需系统认证（详见 TODO ENH-25）。
+
 ## 3. Google Play 商店资料
 
 ### 3.1 商品信息（中文）
@@ -134,6 +141,7 @@ flutter build ios --release --no-codesign   # CI 已覆盖，可验证 Pod / Xco
 - [ ] `flutter build appbundle --release` 成功，`keytool -printcert -jarfile` 证书为正式发布证书
 - [ ] `flutter build apk --release --split-per-abi` 成功，`apksigner verify` 通过
 - [ ] 真机安装 release 包：冷启动、作品列表、编辑器、导入导出、备份、AI 未配置提示均正常
+- [ ] 应用锁：开启 / 冷启动 / 后台返回 / 关闭四项都正确要求系统认证（设备已设 PIN 或生物识别）
 - [ ] `docs/PRIVACY.md`、关于页隐私说明、商店 Data safety 三处口径一致
 - [ ] 隐私政策 URL 公网可访问，内容含生效日期与联系方式
 - [ ] 商店截图 / 图标 / 特色图片已上传且无测试数据、无真实 API Key
@@ -146,4 +154,4 @@ flutter build ios --release --no-codesign   # CI 已覆盖，可验证 Pod / Xco
 - CI release 产物使用临时签名，仅供构建验证，不可用于商店上传。
 - 应用未做平板 / 横屏专项适配；商店可不提供平板截图。
 - 云备份依赖用户自持 S3 兼容存储，首次配置需自行准备 endpoint / bucket / 凭证。
-- 推理型模型（实测 `deepseek-v4-flash` / `agnes-3.0-flash`）在输出上限较低（4096）时可能把 completion token 全部用于推理阶段而无可见正文：应用会在记录用量后明确报错「AI 未返回内容，请重试或提高输出上限」，不会展示空白结果；建议为这类模型组调高输出上限（如 8192）或改用非推理模型。该限制取决于模型服务商，不是应用可修复的协议问题。
+- 推理型模型（实测 `deepseek-v4-flash` / `agnes-3.0-flash`）在输出上限较低（4096）时可能把 completion token 全部用于推理阶段而无可见正文：应用会自动把输出上限翻倍并重试一次（以上下文窗口与 16384 为上限，每次尝试分别计入用量），重试后仍为空才明确报错「AI 未返回内容，请重试或提高输出上限」，不会展示空白结果。已进入工具调用循环的请求（可能已调用远程 MCP 工具）不会重放，避免重复副作用。仍建议为这类模型组直接调高输出上限（如 8192）或改用非推理模型。该限制取决于模型服务商，不是应用可修复的协议问题。

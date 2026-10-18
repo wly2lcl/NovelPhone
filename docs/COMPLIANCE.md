@@ -11,6 +11,7 @@
 - 作品、卷、章节正文、角色卡、章纲、灵感箱等创作数据：**仅保存在你的设备本地数据库**（SQLite），不离开设备。
 - 应用设置（模型组、baseUrl、模型名、温度与输出上限、任务→模型映射、token 与处置率计数）：保存在设备本地。
 - API Key：保存在**设备安全区**（iOS Keychain / Android Keystore），库中只保存引用标识，明文不落库、不导出、不上传。
+- 应用锁（可选，默认关闭，ENH-25）：只调用操作系统提供的生物识别 / 设备凭证校验接口（`local_auth`），**不读取、不存储、不上传**指纹或人脸等生物识别数据；应用仅保存「应用锁是否开启」这一布尔设置。
 
 ### 1.2 何时会联网
 
@@ -49,6 +50,7 @@
 | 备份文件 | zip 导出时过滤 Key 字段；恢复后需重新填写 Key |
 | 云备份凭证 | 与 API Key 同策略：AccessKey / SecretKey 仅存 flutter_secure_storage；配置 JSON（服务商 / endpoint / region / bucket / 前缀 / 保留份数）存 APP_SETTING，不含凭证、不随备份导出 |
 | 作品问答历史 | 按作品存 APP_SETTING（`work_chat_<workId>`，最多保留 40 轮），仅保存在本机、不随备份导出、不写日志；在作品问答页清空后立即删除。使用作品问答时，最近对话会作为上下文直接发送给你配置的模型服务商 |
+| 应用锁（ENH-25） | 默认关闭；开关状态存 APP_SETTING（`app_lock_enabled`），不涉及任何生物特征数据；解锁时由系统 BiometricPrompt / LocalAuthentication 完成校验并把结果返回应用，生物识别模板由操作系统保管，应用不接触、不记录、不上传；Android 仅声明 `USE_BIOMETRIC` 权限 |
 | 出网面 | 除用户配置的模型服务端点、MCP 服务地址（可选）与用户开启并触发时的云备份对象存储地址外，无任何出网请求（无更新检查、无遥测、无广告） |
 | 系统备份 | Android `allowBackup="false"` + Android 12+ `dataExtractionRules`（cloud-backup 全数据域排除）；换机设备直传（D2D）按系统默认保留、不经云端 |
 | 传输内容 | 最小可用上下文；本地规则引擎检查不联网 |
@@ -85,7 +87,7 @@
   - 数据加密：API Key 使用平台安全存储加密保存；
   - 数据删除：卸载应用即删除本地数据（系统自动云备份已关闭，不存在经 Google Drive 的云端恢复）；
   - 备份 / 迁移：系统云备份关闭；Android 12+ 换机设备直传（D2D）保留；应用内备份（文件导出 / 自持对象存储）均由用户主动触发。
-- 需要声明的权限：网络访问（仅用于用户主动触发的 AI 请求与用户开启并触发的云备份）。Android 侧须在 `android/app/src/main/AndroidManifest.xml` 声明 `android.permission.INTERNET`——Flutter 模板只在 debug/profile 清单里声明，release 构建若不补齐该权限，AI 与云备份的全部联网能力会被系统阻断。
+- 需要声明的权限：网络访问（仅用于用户主动触发的 AI 请求与用户开启并触发的云备份）与生物识别（`android.permission.USE_BIOMETRIC`，仅在你开启应用锁并解锁时由系统弹出校验；拒绝该权限不影响写作与 AI 功能）。Android 侧须在 `android/app/src/main/AndroidManifest.xml` 声明 `android.permission.INTERNET`——Flutter 模板只在 debug/profile 清单里声明，release 构建若不补齐该权限，AI 与云备份的全部联网能力会被系统阻断；应用锁还要求 `MainActivity` 继承 `FlutterFragmentActivity`。iOS 使用 Face ID / Touch ID 时在 `Info.plist` 提供 `NSFaceIDUsageDescription`，生物识别由 LocalAuthentication 框架完成。
 - 隐私政策 URL（商店必填）：`https://github.com/wly2lcl/NovelPhone/blob/main/docs/PRIVACY.md`——[PRIVACY.md](./PRIVACY.md) 是对外的独立隐私政策（中英双语、含生效日期与联系方式），与本文件 §1 保持一致；应用内「关于」页可直接打开该外链。数据安全表单与商店资料详见 [RELEASE.md](./RELEASE.md)。
 
 ## 5. 与文档的关系

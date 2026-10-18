@@ -623,6 +623,18 @@ class SettingsRepository {
   Future<void> setSetting(String key, String value) =>
       _settings.set(key, value);
 
+  /// 应用锁开关（ENH-25）：默认关闭，开启后启动 / 回前台需系统验证。
+  static const String appLockEnabledKey = 'app_lock_enabled';
+
+  Stream<bool> watchAppLockEnabled() =>
+      _settings.watch(appLockEnabledKey).map((value) => value == '1');
+
+  Future<bool> appLockEnabled() async =>
+      await getSetting(appLockEnabledKey) == '1';
+
+  Future<void> setAppLockEnabled(bool enabled) =>
+      setSetting(appLockEnabledKey, enabled ? '1' : '0');
+
   /// 月度 AI 预算（元，ENH-24）。0 表示未设置预算。
   static const String aiMonthlyBudgetKey = 'ai_monthly_budget_cny';
 

@@ -8,6 +8,7 @@ import '../../core/ai/agent_core.dart';
 import '../../core/ai/ai_client.dart';
 import '../../core/ai/ai_client_factory.dart';
 import '../../core/ai/context_builder.dart';
+import '../../core/ai/empty_output_retry.dart';
 import '../../core/ai/flavor_check.dart';
 import '../../core/ai/mcp/mcp_bridge.dart';
 import '../../core/ai/skills/skill.dart';
@@ -26,6 +27,12 @@ import '../../data/repositories/work_repository.dart';
 import '../../models/mcp_audit_entry.dart';
 import '../../models/work_style_guide.dart';
 import 'mcp_credentials.dart';
+
+typedef _CollectedText = ({
+  String text,
+  int promptTokens,
+  int completionTokens,
+});
 
 /// 灵感模式。
 class InspireMode {
@@ -476,6 +483,7 @@ class AiService {
       model: model,
       workId: workId,
       chapterId: chapterId,
+      contextWindow: group.contextWindow,
     );
   }
 
@@ -560,6 +568,7 @@ class AiService {
         model: model,
         workId: workId,
         chapterId: anchorChapterId,
+        contextWindow: group.contextWindow,
       );
       return;
     }
@@ -652,6 +661,7 @@ class AiService {
         model: model,
         workId: workId,
         chapterId: anchorChapterId,
+        contextWindow: group.contextWindow,
       );
     } finally {
       for (final session in sessions) {
@@ -713,6 +723,7 @@ class AiService {
       model: model,
       workId: workId,
       chapterId: chapterId,
+      contextWindow: group.contextWindow,
     );
   }
 
@@ -767,6 +778,7 @@ class AiService {
       model: model,
       workId: workId,
       chapterId: chapterId,
+      contextWindow: group.contextWindow,
     );
   }
 
@@ -806,51 +818,78 @@ class AiService {
       apiKey: resolved.apiKey,
       httpClient: httpClient,
     );
-    final request = injected.toRequest(
+    var request = injected.toRequest(
       model: model,
       temperature: group.temperature,
       maxTokens: group.maxTokens,
     );
 
-    final buffer = StringBuffer();
-    var promptTokens = 0;
-    var completionTokens = 0;
-    await for (final chunk in client.streamChat(request)) {
-      switch (chunk) {
-        case ChatTextDelta():
-          buffer.write(chunk.text);
-        case ChatUsage():
-          // ENH-23：工具循环可能多轮返回 usage，逐轮累加而非覆盖。
-          promptTokens += chunk.promptTokens;
-          completionTokens += chunk.completionTokens;
-        case ChatError():
-          throw ContinuityException(
-            kind: chunk.kind,
-            message: chunk.message,
-            statusCode: chunk.statusCode,
-            code: chunk.code,
-            detail: chunk.detail,
-          );
-        case ChatDone():
-        case ChatToolCalls():
-          break;
-      }
+    _CollectedText collected;
+    try {
+      collected = await _collectText(client: client, request: request);
+    } on AiServiceException catch (e) {
+      throw ContinuityException(
+        kind: e.kind,
+        message: e.message,
+        statusCode: e.statusCode,
+        code: e.code,
+        detail: e.detail,
+      );
     }
-
-    final text = buffer.toString().trim();
-    final usageId = await stats.record(
+    var usageId = await stats.record(
       task: AiTask.continuity,
       model: model,
       workId: workId,
       chapterId: chapterId,
-      promptTokens: promptTokens,
-      completionTokens: completionTokens,
-      outputChars: text.length,
+      promptTokens: collected.promptTokens,
+      completionTokens: collected.completionTokens,
+      outputChars: collected.text.length,
     );
+
+    final retryTokens = collected.text.isEmpty
+        ? nextRetryMaxTokens(
+            maxTokens: request.maxTokens,
+            contextWindow: group.contextWindow,
+          )
+        : null;
+    if (retryTokens != null) {
+      request = injected.toRequest(
+        model: model,
+        temperature: group.temperature,
+        maxTokens: retryTokens,
+      );
+      try {
+        collected = await _collectText(client: client, request: request);
+      } on AiServiceException catch (e) {
+        throw ContinuityException(
+          kind: e.kind,
+          message: e.message,
+          statusCode: e.statusCode,
+          code: e.code,
+          detail: e.detail,
+        );
+      }
+      usageId = await stats.record(
+        task: AiTask.continuity,
+        model: model,
+        workId: workId,
+        chapterId: chapterId,
+        promptTokens: collected.promptTokens,
+        completionTokens: collected.completionTokens,
+        outputChars: collected.text.length,
+      );
+    }
+
+    if (collected.text.isEmpty) {
+      throw const ContinuityException(
+        kind: AiErrorKind.badRequest,
+        message: 'AI 未返回内容（已自动提高输出上限重试），请再次尝试或改用非推理模型',
+      );
+    }
     return ContinuityReport(
-      text: text,
-      promptTokens: promptTokens,
-      completionTokens: completionTokens,
+      text: collected.text,
+      promptTokens: collected.promptTokens,
+      completionTokens: collected.completionTokens,
       usageId: usageId,
       truncated: injected.truncated,
     );
@@ -998,6 +1037,7 @@ class AiService {
       task: AiTask.chat,
       model: model,
       workId: workId,
+      contextWindow: group.contextWindow,
     );
   }
 
@@ -1042,6 +1082,7 @@ class AiService {
       model: model,
       workId: workId,
       chapterId: chapterId,
+      contextWindow: group.contextWindow,
     );
   }
 
@@ -1085,11 +1126,65 @@ class AiService {
       apiKey: resolved.apiKey,
       httpClient: httpClient,
     );
-    final request = injected.toRequest(
+    ChatRequest buildRequest(int maxTokens) => injected.toRequest(
       model: model,
       temperature: group.temperature,
-      maxTokens: group.maxTokens,
+      maxTokens: maxTokens,
     );
+
+    var request = buildRequest(group.maxTokens);
+    var collected = await _collectText(client: client, request: request);
+    var usageId = await stats.record(
+      task: task,
+      model: model,
+      workId: workId,
+      chapterId: chapterId,
+      promptTokens: collected.promptTokens,
+      completionTokens: collected.completionTokens,
+      outputChars: collected.text.length,
+    );
+
+    final retryTokens = collected.text.isEmpty
+        ? nextRetryMaxTokens(
+            maxTokens: request.maxTokens,
+            contextWindow: group.contextWindow,
+          )
+        : null;
+    if (retryTokens != null) {
+      request = buildRequest(retryTokens);
+      collected = await _collectText(client: client, request: request);
+      usageId = await stats.record(
+        task: task,
+        model: model,
+        workId: workId,
+        chapterId: chapterId,
+        promptTokens: collected.promptTokens,
+        completionTokens: collected.completionTokens,
+        outputChars: collected.text.length,
+      );
+    }
+
+    if (collected.text.isEmpty) {
+      // 推理模型可能把输出上限全部耗在推理阶段，重试后仍为空则明确失败。
+      throw const AiServiceException(
+        kind: AiErrorKind.badRequest,
+        message: 'AI 未返回内容（已自动提高输出上限重试），请再次尝试或改用非推理模型',
+      );
+    }
+    return AiOneShotResult(
+      text: collected.text,
+      promptTokens: collected.promptTokens,
+      completionTokens: collected.completionTokens,
+      usageId: usageId,
+      truncated: injected.truncated,
+    );
+  }
+
+  /// 收集一次完整流（非流式结果）；空正文的重试由调用方决定。
+  Future<_CollectedText> _collectText({
+    required AiClient client,
+    required ChatRequest request,
+  }) async {
     final buffer = StringBuffer();
     var promptTokens = 0;
     var completionTokens = 0;
@@ -1098,6 +1193,7 @@ class AiService {
         case ChatTextDelta():
           buffer.write(chunk.text);
         case ChatUsage():
+          // ENH-23：工具循环可能多轮返回 usage，逐轮累加而非覆盖。
           promptTokens += chunk.promptTokens;
           completionTokens += chunk.completionTokens;
         case ChatError():
@@ -1113,29 +1209,10 @@ class AiService {
           break;
       }
     }
-    final text = buffer.toString().trim();
-    final usageId = await stats.record(
-      task: task,
-      model: model,
-      workId: workId,
-      chapterId: chapterId,
+    return (
+      text: buffer.toString().trim(),
       promptTokens: promptTokens,
       completionTokens: completionTokens,
-      outputChars: text.length,
-    );
-    if (text.isEmpty) {
-      // 推理模型可能把输出上限全部耗在推理阶段，调用方需要明确失败而不是空白结果。
-      throw const AiServiceException(
-        kind: AiErrorKind.badRequest,
-        message: 'AI 未返回内容，请重试或提高输出上限',
-      );
-    }
-    return AiOneShotResult(
-      text: text,
-      promptTokens: promptTokens,
-      completionTokens: completionTokens,
-      usageId: usageId,
-      truncated: injected.truncated,
     );
   }
 
@@ -1187,6 +1264,7 @@ class AiService {
       model: model,
       workId: workId,
       chapterId: chapterId,
+      contextWindow: group.contextWindow,
     );
   }
 
@@ -1241,6 +1319,7 @@ class AiService {
       model: model,
       workId: workId,
       chapterId: chapterId,
+      contextWindow: group.contextWindow,
     );
   }
 
@@ -1497,70 +1576,105 @@ class AiService {
     required String model,
     required int workId,
     int? chapterId,
+    int? contextWindow,
   }) async* {
-    final stream = chunks ?? client!.streamChat(request!);
-    final buffer = StringBuffer();
-    var promptTokens = 0;
-    var completionTokens = 0;
+    var currentRequest = request;
+    Stream<ChatChunk>? pendingChunks = chunks;
 
-    await for (final chunk in stream) {
-      switch (chunk) {
-        case ChatTextDelta():
-          buffer.write(chunk.text);
-          yield AiTextChunk(chunk.text);
-        case ChatUsage():
-          // ENH-23：工具循环可能多轮返回 usage，逐轮累加而非覆盖。
-          promptTokens += chunk.promptTokens;
-          completionTokens += chunk.completionTokens;
-        case ChatError():
-          // 已生成内容保留在面板中可手动保存（PRD 5.5 边界异常）。
-          if (buffer.isNotEmpty) {
-            await stats.record(
-              task: task,
-              model: model,
-              workId: workId,
-              chapterId: chapterId,
-              promptTokens: promptTokens,
-              completionTokens: completionTokens,
-              outputChars: buffer.length,
-              outcome: AiOutcome.aborted,
+    // 首次空正文时提高输出上限重试一次；已通过工具循环产出的流不重放，
+    // 避免重复触发远程工具副作用。
+    for (var attempt = 0; ; attempt++) {
+      final stream = pendingChunks ?? client!.streamChat(currentRequest!);
+      pendingChunks = null;
+      final buffer = StringBuffer();
+      var promptTokens = 0;
+      var completionTokens = 0;
+
+      await for (final chunk in stream) {
+        switch (chunk) {
+          case ChatTextDelta():
+            buffer.write(chunk.text);
+            yield AiTextChunk(chunk.text);
+          case ChatUsage():
+            // ENH-23：工具循环可能多轮返回 usage，逐轮累加而非覆盖。
+            promptTokens += chunk.promptTokens;
+            completionTokens += chunk.completionTokens;
+          case ChatError():
+            // 已生成内容保留在面板中可手动保存（PRD 5.5 边界异常）。
+            if (buffer.isNotEmpty) {
+              await stats.record(
+                task: task,
+                model: model,
+                workId: workId,
+                chapterId: chapterId,
+                promptTokens: promptTokens,
+                completionTokens: completionTokens,
+                outputChars: buffer.length,
+                outcome: AiOutcome.aborted,
+              );
+              yield AiFinished(
+                usageId: -1,
+                text: buffer.toString(),
+                promptTokens: promptTokens,
+                completionTokens: completionTokens,
+              );
+            }
+            yield AiFailed(
+              kind: chunk.kind,
+              message: chunk.message,
+              statusCode: chunk.statusCode,
+              code: chunk.code,
+              detail: chunk.detail,
             );
-            yield AiFinished(
-              usageId: -1,
-              text: buffer.toString(),
-              promptTokens: promptTokens,
-              completionTokens: completionTokens,
-            );
-          }
-          yield AiFailed(
-            kind: chunk.kind,
-            message: chunk.message,
-            statusCode: chunk.statusCode,
-            code: chunk.code,
-            detail: chunk.detail,
-          );
-          return;
-        case ChatDone():
-        case ChatToolCalls():
-          break;
+            return;
+          case ChatDone():
+          case ChatToolCalls():
+            break;
+        }
       }
-    }
 
-    final usageId = await stats.record(
-      task: task,
-      model: model,
-      workId: workId,
-      chapterId: chapterId,
-      promptTokens: promptTokens,
-      completionTokens: completionTokens,
-      outputChars: buffer.length,
-    );
-    yield AiFinished(
-      usageId: usageId,
-      text: buffer.toString(),
-      promptTokens: promptTokens,
-      completionTokens: completionTokens,
-    );
+      final text = buffer.toString();
+      final retryTokens = text.trim().isEmpty && attempt == 0
+          ? nextRetryMaxTokens(
+              maxTokens: currentRequest?.maxTokens ?? 0,
+              contextWindow: contextWindow ?? 0,
+            )
+          : null;
+      final usageId = await stats.record(
+        task: task,
+        model: model,
+        workId: workId,
+        chapterId: chapterId,
+        promptTokens: promptTokens,
+        completionTokens: completionTokens,
+        outputChars: text.length,
+      );
+      if (retryTokens != null && currentRequest != null) {
+        currentRequest = ChatRequest(
+          model: currentRequest.model,
+          system: currentRequest.system,
+          messages: currentRequest.messages,
+          temperature: currentRequest.temperature,
+          maxTokens: retryTokens,
+          tools: currentRequest.tools,
+        );
+        continue;
+      }
+      if (text.trim().isEmpty) {
+        yield const AiFailed(
+          kind: AiErrorKind.badRequest,
+          message: 'AI 未返回内容（已自动提高输出上限重试），请再次尝试或改用非推理模型',
+        );
+        return;
+      }
+      yield AiFinished(
+        usageId: usageId,
+        text: text,
+        promptTokens: promptTokens,
+        completionTokens: completionTokens,
+      );
+      return;
+    }
   }
 
   static const String _ideasSystem = '''

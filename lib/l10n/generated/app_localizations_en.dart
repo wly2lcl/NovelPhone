@@ -2841,6 +2841,49 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get settingsSectionSecurity => 'Security';
+
+  @override
+  String get settingsAppLock => 'App lock';
+
+  @override
+  String get settingsAppLockSubtitle =>
+      'Require biometric or screen-lock verification on launch and return to foreground';
+
+  @override
+  String get settingsAppLockUnavailable =>
+      'No screen lock or biometrics is set up on this device, so app lock cannot be enabled.';
+
+  @override
+  String get settingsAppLockDenied =>
+      'Verification failed. App lock settings were not changed.';
+
+  @override
+  String get settingsAppLockEnabled => 'App lock enabled';
+
+  @override
+  String get settingsAppLockDisabled => 'App lock disabled';
+
+  @override
+  String get settingsAppLockAuthReason =>
+      'Verify your identity to change app lock';
+
+  @override
+  String get appLockTitle => 'App locked';
+
+  @override
+  String get appLockMessage => 'Verify your identity to continue writing';
+
+  @override
+  String get appLockReason => 'Unlock NovelPhone';
+
+  @override
+  String get appLockUnlock => 'Unlock';
+
+  @override
+  String get appLockFailed => 'Verification failed. Try again.';
+
+  @override
   String get settingsSectionAbout => 'About';
 
   @override

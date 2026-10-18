@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/l10n.dart';
+import 'app_lock_gate.dart';
 import 'locale.dart';
 import 'router.dart';
 import 'theme.dart';
@@ -24,6 +25,8 @@ class NovelPhoneApp extends ConsumerWidget {
       themeMode: themeMode,
       locale: locale,
       routerConfig: appRouter,
+      builder: (context, child) =>
+          AppLockGate(child: child ?? const SizedBox.shrink()),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
     );

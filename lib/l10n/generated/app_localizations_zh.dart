@@ -2487,6 +2487,45 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get settingsSectionSecurity => '安全';
+
+  @override
+  String get settingsAppLock => '应用锁';
+
+  @override
+  String get settingsAppLockSubtitle => '启动或回到前台时验证指纹 / 面容 / 锁屏密码';
+
+  @override
+  String get settingsAppLockUnavailable => '设备未设置锁屏或生物识别，无法启用应用锁';
+
+  @override
+  String get settingsAppLockDenied => '验证未通过，应用锁设置未变更';
+
+  @override
+  String get settingsAppLockEnabled => '应用锁已开启';
+
+  @override
+  String get settingsAppLockDisabled => '应用锁已关闭';
+
+  @override
+  String get settingsAppLockAuthReason => '验证身份以修改应用锁';
+
+  @override
+  String get appLockTitle => '应用已锁定';
+
+  @override
+  String get appLockMessage => '验证身份后继续写作';
+
+  @override
+  String get appLockReason => '解锁 NovelPhone';
+
+  @override
+  String get appLockUnlock => '解锁';
+
+  @override
+  String get appLockFailed => '验证未通过，请重试';
+
+  @override
   String get settingsSectionAbout => '关于';
 
   @override
