@@ -13,7 +13,7 @@
 - **数据归你**——SQLite 本地存储、API Key 存系统安全区、备份导出到本地文件或你自己的对象存储；
 - **治理「AI 味」**——内置规则引擎与可选 LLM 深检标记套话、重复句式等问题，支持定位与一键替换；AI 续写默认并发生成多个候选，供你对照挑选。
 
-当前状态：MVP 功能范围（78 / 78）已收口，此后 23 项增强（ENH-01~23，含全 App 简体中文 / English 双语 UI、MCP OAuth 2.1 PKCE 与技能 front matter 导入、无障碍语义、应用图标 / 启动闪屏品牌化、发布产物交付，以及回收站、MCP 调用审计、备份校验预览、技能导出、文风档案、AI 设定补全、剧情推演、作品问答、全书一致性体检与稳定性增强）全部落地；Android release 签名、AAB / 分 ABI APK 产物与 GitHub Actions CI（含 iOS 无签名构建 job）就绪，iOS 无签名 release 构建通过，445 个自动化用例通过，真机验收记录见 [docs/TODO.md](docs/TODO.md)。
+当前状态：MVP 功能范围（78 / 78）已收口，此后 23 项增强（ENH-01~23，含全 App 简体中文 / English 双语 UI、MCP OAuth 2.1 PKCE 与技能 front matter 导入、无障碍语义、应用图标 / 启动闪屏品牌化、发布产物交付，以及回收站、MCP 调用审计、备份校验预览、技能导出、文风档案、AI 设定补全、剧情推演、作品问答、全书一致性体检与稳定性增强）全部落地；Android release 签名、AAB / 分 ABI APK 产物与 GitHub Actions CI（含 iOS 无签名构建 job）就绪，iOS 无签名 release 构建通过，445 个自动化用例通过，真机验收记录见 [docs/TODO.md](docs/TODO.md)。ENH-23 的文风档案、AI 设定补全与剧情推演已于 2026-10-18 经 `deepseek-v4-flash` / `agnes-3.0-flash` 两个真实模型通道复验（竖屏对比截图见下）。
 
 ## 截图
 
@@ -24,6 +24,16 @@
 | AI 感检查 | AI 续写（3 个候选） |
 |:---:|:---:|
 | ![AI 感检查](docs/images/ai-check.png) | ![AI 续写](docs/images/ai-continue.png) |
+
+**ENH-23 真实模型验收（竖屏截图对比，左为使用前 / 右为 AI 结果）**
+
+| 文风档案（DeepSeek V4） | AI 设定补全（Agnes 3.0） |
+|:---:|:---:|
+| ![文风档案](docs/images/enh23-style-compare.png) | ![AI 设定补全](docs/images/enh23-extract-compare.png) |
+
+| 剧情推演（DeepSeek V4） |
+|:---:|
+| ![剧情推演](docs/images/enh23-plan-compare.png) |
 
 ## 功能特性
 

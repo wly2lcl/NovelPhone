@@ -13,7 +13,7 @@ Two design principles:
 - **Your data stays yours** — SQLite storage on device, API keys in the OS secure store, backups to local files or your own object storage;
 - **Curating the "AI flavor"** — a built-in rule engine plus optional LLM deep-check flags clichés and repetitive sentence patterns with locate-and-replace actions; AI continuation generates multiple candidates in parallel for you to compare.
 
-Status: the MVP scope (78 / 78) is complete, followed by 23 enhancements (ENH-01~23, including a full Simplified-Chinese / English bilingual UI, MCP OAuth 2.1 PKCE and skill front-matter import, accessibility semantics, a branded app icon / launch splash, release-artifact delivery, plus the recycle bin, MCP call audit, backup checksum preview, skill export, style profile, AI setting completion, plot brainstorming, work Q&A, whole-work consistency scan and stability hardening). Android release signing, AAB / split-ABI APKs and GitHub Actions CI (including an iOS unsigned-build job) are in place; the iOS unsigned release build passes and 445 automated tests pass. Real-device acceptance records are in [docs/TODO.md](docs/TODO.md) (Chinese).
+Status: the MVP scope (78 / 78) is complete, followed by 23 enhancements (ENH-01~23, including a full Simplified-Chinese / English bilingual UI, MCP OAuth 2.1 PKCE and skill front-matter import, accessibility semantics, a branded app icon / launch splash, release-artifact delivery, plus the recycle bin, MCP call audit, backup checksum preview, skill export, style profile, AI setting completion, plot brainstorming, work Q&A, whole-work consistency scan and stability hardening). Android release signing, AAB / split-ABI APKs and GitHub Actions CI (including an iOS unsigned-build job) are in place; the iOS unsigned release build passes and 445 automated tests pass. Real-device acceptance records are in [docs/TODO.md](docs/TODO.md) (Chinese). On 2026-10-18 the ENH-23 style profile, AI setting completion and plot brainstorming were re-verified against two real model channels — `deepseek-v4-flash` and `agnes-3.0-flash` (portrait comparison screenshots below).
 
 ## Screenshots
 
@@ -24,6 +24,16 @@ Status: the MVP scope (78 / 78) is complete, followed by 23 enhancements (ENH-01
 | AI-flavor check | AI continuation (3 candidates) |
 |:---:|:---:|
 | ![AI-flavor check](docs/images/ai-check.png) | ![AI continuation](docs/images/ai-continue.png) |
+
+**ENH-23 real-model acceptance (portrait comparison, left: before / right: AI result)**
+
+| Style profile (DeepSeek V4) | AI setting completion (Agnes 3.0) |
+|:---:|:---:|
+| ![Style profile](docs/images/enh23-style-compare.png) | ![AI setting completion](docs/images/enh23-extract-compare.png) |
+
+| Plot brainstorming (DeepSeek V4) |
+|:---:|
+| ![Plot brainstorming](docs/images/enh23-plan-compare.png) |
 
 ## Features
 
