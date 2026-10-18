@@ -14,6 +14,7 @@ import '../features/settings/task_mapping_page.dart';
 import '../features/settings/token_stats_page.dart';
 import '../features/settings/trash_page.dart';
 import '../features/stats/writing_stats_page.dart';
+import '../features/work_detail/batch_summary_page.dart';
 import '../features/work_detail/entity_extraction_page.dart';
 import '../features/work_detail/import_page.dart';
 import '../features/work_detail/inspirations_page.dart';
@@ -201,6 +202,13 @@ final GoRouter appRouter = GoRouter(
           name: 'workPlot',
           builder: (context, state) =>
               PlotPlanPage(workId: int.parse(state.pathParameters['workId']!)),
+        ),
+        GoRoute(
+          path: 'summaries',
+          name: 'workSummaries',
+          builder: (context, state) => BatchSummaryPage(
+            workId: int.parse(state.pathParameters['workId']!),
+          ),
         ),
         GoRoute(
           path: 'chat',

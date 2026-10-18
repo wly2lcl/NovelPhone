@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/reading_appearance.dart';
 import '../../app/summary_editor.dart';
 import '../../app/theme.dart';
+import '../../core/ai/sanitize_ai_text.dart';
 import '../../core/formatting.dart';
 import '../../core/word_count.dart';
 import '../../data/data_providers.dart';

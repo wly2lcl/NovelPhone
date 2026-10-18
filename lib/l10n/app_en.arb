@@ -308,6 +308,8 @@
   "settingsTaskMapping": "Task & Model Mapping",
   "settingsTaskMappingSubtitle": "Assign model groups for writing, Q&A, consistency scans, and other AI tasks",
   "settingsTokenStats": "Token & Adoption Stats",
+  "settingsAiBudget": "Monthly AI budget",
+  "settingsAiBudgetValue": "¥{value} / month",
   "settingsMcpServers": "MCP Tool Servers",
   "settingsMcpServersSubtitle": "Connect remote MCP servers and expose their tools to the AI",
   "settingsSkills": "Custom Skills",
@@ -640,7 +642,7 @@
   "workDetailTabWorldbuilding": "Worldbuilding",
   "workDetailTabOutline": "Outline",
   "workDetailRunFlavorCheck": "Run AI-feel check",
-  "workDetailImportTxtDocx": "Import txt / docx",
+  "workDetailImportTxtDocx": "Import txt / docx / Markdown / EPUB",
   "workDetailInspirationsTitle": "Inspiration box",
   "workDetailAiSettings": "AI settings",
   "workDetailStyleGuide": "Style profile",
@@ -680,6 +682,8 @@
   "entityExtractParseFailed": "AI returned unparseable content. Try again.",
   "entityExtractCharacters": "Characters",
   "entityExtractSettings": "Setting entries",
+  "entityExtractRelations": "Character relations",
+  "entityExtractRelationMissing": "One or both characters are not in this extraction",
   "entityExtractExisting": "Exists",
   "entityExtractApply": "Apply selected ({count})",
   "@entityExtractApply": {
@@ -689,13 +693,16 @@
       }
     }
   },
-  "entityExtractApplied": "Added {characters, plural, =1{1 character} other{{characters} characters}} and {settings, plural, =1{1 setting} other{{settings} settings}}",
+  "entityExtractApplied": "Added {characters, plural, =1{1 character} other{{characters} characters}}, {settings, plural, =1{1 setting} other{{settings} settings}} and {relations, plural, =1{1 relation} other{{relations} relations}}",
   "@entityExtractApplied": {
     "placeholders": {
       "characters": {
         "type": "int"
       },
       "settings": {
+        "type": "int"
+      },
+      "relations": {
         "type": "int"
       }
     }
@@ -781,7 +788,7 @@
   "relationGraphLabelField": "Relation (e.g. mentor, arch-rival)",
   "relationGraphSelectTwo": "Please select two different characters",
   "importPageTitle": "Import manuscript",
-  "importPagePickFile": "Choose txt / docx file",
+  "importPagePickFile": "Choose a manuscript (txt / docx / md / epub)",
   "importPageRepickFile": "Choose another file",
   "importPageConfirmButton": "{count, plural, =1{Import 1 chapter} other{Import {count} chapters}}",
   "importPageFileTooLarge": "The file exceeds the 10 MB limit. Split it on a computer before importing.",
@@ -794,7 +801,7 @@
   "importPageDropEmpty": "Drop empty chapters",
   "importPageNoImportable": "No chapters to import",
   "importPagePickHintTitle": "Import an old draft",
-  "importPagePickHintBody": "Supports txt (UTF-8 / GBK) and docx. Chapters are split automatically by headings such as \"Chapter X\", and you can preview and adjust them in the next step.",
+  "importPagePickHintBody": "Supports txt (UTF-8 / GBK), docx, Markdown (.md) and EPUB. Chapters are split automatically by headings such as \"Chapter X\", and you can preview and adjust them in the next step.",
   "importPageFileSummary": "{count, plural, =1{Encoding {encoding} · 1 chapter · {words} words in total} other{Encoding {encoding} · {count} chapters · {words} words in total}}",
   "importPageMergeIntoPrevious": "Merge into previous chapter",
   "exportActionsFormatTxt": "Plain text (.txt)",
@@ -818,11 +825,13 @@
   "aboutPrivacyNetwork": "The app goes online only when you actively use AI, an MCP tool server or cloud backup, connecting straight to the provider you configured - no relay server in between.",
   "aboutPrivacyOffline": "The built-in rule-engine AI-flavor check works fully offline and never scans your text over the network.",
   "aboutPrivacyErase": "Uninstalling the app clears both the local data and the credentials in the secure store.",
+  "aboutPrivacyPolicyLink": "Read the full privacy policy (opens in browser)",
+  "aboutPrivacyLinkFailed": "Could not open the browser. Try again later.",
   "aboutLicenses": "Open-source licenses",
   "aboutLicensesSubtitle": "NovelPhone bundles the following third-party open-source components, retaining their original licenses.",
   "aboutLicensesAction": "View licenses",
   "plotPlanTitle": "Plot planning",
-  "plotPlanIntro": "Based on your existing outline, characters and recent chapters, sketch what happens next and how to split it into chapters. Save any idea you like to the inspiration box.",
+  "plotPlanIntro": "Based on your existing outline, characters and recent chapters, sketch what happens next and how to split it into chapters. Save any idea you like to the inspiration box or add it to the outline.",
   "plotPlanDirection": "Preferred direction (optional)",
   "plotPlanDirectionHint": "e.g. Have the heroine confront him, but keep her origin secret for now",
   "plotPlanStart": "Generate plot directions",
@@ -833,8 +842,56 @@
   "plotPlanHook": "Hook & risks",
   "plotPlanSaveInspiration": "Save to inspiration box",
   "plotPlanSaved": "Saved to the inspiration box",
+  "plotPlanToOutline": "Add to outline",
+  "plotPlanOutlineSaved": "Added to the outline",
   "plotPlanParseFailed": "The model did not return structured JSON; showing its raw response instead.",
   "plotPlanFailed": "Plot planning failed: {message}",
+  "batchSummaryTitle": "Batch chapter summaries",
+  "batchSummaryIntro": "Generate recaps for chapters with no summary or with updated text. Results are written back to each chapter.",
+  "batchSummaryStart": "Generate missing summaries ({count})",
+  "@batchSummaryStart": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "batchSummaryAll": "Regenerate all",
+  "batchSummaryRunning": "Generating {current}/{total}…",
+  "@batchSummaryRunning": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "batchSummaryStopping": "Stopping after the current chapter…",
+  "batchSummaryCancel": "Stop",
+  "batchSummaryEmpty": "All chapter summaries are up to date.",
+  "batchSummaryMissing": "Missing summary",
+  "batchSummaryStale": "Text updated",
+  "batchSummaryCurrent": "Summary is current",
+  "batchSummaryDone": "Generated {count, plural, =1{1 summary} other{{count} summaries}}",
+  "@batchSummaryDone": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "batchSummaryFailed": "Generation failed: {message}",
+  "@batchSummaryFailed": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "batchSummaryResult": "Results",
+  "batchSummaryEmptyResult": "The model returned no content",
   "chatTitle": "Ask this work",
   "chatIntro": "Ask questions grounded in this work's story bible, outline and chapters; details are looked up on demand.",
   "chatEmpty": "Chat about this work",
@@ -878,6 +935,21 @@
   "tokenStatsCostValue": "¥{amount}",
   "tokenStatsCostHint": "Add per-million-token prices in a model group to estimate cost here.",
   "tokenStatsCostPartial": "{count} models have no price and are excluded.",
+  "tokenStatsMonthly": "Monthly budget",
+  "tokenStatsBudgetUnset": "No monthly budget set",
+  "tokenStatsBudgetSet": "Set monthly budget",
+  "tokenStatsBudgetEdit": "Edit budget",
+  "tokenStatsBudgetUsage": "Spent ¥{used} of ¥{budget} this month",
+  "tokenStatsBudgetUsedOnly": "Spent ¥{used} this month",
+  "tokenStatsBudgetPercent": "{percent}% used",
+  "tokenStatsBudgetExceeded": "This month's budget is used up. Further calls will exceed it.",
+  "tokenStatsBudgetWarning": "More than 80% of this month's budget is used.",
+  "tokenStatsBudgetNoPrice": "No model prices are set, so this month's cost cannot be estimated.",
+  "tokenStatsBudgetDialogTitle": "Monthly AI budget",
+  "tokenStatsBudgetDialogBody": "Tracks AI spend per calendar month; leave empty or 0 for no limit.",
+  "tokenStatsBudgetField": "Budget (CNY)",
+  "tokenStatsBudgetInvalid": "Enter a valid amount",
+  "tokenStatsBudgetSaved": "Monthly budget updated",
   "modelGroupsPriceLine": "¥{input} / ¥{output} per 1M tokens",
   "modelGroupsNoPrice": "No price set"
 }

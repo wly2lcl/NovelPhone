@@ -1994,6 +1994,18 @@ abstract class AppLocalizations {
   /// **'Token 与采纳统计'**
   String get settingsTokenStats;
 
+  /// No description provided for @settingsAiBudget.
+  ///
+  /// In zh, this message translates to:
+  /// **'月度 AI 预算'**
+  String get settingsAiBudget;
+
+  /// No description provided for @settingsAiBudgetValue.
+  ///
+  /// In zh, this message translates to:
+  /// **'¥{value} / 月'**
+  String settingsAiBudgetValue(String value);
+
   /// No description provided for @settingsMcpServers.
   ///
   /// In zh, this message translates to:
@@ -3695,7 +3707,7 @@ abstract class AppLocalizations {
   /// No description provided for @workDetailImportTxtDocx.
   ///
   /// In zh, this message translates to:
-  /// **'导入 txt / docx'**
+  /// **'导入 txt / docx / Markdown / EPUB'**
   String get workDetailImportTxtDocx;
 
   /// No description provided for @workDetailInspirationsTitle.
@@ -3890,6 +3902,18 @@ abstract class AppLocalizations {
   /// **'设定条目'**
   String get entityExtractSettings;
 
+  /// No description provided for @entityExtractRelations.
+  ///
+  /// In zh, this message translates to:
+  /// **'角色关系'**
+  String get entityExtractRelations;
+
+  /// No description provided for @entityExtractRelationMissing.
+  ///
+  /// In zh, this message translates to:
+  /// **'关系两端的角色不在本轮抽取中'**
+  String get entityExtractRelationMissing;
+
   /// No description provided for @entityExtractExisting.
   ///
   /// In zh, this message translates to:
@@ -3905,8 +3929,8 @@ abstract class AppLocalizations {
   /// No description provided for @entityExtractApplied.
   ///
   /// In zh, this message translates to:
-  /// **'已添加 {characters} 个角色、{settings} 条设定'**
-  String entityExtractApplied(int characters, int settings);
+  /// **'已添加 {characters} 个角色、{settings} 条设定、{relations} 条关系'**
+  String entityExtractApplied(int characters, int settings, int relations);
 
   /// No description provided for @entityExtractFailed.
   ///
@@ -4355,7 +4379,7 @@ abstract class AppLocalizations {
   /// No description provided for @importPagePickFile.
   ///
   /// In zh, this message translates to:
-  /// **'选择 txt / docx 文件'**
+  /// **'选择文稿文件（txt / docx / md / epub）'**
   String get importPagePickFile;
 
   /// No description provided for @importPageRepickFile.
@@ -4433,7 +4457,7 @@ abstract class AppLocalizations {
   /// No description provided for @importPagePickHintBody.
   ///
   /// In zh, this message translates to:
-  /// **'支持 txt（UTF-8 / GBK）与 docx。导入后按「第 X 章」等标题自动分章，可在下一步预览并调整。'**
+  /// **'支持 txt（UTF-8 / GBK）、docx、Markdown（.md）与 EPUB。导入后按「第 X 章」等标题自动分章，可在下一步预览并调整。'**
   String get importPagePickHintBody;
 
   /// No description provided for @importPageFileSummary.
@@ -4574,6 +4598,18 @@ abstract class AppLocalizations {
   /// **'卸载应用即同时清除本地数据与安全区中的凭证。'**
   String get aboutPrivacyErase;
 
+  /// No description provided for @aboutPrivacyPolicyLink.
+  ///
+  /// In zh, this message translates to:
+  /// **'查看完整隐私政策（浏览器打开）'**
+  String get aboutPrivacyPolicyLink;
+
+  /// No description provided for @aboutPrivacyLinkFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'无法打开浏览器，请稍后重试。'**
+  String get aboutPrivacyLinkFailed;
+
   /// No description provided for @aboutLicenses.
   ///
   /// In zh, this message translates to:
@@ -4601,7 +4637,7 @@ abstract class AppLocalizations {
   /// No description provided for @plotPlanIntro.
   ///
   /// In zh, this message translates to:
-  /// **'基于已有章纲、角色与最近正文，推演后续走向与分章建议；满意的条目可存入灵感箱。'**
+  /// **'基于已有章纲、角色与最近正文，推演后续走向与分章建议；满意的条目可存入灵感箱或转为章纲。'**
   String get plotPlanIntro;
 
   /// No description provided for @plotPlanDirection.
@@ -4664,6 +4700,18 @@ abstract class AppLocalizations {
   /// **'已存入灵感箱'**
   String get plotPlanSaved;
 
+  /// No description provided for @plotPlanToOutline.
+  ///
+  /// In zh, this message translates to:
+  /// **'转为章纲'**
+  String get plotPlanToOutline;
+
+  /// No description provided for @plotPlanOutlineSaved.
+  ///
+  /// In zh, this message translates to:
+  /// **'已写入章纲'**
+  String get plotPlanOutlineSaved;
+
   /// No description provided for @plotPlanParseFailed.
   ///
   /// In zh, this message translates to:
@@ -4675,6 +4723,96 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'推演失败：{message}'**
   String plotPlanFailed(String message);
+
+  /// No description provided for @batchSummaryTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'批量生成摘要'**
+  String get batchSummaryTitle;
+
+  /// No description provided for @batchSummaryIntro.
+  ///
+  /// In zh, this message translates to:
+  /// **'为缺少摘要或正文已更新的章节依次生成前情摘要，结果直接写回章节。'**
+  String get batchSummaryIntro;
+
+  /// No description provided for @batchSummaryStart.
+  ///
+  /// In zh, this message translates to:
+  /// **'生成缺失摘要（{count}）'**
+  String batchSummaryStart(int count);
+
+  /// No description provided for @batchSummaryAll.
+  ///
+  /// In zh, this message translates to:
+  /// **'全部重新生成'**
+  String get batchSummaryAll;
+
+  /// No description provided for @batchSummaryRunning.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在生成第 {current}/{total} 章…'**
+  String batchSummaryRunning(int current, int total);
+
+  /// No description provided for @batchSummaryStopping.
+  ///
+  /// In zh, this message translates to:
+  /// **'将在当前章节完成后停止…'**
+  String get batchSummaryStopping;
+
+  /// No description provided for @batchSummaryCancel.
+  ///
+  /// In zh, this message translates to:
+  /// **'停止'**
+  String get batchSummaryCancel;
+
+  /// No description provided for @batchSummaryEmpty.
+  ///
+  /// In zh, this message translates to:
+  /// **'所有章节摘要都是最新的。'**
+  String get batchSummaryEmpty;
+
+  /// No description provided for @batchSummaryMissing.
+  ///
+  /// In zh, this message translates to:
+  /// **'缺少摘要'**
+  String get batchSummaryMissing;
+
+  /// No description provided for @batchSummaryStale.
+  ///
+  /// In zh, this message translates to:
+  /// **'正文已更新'**
+  String get batchSummaryStale;
+
+  /// No description provided for @batchSummaryCurrent.
+  ///
+  /// In zh, this message translates to:
+  /// **'摘要已是最新'**
+  String get batchSummaryCurrent;
+
+  /// No description provided for @batchSummaryDone.
+  ///
+  /// In zh, this message translates to:
+  /// **'已生成 {count} 章摘要'**
+  String batchSummaryDone(int count);
+
+  /// No description provided for @batchSummaryFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'生成失败：{message}'**
+  String batchSummaryFailed(String message);
+
+  /// No description provided for @batchSummaryResult.
+  ///
+  /// In zh, this message translates to:
+  /// **'生成结果'**
+  String get batchSummaryResult;
+
+  /// No description provided for @batchSummaryEmptyResult.
+  ///
+  /// In zh, this message translates to:
+  /// **'AI 未返回内容'**
+  String get batchSummaryEmptyResult;
 
   /// No description provided for @chatTitle.
   ///
@@ -4933,6 +5071,96 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'{count} 个模型未填写单价，未计入费用。'**
   String tokenStatsCostPartial(int count);
+
+  /// No description provided for @tokenStatsMonthly.
+  ///
+  /// In zh, this message translates to:
+  /// **'本月预算'**
+  String get tokenStatsMonthly;
+
+  /// No description provided for @tokenStatsBudgetUnset.
+  ///
+  /// In zh, this message translates to:
+  /// **'未设置月度预算'**
+  String get tokenStatsBudgetUnset;
+
+  /// No description provided for @tokenStatsBudgetSet.
+  ///
+  /// In zh, this message translates to:
+  /// **'设置月度预算'**
+  String get tokenStatsBudgetSet;
+
+  /// No description provided for @tokenStatsBudgetEdit.
+  ///
+  /// In zh, this message translates to:
+  /// **'编辑预算'**
+  String get tokenStatsBudgetEdit;
+
+  /// No description provided for @tokenStatsBudgetUsage.
+  ///
+  /// In zh, this message translates to:
+  /// **'本月已用 ¥{used} / 预算 ¥{budget}'**
+  String tokenStatsBudgetUsage(String used, String budget);
+
+  /// No description provided for @tokenStatsBudgetUsedOnly.
+  ///
+  /// In zh, this message translates to:
+  /// **'本月已用 ¥{used}'**
+  String tokenStatsBudgetUsedOnly(String used);
+
+  /// No description provided for @tokenStatsBudgetPercent.
+  ///
+  /// In zh, this message translates to:
+  /// **'已用 {percent}%'**
+  String tokenStatsBudgetPercent(String percent);
+
+  /// No description provided for @tokenStatsBudgetExceeded.
+  ///
+  /// In zh, this message translates to:
+  /// **'本月预算已用完，继续调用将超出预算。'**
+  String get tokenStatsBudgetExceeded;
+
+  /// No description provided for @tokenStatsBudgetWarning.
+  ///
+  /// In zh, this message translates to:
+  /// **'本月预算已用超过 80%。'**
+  String get tokenStatsBudgetWarning;
+
+  /// No description provided for @tokenStatsBudgetNoPrice.
+  ///
+  /// In zh, this message translates to:
+  /// **'模型未填写单价，无法估算当月花费。'**
+  String get tokenStatsBudgetNoPrice;
+
+  /// No description provided for @tokenStatsBudgetDialogTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'月度 AI 预算'**
+  String get tokenStatsBudgetDialogTitle;
+
+  /// No description provided for @tokenStatsBudgetDialogBody.
+  ///
+  /// In zh, this message translates to:
+  /// **'按自然月统计 AI 调用费用；留空或 0 表示不限制。'**
+  String get tokenStatsBudgetDialogBody;
+
+  /// No description provided for @tokenStatsBudgetField.
+  ///
+  /// In zh, this message translates to:
+  /// **'预算金额（元）'**
+  String get tokenStatsBudgetField;
+
+  /// No description provided for @tokenStatsBudgetInvalid.
+  ///
+  /// In zh, this message translates to:
+  /// **'请输入有效的金额'**
+  String get tokenStatsBudgetInvalid;
+
+  /// No description provided for @tokenStatsBudgetSaved.
+  ///
+  /// In zh, this message translates to:
+  /// **'月度预算已更新'**
+  String get tokenStatsBudgetSaved;
 
   /// No description provided for @modelGroupsPriceLine.
   ///

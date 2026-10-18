@@ -158,6 +158,14 @@ class WorkDetailPage extends ConsumerWidget {
                 },
               ),
               ListTile(
+                leading: const Icon(Icons.summarize_outlined),
+                title: Text(l10n.batchSummaryTitle),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  context.push('/work/$workId/summaries');
+                },
+              ),
+              ListTile(
                 leading: const Icon(Icons.forum_outlined),
                 title: Text(l10n.chatTitle),
                 onTap: () {

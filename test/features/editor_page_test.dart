@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:novelphone/app/theme.dart';
+import 'package:novelphone/core/ai/sanitize_ai_text.dart';
 import 'package:novelphone/data/data_providers.dart';
 import 'package:novelphone/data/db.dart';
 import 'package:novelphone/data/repositories/chapter_repository.dart';
@@ -18,7 +19,6 @@ import 'package:novelphone/data/repositories/work_repository.dart';
 import 'package:novelphone/data/secure_key_store.dart';
 import 'package:novelphone/features/ai/ai_providers.dart';
 import 'package:novelphone/features/ai/ai_service.dart';
-import 'package:novelphone/features/editor/ai_confirm_panel.dart';
 import 'package:novelphone/features/editor/editor_page.dart';
 import 'package:novelphone/l10n/generated/app_localizations.dart';
 

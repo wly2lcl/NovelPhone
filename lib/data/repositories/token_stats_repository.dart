@@ -128,6 +128,19 @@ class TokenStatsRepository {
 
   Future<TokenStats> stats() async => _toStats(await _dao.findAggregated());
 
+  /// 自然月统计（ENH-24 月度预算）：从当月 1 日 00:00 起累计。
+  Stream<TokenStats> watchMonthlyStats([DateTime? now]) {
+    final since = _monthStart(now ?? DateTime.now());
+    return _dao.watchAggregated(since: since).map(_toStats);
+  }
+
+  Future<TokenStats> monthlyStats([DateTime? now]) async {
+    final since = _monthStart(now ?? DateTime.now());
+    return _toStats(await _dao.findAggregated(since: since));
+  }
+
+  static DateTime _monthStart(DateTime now) => DateTime(now.year, now.month, 1);
+
   Future<void> reset() => _dao.deleteAll();
 
   /// 分组小计已在 SQL 内算好（ENH-15），这里只做排序与类型映射。

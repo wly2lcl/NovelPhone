@@ -623,6 +623,25 @@ class SettingsRepository {
   Future<void> setSetting(String key, String value) =>
       _settings.set(key, value);
 
+  /// 月度 AI 预算（元，ENH-24）。0 表示未设置预算。
+  static const String aiMonthlyBudgetKey = 'ai_monthly_budget_cny';
+
+  Stream<double> watchMonthlyBudget() =>
+      _settings.watch(aiMonthlyBudgetKey).map(_parseBudget);
+
+  Future<double> monthlyBudget() async =>
+      _parseBudget(await getSetting(aiMonthlyBudgetKey));
+
+  Future<void> setMonthlyBudget(double value) {
+    if (value <= 0) return _settings.remove(aiMonthlyBudgetKey);
+    return setSetting(aiMonthlyBudgetKey, value.toStringAsFixed(2));
+  }
+
+  static double _parseBudget(String? raw) {
+    final value = double.tryParse(raw?.trim() ?? '') ?? 0;
+    return value.isFinite && value > 0 ? value : 0;
+  }
+
   static String _normalizeProvider(String provider) {
     if (provider == AiProvider.anthropic) return AiProvider.anthropic;
     if (provider == AiProvider.responses) return AiProvider.responses;

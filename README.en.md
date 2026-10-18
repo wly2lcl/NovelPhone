@@ -13,7 +13,7 @@ Two design principles:
 - **Your data stays yours** — SQLite storage on device, API keys in the OS secure store, backups to local files or your own object storage;
 - **Curating the "AI flavor"** — a built-in rule engine plus optional LLM deep-check flags clichés and repetitive sentence patterns with locate-and-replace actions; AI continuation generates multiple candidates in parallel for you to compare.
 
-Status: the MVP scope (78 / 78) is complete, followed by 23 enhancements (ENH-01~23, including a full Simplified-Chinese / English bilingual UI, MCP OAuth 2.1 PKCE and skill front-matter import, accessibility semantics, a branded app icon / launch splash, release-artifact delivery, plus the recycle bin, MCP call audit, backup checksum preview, skill export, style profile, AI setting completion, plot brainstorming, work Q&A, whole-work consistency scan and stability hardening). Android release signing, AAB / split-ABI APKs and GitHub Actions CI (including an iOS unsigned-build job) are in place; the iOS unsigned release build passes and 445 automated tests pass. Real-device acceptance records are in [docs/TODO.md](docs/TODO.md) (Chinese). On 2026-10-18 the ENH-23 style profile, AI setting completion and plot brainstorming were re-verified against two real model channels — `deepseek-v4-flash` and `agnes-3.0-flash` (portrait comparison screenshots below).
+Status: the MVP scope (78 / 78) is complete, followed by 24 enhancements (ENH-01~24, including a full Simplified-Chinese / English bilingual UI, MCP OAuth 2.1 PKCE and skill front-matter import, accessibility semantics, a branded app icon / launch splash, release-artifact delivery, plus the recycle bin, MCP call audit, backup checksum preview, skill export, style profile, AI setting completion, plot brainstorming, work Q&A, whole-work consistency scan and stability hardening; ENH-24 adds Markdown / EPUB import, plot-to-outline transfer, relation extraction, batch summaries, a monthly AI budget and release closure). Android release signing, AAB / split-ABI APKs and GitHub Actions CI (including an iOS unsigned-build job and release-artifact archiving) are in place; the iOS unsigned release build passes and 450 automated tests pass. Real-device acceptance records are in [docs/TODO.md](docs/TODO.md) (Chinese). On 2026-10-18 the ENH-23 style profile, AI setting completion and plot brainstorming were re-verified against two real model channels — `deepseek-v4-flash` and `agnes-3.0-flash` (portrait comparison screenshots below).
 
 ## Screenshots
 
@@ -42,7 +42,7 @@ Status: the MVP scope (78 / 78) is complete, followed by 23 enhancements (ENH-01
 - Multiple works with cover colors, word counts and last-edited times; global search across works with highlighted hits and jump-to-editor
 - Volumes and chapters: move volumes up / down, rename, delete; create chapters inside a volume; rename chapters, move them up / down or to another volume, and delete them
 - Recycle bin: deleting a work or chapter only marks it as deleted; restore it or purge it permanently within 30 days from Settings → Recycle Bin. Expired entries are cleaned automatically at startup and when the bin is opened
-- Import txt / docx: encoding auto-detection (UTF-8 / GBK), chapter splitting on「第X章」headings with preview, merge-into-previous, 10 MB file cap
+- Import txt / docx / Markdown / EPUB: encoding auto-detection (UTF-8 / GBK), chapter splitting on「第X章」headings with preview, merge-into-previous, 10 MB file cap; EPUB chapters follow the OPF spine (nav pages skipped) and Markdown splits on headings
 - Editor: autosave with a "saved" indicator, focus mode (toolbars hidden, caret line centered), writing appearance (night paper, font size, line height)
 - Find, paragraph move, undo / redo (double cap: 100 steps and 2M characters)
 - Find & replace across a whole work: preview every matching chapter and snippet, then replace all at once; affected chapters get automatic snapshots you can roll back from version history
@@ -66,8 +66,9 @@ Status: the MVP scope (78 / 78) is complete, followed by 23 enhancements (ENH-01
 - **AI setting-consistency check**: combines the current chapter, character cards, story bible and outline into a one-shot report of character / setting / timeline conflicts with fix suggestions; results are read-only and never modify the manuscript
 - **Whole-work consistency scan**: scans every chapter and expands per-chapter conflict details; generation streams live and can be stopped at any time while keeping the partial report
 - **Style profile**: extracts narrative perspective, tone, sentence-length and wording preferences from sample chapters into the work, then injects them into writing and Q&A context automatically
-- **AI setting completion**: extracts characters and story-bible entries from chapter text, previews the merged result with automatic deduplication, and applies it to character cards / the story bible in one step
-- **Plot brainstorming**: proposes multiple directions and per-chapter suggestions from existing settings, outlines and the latest progress, saveable to the inspiration box
+- **AI setting completion**: extracts characters, story-bible entries and character relations from chapter text, previews the merged result with automatic deduplication, and applies it to character cards / the story bible / the relation graph in one step; relations whose endpoints cannot be resolved report why they were skipped
+- **Plot brainstorming**: proposes multiple directions and per-chapter suggestions from existing settings, outlines and the latest progress, saveable to the inspiration box or transferable to chapter outlines
+- **Batch summaries**: generates summaries for chapters that lack one or whose text changed, sequentially, with a stop control
 - **Work Q&A**: multi-turn conversation about a whole work, answering after retrieving chapters, characters, settings and outlines locally; history persists per work (latest 40 turns), with a context preview for the current turn and a clear action
 - **AI-flavor check**: two tiers — a rule engine (~200 phrase entries, sentence-pattern repetition, punctuation density) and an optional LLM deep check. The panel supports scope stats, type filters, in-place highlight & locate, one-tap replace, ignore / bulk-ignore, and handling-rate stats; runs without freezing the UI for both single chapters and entire works
 
@@ -91,7 +92,8 @@ Status: the MVP scope (78 / 78) is complete, followed by 23 enhancements (ENH-01
 - Backup to file: whole-database zip (`data.json` + `manifest.json` + per-work markdown). Before restoring, a preview shows the export time, data version and work / chapter / character counts and verifies the **SHA-256** checksum (legacy backups without a manifest are clearly labeled); restore either as "merge as new works" or "overwrite local data"
 - Cloud backup: bring your own S3-compatible storage (AWS S3 / Alibaba Cloud OSS / Qiniu Kodo / Tencent COS / Huawei OBS), SigV4 signed directly, off by default, manual and interval-based automatic backups
 - Writing stats: daily word-count goal progress, writing streak, pomodoro, a 7 / 30-day word-count trend chart and a year-long writing heatmap
-- Token & adoption stats: grouped by task · model, tracking generations, token usage, adoption and ignore rates; model groups accept per-million input / output token prices, and the stats page estimates cost in CNY
+- Token & adoption stats: grouped by task · model, tracking generations, token usage, adoption and ignore rates; model groups accept per-million input / output token prices, and the stats page estimates cost in CNY; an optional **monthly AI budget** warns at 80% and turns red at 100% (it does not block calls)
+- Release materials: a standalone bilingual [privacy policy](docs/PRIVACY.md) and [release guide](docs/RELEASE.md) (build commands, Google Play listing, Data safety answers, iOS blockers); the About page opens the privacy policy externally
 - Privacy: API keys live in the OS secure store (keychain / keystore), never in the database and never in backups; a first-network-use notice gates every AI feature. See [docs/COMPLIANCE.md](docs/COMPLIANCE.md) (Chinese)
 
 ## Tech stack
@@ -152,10 +154,10 @@ dart run build_runner build --delete-conflicting-outputs
 ```bash
 dart format --output=none --set-exit-if-changed lib test
 flutter analyze
-flutter test    # 445 cases: data layer / editor controller / AI client & orchestration / style profiles and structured output / work Q&A and retrieval / MCP OAuth, audit and skill import-export / check engine / widgets
+flutter test    # 450 cases: data layer / editor controller / AI client & orchestration / style profiles and structured output / work Q&A and retrieval / import parsing (txt / Markdown / EPUB) / MCP OAuth, audit and skill import-export / check engine / widgets
 ```
 
-GitHub Actions ([ci.yml](.github/workflows/ci.yml)) runs the three checks on pushes and pull requests and additionally runs an unsigned iOS release build (`flutter build ios --release --no-codesign`) on `macos-latest` to catch iOS project / plugin integration issues early.
+GitHub Actions ([ci.yml](.github/workflows/ci.yml)) runs the three checks on pushes and pull requests and additionally runs an unsigned iOS release build (`flutter build ios --release --no-codesign`) on `macos-latest` to catch iOS project / plugin integration issues early. On `main` pushes or manual dispatch it also builds an AAB and split-ABI APKs with an ephemeral keystore and archives them for 14 days (build verification only; rebuild with the offline release certificate before uploading, see [docs/RELEASE.md](docs/RELEASE.md)).
 
 Dev helpers: [tool/fake_llm_server.dart](tool/fake_llm_server.dart) simulates Chat Completions / Messages success streams plus 429 / 5xx / content-filtering scenarios, and provides JSON scenarios for style / entity extraction / plot planning (`/openai-style`, `/openai-extract`, `/openai-plan`); stream chunks are flushed immediately so incremental output and stop-with-partial-result can be observed (`GET /stats` reports request counts; the `/openai-tool` scenario issues a tool call first and answers once the tool result arrives, exercising the MCP call and audit path). With `adb reverse` it lets you exercise AI error and retry paths on a real device without a real API key. [tool/fake_mcp_oauth_server.dart](tool/fake_mcp_oauth_server.dart) simulates an MCP server with an OAuth 2.1 PKCE authorization server (dynamic registration, S256 verification, refresh_token) and an echo tool for exercising the full authorization chain.
 
@@ -165,8 +167,10 @@ Dev helpers: [tool/fake_llm_server.dart](tool/fake_llm_server.dart) simulates Ch
 |---|---|
 | [docs/PRD.md](docs/PRD.md) | Product positioning, scope and acceptance criteria |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Tech choices, layering, data model and AI-layer design |
-| [docs/TODO.md](docs/TODO.md) | Task list, progress tracking and real-device acceptance records (M1-M4 + ENH-01~23) |
+| [docs/TODO.md](docs/TODO.md) | Task list, progress tracking and real-device acceptance records (M1-M4 + ENH-01~24) |
 | [docs/COMPLIANCE.md](docs/COMPLIANCE.md) | Privacy policy, data-security notes and store-listing points |
+| [docs/RELEASE.md](docs/RELEASE.md) | Build commands, store listing, Data safety answers and known limitations |
+| [docs/PRIVACY.md](docs/PRIVACY.md) | Public privacy policy (bilingual, shared by the store listing and the in-app About page) |
 
 (The docs above are written in Chinese.)
 

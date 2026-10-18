@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -118,21 +119,26 @@ void main() {
     expect(summary.rows.first.task, AiTask.style);
   });
 
-  test('设定补全：抽取角色与设定并记录 extract 用量', () async {
+  test('设定补全：抽取角色、设定与关系并记录 extract 用量', () async {
     await configure(AiTask.extract);
     final client = MockClient(
       (request) async => sseResponse(
-        '{"characters":[{"name":"沈砚","identity":"游侠","性格":["沉默","克制"]}],'
-        '"settings":[{"name":"长夜城","type":"地点","content":"北境边城"}]}',
+        '{"characters":[{"name":"沈砚","identity":"游侠","性格":["沉默","克制"]},'
+        '{"name":"苏晚","身份":"医女"}],'
+        '"settings":[{"name":"长夜城","type":"地点","content":"北境边城"}],'
+        '"relations":[{"from":"沈砚","to":"苏晚","label":"旧识"}]}',
       ),
     );
 
     final result = await serviceWith(client).extractEntities(workId: workId);
 
     expect(result.extraction.parseFailed, isFalse);
-    expect(result.extraction.characters.single.name, '沈砚');
-    expect(result.extraction.characters.single.personality, '沉默、克制');
+    expect(result.extraction.characters.first.name, '沈砚');
+    expect(result.extraction.characters.first.personality, '沉默、克制');
     expect(result.extraction.settings.single.type, SettingType.location);
+    expect(result.extraction.relations.single.from, '沈砚');
+    expect(result.extraction.relations.single.to, '苏晚');
+    expect(result.extraction.relations.single.label, '旧识');
     final summary = await stats.stats();
     expect(summary.rows.single.task, AiTask.extract);
   });
@@ -162,6 +168,25 @@ void main() {
     expect(result.plan.directions.single.hook, contains('灭门案'));
     expect(result.plan.chapters.single.title, '第十二章 雪夜');
     expect(result.plan.parseFailed, isFalse);
+  });
+
+  test('模型只输出推理而无可见正文时抛出明确错误并保留用量', () async {
+    await configure(AiTask.plan);
+    final client = MockClient((request) async => sseResponse(''));
+
+    await expectLater(
+      serviceWith(client).planPlot(workId: workId),
+      throwsA(
+        isA<AiServiceException>().having(
+          (e) => e.message,
+          'message',
+          contains('未返回内容'),
+        ),
+      ),
+    );
+    final summary = await stats.stats();
+    expect(summary.rows.single.task, AiTask.plan);
+    expect(summary.rows.single.completionTokens, 30);
   });
 
   test('作品问答：注入历史、返回流式回答并记录 chat 用量', () async {
@@ -199,6 +224,44 @@ void main() {
     );
     final summary = await stats.stats();
     expect(summary.rows.single.task, AiTask.chat);
+  });
+
+  test('月度统计只累计当月用量，预算可设置与清除', () async {
+    final now = DateTime(2026, 10, 18);
+    await db
+        .into(db.aiUsages)
+        .insert(
+          AiUsagesCompanion.insert(
+            task: AiTask.summary,
+            model: 'm1',
+            createdAt: DateTime(2026, 9, 20),
+            promptTokens: const Value(10),
+            completionTokens: const Value(10),
+          ),
+        );
+    await db
+        .into(db.aiUsages)
+        .insert(
+          AiUsagesCompanion.insert(
+            task: AiTask.plan,
+            model: 'm1',
+            createdAt: DateTime(2026, 10, 2),
+            promptTokens: const Value(20),
+            completionTokens: const Value(10),
+          ),
+        );
+
+    final monthly = await stats.monthlyStats(now);
+    expect(monthly.calls, 1);
+    expect(monthly.rows.single.task, AiTask.plan);
+    expect(monthly.totalTokens, 30);
+    expect((await stats.stats()).calls, 2);
+
+    expect(await config.monthlyBudget(), 0);
+    await config.setMonthlyBudget(5.5);
+    expect(await config.monthlyBudget(), 5.5);
+    await config.setMonthlyBudget(0);
+    expect(await config.monthlyBudget(), 0);
   });
 
   test('流式一致性检查：返回上下文与完整报告', () async {

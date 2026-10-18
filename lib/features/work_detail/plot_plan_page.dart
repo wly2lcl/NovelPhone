@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/theme.dart';
 import '../../core/ai/structured_response.dart';
 import '../../data/data_providers.dart';
+import '../../data/db.dart';
 import '../../l10n/l10n.dart';
 import '../ai/ai_providers.dart';
 import '../ai/ai_service.dart';
@@ -114,6 +115,41 @@ class _PlotPlanPageState extends ConsumerState<PlotPlanPage> {
   String _chapterText(PlotChapter chapter) =>
       '${chapter.title}\n${chapter.summary}';
 
+  /// 章节名与现有章节完全一致时更新该章梗概，否则记为未关联章纲。
+  Future<void> _saveToOutline(PlotChapter chapter) async {
+    final title = chapter.title.trim();
+    final chapters = await ref
+        .read(chapterRepositoryProvider)
+        .listChapters(widget.workId);
+    Chapter? matched;
+    if (title.isNotEmpty) {
+      for (final existing in chapters) {
+        if (existing.title.trim() == title) {
+          matched = existing;
+          break;
+        }
+      }
+    }
+    final outlineRepo = ref.read(outlineRepositoryProvider);
+    if (matched != null) {
+      await outlineRepo.saveChapterSummary(
+        workId: widget.workId,
+        volumeId: matched.volumeId,
+        chapterId: matched.id,
+        summary: chapter.summary,
+      );
+    } else {
+      await outlineRepo.createEntry(
+        workId: widget.workId,
+        summary: _chapterText(chapter),
+      );
+    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(context.l10n.plotPlanOutlineSaved)));
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -205,6 +241,7 @@ class _PlotPlanPageState extends ConsumerState<PlotPlanPage> {
               _ChapterCard(
                 chapter: chapter,
                 onSave: () => _save(_chapterText(chapter)),
+                onOutline: () => _saveToOutline(chapter),
               ),
           ],
         ],
@@ -267,10 +304,15 @@ class _DirectionCard extends StatelessWidget {
 }
 
 class _ChapterCard extends StatelessWidget {
-  const _ChapterCard({required this.chapter, required this.onSave});
+  const _ChapterCard({
+    required this.chapter,
+    required this.onSave,
+    required this.onOutline,
+  });
 
   final PlotChapter chapter;
   final VoidCallback onSave;
+  final VoidCallback onOutline;
 
   @override
   Widget build(BuildContext context) {
@@ -286,13 +328,20 @@ class _ChapterCard extends StatelessWidget {
               const SizedBox(height: 6),
               Text(chapter.summary, style: const TextStyle(height: 1.45)),
             ],
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: onSave,
-                icon: const Icon(Icons.lightbulb_outline, size: 18),
-                label: Text(context.l10n.plotPlanSaveInspiration),
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: <Widget>[
+                TextButton.icon(
+                  onPressed: onOutline,
+                  icon: const Icon(Icons.list_alt_outlined, size: 18),
+                  label: Text(context.l10n.plotPlanToOutline),
+                ),
+                TextButton.icon(
+                  onPressed: onSave,
+                  icon: const Icon(Icons.lightbulb_outline, size: 18),
+                  label: Text(context.l10n.plotPlanSaveInspiration),
+                ),
+              ],
             ),
           ],
         ),

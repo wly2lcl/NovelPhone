@@ -42,6 +42,15 @@ final tokenStatsProvider = StreamProvider<TokenStats>(
   (ref) => ref.watch(tokenStatsRepositoryProvider).watchStats(),
 );
 
+/// 自然月用量与预算（ENH-24）：统计页展示当月花费与预算进度。
+final monthlyTokenStatsProvider = StreamProvider<TokenStats>(
+  (ref) => ref.watch(tokenStatsRepositoryProvider).watchMonthlyStats(),
+);
+
+final monthlyBudgetProvider = StreamProvider<double>(
+  (ref) => ref.watch(settingsRepositoryProvider).watchMonthlyBudget(),
+);
+
 /// 检查问题处置率计数（M4-12，ARCHITECTURE 4.2）。
 final checkStatsProvider = FutureProvider<({int total, int handled})>(
   (ref) => ref.watch(settingsRepositoryProvider).readCheckStats(),

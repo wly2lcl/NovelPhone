@@ -27,7 +27,7 @@
 ### 1.3 数据的删除与导出
 
 - 卸载应用即清除本地数据库与安全区中的 Key / MCP 认证头 / OAuth 令牌。
-- 应用内提供作品导出（txt / docx / markdown）与整库 zip 备份（**备份不含 API Key**），你可自行保管与迁移。
+- 应用内提供作品导出（txt / docx / markdown / EPUB）与整库 zip 备份（**备份不含 API Key**），你可自行保管与迁移。
 - **系统级自动云备份已关闭**：Android 侧声明 `android:allowBackup="false"`，并在 Android 12+ 由 `dataExtractionRules` 将 cloud-backup 的全部数据域显式排除——作品数据不会进入 Google Drive 等系统云备份，卸载后也不存在「云端恢复回来」的隐藏路径；Android 12+ 的换机设备直传（D2D）保留，数据仅在用户自己的两台设备之间直接迁移、不经过云端。
 
 ### 1.4 第三方
@@ -86,7 +86,7 @@
   - 数据删除：卸载应用即删除本地数据（系统自动云备份已关闭，不存在经 Google Drive 的云端恢复）；
   - 备份 / 迁移：系统云备份关闭；Android 12+ 换机设备直传（D2D）保留；应用内备份（文件导出 / 自持对象存储）均由用户主动触发。
 - 需要声明的权限：网络访问（仅用于用户主动触发的 AI 请求与用户开启并触发的云备份）。Android 侧须在 `android/app/src/main/AndroidManifest.xml` 声明 `android.permission.INTERNET`——Flutter 模板只在 debug/profile 清单里声明，release 构建若不补齐该权限，AI 与云备份的全部联网能力会被系统阻断。
-- 隐私政策 URL（商店必填）：本文档即隐私政策来源；可将本仓库（`wly2lcl/NovelPhone`）的 `docs/COMPLIANCE.md` 经 GitHub Pages 或任意静态托管发布为公网可达的 URL 后填入商店表单（内容须与应用内「关于」页的隐私说明保持一致）。
+- 隐私政策 URL（商店必填）：`https://github.com/wly2lcl/NovelPhone/blob/main/docs/PRIVACY.md`——[PRIVACY.md](./PRIVACY.md) 是对外的独立隐私政策（中英双语、含生效日期与联系方式），与本文件 §1 保持一致；应用内「关于」页可直接打开该外链。数据安全表单与商店资料详见 [RELEASE.md](./RELEASE.md)。
 
 ## 5. 与文档的关系
 

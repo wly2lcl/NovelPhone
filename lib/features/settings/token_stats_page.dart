@@ -9,6 +9,7 @@ import '../../data/repositories/settings_repository.dart';
 import '../../data/repositories/token_stats_repository.dart';
 import '../../l10n/l10n.dart';
 import '../ai/ai_providers.dart';
+import 'monthly_budget_dialog.dart';
 
 /// Token 与采纳统计（M3-20，PRD 功能 10）：按模型+任务聚合展示，可重置。
 class TokenStatsPage extends ConsumerWidget {
@@ -76,9 +77,20 @@ class TokenStatsPage extends ConsumerWidget {
           final groups =
               ref.watch(modelGroupsProvider).value ?? const <ModelGroup>[];
           final cost = _estimateCost(data, groups);
+          final monthly = ref.watch(monthlyTokenStatsProvider).value;
+          final budget = ref.watch(monthlyBudgetProvider).value ?? 0;
+          final monthlyCost = _estimateCost(
+            monthly ?? const TokenStats(rows: <TokenStatRow>[]),
+            groups,
+          );
           return ListView(
             children: <Widget>[
               _SummaryCard(stats: data, checkStats: checkStats, cost: cost),
+              _BudgetCard(
+                cost: monthlyCost,
+                budget: budget,
+                onEdit: () => showMonthlyBudgetDialog(context, ref),
+              ),
               if (data.rows.isNotEmpty && !cost.hasPrice)
                 _CostNote(text: l10n.tokenStatsCostHint)
               else if (cost.missing > 0)
@@ -144,6 +156,145 @@ class _SummaryCard extends StatelessWidget {
 
   static String _percent(double value) =>
       '${(value * 100).toStringAsFixed(1)}%';
+}
+
+/// 当月花费与预算进度（ENH-24）：达到 80% 提示，超出预算后标红。
+class _BudgetCard extends StatelessWidget {
+  const _BudgetCard({
+    required this.cost,
+    required this.budget,
+    required this.onEdit,
+  });
+
+  final ({double amount, bool hasPrice, int missing}) cost;
+  final double budget;
+  final VoidCallback onEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final used = cost.amount;
+    final ratio = budget <= 0 ? 0.0 : used / budget;
+    final exceeded = budget > 0 && used >= budget;
+    final warning = budget > 0 && !exceeded && ratio >= 0.8;
+    final color = exceeded
+        ? Theme.of(context).colorScheme.error
+        : warning
+        ? const Color(0xFFB26A00)
+        : context.paper.accent;
+    final usage = budget > 0
+        ? l10n.tokenStatsBudgetUsage(
+            used.toStringAsFixed(2),
+            budget.toStringAsFixed(2),
+          )
+        : cost.hasPrice
+        ? l10n.tokenStatsBudgetUsedOnly(used.toStringAsFixed(2))
+        : l10n.tokenStatsBudgetUnset;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+        decoration: BoxDecoration(
+          color: context.paper.surface,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                Icon(
+                  Icons.account_balance_wallet_outlined,
+                  size: 18,
+                  color: context.paper.accent,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    l10n.tokenStatsMonthly,
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                ),
+                TextButton(
+                  onPressed: onEdit,
+                  child: Text(
+                    budget > 0
+                        ? l10n.tokenStatsBudgetEdit
+                        : l10n.tokenStatsBudgetSet,
+                  ),
+                ),
+              ],
+            ),
+            if (budget > 0) ...<Widget>[
+              LinearProgressIndicator(
+                value: ratio.clamp(0.0, 1.0),
+                color: color,
+                backgroundColor: context.paper.inkSoft.withValues(alpha: 0.15),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: Text(
+                      usage,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: context.paper.inkSoft,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    l10n.tokenStatsBudgetPercent(
+                      (ratio * 100).toStringAsFixed(0),
+                    ),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: color,
+                    ),
+                  ),
+                ],
+              ),
+            ] else
+              Text(
+                usage,
+                style: TextStyle(fontSize: 12, color: context.paper.inkSoft),
+              ),
+            if (budget > 0 && !cost.hasPrice)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  l10n.tokenStatsBudgetNoPrice,
+                  style: TextStyle(fontSize: 12, color: context.paper.inkSoft),
+                ),
+              ),
+            if (exceeded)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  l10n.tokenStatsBudgetExceeded,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                ),
+              )
+            else if (warning)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  l10n.tokenStatsBudgetWarning,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFFB26A00),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _CostNote extends StatelessWidget {

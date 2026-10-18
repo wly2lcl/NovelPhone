@@ -1101,6 +1101,14 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsTokenStats => 'Token 与采纳统计';
 
   @override
+  String get settingsAiBudget => '月度 AI 预算';
+
+  @override
+  String settingsAiBudgetValue(String value) {
+    return '¥$value / 月';
+  }
+
+  @override
   String get settingsMcpServers => 'MCP 工具服务';
 
   @override
@@ -2026,7 +2034,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get workDetailRunFlavorCheck => '运行 AI 感检查';
 
   @override
-  String get workDetailImportTxtDocx => '导入 txt / docx';
+  String get workDetailImportTxtDocx => '导入 txt / docx / Markdown / EPUB';
 
   @override
   String get workDetailInspirationsTitle => '灵感箱';
@@ -2127,6 +2135,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get entityExtractSettings => '设定条目';
 
   @override
+  String get entityExtractRelations => '角色关系';
+
+  @override
+  String get entityExtractRelationMissing => '关系两端的角色不在本轮抽取中';
+
+  @override
   String get entityExtractExisting => '已存在';
 
   @override
@@ -2135,8 +2149,8 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String entityExtractApplied(int characters, int settings) {
-    return '已添加 $characters 个角色、$settings 条设定';
+  String entityExtractApplied(int characters, int settings, int relations) {
+    return '已添加 $characters 个角色、$settings 条设定、$relations 条关系';
   }
 
   @override
@@ -2385,7 +2399,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get importPageTitle => '导入文稿';
 
   @override
-  String get importPagePickFile => '选择 txt / docx 文件';
+  String get importPagePickFile => '选择文稿文件（txt / docx / md / epub）';
 
   @override
   String get importPageRepickFile => '重新选择文件';
@@ -2433,7 +2447,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get importPagePickHintBody =>
-      '支持 txt（UTF-8 / GBK）与 docx。导入后按「第 X 章」等标题自动分章，可在下一步预览并调整。';
+      '支持 txt（UTF-8 / GBK）、docx、Markdown（.md）与 EPUB。导入后按「第 X 章」等标题自动分章，可在下一步预览并调整。';
 
   @override
   String importPageFileSummary(String encoding, int count, int words) {
@@ -2513,6 +2527,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aboutPrivacyErase => '卸载应用即同时清除本地数据与安全区中的凭证。';
 
   @override
+  String get aboutPrivacyPolicyLink => '查看完整隐私政策（浏览器打开）';
+
+  @override
+  String get aboutPrivacyLinkFailed => '无法打开浏览器，请稍后重试。';
+
+  @override
   String get aboutLicenses => '开源许可';
 
   @override
@@ -2525,7 +2545,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get plotPlanTitle => '剧情推演';
 
   @override
-  String get plotPlanIntro => '基于已有章纲、角色与最近正文，推演后续走向与分章建议；满意的条目可存入灵感箱。';
+  String get plotPlanIntro => '基于已有章纲、角色与最近正文，推演后续走向与分章建议；满意的条目可存入灵感箱或转为章纲。';
 
   @override
   String get plotPlanDirection => '希望的方向（可选）';
@@ -2558,12 +2578,71 @@ class AppLocalizationsZh extends AppLocalizations {
   String get plotPlanSaved => '已存入灵感箱';
 
   @override
+  String get plotPlanToOutline => '转为章纲';
+
+  @override
+  String get plotPlanOutlineSaved => '已写入章纲';
+
+  @override
   String get plotPlanParseFailed => 'AI 返回的不是结构化结果，已按原文展示。';
 
   @override
   String plotPlanFailed(String message) {
     return '推演失败：$message';
   }
+
+  @override
+  String get batchSummaryTitle => '批量生成摘要';
+
+  @override
+  String get batchSummaryIntro => '为缺少摘要或正文已更新的章节依次生成前情摘要，结果直接写回章节。';
+
+  @override
+  String batchSummaryStart(int count) {
+    return '生成缺失摘要（$count）';
+  }
+
+  @override
+  String get batchSummaryAll => '全部重新生成';
+
+  @override
+  String batchSummaryRunning(int current, int total) {
+    return '正在生成第 $current/$total 章…';
+  }
+
+  @override
+  String get batchSummaryStopping => '将在当前章节完成后停止…';
+
+  @override
+  String get batchSummaryCancel => '停止';
+
+  @override
+  String get batchSummaryEmpty => '所有章节摘要都是最新的。';
+
+  @override
+  String get batchSummaryMissing => '缺少摘要';
+
+  @override
+  String get batchSummaryStale => '正文已更新';
+
+  @override
+  String get batchSummaryCurrent => '摘要已是最新';
+
+  @override
+  String batchSummaryDone(int count) {
+    return '已生成 $count 章摘要';
+  }
+
+  @override
+  String batchSummaryFailed(String message) {
+    return '生成失败：$message';
+  }
+
+  @override
+  String get batchSummaryResult => '生成结果';
+
+  @override
+  String get batchSummaryEmptyResult => 'AI 未返回内容';
 
   @override
   String get chatTitle => '作品问答';
@@ -2706,6 +2785,57 @@ class AppLocalizationsZh extends AppLocalizations {
   String tokenStatsCostPartial(int count) {
     return '$count 个模型未填写单价，未计入费用。';
   }
+
+  @override
+  String get tokenStatsMonthly => '本月预算';
+
+  @override
+  String get tokenStatsBudgetUnset => '未设置月度预算';
+
+  @override
+  String get tokenStatsBudgetSet => '设置月度预算';
+
+  @override
+  String get tokenStatsBudgetEdit => '编辑预算';
+
+  @override
+  String tokenStatsBudgetUsage(String used, String budget) {
+    return '本月已用 ¥$used / 预算 ¥$budget';
+  }
+
+  @override
+  String tokenStatsBudgetUsedOnly(String used) {
+    return '本月已用 ¥$used';
+  }
+
+  @override
+  String tokenStatsBudgetPercent(String percent) {
+    return '已用 $percent%';
+  }
+
+  @override
+  String get tokenStatsBudgetExceeded => '本月预算已用完，继续调用将超出预算。';
+
+  @override
+  String get tokenStatsBudgetWarning => '本月预算已用超过 80%。';
+
+  @override
+  String get tokenStatsBudgetNoPrice => '模型未填写单价，无法估算当月花费。';
+
+  @override
+  String get tokenStatsBudgetDialogTitle => '月度 AI 预算';
+
+  @override
+  String get tokenStatsBudgetDialogBody => '按自然月统计 AI 调用费用；留空或 0 表示不限制。';
+
+  @override
+  String get tokenStatsBudgetField => '预算金额（元）';
+
+  @override
+  String get tokenStatsBudgetInvalid => '请输入有效的金额';
+
+  @override
+  String get tokenStatsBudgetSaved => '月度预算已更新';
 
   @override
   String modelGroupsPriceLine(String input, String output) {

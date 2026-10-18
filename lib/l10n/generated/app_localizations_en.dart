@@ -1277,6 +1277,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsTokenStats => 'Token & Adoption Stats';
 
   @override
+  String get settingsAiBudget => 'Monthly AI budget';
+
+  @override
+  String settingsAiBudgetValue(String value) {
+    return '¥$value / month';
+  }
+
+  @override
   String get settingsMcpServers => 'MCP Tool Servers';
 
   @override
@@ -2299,7 +2307,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get workDetailRunFlavorCheck => 'Run AI-feel check';
 
   @override
-  String get workDetailImportTxtDocx => 'Import txt / docx';
+  String get workDetailImportTxtDocx => 'Import txt / docx / Markdown / EPUB';
 
   @override
   String get workDetailInspirationsTitle => 'Inspiration box';
@@ -2409,6 +2417,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get entityExtractSettings => 'Setting entries';
 
   @override
+  String get entityExtractRelations => 'Character relations';
+
+  @override
+  String get entityExtractRelationMissing =>
+      'One or both characters are not in this extraction';
+
+  @override
   String get entityExtractExisting => 'Exists';
 
   @override
@@ -2417,7 +2432,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String entityExtractApplied(int characters, int settings) {
+  String entityExtractApplied(int characters, int settings, int relations) {
     String _temp0 = intl.Intl.pluralLogic(
       characters,
       locale: localeName,
@@ -2430,7 +2445,13 @@ class AppLocalizationsEn extends AppLocalizations {
       other: '$settings settings',
       one: '1 setting',
     );
-    return 'Added $_temp0 and $_temp1';
+    String _temp2 = intl.Intl.pluralLogic(
+      relations,
+      locale: localeName,
+      other: '$relations relations',
+      one: '1 relation',
+    );
+    return 'Added $_temp0, $_temp1 and $_temp2';
   }
 
   @override
@@ -2710,7 +2731,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get importPageTitle => 'Import manuscript';
 
   @override
-  String get importPagePickFile => 'Choose txt / docx file';
+  String get importPagePickFile =>
+      'Choose a manuscript (txt / docx / md / epub)';
 
   @override
   String get importPageRepickFile => 'Choose another file';
@@ -2772,7 +2794,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get importPagePickHintBody =>
-      'Supports txt (UTF-8 / GBK) and docx. Chapters are split automatically by headings such as \"Chapter X\", and you can preview and adjust them in the next step.';
+      'Supports txt (UTF-8 / GBK), docx, Markdown (.md) and EPUB. Chapters are split automatically by headings such as \"Chapter X\", and you can preview and adjust them in the next step.';
 
   @override
   String importPageFileSummary(String encoding, int count, int words) {
@@ -2864,6 +2886,14 @@ class AppLocalizationsEn extends AppLocalizations {
       'Uninstalling the app clears both the local data and the credentials in the secure store.';
 
   @override
+  String get aboutPrivacyPolicyLink =>
+      'Read the full privacy policy (opens in browser)';
+
+  @override
+  String get aboutPrivacyLinkFailed =>
+      'Could not open the browser. Try again later.';
+
+  @override
   String get aboutLicenses => 'Open-source licenses';
 
   @override
@@ -2878,7 +2908,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get plotPlanIntro =>
-      'Based on your existing outline, characters and recent chapters, sketch what happens next and how to split it into chapters. Save any idea you like to the inspiration box.';
+      'Based on your existing outline, characters and recent chapters, sketch what happens next and how to split it into chapters. Save any idea you like to the inspiration box or add it to the outline.';
 
   @override
   String get plotPlanDirection => 'Preferred direction (optional)';
@@ -2912,6 +2942,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get plotPlanSaved => 'Saved to the inspiration box';
 
   @override
+  String get plotPlanToOutline => 'Add to outline';
+
+  @override
+  String get plotPlanOutlineSaved => 'Added to the outline';
+
+  @override
   String get plotPlanParseFailed =>
       'The model did not return structured JSON; showing its raw response instead.';
 
@@ -2919,6 +2955,66 @@ class AppLocalizationsEn extends AppLocalizations {
   String plotPlanFailed(String message) {
     return 'Plot planning failed: $message';
   }
+
+  @override
+  String get batchSummaryTitle => 'Batch chapter summaries';
+
+  @override
+  String get batchSummaryIntro =>
+      'Generate recaps for chapters with no summary or with updated text. Results are written back to each chapter.';
+
+  @override
+  String batchSummaryStart(int count) {
+    return 'Generate missing summaries ($count)';
+  }
+
+  @override
+  String get batchSummaryAll => 'Regenerate all';
+
+  @override
+  String batchSummaryRunning(int current, int total) {
+    return 'Generating $current/$total…';
+  }
+
+  @override
+  String get batchSummaryStopping => 'Stopping after the current chapter…';
+
+  @override
+  String get batchSummaryCancel => 'Stop';
+
+  @override
+  String get batchSummaryEmpty => 'All chapter summaries are up to date.';
+
+  @override
+  String get batchSummaryMissing => 'Missing summary';
+
+  @override
+  String get batchSummaryStale => 'Text updated';
+
+  @override
+  String get batchSummaryCurrent => 'Summary is current';
+
+  @override
+  String batchSummaryDone(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count summaries',
+      one: '1 summary',
+    );
+    return 'Generated $_temp0';
+  }
+
+  @override
+  String batchSummaryFailed(String message) {
+    return 'Generation failed: $message';
+  }
+
+  @override
+  String get batchSummaryResult => 'Results';
+
+  @override
+  String get batchSummaryEmptyResult => 'The model returned no content';
 
   @override
   String get chatTitle => 'Ask this work';
@@ -3071,6 +3167,61 @@ class AppLocalizationsEn extends AppLocalizations {
   String tokenStatsCostPartial(int count) {
     return '$count models have no price and are excluded.';
   }
+
+  @override
+  String get tokenStatsMonthly => 'Monthly budget';
+
+  @override
+  String get tokenStatsBudgetUnset => 'No monthly budget set';
+
+  @override
+  String get tokenStatsBudgetSet => 'Set monthly budget';
+
+  @override
+  String get tokenStatsBudgetEdit => 'Edit budget';
+
+  @override
+  String tokenStatsBudgetUsage(String used, String budget) {
+    return 'Spent ¥$used of ¥$budget this month';
+  }
+
+  @override
+  String tokenStatsBudgetUsedOnly(String used) {
+    return 'Spent ¥$used this month';
+  }
+
+  @override
+  String tokenStatsBudgetPercent(String percent) {
+    return '$percent% used';
+  }
+
+  @override
+  String get tokenStatsBudgetExceeded =>
+      'This month\'s budget is used up. Further calls will exceed it.';
+
+  @override
+  String get tokenStatsBudgetWarning =>
+      'More than 80% of this month\'s budget is used.';
+
+  @override
+  String get tokenStatsBudgetNoPrice =>
+      'No model prices are set, so this month\'s cost cannot be estimated.';
+
+  @override
+  String get tokenStatsBudgetDialogTitle => 'Monthly AI budget';
+
+  @override
+  String get tokenStatsBudgetDialogBody =>
+      'Tracks AI spend per calendar month; leave empty or 0 for no limit.';
+
+  @override
+  String get tokenStatsBudgetField => 'Budget (CNY)';
+
+  @override
+  String get tokenStatsBudgetInvalid => 'Enter a valid amount';
+
+  @override
+  String get tokenStatsBudgetSaved => 'Monthly budget updated';
 
   @override
   String modelGroupsPriceLine(String input, String output) {

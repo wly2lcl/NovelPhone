@@ -58,6 +58,12 @@ void main() {
     {"name": "青铜灯", "类型": "道具", "描述": "照见亡者记忆"},
     {"name": "长夜城", "type": "地点", "content": "重复项"},
     {"name": "灵潮", "type": "世界观", "content": "每隔十年涨落一次"}
+  ]},
+  {"relations": [
+    {"from": "沈砚", "to": "苏晚", "label": "旧识，互不信任"},
+    {"from": "沈砚", "to": "苏晚", "label": "旧识，互不信任"},
+    {"from": "苏晚", "to": "苏晚", "label": "自指应丢弃"},
+    {"from": "沈砚", "to": "长夜城", "relation": "驻留"}
   ]}
 ]
 ''');
@@ -74,7 +80,13 @@ void main() {
       expect(extraction.settings[0].content, '北境边城，常年落雪');
       expect(extraction.settings[1].type, SettingType.item);
       expect(extraction.settings[2].type, SettingType.worldview);
-      expect(extraction.total, 5);
+
+      expect(extraction.relations, hasLength(2));
+      expect(extraction.relations.first.from, '沈砚');
+      expect(extraction.relations.first.to, '苏晚');
+      expect(extraction.relations.first.summary, '沈砚 → 苏晚 · 旧识，互不信任');
+      expect(extraction.relations.last.label, '驻留');
+      expect(extraction.total, 7);
     });
 
     test('数组中的多个对象也能逐项读取', () {
@@ -128,6 +140,14 @@ void main() {
       expect(plan.directions, hasLength(1));
       expect(plan.directions.single.summary, contains('主动摊牌'));
       expect(plan.chapters, isEmpty);
+    });
+
+    test('合法 JSON 但字段名不匹配时标记解析失败', () {
+      final plan = parsePlotPlanResponse('{"results": [{"name": "雪夜决裂"}]}');
+      expect(plan.parseFailed, isTrue);
+      expect(plan.directions, isEmpty);
+      expect(plan.chapters, isEmpty);
+      expect(plan.rawText, contains('雪夜决裂'));
     });
 
     test('空输出返回空计划', () {

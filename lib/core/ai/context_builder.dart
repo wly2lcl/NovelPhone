@@ -986,15 +986,18 @@ class ContextBuilder {
   static const String _styleExtractionTask = '请分析以上【近期正文节选】，输出作品文风档案 JSON。';
 
   String _entityExtractionSystem() =>
-      '你是一位中文小说设定编辑。请从正文中抽取尚未建档的角色与设定条目。\n'
+      '你是一位中文小说设定编辑。请从正文中抽取尚未建档的角色、设定条目与角色关系。\n'
       '规则：\n'
       '1. 只抽取正文中明确出现或可直接确认的信息，不编造；\n'
       '2. 已在【已有角色】【已有设定】中出现的条目不要重复输出；\n'
       '3. 角色字段：name、identity、personality、appearance、relations、arc，未知留空；\n'
       '4. 设定条目字段：type（worldview/location/item）、name、content；\n'
-      '5. 严格输出 JSON，不要 markdown 代码块或解释：\n'
+      '5. relations 输出角色之间的有向关系，from/to 使用角色姓名，label 写关系类型或一句描述；'
+      '关系两端可以是新角色或已有角色，只写有正文依据的关系；\n'
+      '6. 严格输出 JSON，不要 markdown 代码块或解释：\n'
       '{"characters":[{"name":"","identity":"","personality":"","appearance":"","relations":"","arc":""}],'
-      '"settings":[{"type":"location","name":"","content":""}]}';
+      '"settings":[{"type":"location","name":"","content":""}],'
+      '"relations":[{"from":"","to":"","label":""}]}';
 
   static const String _entityExtractionTask =
       '请从以上【正文节选】中抽取可补充到角色卡与设定集的新条目，输出 JSON。';

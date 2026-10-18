@@ -29,10 +29,13 @@ class _EntityExtractionPageState extends ConsumerState<EntityExtractionPage> {
   EntityExtraction? _result;
   final Set<int> _selectedCharacters = <int>{};
   final Set<int> _selectedSettings = <int>{};
-  final Set<String> _existingCharacters = <String>{};
+  final Set<int> _selectedRelations = <int>{};
+  final Map<String, int> _characterIds = <String, int>{};
   final Set<String> _existingSettings = <String>{};
+  final Set<String> _existingRelations = <String>{};
   int _appliedCharacters = 0;
   int _appliedSettings = 0;
+  int _appliedRelations = 0;
 
   @override
   void initState() {
@@ -41,17 +44,37 @@ class _EntityExtractionPageState extends ConsumerState<EntityExtractionPage> {
   }
 
   Future<void> _loadExisting() async {
-    final characters = await ref
-        .read(characterRepositoryProvider)
-        .listCharacters(widget.workId);
+    final characterRepo = ref.read(characterRepositoryProvider);
+    final characters = await characterRepo.listCharacters(widget.workId);
+    final relations = await characterRepo.listRelations(widget.workId);
     final settings = await ref
         .read(settingRepositoryProvider)
         .listEntries(widget.workId);
+    final namesById = <int, String>{
+      for (final character in characters)
+        character.id: character.name.trim().toLowerCase(),
+    };
     if (!mounted) return;
     setState(() {
-      _existingCharacters
+      _characterIds
         ..clear()
-        ..addAll(characters.map((c) => c.name.trim().toLowerCase()));
+        ..addEntries(
+          characters.map((c) => MapEntry(c.name.trim().toLowerCase(), c.id)),
+        );
+      _existingRelations
+        ..clear()
+        ..addAll(
+          relations
+              .where(
+                (r) =>
+                    namesById.containsKey(r.fromCharacterId) &&
+                    namesById.containsKey(r.toCharacterId),
+              )
+              .map(
+                (r) =>
+                    '${namesById[r.fromCharacterId]}|${namesById[r.toCharacterId]}|${r.label.trim().toLowerCase()}',
+              ),
+        );
       _existingSettings
         ..clear()
         ..addAll(
@@ -61,11 +84,27 @@ class _EntityExtractionPageState extends ConsumerState<EntityExtractionPage> {
   }
 
   bool _characterExists(ExtractedCharacter character) =>
-      _existingCharacters.contains(character.name.trim().toLowerCase());
+      _characterIds.containsKey(character.name.trim().toLowerCase());
 
   bool _settingExists(ExtractedSetting setting) => _existingSettings.contains(
     '${setting.type.value}|${setting.name.trim().toLowerCase()}',
   );
+
+  bool _relationExists(ExtractedRelation relation) =>
+      _existingRelations.contains(relation.key);
+
+  bool _relationResolvable(
+    ExtractedRelation relation,
+    EntityExtraction extraction,
+  ) {
+    bool known(String name) {
+      final key = name.trim().toLowerCase();
+      return _characterIds.containsKey(key) ||
+          extraction.characters.any((c) => c.name.trim().toLowerCase() == key);
+    }
+
+    return known(relation.from) && known(relation.to);
+  }
 
   Future<void> _extract() async {
     final l10n = context.l10n;
@@ -89,8 +128,10 @@ class _EntityExtractionPageState extends ConsumerState<EntityExtractionPage> {
       _result = null;
       _selectedCharacters.clear();
       _selectedSettings.clear();
+      _selectedRelations.clear();
       _appliedCharacters = 0;
       _appliedSettings = 0;
+      _appliedRelations = 0;
     });
     try {
       await _loadExisting();
@@ -117,6 +158,13 @@ class _EntityExtractionPageState extends ConsumerState<EntityExtractionPage> {
         for (var i = 0; i < extraction.settings.length; i++) {
           if (!_settingExists(extraction.settings[i])) {
             _selectedSettings.add(i);
+          }
+        }
+        for (var i = 0; i < extraction.relations.length; i++) {
+          final relation = extraction.relations[i];
+          if (!_relationExists(relation) &&
+              _relationResolvable(relation, extraction)) {
+            _selectedRelations.add(i);
           }
         }
       });
@@ -153,14 +201,15 @@ class _EntityExtractionPageState extends ConsumerState<EntityExtractionPage> {
     setState(() => _applying = true);
     final characterRepo = ref.read(characterRepositoryProvider);
     final settingRepo = ref.read(settingRepositoryProvider);
+    final nameToId = Map<String, int>.from(_characterIds);
     var characters = 0;
     var settings = 0;
+    var relations = 0;
     for (final index in _selectedCharacters.toList()..sort()) {
+      if (index >= extraction.characters.length) continue;
       final item = extraction.characters[index];
-      if (index >= extraction.characters.length || _characterExists(item)) {
-        continue;
-      }
-      await characterRepo.createCharacter(
+      if (_characterExists(item)) continue;
+      final id = await characterRepo.createCharacter(
         workId: widget.workId,
         name: item.name,
         identity: item.identity,
@@ -171,11 +220,13 @@ class _EntityExtractionPageState extends ConsumerState<EntityExtractionPage> {
         relations: item.relations,
         arc: item.arc,
       );
+      nameToId[item.name.trim().toLowerCase()] = id;
       characters++;
     }
     for (final index in _selectedSettings.toList()..sort()) {
+      if (index >= extraction.settings.length) continue;
       final item = extraction.settings[index];
-      if (index >= extraction.settings.length || _settingExists(item)) continue;
+      if (_settingExists(item)) continue;
       await settingRepo.createEntry(
         workId: widget.workId,
         type: item.type,
@@ -184,19 +235,41 @@ class _EntityExtractionPageState extends ConsumerState<EntityExtractionPage> {
       );
       settings++;
     }
+    final appliedRelationKeys = <String>{};
+    for (final index in _selectedRelations.toList()..sort()) {
+      if (index >= extraction.relations.length) continue;
+      final relation = extraction.relations[index];
+      if (_relationExists(relation) || !appliedRelationKeys.add(relation.key)) {
+        continue;
+      }
+      final fromId = nameToId[relation.from.trim().toLowerCase()];
+      final toId = nameToId[relation.to.trim().toLowerCase()];
+      if (fromId == null || toId == null || fromId == toId) continue;
+      await characterRepo.createRelation(
+        workId: widget.workId,
+        fromCharacterId: fromId,
+        toCharacterId: toId,
+        label: relation.label,
+      );
+      relations++;
+    }
     if (!mounted) return;
     setState(() {
       _applying = false;
       _appliedCharacters = characters;
       _appliedSettings = settings;
+      _appliedRelations = relations;
       _selectedCharacters.clear();
       _selectedSettings.clear();
+      _selectedRelations.clear();
     });
     await _loadExisting();
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(context.l10n.entityExtractApplied(characters, settings)),
+        content: Text(
+          context.l10n.entityExtractApplied(characters, settings, relations),
+        ),
       ),
     );
   }
@@ -205,7 +278,10 @@ class _EntityExtractionPageState extends ConsumerState<EntityExtractionPage> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final extraction = _result;
-    final selectedCount = _selectedCharacters.length + _selectedSettings.length;
+    final selectedCount =
+        _selectedCharacters.length +
+        _selectedSettings.length +
+        _selectedRelations.length;
     return Scaffold(
       appBar: AppBar(title: Text(l10n.entityExtractTitle)),
       body: ListView(
@@ -289,11 +365,41 @@ class _EntityExtractionPageState extends ConsumerState<EntityExtractionPage> {
                 },
               ),
           ],
-          if (_appliedCharacters + _appliedSettings > 0)
+          if (extraction != null && extraction.relations.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            Text(
+              l10n.entityExtractRelations,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            for (var i = 0; i < extraction.relations.length; i++)
+              _RelationTile(
+                relation: extraction.relations[i],
+                existing: _relationExists(extraction.relations[i]),
+                resolvable: _relationResolvable(
+                  extraction.relations[i],
+                  extraction,
+                ),
+                selected: _selectedRelations.contains(i),
+                onChanged: (value) {
+                  setState(() {
+                    if (value) {
+                      _selectedRelations.add(i);
+                    } else {
+                      _selectedRelations.remove(i);
+                    }
+                  });
+                },
+              ),
+          ],
+          if (_appliedCharacters + _appliedSettings + _appliedRelations > 0)
             Padding(
               padding: const EdgeInsets.only(top: 16),
               child: Text(
-                l10n.entityExtractApplied(_appliedCharacters, _appliedSettings),
+                l10n.entityExtractApplied(
+                  _appliedCharacters,
+                  _appliedSettings,
+                  _appliedRelations,
+                ),
                 style: TextStyle(color: context.paper.inkSoft),
               ),
             ),
@@ -395,6 +501,40 @@ class _SettingTile extends StatelessWidget {
         ],
       ),
       subtitle: setting.content.isEmpty ? null : Text(setting.content),
+    );
+  }
+}
+
+class _RelationTile extends StatelessWidget {
+  const _RelationTile({
+    required this.relation,
+    required this.existing,
+    required this.resolvable,
+    required this.selected,
+    required this.onChanged,
+  });
+
+  final ExtractedRelation relation;
+  final bool existing;
+  final bool resolvable;
+  final bool selected;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final disabled = existing || !resolvable;
+    final subtitle = existing
+        ? l10n.entityExtractExisting
+        : !resolvable
+        ? l10n.entityExtractRelationMissing
+        : relation.label;
+    return CheckboxListTile(
+      contentPadding: EdgeInsets.zero,
+      value: selected,
+      onChanged: disabled ? null : (v) => onChanged(v ?? false),
+      title: Text('${relation.from} → ${relation.to}'),
+      subtitle: subtitle.isEmpty ? null : Text(subtitle),
     );
   }
 }

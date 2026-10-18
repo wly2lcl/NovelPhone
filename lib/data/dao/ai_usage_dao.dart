@@ -28,7 +28,7 @@ class AiUsageDao {
   /// 按「模型 + 任务」在 SQL 内聚合（ENH-15）：统计只需要分组小计，没必要把整表
   /// AI_USAGE 读回 Dart 逐行累加（原实现还附带一次对聚合毫无用处的
   /// `ORDER BY createdAt DESC`，等于白跑一次全表排序）。
-  Selectable<UsageAggregate> aggregateQuery() {
+  Selectable<UsageAggregate> aggregateQuery({DateTime? since}) {
     final t = _db.aiUsages;
     final calls = t.id.count();
     final promptTokens = t.promptTokens.sum();
@@ -50,6 +50,9 @@ class AiUsageDao {
         ignored,
       ])
       ..groupBy(<Expression<Object>>[t.model, t.task]);
+    if (since != null) {
+      query.where(t.createdAt.isBiggerOrEqualValue(since));
+    }
     // map 返回新的 Selectable，不能写进级联里。
     return query.map(
       (row) => (
@@ -66,9 +69,11 @@ class AiUsageDao {
     );
   }
 
-  Stream<List<UsageAggregate>> watchAggregated() => aggregateQuery().watch();
+  Stream<List<UsageAggregate>> watchAggregated({DateTime? since}) =>
+      aggregateQuery(since: since).watch();
 
-  Future<List<UsageAggregate>> findAggregated() => aggregateQuery().get();
+  Future<List<UsageAggregate>> findAggregated({DateTime? since}) =>
+      aggregateQuery(since: since).get();
 
   Future<int> insert(AiUsagesCompanion row) {
     return _db.into(_db.aiUsages).insert(row);

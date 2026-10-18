@@ -76,20 +76,42 @@ class ExtractedSetting {
   final String content;
 }
 
+/// 抽取出的角色关系（ENH-24 设定补全）：from → to 的有向关系。
+class ExtractedRelation {
+  const ExtractedRelation({
+    required this.from,
+    required this.to,
+    this.label = '',
+  });
+
+  final String from;
+  final String to;
+  final String label;
+
+  String get key =>
+      '${from.trim().toLowerCase()}|${to.trim().toLowerCase()}|${label.trim().toLowerCase()}';
+
+  String get summary =>
+      <String>['$from → $to', if (label.isNotEmpty) label].join(' · ');
+}
+
 /// 设定补全解析结果。
 class EntityExtraction {
   const EntityExtraction({
     this.characters = const <ExtractedCharacter>[],
     this.settings = const <ExtractedSetting>[],
+    this.relations = const <ExtractedRelation>[],
     this.parseFailed = false,
   });
 
   final List<ExtractedCharacter> characters;
   final List<ExtractedSetting> settings;
+  final List<ExtractedRelation> relations;
   final bool parseFailed;
 
-  bool get isEmpty => characters.isEmpty && settings.isEmpty;
-  int get total => characters.length + settings.length;
+  bool get isEmpty =>
+      characters.isEmpty && settings.isEmpty && relations.isEmpty;
+  int get total => characters.length + settings.length + relations.length;
 }
 
 /// 解析设定补全 JSON（ENH-23）。容忍中英文键名与数组/字符串两种值。
@@ -102,6 +124,8 @@ EntityExtraction parseEntityExtractionResponse(String raw) {
   final characterSeen = <String>{};
   final settings = <ExtractedSetting>[];
   final settingSeen = <String>{};
+  final relations = <ExtractedRelation>[];
+  final relationSeen = <String>{};
   for (final root in roots) {
     for (final item in _listOf(root, const ['characters', '角色', '角色卡'])) {
       if (item is! Map) continue;
@@ -147,8 +171,42 @@ EntityExtraction parseEntityExtractionResponse(String raw) {
         ),
       );
     }
+
+    for (final item in _listOf(root, const [
+      'relations',
+      '关系',
+      '人物关系',
+      '角色关系',
+    ])) {
+      if (item is! Map) continue;
+      final from = readJsonString(item, const [
+        'from',
+        'source',
+        'fromName',
+        '角色A',
+        '甲',
+        '起点',
+      ]);
+      final to = readJsonString(item, const [
+        'to',
+        'target',
+        'toName',
+        '角色B',
+        '乙',
+        '终点',
+      ]);
+      final label = readJsonText(item, const ['label', 'relation', '关系', '描述']);
+      if (from.isEmpty || to.isEmpty || from == to) continue;
+      final relation = ExtractedRelation(from: from, to: to, label: label);
+      if (!relationSeen.add(relation.key)) continue;
+      relations.add(relation);
+    }
   }
-  return EntityExtraction(characters: characters, settings: settings);
+  return EntityExtraction(
+    characters: characters,
+    settings: settings,
+    relations: relations,
+  );
 }
 
 /// 一条剧情走向（ENH-23 剧情推演）。
@@ -262,7 +320,8 @@ PlotPlan parsePlotPlanResponse(String raw) {
 
   final plan = PlotPlan(directions: directions, chapters: chapters);
   if (!plan.isEmpty) return plan;
-  return parsePlotPlanResponse('');
+  // JSON 合法但字段名不匹配时保留原文，让界面明确提示解析失败而不是静默空白。
+  return PlotPlan(rawText: raw.trim());
 }
 
 /// 模型可能返回单个对象或对象数组，统一成待遍历的根对象列表。

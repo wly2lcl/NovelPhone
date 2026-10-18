@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/theme.dart';
 import '../../l10n/l10n.dart';
+
+/// 上架用隐私政策外链（与 docs/PRIVACY.md 同步维护）。
+const String privacyPolicyUrl =
+    'https://github.com/wly2lcl/NovelPhone/blob/main/docs/PRIVACY.md';
 
 /// 关于页（ENH-19）：版本信息、隐私说明与开源许可入口，对应上架合规的前置要求。
 class AboutPage extends StatefulWidget {
@@ -28,6 +33,18 @@ class _AboutPageState extends State<AboutPage> {
       setState(() => _version = '${info.version} (${info.buildNumber})');
     } on Exception {
       // 平台通道不可用（如部分测试环境）时保持占位符，不影响页面其余内容。
+    }
+  }
+
+  Future<void> _openPrivacyPolicy() async {
+    final opened = await launchUrl(
+      Uri.parse(privacyPolicyUrl),
+      mode: LaunchMode.externalApplication,
+    );
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.aboutPrivacyLinkFailed)),
+      );
     }
   }
 
@@ -71,6 +88,15 @@ class _AboutPageState extends State<AboutPage> {
               _bullet(context, l10n.aboutPrivacyNetwork),
               _bullet(context, l10n.aboutPrivacyOffline),
               _bullet(context, l10n.aboutPrivacyErase, last: true),
+              const SizedBox(height: 4),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: _openPrivacyPolicy,
+                  icon: const Icon(Icons.open_in_new, size: 16),
+                  label: Text(l10n.aboutPrivacyPolicyLink),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 16),

@@ -13,7 +13,7 @@
 - **数据归你**——SQLite 本地存储、API Key 存系统安全区、备份导出到本地文件或你自己的对象存储；
 - **治理「AI 味」**——内置规则引擎与可选 LLM 深检标记套话、重复句式等问题，支持定位与一键替换；AI 续写默认并发生成多个候选，供你对照挑选。
 
-当前状态：MVP 功能范围（78 / 78）已收口，此后 23 项增强（ENH-01~23，含全 App 简体中文 / English 双语 UI、MCP OAuth 2.1 PKCE 与技能 front matter 导入、无障碍语义、应用图标 / 启动闪屏品牌化、发布产物交付，以及回收站、MCP 调用审计、备份校验预览、技能导出、文风档案、AI 设定补全、剧情推演、作品问答、全书一致性体检与稳定性增强）全部落地；Android release 签名、AAB / 分 ABI APK 产物与 GitHub Actions CI（含 iOS 无签名构建 job）就绪，iOS 无签名 release 构建通过，445 个自动化用例通过，真机验收记录见 [docs/TODO.md](docs/TODO.md)。ENH-23 的文风档案、AI 设定补全与剧情推演已于 2026-10-18 经 `deepseek-v4-flash` / `agnes-3.0-flash` 两个真实模型通道复验（竖屏对比截图见下）。
+当前状态：MVP 功能范围（78 / 78）已收口，此后 24 项增强（ENH-01~24，含全 App 简体中文 / English 双语 UI、MCP OAuth 2.1 PKCE 与技能 front matter 导入、无障碍语义、应用图标 / 启动闪屏品牌化、发布产物交付，以及回收站、MCP 调用审计、备份校验预览、技能导出、文风档案、AI 设定补全、剧情推演、作品问答、全书一致性体检与稳定性增强；ENH-24 补齐 Markdown / EPUB 导入、推演转章纲、角色关系抽取、批量摘要、月度 AI 预算与发布收口）全部落地；Android release 签名、AAB / 分 ABI APK 产物与 GitHub Actions CI（含 iOS 无签名构建 job 与 release 产物归档）就绪，iOS 无签名 release 构建通过，450 个自动化用例通过，真机验收记录见 [docs/TODO.md](docs/TODO.md)。ENH-23 的文风档案、AI 设定补全与剧情推演已于 2026-10-18 经 `deepseek-v4-flash` / `agnes-3.0-flash` 两个真实模型通道复验（竖屏对比截图见下）。
 
 ## 截图
 
@@ -42,7 +42,7 @@
 - 多作品管理：封面配色、字数与最近编辑时间一览；全局搜索跨作品检索章节标题与正文，命中高亮并可跳转编辑器定位
 - 分卷 / 章节结构：卷上移 / 下移 / 重命名 / 删除，卷内新建章节；章节重命名、上移 / 下移、移动到其他卷与删除
 - 回收站：删除作品 / 章节只打删除标记，30 天内可在设置 →「回收站」恢复或永久删除；每次启动与打开回收站时自动清理过期条目
-- 导入 txt / docx：自动探测编码（UTF-8 / GBK）、按「第X章」规则分章预览、「并入上一章」合并、单文件 10MB 上限
+- 导入 txt / docx / Markdown / EPUB：自动探测编码（UTF-8 / GBK）、按「第X章」规则分章预览、「并入上一章」合并、单文件 10MB 上限；EPUB 按 OPF spine 顺序读取章节并跳过目录页，Markdown 按标题分章
 - 编辑器：自动保存与「已保存」指示、专注模式（隐藏工具栏、光标行居中）、写作外观（夜间纸张 / 正文字号 / 行距）
 - 查找、段落移动、撤销 / 重做（100 步与累计 200 万字符双上限）
 - 全书查找替换：输入关键词即预览全书命中章节与片段，确认后一次性替换；受影响章节自动留存快照，可在版本历史中回滚
@@ -61,13 +61,14 @@
 - **AI 续写**：默认并发生成 3 个候选（温度微调制造差异）、篇幅滑杆、生成方向、插入光标处；生成前可展开「AI 看到的上下文」核对估算 token 与预算
 - **AI 灵感**：桥段点子流式生成，自动注入前文摘要与本章章纲
 - **AI 改写**：选中段落后按润色 / 扩写 / 缩写 / 改语气 + 补充指令改写，替换原文走编辑器撤销栈
-- **AI 逐章摘要 + 本卷前情回顾**：滚动摘要解决长篇上下文「遗忘」；摘要可查看 / 手动编辑，过期时提示重新生成
+- **AI 逐章摘要 + 本卷前情回顾**：滚动摘要解决长篇上下文「遗忘」；摘要可查看 / 手动编辑，过期时提示重新生成；新增批量生成页，一次为「缺少摘要 / 正文已更新」的章节顺序生成，可中途停止
 - **AI 章纲扩写**：一句梗概扩写为分场大纲写回本章章纲
+- **推演转章纲**：剧情推演的分章建议可一键写入章纲（标题匹配已有章节时写回该章，否则作为未关联章节的梗概）
 - **AI 设定一致性检查**：结合本章正文、角色卡、设定集与章纲，一次性输出人物 / 设定 / 时间线冲突报告与修改建议；结果可回看，不写入正文
 - **全书一致性体检**：逐章扫描整部作品，按章展开冲突明细；生成过程流式可见，可随时停止并保留已生成的部分报告
 - **文风档案**：从样章提取叙事视角、语感、句长与遣词偏好并保存到作品，写作与问答时自动注入上下文
-- **AI 设定补全**：从章节正文抽取角色与设定条目，预览合并结果并自动去重，一键写入角色卡与设定集
-- **剧情推演**：结合既有设定、章纲与最新进度给出多条走向与分章建议，可一键存入灵感箱
+- **AI 设定补全**：从章节正文抽取角色、设定条目与角色关系，预览合并结果并自动去重，一键写入角色卡、设定集与关系图；无法对应到已有或新建角色的关系会给出跳过原因
+- **剧情推演**：结合既有设定、章纲与最新进度给出多条走向与分章建议，可一键存入灵感箱或转为章纲
 - **作品问答**：针对整部作品的多轮对话，本地检索章节、角色、设定与章纲后作答；对话按作品持久化（保留最近 40 轮），可查看本轮注入的上下文并清空
 - **AI 感检查**：约 200 条词库规则引擎（套话 + 句式重复率 + 标点密度）与可选 LLM 深检两层级联；面板支持范围统计、类型筛选、就地高亮定位、一键替换、忽略与批量忽略同类、处置率计数；单章与整作检查均不冻结界面
 
@@ -91,7 +92,8 @@
 - 备份到文件：整库 zip（`data.json` + `manifest.json` + 每作品 markdown），恢复前展示导出时间、数据版本、作品 / 章 / 角色数量并校验 **SHA-256**（旧版无清单的备份会明确提示「未包含校验信息」）；恢复时可「合并为新增作品」或「覆盖并清空本地」
 - 云备份：用户自带的 S3 兼容对象存储（AWS S3 / 阿里云 OSS / 七牛 Kodo / 腾讯 COS / 华为 OBS），SigV4 直签、默认关闭，支持手动与按间隔自动备份
 - 写作统计：每日字数目标进度、连续写作天数、番茄钟、近 7 / 30 天字数趋势图与近一年写作热力图
-- Token 与采纳统计：按「任务 · 模型」分组，记录生成次数、token 用量与采纳率 / 忽略率；模型组可填每百万 token 输入 / 输出价格，统计页据此估算费用（人民币）
+- Token 与采纳统计：按「任务 · 模型」分组，记录生成次数、token 用量与采纳率 / 忽略率；模型组可填每百万 token 输入 / 输出价格，统计页据此估算费用（人民币）；可设置**月度 AI 预算**，达到 80% 提示、100% 红色告警（仅提示，不阻断调用）
+- 发布资料：独立的 [隐私政策](docs/PRIVACY.md)（中英双语）与 [发布说明](docs/RELEASE.md)（构建命令、Google Play 商品信息、Data safety 表单口径、iOS 阻塞项）；「关于」页可直接打开隐私政策外链
 - 隐私：API Key 存系统安全存储（keychain / keystore），不入库、不随备份导出；AI 功能首次联网前展示告知门控，详情见 [docs/COMPLIANCE.md](docs/COMPLIANCE.md)
 
 ## 技术栈
@@ -152,10 +154,10 @@ dart run build_runner build --delete-conflicting-outputs
 ```bash
 dart format --output=none --set-exit-if-changed lib test
 flutter analyze
-flutter test    # 445 个用例：数据层 / 编辑器控制器 / AI 客户端与编排 / 文风与结构化输出 / 作品问答与检索 / MCP OAuth、审计与技能导入导出 / 检查引擎 / 页面 widget
+flutter test    # 450 个用例：数据层 / 编辑器控制器 / AI 客户端与编排 / 文风与结构化输出 / 作品问答与检索 / 导入解析（txt / Markdown / EPUB）/ MCP OAuth、审计与技能导入导出 / 检查引擎 / 页面 widget
 ```
 
-GitHub Actions（[ci.yml](.github/workflows/ci.yml)）在 push 与 PR 上执行上述三项检查，并在 `macos-latest` 上额外执行 iOS 无签名 release 构建（`flutter build ios --release --no-codesign`）以尽早发现 iOS 工程 / 插件集成问题。
+GitHub Actions（[ci.yml](.github/workflows/ci.yml)）在 push 与 PR 上执行上述三项检查，并在 `macos-latest` 上额外执行 iOS 无签名 release 构建（`flutter build ios --release --no-codesign`）以尽早发现 iOS 工程 / 插件集成问题；`main` push 或手动触发时还会用临时 keystore 构建 AAB 与分 ABI APK 并归档 14 天（仅供构建验证，正式上架需用离线发布证书重建，见 [docs/RELEASE.md](docs/RELEASE.md)）。
 
 开发辅助工具：[tool/fake_llm_server.dart](tool/fake_llm_server.dart) 在本机回环模拟 Chat Completions / Messages 的正常流与 429 / 5xx / 内容过滤场景，并提供文风 / 设定抽取 / 剧情推演的 JSON 场景（`/openai-style`、`/openai-extract`、`/openai-plan`）；流式分片即时 flush，可观察增量输出与「停止保留部分结果」（`GET /stats` 观测请求计数；`/openai-tool` 场景优先选 MCP 工具先发 `tool_calls`、收到工具结果后再输出文本，可贯通 MCP 调用与审计），配合 `adb reverse` 可在真机验证 AI 错误与重试路径，无需真实 API Key；[tool/fake_mcp_oauth_server.dart](tool/fake_mcp_oauth_server.dart) 模拟带 OAuth 2.1 PKCE 授权服务器（含动态注册、S256 校验、refresh_token）的 MCP server 与 echo 工具，用于验证完整授权链路。
 
@@ -165,7 +167,9 @@ GitHub Actions（[ci.yml](.github/workflows/ci.yml)）在 push 与 PR 上执行�
 |---|---|
 | [docs/PRD.md](docs/PRD.md) | 产品定位、功能范围与验收标准 |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 技术选型、分层模块、数据模型与 AI 层设计 |
-| [docs/TODO.md](docs/TODO.md) | 任务清单、进度跟踪与真机验收记录（M1-M4 + ENH-01~23） |
+| [docs/TODO.md](docs/TODO.md) | 任务清单、进度跟踪与真机验收记录（M1-M4 + ENH-01~24） |
+| [docs/RELEASE.md](docs/RELEASE.md) | 发布命令、商店资料、Data safety 口径与已知限制 |
+| [docs/PRIVACY.md](docs/PRIVACY.md) | 对外隐私政策（中英双语，商店与应用内共用） |
 | [docs/COMPLIANCE.md](docs/COMPLIANCE.md) | 隐私政策、数据安全说明与上架资料要点 |
 
 ## 许可证

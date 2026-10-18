@@ -6,7 +6,9 @@ import '../../app/locale.dart';
 import '../../app/theme.dart';
 import '../../data/data_providers.dart';
 import '../../l10n/l10n.dart';
+import '../ai/ai_providers.dart';
 import 'backup_actions.dart';
+import 'monthly_budget_dialog.dart';
 
 /// 设置页（M1 为占位，M2 补备份引导，M3 落地模型组 / key / 统计）。
 class SettingsPage extends ConsumerWidget {
@@ -40,6 +42,7 @@ class SettingsPage extends ConsumerWidget {
             trailing: Icon(Icons.chevron_right, color: context.paper.inkSoft),
             onTap: () => context.push('/settings/token-stats'),
           ),
+          const _BudgetTile(),
           ListTile(
             leading: const Icon(Icons.hub_outlined),
             title: Text(l10n.settingsMcpServers),
@@ -121,6 +124,28 @@ class SettingsPage extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// 月度 AI 预算入口（ENH-24）：未设置时提示，设置后显示金额。
+class _BudgetTile extends ConsumerWidget {
+  const _BudgetTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final budget = ref.watch(monthlyBudgetProvider).value ?? 0;
+    return ListTile(
+      leading: const Icon(Icons.account_balance_wallet_outlined),
+      title: Text(l10n.settingsAiBudget),
+      subtitle: Text(
+        budget > 0
+            ? l10n.settingsAiBudgetValue(budget.toStringAsFixed(2))
+            : l10n.tokenStatsBudgetUnset,
+      ),
+      trailing: Icon(Icons.chevron_right, color: context.paper.inkSoft),
+      onTap: () => showMonthlyBudgetDialog(context, ref),
     );
   }
 }

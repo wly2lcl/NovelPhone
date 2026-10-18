@@ -1123,6 +1123,13 @@ class AiService {
       completionTokens: completionTokens,
       outputChars: text.length,
     );
+    if (text.isEmpty) {
+      // 推理模型可能把输出上限全部耗在推理阶段，调用方需要明确失败而不是空白结果。
+      throw const AiServiceException(
+        kind: AiErrorKind.badRequest,
+        message: 'AI 未返回内容，请重试或提高输出上限',
+      );
+    }
     return AiOneShotResult(
       text: text,
       promptTokens: promptTokens,

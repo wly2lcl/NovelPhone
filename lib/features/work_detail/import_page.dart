@@ -9,7 +9,9 @@ import 'package:path/path.dart' as p;
 import '../../app/theme.dart';
 import '../../core/importer/chapter_splitter.dart';
 import '../../core/importer/docx_parser.dart';
+import '../../core/importer/epub_parser.dart';
 import '../../core/importer/import_archive.dart';
+import '../../core/importer/markdown_parser.dart';
 import '../../core/importer/text_encoding.dart';
 import '../../data/data_providers.dart';
 import '../../data/repositories/chapter_repository.dart';
@@ -18,7 +20,7 @@ import '../../l10n/l10n.dart';
 /// 导入上限（M2-12）：超过 10MB 的文件提示改用其他方式。
 const int kMaxImportBytes = 10 * 1024 * 1024;
 
-/// txt / docx 导入页（PRD 功能 11）：选文件 → 解析分章 → 预览调整 → 确认写入。
+/// txt / docx / Markdown / EPUB 导入页（PRD 功能 11）：选文件 → 解析分章 → 预览调整 → 确认写入。
 class ImportPage extends ConsumerStatefulWidget {
   const ImportPage({super.key, required this.workId});
 
@@ -97,7 +99,13 @@ class _ImportPageState extends ConsumerState<ImportPage> {
     try {
       final file = await FilePicker.pickFile(
         type: FileType.custom,
-        allowedExtensions: const <String>['txt', 'docx'],
+        allowedExtensions: const <String>[
+          'txt',
+          'docx',
+          'md',
+          'markdown',
+          'epub',
+        ],
       );
       if (file == null) return;
       final fileName = file.name;
@@ -197,13 +205,26 @@ Future<ParseResult> parseImportFileAsync(String fileName, Uint8List bytes) =>
 @visibleForTesting
 ParseResult parseImportFile(String fileName, Uint8List bytes) {
   final fallbackTitle = p.basenameWithoutExtension(fileName);
-  if (fileName.toLowerCase().endsWith('.docx')) {
+  final lower = fileName.toLowerCase();
+  if (lower.endsWith('.docx')) {
     return ParseResult(
       drafts: parseDocx(bytes, fallbackTitle: fallbackTitle),
       encoding: 'docx',
     );
   }
+  if (lower.endsWith('.epub')) {
+    return ParseResult(
+      drafts: parseEpub(bytes, fallbackTitle: fallbackTitle),
+      encoding: 'epub',
+    );
+  }
   final decoded = decodeTextBytes(bytes);
+  if (lower.endsWith('.md') || lower.endsWith('.markdown')) {
+    return ParseResult(
+      drafts: parseMarkdown(decoded.text, fallbackTitle: fallbackTitle),
+      encoding: 'markdown',
+    );
+  }
   return ParseResult(
     drafts: splitIntoChapters(decoded.text, fallbackTitle: fallbackTitle),
     encoding: decoded.encoding,

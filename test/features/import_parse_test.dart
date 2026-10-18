@@ -44,4 +44,53 @@ void main() {
     expect(parsed.drafts[0].content, contains('少年推开木门'));
     expect(parsed.drafts[1].content, contains('沈砚在雨里走了很久'));
   });
+
+  test('Markdown 导入保留分章并去掉标记语法', () async {
+    const markdown = '''
+---
+title: 测试
+---
+
+# 第一章 雨夜
+
+> **沈砚**走进[灯塔](https://example.com)，看见 ![白鹿号](cover.png)。
+- 潮声很近
+- 灯油快没了
+
+## 第二章 清单
+
+`沉船清单`上多了*一行*字。
+''';
+    final parsed = await parseImportFileAsync(
+      '雾港夜航.md',
+      Uint8List.fromList(utf8.encode(markdown)),
+    );
+
+    expect(parsed.encoding, 'markdown');
+    expect(parsed.drafts.length, 2);
+    expect(parsed.drafts[0].title, '第一章 雨夜');
+    expect(parsed.drafts[0].content, contains('沈砚走进灯塔，看见 白鹿号。'));
+    expect(parsed.drafts[0].content, contains('潮声很近'));
+    expect(parsed.drafts[0].content, isNot(contains('**')));
+    expect(parsed.drafts[0].content, isNot(contains('](')));
+    expect(parsed.drafts[1].title, '第二章 清单');
+    expect(parsed.drafts[1].content, contains('沉船清单上多了一行字。'));
+  });
+
+  test('EPUB 导入按 spine 顺序还原章节并跳过目录页', () async {
+    final bytes = buildWorkEpub(const <ExportChapter>[
+      ExportChapter(title: '第一章 断章夜航', content: '雾从海面漫上来。\n\n周砚握紧了手电。'),
+      ExportChapter(title: '第二章 白鹿号', content: '老陈指着泊位，说船昨晚动过。'),
+    ], title: '雾港夜航');
+
+    final parsed = await parseImportFileAsync('雾港夜航.epub', bytes);
+
+    expect(parsed.encoding, 'epub');
+    expect(parsed.drafts.length, 2);
+    expect(parsed.drafts[0].title, '第一章 断章夜航');
+    expect(parsed.drafts[0].content, contains('雾从海面漫上来。'));
+    expect(parsed.drafts[0].content, isNot(contains('目录')));
+    expect(parsed.drafts[1].title, '第二章 白鹿号');
+    expect(parsed.drafts[1].content, contains('老陈指着泊位'));
+  });
 }
