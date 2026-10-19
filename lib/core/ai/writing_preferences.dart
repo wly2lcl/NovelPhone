@@ -77,11 +77,16 @@ class WritingPreferences {
   static String adoptedSamplesKey(int workId) => 'ai_adopted_samples_$workId';
   static String enabledKey(int workId) => 'ai_preferences_enabled_$workId';
 
+  /// 分段采纳时未勾选段落的反馈计数（ENH-29，与整篇放弃分开统计）。
+  static String paragraphFeedbackKey(int workId) =>
+      'ai_paragraph_feedback_$workId';
+
   /// 作品永久删除时一并清理的偏好键。
   static List<String> keysFor(int workId) => <String>[
     feedbackKey(workId),
     adoptedSamplesKey(workId),
     enabledKey(workId),
+    paragraphFeedbackKey(workId),
   ];
 
   /// 本地最多保留的采纳片段数。
@@ -151,9 +156,12 @@ class WritingPreferences {
   }
 
   /// 生成注入 system 的「作者协作偏好」文本；无高频原因与样本时返回空串。
+  ///
+  /// [preferredTask] 用于优先选取与本次任务相同的采纳片段（ENH-29）。
   static String promptBlock({
     required Map<String, int> reasonCounts,
     required List<AdoptedSample> samples,
+    String preferredTask = '',
   }) {
     final rules = <String>[];
     for (final reason in AiFeedbackReason.all) {
@@ -163,10 +171,13 @@ class WritingPreferences {
       final rule = AiFeedbackReason.rule(reason);
       if (rule != null) rules.add(rule);
     }
-    final usable = samples
+    final eligible = samples
         .where((s) => s.text.trim().isNotEmpty)
-        .take(promptSampleCount)
         .toList(growable: false);
+    final usable = <AdoptedSample>[
+      ...eligible.where((s) => s.task == preferredTask),
+      ...eligible.where((s) => s.task != preferredTask),
+    ].take(promptSampleCount).toList(growable: false);
     if (rules.isEmpty && usable.isEmpty) return '';
 
     final buffer = StringBuffer('【作者协作偏好】');

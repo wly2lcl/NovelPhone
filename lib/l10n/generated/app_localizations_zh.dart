@@ -478,6 +478,27 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aiPanelRevising => '正在按意见修改…';
 
   @override
+  String get aiReviseQuickMoreDetail => '更具体';
+
+  @override
+  String get aiReviseQuickTighter => '更紧凑';
+
+  @override
+  String get aiReviseQuickDialog => '加强对话';
+
+  @override
+  String get aiReviseQuickEnding => '换个结尾';
+
+  @override
+  String get aiReviseQuickRemoveAi => '去 AI 味';
+
+  @override
+  String get aiPanelCompareOriginal => '对比原文';
+
+  @override
+  String get aiPanelCompareOriginalTitle => '对比原文与改写结果';
+
+  @override
   String get aiMergeTitle => '分段采纳 AI 结果';
 
   @override
@@ -501,6 +522,17 @@ class AppLocalizationsZh extends AppLocalizations {
   String aiMergeApply(int count) {
     return '采用 $count 段';
   }
+
+  @override
+  String get aiMergeRejectTitle => '哪些段落未采纳？';
+
+  @override
+  String aiMergeRejectHint(int count) {
+    return '有 $count 段未采纳。选一个主要原因，只保存在本机，用于后续生成避雷。';
+  }
+
+  @override
+  String get aiMergeRejectConfirm => '记录并采纳';
 
   @override
   String get aiFeedbackTitle => '这次结果哪里不合适？';
@@ -546,6 +578,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aiPreferencesReasons => '放弃原因';
+
+  @override
+  String get aiPreferencesParagraphReasons => '分段未采纳原因';
 
   @override
   String get aiPreferencesSamples => '最近采纳片段';

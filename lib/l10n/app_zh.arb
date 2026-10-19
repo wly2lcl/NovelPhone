@@ -305,6 +305,13 @@
   "aiPanelReviseHint": "告诉 AI 怎么改，例如：对白更克制，删掉最后一句",
   "aiPanelReviseNeedInstruction": "请先填写修改意见",
   "aiPanelRevising": "正在按意见修改…",
+  "aiReviseQuickMoreDetail": "更具体",
+  "aiReviseQuickTighter": "更紧凑",
+  "aiReviseQuickDialog": "加强对话",
+  "aiReviseQuickEnding": "换个结尾",
+  "aiReviseQuickRemoveAi": "去 AI 味",
+  "aiPanelCompareOriginal": "对比原文",
+  "aiPanelCompareOriginalTitle": "对比原文与改写结果",
   "aiMergeTitle": "分段采纳 AI 结果",
   "aiMergeHint": "勾选要写入正文的段落，可直接修改文字；未勾选的段落不会写入。",
   "aiMergeSelectAll": "全选",
@@ -329,6 +336,16 @@
       }
     }
   },
+  "aiMergeRejectTitle": "哪些段落未采纳？",
+  "aiMergeRejectHint": "有 {count} 段未采纳。选一个主要原因，只保存在本机，用于后续生成避雷。",
+  "@aiMergeRejectHint": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "aiMergeRejectConfirm": "记录并采纳",
   "aiFeedbackTitle": "这次结果哪里不合适？",
   "aiFeedbackHint": "原因只保存在本机，并用于后续生成时避雷。",
   "aiFeedbackTooAi": "太像 AI",
@@ -344,6 +361,7 @@
   "aiPreferencesEnabled": "生成时参考本机偏好",
   "aiPreferencesEmpty": "还没有记录。放弃结果时选择原因、采纳结果后会自动积累参考片段。",
   "aiPreferencesReasons": "放弃原因",
+  "aiPreferencesParagraphReasons": "分段未采纳原因",
   "aiPreferencesSamples": "最近采纳片段",
   "aiPreferencesNoSamples": "暂无采纳片段",
   "aiPreferencesCount": "{count} 次",

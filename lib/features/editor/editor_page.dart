@@ -274,6 +274,7 @@ class _EditorPageState extends ConsumerState<EditorPage> {
             ),
           if (_aiMode != null)
             AiConfirmPanel(
+              key: ValueKey<AiPanelMode>(_aiMode!),
               workId: widget.workId,
               chapterId: widget.chapterId,
               initialMode: _aiMode!,

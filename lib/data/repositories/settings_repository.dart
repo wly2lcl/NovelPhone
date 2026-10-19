@@ -297,6 +297,10 @@ class SettingsRepository {
   static String aiAdoptedSamplesKey(int workId) =>
       WritingPreferences.adoptedSamplesKey(workId);
 
+  /// 未采纳段落的反馈计数键（ENH-29，按作品隔离，仅本机）。
+  static String aiParagraphFeedbackKey(int workId) =>
+      WritingPreferences.paragraphFeedbackKey(workId);
+
   Future<Map<String, int>> readAiFeedback(int workId) async =>
       WritingPreferences.parseReasonCounts(
         await getSetting(aiFeedbackKey(workId)),
@@ -308,6 +312,21 @@ class SettingsRepository {
     counts[reason] = (counts[reason] ?? 0) + 1;
     await setSetting(
       aiFeedbackKey(workId),
+      WritingPreferences.encodeReasonCounts(counts),
+    );
+  }
+
+  Future<Map<String, int>> readAiParagraphFeedback(int workId) async =>
+      WritingPreferences.parseReasonCounts(
+        await getSetting(aiParagraphFeedbackKey(workId)),
+      );
+
+  Future<void> recordAiParagraphFeedback(int workId, String reason) async {
+    if (!AiFeedbackReason.all.contains(reason)) return;
+    final counts = await readAiParagraphFeedback(workId);
+    counts[reason] = (counts[reason] ?? 0) + 1;
+    await setSetting(
+      aiParagraphFeedbackKey(workId),
       WritingPreferences.encodeReasonCounts(counts),
     );
   }
@@ -343,10 +362,11 @@ class SettingsRepository {
   Future<void> setAiPreferencesEnabled(int workId, bool enabled) =>
       setSetting(WritingPreferences.enabledKey(workId), enabled ? '1' : '0');
 
-  /// 清空原因计数与采纳片段，保留开关状态。
+  /// 清空原因计数、采纳片段与段落级反馈，保留开关状态。
   Future<void> clearAiPreferences(int workId) async {
     await _settings.remove(WritingPreferences.feedbackKey(workId));
     await _settings.remove(WritingPreferences.adoptedSamplesKey(workId));
+    await _settings.remove(WritingPreferences.paragraphFeedbackKey(workId));
   }
 
   // ---------- MCP server（B-02）----------

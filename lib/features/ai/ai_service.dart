@@ -463,7 +463,10 @@ class AiService {
             contextWindow: group.contextWindow,
             direction: direction,
             length: length,
-            preferenceText: await _preferenceText(workId),
+            preferenceText: await _preferenceText(
+              workId,
+              task: AiTask.continueWriting,
+            ),
             revisionDraft: revisionDraft,
             revisionInstruction: revisionInstruction,
           ),
@@ -515,7 +518,10 @@ class AiService {
       contextWindow: group.contextWindow,
       direction: direction,
       length: length,
-      preferenceText: await _preferenceText(workId),
+      preferenceText: await _preferenceText(
+        workId,
+        task: AiTask.continueWriting,
+      ),
     );
     return _withSkills(built, await settings.listEnabledSkills());
   }
@@ -710,7 +716,7 @@ class AiService {
       intent: intent,
       instruction: instruction,
       contextWindow: group.contextWindow,
-      preferenceText: await _preferenceText(workId),
+      preferenceText: await _preferenceText(workId, task: AiTask.rewrite),
       revisionDraft: revisionDraft,
       revisionInstruction: revisionInstruction,
     );
@@ -1743,14 +1749,20 @@ class AiService {
     );
   }
 
-  /// 本地协作偏好（ENH-27）：高频忽略原因 + 近期采纳片段，注入了续写/改写 system。
-  Future<String> _preferenceText(int workId) async {
+  /// 本地协作偏好（ENH-27 / ENH-29）：整篇放弃与分段未采纳的原因合并计数，
+  /// 采纳片段优先取与本次任务同类的，注入续写/改写 system。
+  Future<String> _preferenceText(int workId, {required String task}) async {
     if (!await settings.readAiPreferencesEnabled(workId)) return '';
     final counts = await settings.readAiFeedback(workId);
+    final paragraph = await settings.readAiParagraphFeedback(workId);
+    for (final entry in paragraph.entries) {
+      counts[entry.key] = (counts[entry.key] ?? 0) + entry.value;
+    }
     final samples = await settings.readAdoptedSamples(workId);
     return WritingPreferences.promptBlock(
       reasonCounts: counts,
       samples: samples,
+      preferredTask: task,
     );
   }
 

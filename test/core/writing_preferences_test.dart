@@ -97,6 +97,27 @@ void main() {
       expect(block, isNot(contains('\n第二行')));
     });
 
+    test('prompt 优先选取同类任务的采纳片段，超出上限时仍截断', () {
+      final samples = <AdoptedSample>[
+        const AdoptedSample(text: '新改写一', task: 'rewrite'),
+        const AdoptedSample(text: '新改写二', task: 'rewrite'),
+        const AdoptedSample(text: '旧续写一', task: 'continue'),
+        const AdoptedSample(text: '旧续写二', task: 'continue'),
+      ];
+      final block = WritingPreferences.promptBlock(
+        reasonCounts: const <String, int>{},
+        samples: samples,
+        preferredTask: 'continue',
+      );
+      expect(block.indexOf('旧续写一'), lessThan(block.indexOf('新改写一')));
+      expect(
+        RegExp(r'^\d\. ', multiLine: true).allMatches(block),
+        hasLength(WritingPreferences.promptSampleCount),
+      );
+      expect(block, contains('旧续写二'));
+      expect(block, isNot(contains('新改写二')));
+    });
+
     test('JSON 往返与脏数据容错', () {
       final samples = <AdoptedSample>[
         AdoptedSample(

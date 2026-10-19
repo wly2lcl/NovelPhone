@@ -141,6 +141,13 @@
   "aiPanelReviseHint": "Tell the AI how to revise, e.g. keep the dialogue restrained and cut the last line",
   "aiPanelReviseNeedInstruction": "Enter revision notes first",
   "aiPanelRevising": "Revising…",
+  "aiReviseQuickMoreDetail": "More specific",
+  "aiReviseQuickTighter": "Tighter",
+  "aiReviseQuickDialog": "More dialogue",
+  "aiReviseQuickEnding": "Different ending",
+  "aiReviseQuickRemoveAi": "Less AI-sounding",
+  "aiPanelCompareOriginal": "Compare with original",
+  "aiPanelCompareOriginalTitle": "Compare original and rewrite",
   "aiMergeTitle": "Review AI result by paragraph",
   "aiMergeHint": "Check the paragraphs to keep; edit them inline. Unchecked paragraphs are skipped.",
   "aiMergeSelectAll": "Select all",
@@ -165,6 +172,16 @@
       }
     }
   },
+  "aiMergeRejectTitle": "Which paragraphs were rejected?",
+  "aiMergeRejectHint": "{count, plural, =1{1 paragraph was not used.} other{{count} paragraphs were not used.}} Pick the main reason; it stays on this device and guides future generations.",
+  "@aiMergeRejectHint": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "aiMergeRejectConfirm": "Record and use",
   "aiFeedbackTitle": "What was wrong with this result?",
   "aiFeedbackHint": "Reasons stay on this device and help future generations avoid the same issues.",
   "aiFeedbackTooAi": "Too AI-sounding",
@@ -180,6 +197,7 @@
   "aiPreferencesEnabled": "Use local preferences when generating",
   "aiPreferencesEmpty": "Nothing recorded yet. Pick a reason when discarding a result, and adopted results will add reference passages automatically.",
   "aiPreferencesReasons": "Discard reasons",
+  "aiPreferencesParagraphReasons": "Rejected paragraph reasons",
   "aiPreferencesSamples": "Recently adopted passages",
   "aiPreferencesNoSamples": "No adopted passages yet",
   "aiPreferencesCount": "{count, plural, =1{1 time} other{{count} times}}",

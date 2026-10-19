@@ -133,6 +133,14 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
   bool _revisionTextStarted = false;
   bool _revising = false;
 
+  /// 修订开始前的 usageId（ENH-29）：首个新文本到达才记为 regenerated，
+  /// 修订失败时旧结果与统计仍有效。
+  int? _revisionPreviousUsage;
+
+  /// 当前结果的处置是否已回写（ENH-29）：面板被其他工具直接卸载时兜底记 ignored。
+  bool _outcomesMarked = false;
+  AiService? _aiService;
+
   /// 修订历史（ENH-27.3）：每个候选各自保留最近 5 版。
   final List<AiRevisionHistory> _revisionHistory =
       List<AiRevisionHistory>.generate(3, (_) => AiRevisionHistory());
@@ -153,6 +161,7 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
   @override
   void initState() {
     super.initState();
+    _aiService = ref.read(aiServiceProvider);
     WidgetsBinding.instance.addPostFrameCallback((_) => _start());
   }
 
@@ -161,6 +170,13 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
     _elapsedTimer?.cancel();
     for (final sub in _subs) {
       sub.cancel();
+    }
+    // ENH-29：由其他工具 / 页面卸载面板时，未处置的生成结果记 ignored，
+    // 避免 AI_USAGE 长期停在 pending 拉低统计口径。
+    if (!_outcomesMarked) {
+      for (final id in _usageIds) {
+        if (id != null) unawaited(_aiService?.markOutcome(id, 'ignored'));
+      }
     }
     for (final controller in _results) {
       controller.dispose();
@@ -257,9 +273,12 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
       await sub.cancel();
     }
     _subs = const <StreamSubscription<AiEvent>>[];
+    // 重新生成 / 切换意图或候选数：旧结果统一记为 regenerated，不污染采纳率。
+    await _markOutcomeForAll('regenerated');
     if (!mounted) return;
     setState(() {
       _streaming = true;
+      _outcomesMarked = false;
       _errorKind = null;
       _needsConfig = false;
       _context = null;
@@ -269,6 +288,7 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
       _revisionInstructionText = '';
       _revisionIndex = null;
       _revisionTextStarted = false;
+      _revisionPreviousUsage = null;
       _revisionInstruction.clear();
       for (final history in _revisionHistory) {
         history.clear();
@@ -367,15 +387,29 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
         // 多候选共享同一上下文，取首个即可。
         if (_context == null) setState(() => _context = event.context);
       case AiTextChunk():
+        // ENH-29：旧结果确实被新文本替换时才记为「重新生成」；
+        // 若修订在首个文本块前失败，_usageIds 仍指向旧结果。
+        final replacing =
+            _revising && index == _revisionIndex && !_revisionTextStarted;
+        if (replacing) {
+          _revisionTextStarted = true;
+          final previousUsage = _revisionPreviousUsage;
+          _revisionPreviousUsage = null;
+          _usageIds[index] = null;
+          if (previousUsage != null) {
+            unawaited(
+              ref
+                  .read(aiServiceProvider)
+                  .markOutcome(previousUsage, 'regenerated'),
+            );
+          }
+        }
         setState(() {
           final controller = _results[index];
           // ENH-27：多轮修改的第一段直接替换旧草稿，失败时旧结果仍可保留。
-          if (_revising && index == _revisionIndex && !_revisionTextStarted) {
-            _revisionTextStarted = true;
-            controller.text = event.text;
-          } else {
-            controller.text = controller.text + event.text;
-          }
+          controller.text = replacing
+              ? event.text
+              : controller.text + event.text;
         });
       case AiFinished():
         _usageIds[index] = event.usageId < 0 ? null : event.usageId;
@@ -416,8 +450,25 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
     if (_pending > 0) _pending--;
     if (_pending == 0 && mounted) {
       _stopElapsed();
+      // 修订失败且尚未产出新文本：旧候选仍有效，清除待替换标记。
+      _revisionPreviousUsage = null;
       setState(() => _streaming = false);
     }
+  }
+
+  /// 停止当前生成（ENH-29）：取消所有流并复位流式状态。
+  void _stopStreaming() {
+    for (final sub in _subs) {
+      sub.cancel();
+    }
+    _subs = const <StreamSubscription<AiEvent>>[];
+    _stopElapsed();
+    _revisionPreviousUsage = null;
+    if (!mounted) return;
+    setState(() {
+      _streaming = false;
+      _pending = 0;
+    });
   }
 
   void _changeMode(AiPanelMode mode) {
@@ -456,7 +507,6 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
       ),
     );
     if (direction == null) return;
-    await _markOutcomeForAll('regenerated');
     await _start(direction: direction);
   }
 
@@ -482,6 +532,7 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
         await service.markOutcome(id, 'ignored');
       }
     }
+    _outcomesMarked = true;
     // ENH-27：续写 / 改写的采纳样本仅存本机，供后续生成的语气参考。
     final sample = adoptedText?.trim() ?? '';
     if (sample.isNotEmpty && _isWritingMode) {
@@ -519,13 +570,8 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
       await sub.cancel();
     }
     _subs = const <StreamSubscription<AiEvent>>[];
-    // 旧结果被替换前记为「重新生成」，不污染采纳率。
-    final previousUsage = _usageIds[index];
-    if (previousUsage != null) {
-      await ref
-          .read(aiServiceProvider)
-          .markOutcome(previousUsage, 'regenerated');
-    }
+    // 旧结果被替换前记为「重新生成」，不污染采纳率（ENH-29：延后到首个新文本块）。
+    _revisionPreviousUsage = _usageIds[index];
     if (!mounted) return;
     setState(() {
       _revising = true;
@@ -563,6 +609,7 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
     }
     _subs = const <StreamSubscription<AiEvent>>[];
     await _markOutcomeForAll('ignored');
+    _outcomesMarked = true;
     if (reason.isNotEmpty) {
       await ref
           .read(settingsRepositoryProvider)
@@ -577,20 +624,40 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
   }
 
   /// 分段采纳（ENH-27）：按段落合并后再写入 / 替换，仍走编辑器撤销栈。
+  /// ENH-29：有段落被取消勾选时采集一次主要原因，用于后续生成避雷。
   Future<void> _merge() async {
     if (_streaming || !_isWritingMode) return;
     final source = sanitizeAiText(_activeResult.text).trim();
     if (source.isEmpty) return;
-    final merged = await showAiMergeDialog(
+    final result = await showAiMergeDialog(
       context,
       text: source,
       baseText: _mode == AiPanelMode.rewrite
           ? sanitizeAiText(widget.rewriteText ?? '').trim()
           : null,
     );
-    if (!mounted || merged == null) return;
-    final text = sanitizeAiText(merged).trim();
+    if (!mounted || result == null) return;
+    final text = sanitizeAiText(result.text).trim();
     if (text.isEmpty) return;
+    if (result.rejectedCount > 0) {
+      final picked = await showAiDiscardReasonDialog(
+        context,
+        title: context.l10n.aiMergeRejectTitle,
+        hint: context.l10n.aiMergeRejectHint(result.rejectedCount),
+        confirmLabel: context.l10n.aiMergeRejectConfirm,
+      );
+      if (!mounted || picked == null) return;
+      if (picked.isNotEmpty) {
+        await ref
+            .read(settingsRepositoryProvider)
+            .recordAiParagraphFeedback(widget.workId, picked);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(context.l10n.aiFeedbackRecorded)),
+          );
+        }
+      }
+    }
     if (_mode == AiPanelMode.rewrite) {
       widget.onReplace?.call(text);
     } else {
@@ -598,6 +665,16 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
     }
     await _markAdoption(text.length, adoptedText: text);
     if (mounted) widget.onClose();
+  }
+
+  /// 改写模式（ENH-29）：把当前结果与待改写原文并排对比。
+  void _compareWithOriginal() {
+    showSnapshotDiffDialog(
+      context,
+      oldText: sanitizeAiText(widget.rewriteText ?? '').trim(),
+      newText: sanitizeAiText(_activeResult.text).trim(),
+      title: context.l10n.aiPanelCompareOriginalTitle,
+    );
   }
 
   Future<void> _insert() async {
@@ -751,14 +828,10 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
         ],
         const Spacer(),
         IconButton(
-          tooltip: context.l10n.aiPanelCollapse,
+          tooltip: context.l10n.commonClose,
           icon: const Icon(Icons.close, size: 20),
-          onPressed: () {
-            for (final sub in _subs) {
-              sub.cancel();
-            }
-            widget.onClose();
-          },
+          // ENH-29：关闭与「放弃」一致，先采集原因并回写统计，避免结果被静默丢弃。
+          onPressed: _abandon,
         ),
       ],
     );
@@ -887,8 +960,10 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
                       ),
                   ],
                   selected: <int>{_selected},
-                  onSelectionChanged: (selection) =>
-                      setState(() => _selected = selection.first),
+                  onSelectionChanged: _streaming
+                      ? null
+                      : (selection) =>
+                            setState(() => _selected = selection.first),
                 ),
               ),
             ),
@@ -1047,6 +1122,14 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
                 icon: const Icon(Icons.checklist, size: 18),
                 label: Text(l10n.aiPanelMerge),
               ),
+              if (_mode == AiPanelMode.rewrite)
+                TextButton.icon(
+                  onPressed: hasText && !_streaming
+                      ? _compareWithOriginal
+                      : null,
+                  icon: const Icon(Icons.difference_outlined, size: 18),
+                  label: Text(l10n.aiPanelCompareOriginal),
+                ),
               const Spacer(),
               if (_revising && _streaming)
                 Text(
@@ -1055,6 +1138,21 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
                 ),
             ],
           ),
+          if (!_streaming)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Wrap(
+                spacing: 6,
+                runSpacing: 2,
+                children: <Widget>[
+                  for (final quick in _quickRevisions(l10n))
+                    ActionChip(
+                      label: Text(quick),
+                      onPressed: () => _useQuickRevision(quick),
+                    ),
+                ],
+              ),
+            ),
           const SizedBox(height: 4),
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
@@ -1083,6 +1181,23 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
         ],
       ),
     );
+  }
+
+  /// 修订快捷指令（ENH-29）：点一下填入输入框，仍可继续编辑。
+  List<String> _quickRevisions(AppLocalizations l10n) => <String>[
+    l10n.aiReviseQuickMoreDetail,
+    l10n.aiReviseQuickTighter,
+    l10n.aiReviseQuickDialog,
+    l10n.aiReviseQuickEnding,
+    l10n.aiReviseQuickRemoveAi,
+  ];
+
+  void _useQuickRevision(String instruction) {
+    _revisionInstruction.value = TextEditingValue(
+      text: instruction,
+      selection: TextSelection.collapsed(offset: instruction.length),
+    );
+    setState(() {});
   }
 
   Widget _buildResult() {
@@ -1186,13 +1301,7 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
       children: <Widget>[
         if (_streaming)
           OutlinedButton(
-            onPressed: () {
-              for (final sub in _subs) {
-                sub.cancel();
-              }
-              _stopElapsed();
-              setState(() => _streaming = false);
-            },
+            onPressed: _stopStreaming,
             child: Text(l10n.aiPanelStop),
           )
         else ...<Widget>[

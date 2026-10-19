@@ -529,6 +529,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aiPanelRevising => 'Revising…';
 
   @override
+  String get aiReviseQuickMoreDetail => 'More specific';
+
+  @override
+  String get aiReviseQuickTighter => 'Tighter';
+
+  @override
+  String get aiReviseQuickDialog => 'More dialogue';
+
+  @override
+  String get aiReviseQuickEnding => 'Different ending';
+
+  @override
+  String get aiReviseQuickRemoveAi => 'Less AI-sounding';
+
+  @override
+  String get aiPanelCompareOriginal => 'Compare with original';
+
+  @override
+  String get aiPanelCompareOriginalTitle => 'Compare original and rewrite';
+
+  @override
   String get aiMergeTitle => 'Review AI result by paragraph';
 
   @override
@@ -553,6 +574,23 @@ class AppLocalizationsEn extends AppLocalizations {
   String aiMergeApply(int count) {
     return 'Use $count';
   }
+
+  @override
+  String get aiMergeRejectTitle => 'Which paragraphs were rejected?';
+
+  @override
+  String aiMergeRejectHint(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count paragraphs were not used.',
+      one: '1 paragraph was not used.',
+    );
+    return '$_temp0 Pick the main reason; it stays on this device and guides future generations.';
+  }
+
+  @override
+  String get aiMergeRejectConfirm => 'Record and use';
 
   @override
   String get aiFeedbackTitle => 'What was wrong with this result?';
@@ -601,6 +639,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aiPreferencesReasons => 'Discard reasons';
+
+  @override
+  String get aiPreferencesParagraphReasons => 'Rejected paragraph reasons';
 
   @override
   String get aiPreferencesSamples => 'Recently adopted passages';

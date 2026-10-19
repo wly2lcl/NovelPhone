@@ -167,6 +167,7 @@ void main() {
   test('关闭偏好开关后不再注入，清空只删计数与样本', () async {
     await config.recordAiFeedback(workId, AiFeedbackReason.offCharacter);
     await config.recordAiFeedback(workId, AiFeedbackReason.offCharacter);
+    await config.recordAiParagraphFeedback(workId, AiFeedbackReason.slowPace);
     await config.recordAdoptedSample(
       workId,
       text: '他把刀放回鞘里，没说话。',
@@ -194,12 +195,14 @@ void main() {
 
     await config.clearAiPreferences(workId);
     expect(await config.readAiFeedback(workId), isEmpty);
+    expect(await config.readAiParagraphFeedback(workId), isEmpty);
     expect(await config.readAdoptedSamples(workId), isEmpty);
     expect(await config.readAiPreferencesEnabled(workId), isFalse);
   });
 
   test('永久删除作品时清理偏好键', () async {
     await config.recordAiFeedback(workId, AiFeedbackReason.tooAi);
+    await config.recordAiParagraphFeedback(workId, AiFeedbackReason.slowPace);
     await config.recordAdoptedSample(workId, text: '片段', task: AiTask.rewrite);
     await config.setAiPreferencesEnabled(workId, false);
     for (final key in WritingPreferences.keysFor(workId)) {
@@ -249,5 +252,53 @@ void main() {
     expect(user, contains('【当前续写草稿】\n旧草稿。'));
     expect(user, contains('对白更少'));
     expect(user, isNot(contains('【续写要求】')));
+  });
+
+  test('分段未采纳原因与整篇原因合并注入，采纳片优先同类任务', () async {
+    await config.recordAiFeedback(workId, AiFeedbackReason.offCharacter);
+    await config.recordAiFeedback(workId, AiFeedbackReason.offCharacter);
+    await config.recordAiParagraphFeedback(workId, AiFeedbackReason.slowPace);
+    await config.recordAiParagraphFeedback(workId, AiFeedbackReason.slowPace);
+    await config.recordAiParagraphFeedback(workId, 'unknown');
+    expect(await config.readAiParagraphFeedback(workId), <String, int>{
+      AiFeedbackReason.slowPace: 2,
+    });
+    // 分段计数与整篇计数分开保存，不污染整篇口径。
+    expect(await config.readAiFeedback(workId), <String, int>{
+      AiFeedbackReason.offCharacter: 2,
+    });
+
+    // 更新的改写片段默认排前，续写任务应把同类片段提到前面。
+    await config.recordAdoptedSample(
+      workId,
+      text: '旧续写片段甲。',
+      task: AiTask.continueWriting,
+    );
+    await config.recordAdoptedSample(
+      workId,
+      text: '新改写片段乙。',
+      task: AiTask.rewrite,
+    );
+
+    await configure(AiTask.continueWriting);
+    String? requestBody;
+    final client = MockClient((request) async {
+      requestBody = request.body;
+      return sseResponse('他停了半步。');
+    });
+    await serviceWith(client)
+        .continueWriting(workId: workId, chapterId: chapterId, length: 300)
+        .toList();
+
+    final decoded = jsonDecode(requestBody!) as Map<String, dynamic>;
+    final messages = decoded['messages'] as List<dynamic>;
+    final system =
+        (messages.first as Map<String, dynamic>)['content'] as String;
+    expect(system, contains('避免角色出戏'));
+    expect(system, contains('加快叙事节奏'));
+    final continueIndex = system.indexOf('旧续写片段甲');
+    final rewriteIndex = system.indexOf('新改写片段乙');
+    expect(continueIndex, greaterThanOrEqualTo(0));
+    expect(rewriteIndex, greaterThan(continueIndex));
   });
 }

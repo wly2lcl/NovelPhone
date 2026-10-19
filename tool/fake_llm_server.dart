@@ -14,6 +14,8 @@
 //   /openai-plan         返回剧情走向与分章建议 JSON（验证 ENH-23 剧情推演）
 //   /openai-enh27        多段落续写；带修订要求的请求返回不同草稿
 //                        （验证 ENH-27 分段采纳与结果内继续修改）
+//   /openai-enh29-revise-fail  首次多段落续写正常，后续修订请求始终 500
+//                        （验证 ENH-29 修订失败时旧结果与 usage 统计不丢）
 //   /openai-tool         首次返回 tool_calls（优先选 mcp_ 前缀或名为 echo 的工具，
 //                        否则选第一个），收到 tool 结果后返回文本（验证 MCP 调用与审计）
 //   /openai-empty-first  首次只返回空正文（模拟推理模型耗尽输出预算），之后正常
@@ -40,7 +42,8 @@ Future<void> main(List<String> args) async {
   stdout.writeln(
     '场景基址：http://127.0.0.1:$port/openai、/openai-style、/openai-extract、'
     '/openai-plan、/openai-tool、/openai-empty-first、/openai-429-first、'
-    '/openai-429-always、/openai-500、/openai-filter、/anthropic、/anthropic-429',
+    '/openai-429-always、/openai-500、/openai-filter、/openai-enh27、'
+    '/openai-enh29-revise-fail、/anthropic、/anthropic-429',
   );
   stdout.writeln('观测：GET /stats、GET /stats/reset');
 }
@@ -122,6 +125,8 @@ class FakeLlmServer {
         return _openaiStream(request.response, pieces: <String>[_plotPlanJson]);
       case 'openai-enh27':
         return _openaiEnh27(request);
+      case 'openai-enh29-revise-fail':
+        return _openaiEnh29ReviseFail(request);
       case 'openai-tool':
         return _openaiToolStream(request);
       case 'openai-empty-first':
@@ -225,6 +230,31 @@ class FakeLlmServer {
           ];
     stdout.writeln('[fake-llm] openai-enh27：${revising ? '修订' : '续写'}');
     return _openaiStream(request.response, pieces: pieces);
+  }
+
+  /// ENH-29 验收：首次多段落续写正常，之后带修订要求的请求始终 500，
+  /// 用于验证修订失败时旧结果仍可采纳、旧 usage 不被误记为 regenerated。
+  Future<void> _openaiEnh29ReviseFail(HttpRequest request) async {
+    final raw = await utf8.decoder.bind(request).join();
+    final body = jsonDecode(raw) as Map<String, dynamic>;
+    final messages = (body['messages'] as List<dynamic>?) ?? const <dynamic>[];
+    final user = messages
+        .whereType<Map>()
+        .map((message) => '${message['content'] ?? ''}')
+        .join('\n');
+    final revising = user.contains('修订要求') || user.contains('本次修改意见');
+    if (revising) {
+      stdout.writeln('[fake-llm] openai-enh29-revise-fail：修订返回 500');
+      return _json(request.response, 500, _serverErrorBody);
+    }
+    return _openaiStream(
+      request.response,
+      pieces: <String>[
+        '院里积着薄雪，脚印从门口一直延伸到廊下。\n\n',
+        '沈砚在阶前停下，听见屋里有人翻动纸页。\n\n',
+        '他没有急着推门，只把伞靠在墙边。',
+      ],
+    );
   }
 
   /// 首次无可见正文，之后正常；两次请求都打印 max_tokens 以便核对自动加倍。

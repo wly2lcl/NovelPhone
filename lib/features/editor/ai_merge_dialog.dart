@@ -3,14 +3,22 @@ import 'package:flutter/material.dart';
 import '../../app/theme.dart';
 import '../../l10n/l10n.dart';
 
+/// 分段采纳结果：合并后的正文 + 被取消勾选的段数（ENH-29 负反馈用）。
+class AiMergeResult {
+  const AiMergeResult({required this.text, required this.rejectedCount});
+
+  final String text;
+  final int rejectedCount;
+}
+
 /// 段落级采纳（ENH-27）：按段落勾选 / 修改 AI 结果，返回合并后的正文。
 /// 取消返回 null；全部取消勾选时确认按钮不可用。
-Future<String?> showAiMergeDialog(
+Future<AiMergeResult?> showAiMergeDialog(
   BuildContext context, {
   required String text,
   String? baseText,
 }) {
-  return showDialog<String>(
+  return showDialog<AiMergeResult>(
     context: context,
     builder: (_) => _AiMergeDialog(text: text, baseText: baseText),
   );
@@ -140,7 +148,16 @@ class _AiMergeDialogState extends State<_AiMergeDialog> {
         FilledButton(
           onPressed: _selectedCount == 0
               ? null
-              : () => Navigator.of(context).pop(_merged()),
+              : () {
+                  final text = _merged();
+                  if (text == null) return;
+                  Navigator.of(context).pop(
+                    AiMergeResult(
+                      text: text,
+                      rejectedCount: _paragraphs.length - _selectedCount,
+                    ),
+                  );
+                },
           child: Text(l10n.aiMergeApply(_selectedCount)),
         ),
       ],

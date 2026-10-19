@@ -7,16 +7,30 @@ import '../../l10n/l10n.dart';
 /// 放弃 AI 结果时的原因采集（ENH-27）。
 ///
 /// 返回 null = 取消（继续留在面板）；空串 = 不记录原因直接放弃；
-/// 其他值 = 选中的 [AiFeedbackReason]。
-Future<String?> showAiDiscardReasonDialog(BuildContext context) {
+/// 其他值 = 选中的 [AiFeedbackReason]。分段未采纳复用同一选择器（ENH-29），
+/// 通过 [title] / [hint] / [confirmLabel] 覆盖文案。
+Future<String?> showAiDiscardReasonDialog(
+  BuildContext context, {
+  String? title,
+  String? hint,
+  String? confirmLabel,
+}) {
   return showDialog<String>(
     context: context,
-    builder: (_) => const _AiDiscardReasonDialog(),
+    builder: (_) => _AiDiscardReasonDialog(
+      title: title,
+      hint: hint,
+      confirmLabel: confirmLabel,
+    ),
   );
 }
 
 class _AiDiscardReasonDialog extends StatefulWidget {
-  const _AiDiscardReasonDialog();
+  const _AiDiscardReasonDialog({this.title, this.hint, this.confirmLabel});
+
+  final String? title;
+  final String? hint;
+  final String? confirmLabel;
 
   @override
   State<_AiDiscardReasonDialog> createState() => _AiDiscardReasonDialogState();
@@ -45,14 +59,14 @@ class _AiDiscardReasonDialogState extends State<_AiDiscardReasonDialog> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     return AlertDialog(
-      title: Text(l10n.aiFeedbackTitle),
+      title: Text(widget.title ?? l10n.aiFeedbackTitle),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Text(
-              l10n.aiFeedbackHint,
+              widget.hint ?? l10n.aiFeedbackHint,
               style: TextStyle(fontSize: 12, color: context.paper.inkSoft),
             ),
             const SizedBox(height: 8),
@@ -82,7 +96,7 @@ class _AiDiscardReasonDialogState extends State<_AiDiscardReasonDialog> {
         ),
         FilledButton(
           onPressed: () => Navigator.of(context).pop(_reason),
-          child: Text(l10n.aiFeedbackConfirm),
+          child: Text(widget.confirmLabel ?? l10n.aiFeedbackConfirm),
         ),
       ],
     );

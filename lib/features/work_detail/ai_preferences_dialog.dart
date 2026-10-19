@@ -28,9 +28,11 @@ class _AiPreferencesDialogState extends ConsumerState<_AiPreferencesDialog> {
   bool _loading = true;
   bool _enabled = true;
   Map<String, int> _counts = const <String, int>{};
+  Map<String, int> _paragraphCounts = const <String, int>{};
   List<AdoptedSample> _samples = const <AdoptedSample>[];
 
-  bool get _hasData => _counts.isNotEmpty || _samples.isNotEmpty;
+  bool get _hasData =>
+      _counts.isNotEmpty || _paragraphCounts.isNotEmpty || _samples.isNotEmpty;
 
   @override
   void initState() {
@@ -42,11 +44,13 @@ class _AiPreferencesDialogState extends ConsumerState<_AiPreferencesDialog> {
     final repo = ref.read(settingsRepositoryProvider);
     final enabled = await repo.readAiPreferencesEnabled(widget.workId);
     final counts = await repo.readAiFeedback(widget.workId);
+    final paragraphCounts = await repo.readAiParagraphFeedback(widget.workId);
     final samples = await repo.readAdoptedSamples(widget.workId);
     if (!mounted) return;
     setState(() {
       _enabled = enabled;
       _counts = counts;
+      _paragraphCounts = paragraphCounts;
       _samples = samples;
       _loading = false;
     });
@@ -85,6 +89,7 @@ class _AiPreferencesDialogState extends ConsumerState<_AiPreferencesDialog> {
     if (!mounted) return;
     setState(() {
       _counts = const <String, int>{};
+      _paragraphCounts = const <String, int>{};
       _samples = const <AdoptedSample>[];
     });
     ScaffoldMessenger.of(
@@ -165,6 +170,30 @@ class _AiPreferencesDialogState extends ConsumerState<_AiPreferencesDialog> {
                                   ),
                                   Text(
                                     l10n.aiPreferencesCount(_counts[reason]!),
+                                    style: TextStyle(
+                                      color: context.paper.inkSoft,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        const SizedBox(height: 12),
+                      ],
+                      if (_paragraphCounts.isNotEmpty) ...<Widget>[
+                        _sectionTitle(l10n.aiPreferencesParagraphReasons),
+                        for (final reason in AiFeedbackReason.all)
+                          if ((_paragraphCounts[reason] ?? 0) > 0)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 3),
+                              child: Row(
+                                children: <Widget>[
+                                  Expanded(
+                                    child: Text(_reasonLabel(l10n, reason)),
+                                  ),
+                                  Text(
+                                    l10n.aiPreferencesCount(
+                                      _paragraphCounts[reason]!,
+                                    ),
                                     style: TextStyle(
                                       color: context.paper.inkSoft,
                                     ),

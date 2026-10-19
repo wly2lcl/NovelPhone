@@ -944,6 +944,48 @@ abstract class AppLocalizations {
   /// **'正在按意见修改…'**
   String get aiPanelRevising;
 
+  /// No description provided for @aiReviseQuickMoreDetail.
+  ///
+  /// In zh, this message translates to:
+  /// **'更具体'**
+  String get aiReviseQuickMoreDetail;
+
+  /// No description provided for @aiReviseQuickTighter.
+  ///
+  /// In zh, this message translates to:
+  /// **'更紧凑'**
+  String get aiReviseQuickTighter;
+
+  /// No description provided for @aiReviseQuickDialog.
+  ///
+  /// In zh, this message translates to:
+  /// **'加强对话'**
+  String get aiReviseQuickDialog;
+
+  /// No description provided for @aiReviseQuickEnding.
+  ///
+  /// In zh, this message translates to:
+  /// **'换个结尾'**
+  String get aiReviseQuickEnding;
+
+  /// No description provided for @aiReviseQuickRemoveAi.
+  ///
+  /// In zh, this message translates to:
+  /// **'去 AI 味'**
+  String get aiReviseQuickRemoveAi;
+
+  /// No description provided for @aiPanelCompareOriginal.
+  ///
+  /// In zh, this message translates to:
+  /// **'对比原文'**
+  String get aiPanelCompareOriginal;
+
+  /// No description provided for @aiPanelCompareOriginalTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'对比原文与改写结果'**
+  String get aiPanelCompareOriginalTitle;
+
   /// No description provided for @aiMergeTitle.
   ///
   /// In zh, this message translates to:
@@ -985,6 +1027,24 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'采用 {count} 段'**
   String aiMergeApply(int count);
+
+  /// No description provided for @aiMergeRejectTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'哪些段落未采纳？'**
+  String get aiMergeRejectTitle;
+
+  /// No description provided for @aiMergeRejectHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'有 {count} 段未采纳。选一个主要原因，只保存在本机，用于后续生成避雷。'**
+  String aiMergeRejectHint(int count);
+
+  /// No description provided for @aiMergeRejectConfirm.
+  ///
+  /// In zh, this message translates to:
+  /// **'记录并采纳'**
+  String get aiMergeRejectConfirm;
 
   /// No description provided for @aiFeedbackTitle.
   ///
@@ -1075,6 +1135,12 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'放弃原因'**
   String get aiPreferencesReasons;
+
+  /// No description provided for @aiPreferencesParagraphReasons.
+  ///
+  /// In zh, this message translates to:
+  /// **'分段未采纳原因'**
+  String get aiPreferencesParagraphReasons;
 
   /// No description provided for @aiPreferencesSamples.
   ///

@@ -9,7 +9,7 @@ void main() {
   testWidgets('默认全选，可编辑文字并取消部分段落', (tester) async {
     await tester.binding.setSurfaceSize(const Size(900, 1400));
     addTearDown(() => tester.binding.setSurfaceSize(null));
-    String? result;
+    AiMergeResult? mergedResult;
 
     await tester.pumpWidget(
       MaterialApp(
@@ -22,7 +22,7 @@ void main() {
             builder: (context) => Center(
               child: ElevatedButton(
                 onPressed: () async {
-                  result = await showAiMergeDialog(
+                  mergedResult = await showAiMergeDialog(
                     context,
                     text: '第一段。\n第二段。\n第三段。',
                     baseText: '第一段。',
@@ -51,13 +51,14 @@ void main() {
 
     await tester.tap(find.widgetWithText(FilledButton, '采用 2 段'));
     await tester.pumpAndSettle();
-    expect(result, '第一段。\n第二段改。');
+    expect(mergedResult?.text, '第一段。\n第二段改。');
+    expect(mergedResult?.rejectedCount, 1);
   });
 
   testWidgets('全不选时不可确认，取消返回 null', (tester) async {
     await tester.binding.setSurfaceSize(const Size(900, 1400));
     addTearDown(() => tester.binding.setSurfaceSize(null));
-    String? result = '未变';
+    Object? result = '未变';
 
     await tester.pumpWidget(
       MaterialApp(

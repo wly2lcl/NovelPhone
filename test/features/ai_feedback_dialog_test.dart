@@ -63,4 +63,29 @@ void main() {
     await tester.pumpAndSettle();
     expect(result, isNull);
   });
+
+  testWidgets('分段未采纳复用同一弹窗，可覆盖标题、说明与确认文案', (tester) async {
+    String? result;
+    await tester.pumpWidget(
+      host((context) async {
+        result = await showAiDiscardReasonDialog(
+          context,
+          title: '哪些段落未采纳？',
+          hint: '有 2 段未采纳。',
+          confirmLabel: '记录并采纳',
+        );
+      }),
+    );
+    await tester.tap(find.text('打开'));
+    await tester.pumpAndSettle();
+    expect(find.text('哪些段落未采纳？'), findsOneWidget);
+    expect(find.text('有 2 段未采纳。'), findsOneWidget);
+    expect(find.text('这次结果哪里不合适？'), findsNothing);
+
+    await tester.tap(find.text('太像 AI'));
+    await tester.pump();
+    await tester.tap(find.text('记录并采纳'));
+    await tester.pumpAndSettle();
+    expect(result, AiFeedbackReason.tooAi);
+  });
 }
