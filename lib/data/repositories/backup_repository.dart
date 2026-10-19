@@ -82,6 +82,7 @@ class BackupRepository {
     final dailyStats = await _db.select(_db.dailyWritingStats).get();
     final settings = await _db.select(_db.settingEntries).get();
     final relations = await _db.select(_db.characterRelations).get();
+    final storyStates = await _db.select(_db.storyStates).get();
 
     return <String, dynamic>{
       'format': kBackupFormat,
@@ -99,6 +100,7 @@ class BackupRepository {
         'dailyWritingStats': dailyStats.map((e) => e.toJson()).toList(),
         'settingEntries': settings.map((e) => e.toJson()).toList(),
         'characterRelations': relations.map((e) => e.toJson()).toList(),
+        'storyStates': storyStates.map((e) => e.toJson()).toList(),
       },
     };
   }
@@ -156,6 +158,7 @@ class BackupRepository {
       if (overwrite) {
         await _db.delete(_db.dailyWritingStats).go();
         await _db.delete(_db.chapterSnapshots).go();
+        await _db.delete(_db.storyStates).go();
         await _db.delete(_db.chapters).go();
         await _db.delete(_db.outlineEntries).go();
         await _db.delete(_db.inspirations).go();
@@ -257,7 +260,10 @@ class BackupRepository {
       // insertAll 一次写入，替掉「逐行 await insert」的数千次往返。
       final snapshotRows = <ChapterSnapshotsCompanion>[];
       for (final raw in _asList(tables['chapterSnapshots'])) {
-        final snapshot = ChapterSnapshot.fromJson(raw);
+        // ENH-30：v13 之前导出的备份不含 note 键，补默认空串。
+        final json = Map<String, dynamic>.from(raw as Map);
+        json.putIfAbsent('note', () => '');
+        final snapshot = ChapterSnapshot.fromJson(json);
         final chapterId = chapterIdMap[snapshot.chapterId];
         if (chapterId == null) continue;
         snapshotRows.add(
@@ -267,6 +273,7 @@ class BackupRepository {
             id: overwrite ? Value(snapshot.id) : const Value.absent(),
             title: Value(snapshot.title),
             content: Value(snapshot.content),
+            note: Value(snapshot.note),
             wordCount: Value(snapshot.wordCount),
           ),
         );
@@ -396,6 +403,33 @@ class BackupRepository {
       }
       if (inspirationRows.isNotEmpty) {
         await _db.inspirations.insertAll(inspirationRows);
+      }
+
+      // ENH-31：故事状态卡按作品与章节重映射外键；v13 之前的备份没有该表，跳过。
+      final storyStateRows = <StoryStatesCompanion>[];
+      for (final raw in _asList(tables['storyStates'])) {
+        final state = StoryState.fromJson(raw);
+        final workId = workIdMap[state.workId];
+        if (workId == null) continue;
+        final chapterId = state.chapterId == null
+            ? null
+            : chapterIdMap[state.chapterId!];
+        storyStateRows.add(
+          StoryStatesCompanion.insert(
+            workId: workId,
+            kind: state.kind,
+            title: state.title,
+            updatedAt: state.updatedAt,
+            id: overwrite ? Value(state.id) : const Value.absent(),
+            detail: Value(state.detail),
+            status: Value(state.status),
+            chapterId: Value(chapterId),
+            sortOrder: Value(state.sortOrder),
+          ),
+        );
+      }
+      if (storyStateRows.isNotEmpty) {
+        await _db.storyStates.insertAll(storyStateRows);
       }
 
       return BackupRestoreReport(

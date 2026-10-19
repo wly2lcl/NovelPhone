@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 
+import '../../core/ai/adoption_metrics.dart';
 import '../db.dart';
 
 /// AI_USAGE 的「模型 + 任务」聚合行（ENH-15）。
@@ -12,6 +13,7 @@ typedef UsageAggregate = ({
   int outputChars,
   int adoptedChars,
   int adopted,
+  int verbatimAdopted,
   int ignored,
 });
 
@@ -36,6 +38,11 @@ class AiUsageDao {
     final outputChars = t.outputChars.sum();
     final adoptedChars = t.adoptedChars.sum();
     final adopted = t.id.count(filter: t.outcome.equals(_outcomeAdopted));
+    final verbatimAdopted = t.id.count(
+      filter:
+          t.outcome.equals(_outcomeAdopted) &
+          t.adoptedEditPercent.isSmallerOrEqualValue(adoptionVerbatimPercent),
+    );
     final ignored = t.id.count(filter: t.outcome.equals(_outcomeIgnored));
     final query = _db.selectOnly(t)
       ..addColumns(<Expression<Object>>[
@@ -47,6 +54,7 @@ class AiUsageDao {
         outputChars,
         adoptedChars,
         adopted,
+        verbatimAdopted,
         ignored,
       ])
       ..groupBy(<Expression<Object>>[t.model, t.task]);
@@ -64,6 +72,7 @@ class AiUsageDao {
         outputChars: row.read(outputChars) ?? 0,
         adoptedChars: row.read(adoptedChars) ?? 0,
         adopted: row.read(adopted) ?? 0,
+        verbatimAdopted: row.read(verbatimAdopted) ?? 0,
         ignored: row.read(ignored) ?? 0,
       ),
     );
@@ -85,10 +94,16 @@ class AiUsageDao {
     );
   }
 
-  Future<void> updateAdoptedChars(int id, int adoptedChars, String outcome) {
+  Future<void> updateAdoptedChars(
+    int id,
+    int adoptedChars,
+    String outcome, {
+    int? editPercent,
+  }) {
     return (_db.update(_db.aiUsages)..where((t) => t.id.equals(id))).write(
       AiUsagesCompanion(
         adoptedChars: Value(adoptedChars),
+        adoptedEditPercent: Value(editPercent),
         outcome: Value(outcome),
       ),
     );

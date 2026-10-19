@@ -9,11 +9,13 @@ import 'package:novelphone/data/repositories/chapter_repository.dart';
 import 'package:novelphone/data/repositories/character_repository.dart';
 import 'package:novelphone/data/repositories/outline_repository.dart';
 import 'package:novelphone/data/repositories/settings_repository.dart';
+import 'package:novelphone/data/repositories/story_state_repository.dart';
 import 'package:novelphone/data/repositories/token_stats_repository.dart';
 import 'package:novelphone/data/repositories/trash_repository.dart';
 import 'package:novelphone/data/repositories/work_repository.dart';
 import 'package:novelphone/data/secure_key_store.dart';
 import 'package:novelphone/models/chapter_status.dart';
+import 'package:novelphone/models/story_state_kind.dart';
 import 'package:path/path.dart' as p;
 
 void main() {
@@ -157,6 +159,35 @@ void main() {
     final watched = await stats.watchStats().first;
     expect(watched.rows, hasLength(2));
     expect(watched.rows.first.outputChars, 160);
+  });
+
+  test('原样采纳率只统计低编辑采纳（ENH-30）', () async {
+    final stats = TokenStatsRepository(db);
+    final verbatim = await stats.record(
+      task: 'continue',
+      model: 'm1',
+      outputChars: 100,
+    );
+    final edited = await stats.record(
+      task: 'continue',
+      model: 'm1',
+      outputChars: 100,
+    );
+    final legacy = await stats.record(
+      task: 'continue',
+      model: 'm1',
+      outputChars: 100,
+    );
+    await stats.markAdopted(verbatim, 90, editPercent: 4);
+    await stats.markAdopted(edited, 80, editPercent: 45);
+    // 旧记录没有编辑比例，不计入原样采纳。
+    await stats.markAdopted(legacy, 70);
+
+    final result = await stats.stats();
+
+    expect(result.adopted, 3);
+    expect(result.verbatimAdopted, 1);
+    expect(result.verbatimRate, closeTo(1 / 3, 0.0001));
   });
 
   test('仅保存光标位置不改变正文与字数', () async {
@@ -490,6 +521,76 @@ void main() {
     });
   });
 
+  group('故事状态卡（ENH-31）', () {
+    test('按类型与排序返回，伏笔可切换 open / closed', () async {
+      final workId = await works.createWork(title: '长夜行');
+      final storyStates = StoryStateRepository(db);
+      await storyStates.createEntry(
+        workId: workId,
+        kind: StoryStateKind.foreshadow,
+        title: '铜印',
+        sortOrder: 2,
+      );
+      await storyStates.createEntry(
+        workId: workId,
+        kind: StoryStateKind.character,
+        title: '沈砚',
+        detail: '左臂受伤',
+        sortOrder: 1,
+      );
+      await storyStates.createEntry(
+        workId: workId,
+        kind: StoryStateKind.foreshadow,
+        title: '密信',
+        sortOrder: 1,
+      );
+
+      final entries = await storyStates.listEntries(workId);
+      expect(entries.map((e) => e.title).toList(), ['沈砚', '密信', '铜印']);
+      expect(entries.first.detail, '左臂受伤');
+      expect(entries[1].status, 'open');
+
+      await storyStates.setStatus(entries[1].id, 'closed');
+      final updated = await storyStates.listEntries(workId);
+      expect(updated[1].status, 'closed');
+    });
+
+    test('更新字段、删除章节时章节引用置空、删除条目', () async {
+      final workId = await works.createWork(title: '长夜行');
+      final chapterId = await chapters.createChapter(
+        workId: workId,
+        title: '第一章',
+      );
+      final storyStates = StoryStateRepository(db);
+      final entryId = await storyStates.createEntry(
+        workId: workId,
+        kind: StoryStateKind.timeline,
+        title: '入城',
+        chapterId: chapterId,
+      );
+
+      await storyStates.updateEntry(
+        id: entryId,
+        kind: StoryStateKind.timeline,
+        title: '夜入临安',
+        detail: '二更天',
+        chapterId: chapterId,
+        sortOrder: 3,
+      );
+      var entry = (await storyStates.listEntries(workId)).single;
+      expect(entry.title, '夜入临安');
+      expect(entry.detail, '二更天');
+      expect(entry.sortOrder, 3);
+
+      await chapters.deleteChapter(chapterId);
+      entry = (await storyStates.listEntries(workId)).single;
+      expect(entry.chapterId, isNull);
+
+      await storyStates.deleteEntry(entryId);
+      expect(await storyStates.listEntries(workId), isEmpty);
+    });
+  });
+
   group('热点外键索引（ENH-08）', () {
     test('建库时创建作品 / 卷维度列表查询所需索引', () async {
       final rows = await db
@@ -500,20 +601,22 @@ void main() {
       expect(names, containsAll(_hotspotIndexNames));
     });
 
-    test('v8 → v12 升级时为既有库补建索引并追加新列', () async {
+    test('v8 → v14 升级时为既有库补建索引、追加新列与新表', () async {
       final dir = await Directory.systemTemp.createTemp('novelphone_mig');
       final file = File(p.join(dir.path, 'migrate.sqlite'));
       // 同一插槽先后开关两个 AppDatabase 实例是刻意为之，关掉 drift 的重复实例告警。
       final previousWarn = driftRuntimeOptions.dontWarnAboutMultipleDatabases;
       driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
       try {
-        // v9 / v10 只新增索引、v11 新增回收站列、v12 新增文风与费用列：
+        // v9 / v10 只新增索引、v11 新增回收站列、v12 新增文风与费用列、
+        // v13 新增快照来源标记与采纳编辑比例、v14 新增故事状态卡表：
         // 先按当前 schema 建库，删掉这些增量并回写 user_version = 8，
         // 即得到与线上旧库等价的 v8 底座。
         final seeded = AppDatabase(NativeDatabase(file));
         for (final name in _allIndexNames) {
           await seeded.customStatement('DROP INDEX IF EXISTS $name');
         }
+        await seeded.customStatement('DROP TABLE IF EXISTS story_states');
         await seeded.customStatement(
           'ALTER TABLE works DROP COLUMN deleted_at',
         );
@@ -529,10 +632,16 @@ void main() {
         await seeded.customStatement(
           'ALTER TABLE model_groups DROP COLUMN output_price_per_million',
         );
+        await seeded.customStatement(
+          'ALTER TABLE chapter_snapshots DROP COLUMN note',
+        );
+        await seeded.customStatement(
+          'ALTER TABLE ai_usages DROP COLUMN adopted_edit_percent',
+        );
         await seeded.customStatement('PRAGMA user_version = 8');
         await seeded.close();
 
-        // 以 v8 身份重新打开：应触发 onUpgrade(8 → 12) 补建索引并加列。
+        // 以 v8 身份重新打开：应触发 onUpgrade(8 → 14) 补建索引、加列并建新表。
         final upgraded = AppDatabase(NativeDatabase(file));
         final names =
             (await upgraded
@@ -552,6 +661,22 @@ void main() {
                     .get())
                 .map((r) => r.read<String>('name'))
                 .toSet();
+        final snapshotColumns =
+            (await upgraded
+                    .customSelect('PRAGMA table_info(chapter_snapshots)')
+                    .get())
+                .map((r) => r.read<String>('name'))
+                .toSet();
+        final usageColumns =
+            (await upgraded.customSelect('PRAGMA table_info(ai_usages)').get())
+                .map((r) => r.read<String>('name'))
+                .toSet();
+        final storyStateColumns =
+            (await upgraded
+                    .customSelect('PRAGMA table_info(story_states)')
+                    .get())
+                .map((r) => r.read<String>('name'))
+                .toSet();
         await upgraded.close();
 
         expect(names, containsAll(_allIndexNames));
@@ -561,6 +686,20 @@ void main() {
           containsAll(<String>[
             'input_price_per_million',
             'output_price_per_million',
+          ]),
+        );
+        expect(snapshotColumns, contains('note'));
+        expect(usageColumns, contains('adopted_edit_percent'));
+        expect(
+          storyStateColumns,
+          containsAll(<String>[
+            'work_id',
+            'kind',
+            'title',
+            'detail',
+            'status',
+            'chapter_id',
+            'sort_order',
           ]),
         );
       } finally {
@@ -836,6 +975,7 @@ const List<String> _allIndexNames = <String>[
   ..._hotspotIndexNames,
   'setting_entries_work_id',
   'character_relations_work_id',
+  'story_states_work_id',
 ];
 
 /// 等待响应式流推送（drift 流更新在当前 isolate 异步派发）。

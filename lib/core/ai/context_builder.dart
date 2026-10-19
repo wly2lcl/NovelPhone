@@ -3,10 +3,13 @@ import '../../data/repositories/chapter_repository.dart';
 import '../../data/repositories/character_repository.dart';
 import '../../data/repositories/outline_repository.dart';
 import '../../data/repositories/setting_repository.dart';
+import '../../data/repositories/story_state_repository.dart';
 import '../../data/repositories/work_repository.dart';
 import '../../models/setting_type.dart';
+import '../../models/story_state_kind.dart';
 import '../../models/work_style_guide.dart';
 import 'ai_client.dart';
+import 'retrieval.dart';
 
 /// 组装后的一段上下文，供待确认面板"上下文详情"展开查看
 /// （ARCHITECTURE 5.3：作者能看见 AI 看到了什么，是产品信任的一部分）。
@@ -138,6 +141,7 @@ class ContextBuilder {
     required this.characters,
     required this.outline,
     this.settings,
+    this.storyStates,
   });
 
   /// 本章尾部保留字数（ARCHITECTURE 5.3）。
@@ -156,6 +160,9 @@ class ContextBuilder {
 
   /// 设定集（B-09）：世界观 / 地点 / 道具，纳入 AI 上下文（可空，未注入则跳过）。
   final SettingRepository? settings;
+
+  /// 故事状态卡（ENH-31）：角色状态 / 未回收伏笔 / 时间线（可空）。
+  final StoryStateRepository? storyStates;
 
   /// 续写上下文：system → 本章尾部 → 本章章纲 → 前文摘要 → 相关角色卡 → 卷级大纲。
   /// [contextWindow] 为模型上下文窗口，预算 = 其 50%（ARCHITECTURE 5.3）。
@@ -209,6 +216,14 @@ class ContextBuilder {
 
     // 设定集（世界观 / 地点 / 道具）：排在角色卡之后
     final settingsText = await _settingsText(workId);
+    // 故事状态卡（ENH-31）：角色当下状态、未回收伏笔与时间线。
+    final storyStateText = await _storyStateText(workId, recap.ordered);
+    // RAG-lite（ENH-32）：用本章尾部 + 章纲检索相关前文片段。
+    final relatedText = await _relatedText(
+      chapterId,
+      '${_tailOf(chapterText, maxChars: 600)}\n$chapterOutline',
+      recap.ordered,
+    );
 
     final draft = revisionDraft?.trim() ?? '';
     final revising = draft.isNotEmpty;
@@ -220,6 +235,8 @@ class ContextBuilder {
       previousSummary: previousSummary,
       matchedCharacters: matched,
       settingsText: settingsText,
+      storyStateText: storyStateText,
+      relatedText: relatedText,
       volumeOutline: volumeOutline,
       task: revising
           ? _revisionContinueTask(
@@ -331,6 +348,12 @@ class ContextBuilder {
       previousSummary: previousSummary,
       matchedCharacters: matched,
       settingsText: await _settingsText(workId),
+      storyStateText: await _storyStateText(workId, recap.ordered),
+      relatedText: await _relatedText(
+        chapterId,
+        '$selectedText\n${instruction ?? ''}',
+        recap.ordered,
+      ),
       volumeOutline: _volumeOutline(outlineEntries, volume?.id, chapterId),
       task: revising
           ? _revisionRewriteTask(intent, instruction, revisionInstruction)
@@ -906,6 +929,17 @@ class ContextBuilder {
         .map(formatCharacter)
         .join('\n');
     final settingsText = await _settingsText(workId);
+    final storyStateText = await _storyStateText(workId, chapterList);
+    // RAG-lite（ENH-32）：按问题检索正文片段，模型无需先调用工具即可看到证据。
+    final relatedText = formatRetrievedPassages(
+      retrievePassages(
+        chapters: chapterList,
+        query: message,
+        topK: 4,
+        maxPerChapter: 2,
+      ),
+      header: '相关正文片段',
+    );
     final outlineText = outlineEntries
         .where((e) => e.summary.trim().isNotEmpty)
         .take(30)
@@ -930,6 +964,8 @@ class ContextBuilder {
     final parts = <String>[
       if (outlineText.isNotEmpty) '【章纲摘要】\n$outlineText',
       if (charactersText.isNotEmpty) '【角色卡】\n$charactersText',
+      if (storyStateText.isNotEmpty) '【故事状态卡】\n$storyStateText',
+      if (relatedText.isNotEmpty) relatedText,
       if (settingsText.isNotEmpty) '【设定集】\n$settingsText',
       if (catalogText.isNotEmpty) '【章节目录（id|标题|字数）】\n$catalogText',
     ];
@@ -1085,6 +1121,8 @@ class ContextBuilder {
     required String previousSummary,
     required List<Character> matchedCharacters,
     required String settingsText,
+    String storyStateText = '',
+    String relatedText = '',
     required String volumeOutline,
     required String task,
     // ENH-04：改写时追加在 messages 末尾的主材料（不参与丢弃/截断），默认空 → 对续写零影响。
@@ -1108,6 +1146,8 @@ class ContextBuilder {
     var volumeText = volumeOutline;
     var charactersText = matchedCharacters.map(formatCharacter).join('\n');
     var settingsBlock = settingsText;
+    var storyStateBlock = storyStateText.trim();
+    var relatedBlock = relatedText.trim();
     var summaryText = previousSummary;
     var tailText = tail;
     final outlineText = chapterOutline;
@@ -1121,6 +1161,8 @@ class ContextBuilder {
         estimateTokens(volumeText) +
         estimateTokens(summaryText) +
         estimateTokens(settingsBlock) +
+        estimateTokens(storyStateBlock) +
+        estimateTokens(relatedBlock) +
         estimateTokens(charactersText) +
         estimateTokens(payload);
 
@@ -1131,6 +1173,14 @@ class ContextBuilder {
     }
     if (total() > budget && settingsBlock.isNotEmpty) {
       settingsBlock = '';
+      truncated = true;
+    }
+    if (total() > budget && storyStateBlock.isNotEmpty) {
+      storyStateBlock = '';
+      truncated = true;
+    }
+    if (total() > budget && relatedBlock.isNotEmpty) {
+      relatedBlock = '';
       truncated = true;
     }
     if (total() > budget && matchedCharacters.length > minCharacters) {
@@ -1152,6 +1202,8 @@ class ContextBuilder {
           estimateTokens(volumeText) +
           estimateTokens(summaryText) +
           estimateTokens(settingsBlock) +
+          estimateTokens(storyStateBlock) +
+          estimateTokens(relatedBlock) +
           estimateTokens(charactersText);
       final room = budget - others;
       if (room <= 0) {
@@ -1169,6 +1221,8 @@ class ContextBuilder {
         ContextSection(label: '卷级大纲', content: volumeText),
       if (summaryText.isNotEmpty)
         ContextSection(label: '前文摘要', content: summaryText),
+      if (relatedBlock.isNotEmpty)
+        ContextSection(label: '相关前文片段', content: relatedBlock),
       if (charactersText.isNotEmpty)
         ContextSection(
           label: '相关角色卡',
@@ -1177,6 +1231,8 @@ class ContextBuilder {
         ),
       if (settingsBlock.isNotEmpty)
         ContextSection(label: '设定集', content: settingsBlock),
+      if (storyStateBlock.isNotEmpty)
+        ContextSection(label: '故事状态卡', content: storyStateBlock),
       if (outlineText.isNotEmpty)
         ContextSection(label: '本章章纲', content: outlineText),
       if (tailText.isNotEmpty)
@@ -1348,9 +1404,36 @@ class ContextBuilder {
     }
   }
 
-  String _tailOf(String content) {
-    if (content.length <= tailChars) return content;
-    return '（前文略）${content.substring(content.length - tailChars)}';
+  String _tailOf(String content, {int maxChars = tailChars}) {
+    if (content.length <= maxChars) return content;
+    return '（前文略）${content.substring(content.length - maxChars)}';
+  }
+
+  /// RAG-lite（ENH-32）：从本章之前的章节里检索与 [query] 最相关的片段。
+  /// 只回看最近 60 章，避免超长篇为一次续写读取全部正文。
+  Future<String> _relatedText(
+    int chapterId,
+    String query,
+    List<Chapter> ordered,
+  ) async {
+    final index = ordered.indexWhere((c) => c.id == chapterId);
+    if (index <= 0) return '';
+    final start = index > 60 ? index - 60 : 0;
+    final contents = <Chapter>[];
+    for (final meta in ordered.sublist(start, index)) {
+      if (meta.wordCount == 0) continue;
+      final full = await chapters.getChapter(meta.id);
+      if (full != null && full.content.trim().isNotEmpty) contents.add(full);
+    }
+    if (contents.isEmpty) return '';
+    final hits = retrievePassages(
+      chapters: contents,
+      query: query,
+      topK: 3,
+      chunkChars: 280,
+      maxPerChapter: 1,
+    );
+    return formatRetrievedPassages(hits, header: '');
   }
 
   /// 压缩前情摘要（ENH-07 O2）：保留【本卷前情】/【前卷前情】等回顾行（截到 ~160 字），
@@ -1470,6 +1553,80 @@ class ContextBuilder {
       if (volume.id == volumeId) return volume;
     }
     return null;
+  }
+
+  /// 故事状态卡格式化为一段文本（ENH-31）：角色状态 / 未回收伏笔 / 最近时间线。
+  /// 已回收伏笔不再注入，避免模型把已解决线索当成待办。
+  Future<String> _storyStateText(int workId, List<Chapter> ordered) async {
+    final repository = storyStates;
+    if (repository == null) return '';
+    final entries = await repository.listEntries(workId);
+    if (entries.isEmpty) return '';
+
+    final chapterLabel = <int, String>{};
+    for (var i = 0; i < ordered.length; i++) {
+      final title = ordered[i].title.trim();
+      chapterLabel[ordered[i].id] =
+          '第 ${i + 1} 章${title.isEmpty ? '' : ' $title'}';
+    }
+    String source(StoryState entry) {
+      final id = entry.chapterId;
+      final label = id == null ? null : chapterLabel[id];
+      return label == null ? '' : '（$label）';
+    }
+
+    String line(StoryState entry) {
+      final detail = entry.detail.trim();
+      return '- ${entry.title.trim()}${detail.isEmpty ? '' : '：$detail'}'
+          '${source(entry)}';
+    }
+
+    final characters = entries
+        .where(
+          (e) =>
+              e.kind == StoryStateKind.character.value &&
+              e.title.trim().isNotEmpty,
+        )
+        .take(12);
+    final foreshadows = entries
+        .where(
+          (e) =>
+              e.kind == StoryStateKind.foreshadow.value &&
+              e.status == 'open' &&
+              e.title.trim().isNotEmpty,
+        )
+        .take(12);
+    final timelineAll = entries
+        .where(
+          (e) =>
+              e.kind == StoryStateKind.timeline.value &&
+              e.title.trim().isNotEmpty,
+        )
+        .toList();
+    final timeline = timelineAll.length > 8
+        ? timelineAll.sublist(timelineAll.length - 8)
+        : timelineAll;
+
+    final buffer = StringBuffer();
+    if (characters.isNotEmpty) {
+      buffer.writeln('【角色状态】');
+      for (final entry in characters) {
+        buffer.writeln(line(entry));
+      }
+    }
+    if (foreshadows.isNotEmpty) {
+      buffer.writeln('【未回收伏笔】');
+      for (final entry in foreshadows) {
+        buffer.writeln(line(entry));
+      }
+    }
+    if (timeline.isNotEmpty) {
+      buffer.writeln('【时间线】');
+      for (final entry in timeline) {
+        buffer.writeln(line(entry));
+      }
+    }
+    return buffer.toString().trim();
   }
 
   /// 设定集格式化为一段文本（按世界观 / 地点 / 道具分组），未注入 repository 时返回空。

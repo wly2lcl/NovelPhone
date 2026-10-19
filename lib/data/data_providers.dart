@@ -11,6 +11,7 @@ import 'repositories/mcp_audit_repository.dart';
 import 'repositories/outline_repository.dart';
 import 'repositories/setting_repository.dart';
 import 'repositories/settings_repository.dart';
+import 'repositories/story_state_repository.dart';
 import 'repositories/token_stats_repository.dart';
 import 'repositories/trash_repository.dart';
 import 'repositories/work_repository.dart';
@@ -66,6 +67,11 @@ final outlineRepositoryProvider = Provider<OutlineRepository>(
 
 final inspirationRepositoryProvider = Provider<InspirationRepository>(
   (ref) => InspirationRepository(ref.watch(databaseProvider)),
+);
+
+/// 故事状态卡（ENH-31）：角色状态 / 伏笔 / 时间线。
+final storyStateRepositoryProvider = Provider<StoryStateRepository>(
+  (ref) => StoryStateRepository(ref.watch(databaseProvider)),
 );
 
 /// 作品问答历史（ENH-23）：按作品存于 APP_SETTING，最多 40 条。

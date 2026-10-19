@@ -139,6 +139,11 @@ class _SummaryCard extends StatelessWidget {
             label: l10n.tokenStatsAdoptionRate,
             value: _percent(stats.adoptionRate),
           ),
+          if (stats.adopted > 0)
+            _Metric(
+              label: l10n.tokenStatsVerbatimRate,
+              value: _percent(stats.verbatimRate),
+            ),
           _Metric(
             label: l10n.tokenStatsIgnoreRate,
             value: _percent(stats.ignoreRate),

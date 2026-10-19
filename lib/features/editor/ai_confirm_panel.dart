@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/theme.dart';
+import '../../core/ai/adoption_metrics.dart';
 import '../../core/ai/ai_client.dart';
 import '../../core/ai/context_builder.dart';
 import '../../core/ai/sanitize_ai_text.dart';
@@ -46,6 +47,7 @@ class AiConfirmPanel extends ConsumerStatefulWidget {
     required this.initialMode,
     required this.onInsert,
     required this.onClose,
+    this.onBeforeApply,
     this.rewriteText,
     this.onReplace,
     this.outlineSeed,
@@ -60,6 +62,9 @@ class AiConfirmPanel extends ConsumerStatefulWidget {
 
   /// 插入到编辑器光标处（走编辑器撤销栈）。
   final void Function(String text) onInsert;
+
+  /// 首次写入正文前的回调（ENH-30）：由编辑器创建「AI 采纳前」快照。
+  final Future<void> Function()? onBeforeApply;
 
   /// 改写模式（ENH-04）：待改写原文与「替换原文」回调（走编辑器撤销栈）。
   final String? rewriteText;
@@ -140,6 +145,12 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
   /// 当前结果的处置是否已回写（ENH-29）：面板被其他工具直接卸载时兜底记 ignored。
   bool _outcomesMarked = false;
   AiService? _aiService;
+
+  /// 本次生成是否已创建「AI 采纳前」快照（ENH-30）：同一轮只留一版。
+  bool _snapshotTaken = false;
+
+  /// 模型原始输出（ENH-30）：与作者编辑后的结果对比，计算采纳编辑比例。
+  final List<String> _rawOutputs = <String>['', '', ''];
 
   /// 修订历史（ENH-27.3）：每个候选各自保留最近 5 版。
   final List<AiRevisionHistory> _revisionHistory =
@@ -279,6 +290,7 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
     setState(() {
       _streaming = true;
       _outcomesMarked = false;
+      _snapshotTaken = false;
       _errorKind = null;
       _needsConfig = false;
       _context = null;
@@ -299,6 +311,9 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
       }
       for (final controller in _results) {
         controller.text = '';
+      }
+      for (var i = 0; i < _rawOutputs.length; i++) {
+        _rawOutputs[i] = '';
       }
       if (direction != null) _lastDirection = direction;
     });
@@ -396,6 +411,7 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
           final previousUsage = _revisionPreviousUsage;
           _revisionPreviousUsage = null;
           _usageIds[index] = null;
+          _rawOutputs[index] = event.text;
           if (previousUsage != null) {
             unawaited(
               ref
@@ -403,6 +419,8 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
                   .markOutcome(previousUsage, 'regenerated'),
             );
           }
+        } else {
+          _rawOutputs[index] = _rawOutputs[index] + event.text;
         }
         setState(() {
           final controller = _results[index];
@@ -521,21 +539,39 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
   }
 
   /// 采纳当前候选：选中记 adopted，其余候选（仅续写多候选）记 ignored。
-  Future<void> _markAdoption(int chars, {String? adoptedText}) async {
+  /// [sourceText] 为模型原稿（ENH-30），用于计算编辑后采纳比例。
+  Future<void> _markAdoption(
+    int chars, {
+    String? adoptedText,
+    String? sourceText,
+  }) async {
+    final finalText = adoptedText?.trim() ?? '';
+    final source = sourceText?.trim() ?? '';
+    final editPercent = source.isNotEmpty && finalText.isNotEmpty
+        ? adoptionEditPercent(source, finalText)
+        : null;
     final service = ref.read(aiServiceProvider);
     for (var i = 0; i < _usageIds.length; i++) {
       final id = _usageIds[i];
       if (id == null) continue;
       if (i == _activeIndex) {
-        await service.markOutcome(id, 'adopted', adoptedChars: chars);
+        await service.markOutcome(
+          id,
+          'adopted',
+          adoptedChars: chars,
+          adoptedEditPercent: editPercent,
+        );
       } else if (_mode == AiPanelMode.continueWriting) {
         await service.markOutcome(id, 'ignored');
       }
     }
     _outcomesMarked = true;
     // ENH-27：续写 / 改写的采纳样本仅存本机，供后续生成的语气参考。
-    final sample = adoptedText?.trim() ?? '';
-    if (sample.isNotEmpty && _isWritingMode) {
+    // ENH-30：大改后的文本不代表模型语气，超过阈值不采集样本。
+    final sample = finalText;
+    if (sample.isNotEmpty &&
+        _isWritingMode &&
+        (editPercent == null || editPercent <= adoptionSampleMaxEditPercent)) {
       await ref
           .read(settingsRepositoryProvider)
           .recordAdoptedSample(
@@ -545,6 +581,29 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
                 ? AiTask.rewrite
                 : AiTask.continueWriting,
           );
+    }
+  }
+
+  /// 采纳时的模型原稿（ENH-30）：切到旧修订版本时以该版文本为基线。
+  String? _adoptionSource() {
+    final index = _activeIndex;
+    final history = _revisionHistory[index];
+    if (history.selectedIndex >= 0 &&
+        history.selectedIndex != history.length - 1) {
+      return history.selected?.text;
+    }
+    final raw = _rawOutputs[index].trim();
+    return raw.isEmpty ? null : raw;
+  }
+
+  /// 首次写入正文前创建快照（ENH-30）。快照失败不阻断采纳。
+  Future<void> _snapshotBeforeApply() async {
+    if (_snapshotTaken) return;
+    _snapshotTaken = true;
+    try {
+      await widget.onBeforeApply?.call();
+    } catch (_) {
+      // 版本留档失败不应让作者丢掉已生成的正文。
     }
   }
 
@@ -658,12 +717,17 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
         }
       }
     }
+    await _snapshotBeforeApply();
     if (_mode == AiPanelMode.rewrite) {
       widget.onReplace?.call(text);
     } else {
       widget.onInsert(text);
     }
-    await _markAdoption(text.length, adoptedText: text);
+    await _markAdoption(
+      text.length,
+      adoptedText: text,
+      sourceText: _adoptionSource() ?? source,
+    );
     if (mounted) widget.onClose();
   }
 
@@ -681,8 +745,13 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
     // ENH-09：与三处摘要路径一致，写进正文前统一清洗 markdown 标记与多余空行。
     final text = sanitizeAiText(_activeResult.text).trim();
     if (text.isEmpty) return;
+    await _snapshotBeforeApply();
     widget.onInsert(text);
-    await _markAdoption(text.length, adoptedText: text);
+    await _markAdoption(
+      text.length,
+      adoptedText: text,
+      sourceText: _adoptionSource(),
+    );
     widget.onClose();
   }
 
@@ -693,8 +762,13 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
     if (text.isEmpty) return;
     final replace = widget.onReplace;
     if (replace == null) return;
+    await _snapshotBeforeApply();
     replace(text);
-    await _markAdoption(text.length, adoptedText: text);
+    await _markAdoption(
+      text.length,
+      adoptedText: text,
+      sourceText: _adoptionSource(),
+    );
     widget.onClose();
   }
 
@@ -705,7 +779,11 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
     final save = widget.onSaveSummary;
     if (save == null) return;
     save(text);
-    await _markAdoption(text.length);
+    await _markAdoption(
+      text.length,
+      adoptedText: text,
+      sourceText: _adoptionSource(),
+    );
     widget.onClose();
   }
 
@@ -716,7 +794,11 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
     final save = widget.onSaveOutline;
     if (save == null) return;
     save(text);
-    await _markAdoption(text.length);
+    await _markAdoption(
+      text.length,
+      adoptedText: text,
+      sourceText: _adoptionSource(),
+    );
     widget.onClose();
   }
 
@@ -727,7 +809,11 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
     final save = widget.onSaveVolumeSummary;
     if (save == null) return;
     save(text);
-    await _markAdoption(text.length);
+    await _markAdoption(
+      text.length,
+      adoptedText: text,
+      sourceText: _adoptionSource(),
+    );
     widget.onClose();
   }
 
@@ -737,7 +823,20 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
     await ref
         .read(inspirationRepositoryProvider)
         .createInspiration(widget.workId, text);
-    await _markAdoption(text.length);
+    final isInspire =
+        _mode == AiPanelMode.inspireIdeas ||
+        _mode == AiPanelMode.inspireOpening;
+    if (isInspire) {
+      await _markAdoption(
+        text.length,
+        adoptedText: text,
+        sourceText: _adoptionSource(),
+      );
+    } else {
+      // ENH-30：续写 / 改写存入灵感箱不等于写入正文，不计入采纳率。
+      await _markOutcomeForAll('ignored');
+      _outcomesMarked = true;
+    }
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(context.l10n.aiPanelSavedToInspiration)),
@@ -1321,7 +1420,7 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
             ),
         ],
         const Spacer(),
-        if (isInspire)
+        if (isInspire || _isWritingMode)
           TextButton(
             onPressed: hasText && !_streaming ? _saveToInspiration : null,
             child: Text(l10n.aiPanelSaveToInspiration),

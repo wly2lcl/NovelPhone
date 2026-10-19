@@ -63,6 +63,25 @@ void main() {
     expect((await chapters.getSnapshot(id))!.content, '留档正文。');
   });
 
+  test('快照来源标记随元数据返回（ENH-30）', () async {
+    await chapters.createSnapshot(
+      chapterId: chapterId,
+      title: '第一章',
+      content: '采纳前的正文。',
+      note: ChapterRepository.noteAiBeforeAdopt,
+    );
+    await chapters.createSnapshot(
+      chapterId: chapterId,
+      title: '第一章',
+      content: '手动留档。',
+    );
+
+    final list = await chapters.listSnapshots(chapterId);
+
+    expect(list.first.note, isEmpty);
+    expect(list.last.note, ChapterRepository.noteAiBeforeAdopt);
+  });
+
   test('超过上限自动清理最旧的快照', () async {
     final limit = ChapterRepository.maxSnapshotsPerChapter;
     for (var i = 0; i < limit + 2; i++) {

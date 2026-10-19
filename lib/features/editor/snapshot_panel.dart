@@ -6,6 +6,7 @@ import '../../core/formatting.dart';
 import '../../core/word_count.dart';
 import '../../data/data_providers.dart';
 import '../../data/db.dart';
+import '../../data/repositories/chapter_repository.dart';
 import '../../l10n/l10n.dart';
 import '../work_detail/work_detail_providers.dart';
 import 'editor_controller.dart';
@@ -60,6 +61,11 @@ class SnapshotPanel extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
+                if (_noteLabel(context, full.note) != null)
+                  Text(
+                    _noteLabel(context, full.note)!,
+                    style: TextStyle(fontSize: 12, color: context.paper.accent),
+                  ),
                 Text(
                   '${formatRelativeTime(full.createdAt, context.l10n)} · '
                   '${formatWordCount(full.wordCount, context.l10n)}',
@@ -137,6 +143,15 @@ class SnapshotPanel extends ConsumerWidget {
     return content.length > 2000 ? '${content.substring(0, 2000)}…' : content;
   }
 
+  /// 快照来源标记（ENH-30）：已知标记本地化，未知标记原样展示。
+  static String? _noteLabel(BuildContext context, String note) {
+    if (note.isEmpty) return null;
+    if (note == ChapterRepository.noteAiBeforeAdopt) {
+      return context.l10n.snapshotNoteAiBeforeAdopt;
+    }
+    return note;
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final snapshots =
@@ -203,6 +218,8 @@ class SnapshotPanel extends ConsumerWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                     subtitle: Text(
+                      '${_noteLabel(context, snapshot.note) ?? ''}'
+                      '${snapshot.note.isEmpty ? '' : ' · '}'
                       '${formatRelativeTime(snapshot.createdAt, context.l10n)} · '
                       '${formatWordCount(snapshot.wordCount, context.l10n)}',
                       style: TextStyle(

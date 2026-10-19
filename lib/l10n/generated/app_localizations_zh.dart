@@ -841,6 +841,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get snapshotHistoryTitle => '版本历史';
 
   @override
+  String get snapshotNoteAiBeforeAdopt => 'AI 采纳前';
+
+  @override
   String get snapshotCreate => '创建快照';
 
   @override
@@ -1629,6 +1632,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get tokenStatsAdoptionRate => '采纳率';
 
   @override
+  String get tokenStatsVerbatimRate => '原样采纳率';
+
+  @override
   String get tokenStatsIgnoreRate => '忽略率';
 
   @override
@@ -2198,6 +2204,87 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get workDetailInspirationsTitle => '灵感箱';
+
+  @override
+  String get storyStateTitle => '故事状态卡';
+
+  @override
+  String get storyStateTabCharacter => '角色状态';
+
+  @override
+  String get storyStateTabForeshadow => '伏笔';
+
+  @override
+  String get storyStateTabTimeline => '时间线';
+
+  @override
+  String get storyStateEmptyCharacter => '暂无角色状态';
+
+  @override
+  String get storyStateEmptyForeshadow => '暂未记录伏笔';
+
+  @override
+  String get storyStateEmptyTimeline => '暂无时间线事件';
+
+  @override
+  String get storyStateEmptyHint => '记录当下状态与未回收伏笔，AI 续写会自动参考。';
+
+  @override
+  String get storyStateAdd => '新增';
+
+  @override
+  String get storyStateEdit => '编辑';
+
+  @override
+  String get storyStateDelete => '删除';
+
+  @override
+  String get storyStateDeleted => '状态卡已删除';
+
+  @override
+  String get storyStateSaved => '状态卡已保存';
+
+  @override
+  String get storyStateTitleRequired => '请填写标题';
+
+  @override
+  String get storyStateFieldTitle => '标题';
+
+  @override
+  String get storyStateFieldDetail => '详情';
+
+  @override
+  String get storyStateFieldChapter => '关联章节';
+
+  @override
+  String get storyStateNoChapter => '不关联';
+
+  @override
+  String get storyStateOpen => '未回收';
+
+  @override
+  String get storyStateClosed => '已回收';
+
+  @override
+  String get storyStateTitleHintCharacter => '角色名';
+
+  @override
+  String get storyStateTitleHintForeshadow => '伏笔名称';
+
+  @override
+  String get storyStateTitleHintTimeline => '事件';
+
+  @override
+  String get storyStateDetailHint => '角色当下状态 / 伏笔线索 / 事件经过';
+
+  @override
+  String get storyStateMoreActions => '更多操作';
+
+  @override
+  String get storyStateDeleteTitle => '删除这条状态卡？';
+
+  @override
+  String get storyStateDeleteBody => '删除后不可恢复。';
 
   @override
   String get workDetailAiSettings => 'AI 设置';

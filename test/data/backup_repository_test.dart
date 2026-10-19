@@ -6,8 +6,10 @@ import 'package:novelphone/data/repositories/character_repository.dart';
 import 'package:novelphone/data/repositories/inspiration_repository.dart';
 import 'package:novelphone/data/repositories/outline_repository.dart';
 import 'package:novelphone/data/repositories/setting_repository.dart';
+import 'package:novelphone/data/repositories/story_state_repository.dart';
 import 'package:novelphone/data/repositories/work_repository.dart';
 import 'package:novelphone/models/setting_type.dart';
+import 'package:novelphone/models/story_state_kind.dart';
 import 'package:novelphone/models/work_style_guide.dart';
 
 /// M2-10 / M2-11：整库备份导出与恢复（覆盖 / 合并）。
@@ -20,6 +22,7 @@ void main() {
   late OutlineRepository outlines;
   late InspirationRepository inspirations;
   late SettingRepository settings;
+  late StoryStateRepository storyStates;
 
   setUp(() {
     db = AppDatabase.memory();
@@ -30,6 +33,7 @@ void main() {
     outlines = OutlineRepository(db);
     inspirations = InspirationRepository(db);
     settings = SettingRepository(db);
+    storyStates = StoryStateRepository(db);
   });
 
   tearDown(() async {
@@ -277,5 +281,71 @@ void main() {
     expect(report.works, 1);
     final restored = await works.getWork(workId);
     expect(restored!.styleGuide, '');
+  });
+
+  test('故事状态卡随备份恢复，合并模式重映射章节外键（ENH-31）', () async {
+    final workId = await seedWork();
+    final chapterId = (await chapters.watchChapters(workId).first).single.id;
+    await storyStates.createEntry(
+      workId: workId,
+      kind: StoryStateKind.foreshadow,
+      title: '铜印来历',
+      detail: '尚未揭晓',
+      chapterId: chapterId,
+      sortOrder: 2,
+    );
+    await storyStates.createEntry(
+      workId: workId,
+      kind: StoryStateKind.character,
+      title: '沈砚',
+      detail: '左臂受伤',
+      status: 'closed',
+    );
+
+    final data = await backup.exportData();
+    expect((data['tables'] as Map)['storyStates'], hasLength(2));
+
+    // 合并恢复生成新作品，状态卡的作品 / 章节外键需随之重映射。
+    await backup.restore(data, overwrite: false);
+    final newWork = (await works.listWorks()).firstWhere((w) => w.id != workId);
+    final newChapterId =
+        (await chapters.watchChapters(newWork.id).first).single.id;
+    expect(newChapterId, isNot(chapterId));
+    final merged = await storyStates.listEntries(newWork.id);
+    expect(merged, hasLength(2));
+    final mergedForeshadow = merged.firstWhere(
+      (e) => e.kind == StoryStateKind.foreshadow.value,
+    );
+    expect(mergedForeshadow.title, '铜印来历');
+    expect(mergedForeshadow.chapterId, newChapterId);
+    expect(mergedForeshadow.sortOrder, 2);
+    final mergedCharacter = merged.firstWhere(
+      (e) => e.kind == StoryStateKind.character.value,
+    );
+    expect(mergedCharacter.status, 'closed');
+    expect(mergedCharacter.chapterId, isNull);
+
+    // 覆盖恢复保留原 id，章节关联仍指向原章节。
+    await backup.restore(data, overwrite: true);
+    final overwritten = await storyStates.listEntries(workId);
+    expect(overwritten, hasLength(2));
+    expect(
+      overwritten
+          .firstWhere((e) => e.kind == StoryStateKind.foreshadow.value)
+          .chapterId,
+      chapterId,
+    );
+  });
+
+  test('旧备份没有 storyStates 表仍可恢复（ENH-31）', () async {
+    final workId = await seedWork();
+    final data = await backup.exportData();
+    (data['tables'] as Map).remove('storyStates');
+    await works.deleteWork(workId);
+
+    final report = await backup.restore(data, overwrite: true);
+
+    expect(report.works, 1);
+    expect(await storyStates.listEntries(workId), isEmpty);
   });
 }

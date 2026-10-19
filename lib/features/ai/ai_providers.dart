@@ -24,6 +24,7 @@ final aiServiceProvider = Provider<AiService>((ref) {
     outline: ref.watch(outlineRepositoryProvider),
     stats: ref.watch(tokenStatsRepositoryProvider),
     settingRepository: ref.watch(settingRepositoryProvider),
+    storyStateRepository: ref.watch(storyStateRepositoryProvider),
     httpClient: ref.watch(httpClientProvider),
     mcpAudit: ref.watch(mcpAuditRepositoryProvider),
   );

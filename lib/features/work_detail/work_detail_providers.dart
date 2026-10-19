@@ -3,6 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/data_providers.dart';
 import '../../data/db.dart';
 
+/// 故事状态卡（ENH-31）：角色状态 / 伏笔 / 时间线。
+final storyStatesProvider = StreamProvider.autoDispose
+    .family<List<StoryState>, int>(
+      (ref, workId) =>
+          ref.watch(storyStateRepositoryProvider).watchEntries(workId),
+    );
+
 /// 作品详情页的数据流。
 ///
 /// 全部使用 autoDispose（ENH-11）：这些流只在作品详情相关页面消费，

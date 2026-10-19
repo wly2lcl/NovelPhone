@@ -5,8 +5,10 @@ import 'package:novelphone/data/repositories/chapter_repository.dart';
 import 'package:novelphone/data/repositories/character_repository.dart';
 import 'package:novelphone/data/repositories/outline_repository.dart';
 import 'package:novelphone/data/repositories/setting_repository.dart';
+import 'package:novelphone/data/repositories/story_state_repository.dart';
 import 'package:novelphone/data/repositories/work_repository.dart';
 import 'package:novelphone/models/setting_type.dart';
+import 'package:novelphone/models/story_state_kind.dart';
 import 'package:novelphone/models/work_style_guide.dart';
 
 /// 计数用的章节仓储替身（ENH-12）：整部作品正文读取与按 id 取正文各发生几次。
@@ -509,7 +511,7 @@ void main() {
   });
 
   group('前情摘要按需取正文（ENH-12）', () {
-    test('续写上下文不整部读正文，只取无摘要的近期章', () async {
+    test('续写上下文不整部读正文，只按需读取摘要缺失章与检索范围', () async {
       final counting = _CountingChapters(db);
       final localBuilder = ContextBuilder(
         works: works,
@@ -540,8 +542,13 @@ void main() {
 
       // 顺序与摘要都取自元数据流，不再为一段回顾把整部作品正文读进内存。
       expect(counting.fullWorkReads, 0);
-      // 正文只取当前章与「没有 AI 摘要的第二章」。
-      expect(counting.contentReads.toSet(), <int>{third, ordered[1].id});
+      // 正文读取：当前章、无 AI 摘要的第二章，以及 ENH-32 检索命中的第一章
+      //（检索范围上限 60 章，不会无界读取整部作品）。
+      expect(counting.contentReads.toSet(), <int>{
+        third,
+        ordered[0].id,
+        ordered[1].id,
+      });
 
       final summarySection = context.sections.firstWhere(
         (s) => s.label == '前文摘要',
@@ -996,5 +1003,111 @@ void main() {
     expect(tight.truncated, isTrue);
     expect(tight.messages.length, lessThan(3));
     expect(tight.messages.last.content, '苏晚是谁？');
+  });
+
+  test('故事状态卡注入续写与作品问答，已回收伏笔不再注入（ENH-31）', () async {
+    final workId = await seedWork();
+    final states = StoryStateRepository(db);
+    await states.createEntry(
+      workId: workId,
+      kind: StoryStateKind.character,
+      title: '沈砚',
+      detail: '左臂受伤',
+    );
+    await states.createEntry(
+      workId: workId,
+      kind: StoryStateKind.foreshadow,
+      title: '铜印来历',
+    );
+    final closedId = await states.createEntry(
+      workId: workId,
+      kind: StoryStateKind.foreshadow,
+      title: '密信去向',
+    );
+    await states.setStatus(closedId, 'closed');
+    await states.createEntry(
+      workId: workId,
+      kind: StoryStateKind.timeline,
+      title: '雨夜入城',
+    );
+    final localBuilder = ContextBuilder(
+      works: works,
+      chapters: chapters,
+      characters: characters,
+      outline: outline,
+      settings: settings,
+      storyStates: states,
+    );
+    final third = await chapters.createChapter(workId: workId, title: '第三章');
+    await chapters.saveChapter(
+      chapterId: third,
+      title: '第三章',
+      content: '沈砚握紧了刀。',
+      cursorOffset: 0,
+      scrollOffset: 0,
+    );
+
+    final context = await localBuilder.buildContinue(
+      workId: workId,
+      chapterId: third,
+      contextWindow: 32000,
+    );
+    final section = context.sections.firstWhere((s) => s.label == '故事状态卡');
+    expect(section.content, contains('【角色状态】'));
+    expect(section.content, contains('沈砚：左臂受伤'));
+    expect(section.content, contains('【未回收伏笔】'));
+    expect(section.content, contains('铜印来历'));
+    expect(section.content, isNot(contains('密信去向')));
+    expect(section.content, contains('【时间线】'));
+    expect(section.content, contains('雨夜入城'));
+
+    final chat = await localBuilder.buildChat(
+      workId: workId,
+      chapterList: await chapters.listChapters(workId),
+      history: const <ChatContextTurn>[],
+      message: '沈砚现在怎么样？',
+      contextWindow: 32000,
+    );
+    expect(chat.system, contains('【故事状态卡】'));
+    expect(chat.system, contains('沈砚：左臂受伤'));
+  });
+
+  test('续写与作品问答注入检索到的相关前文（ENH-32）', () async {
+    final workId = await seedWork();
+    final ordered = await chapters.watchChapters(workId).first;
+    await chapters.saveChapter(
+      chapterId: ordered[0].id,
+      title: ordered[0].title,
+      content: '沈砚把铜印藏进袖中，铜印上刻着旧朝年号。',
+      cursorOffset: 0,
+      scrollOffset: 0,
+    );
+    final third = await chapters.createChapter(workId: workId, title: '第三章');
+    await chapters.saveChapter(
+      chapterId: third,
+      title: '第三章',
+      content: '他摊开手掌，铜印上的年号已经被磨平。',
+      cursorOffset: 0,
+      scrollOffset: 0,
+    );
+
+    final context = await builder.buildContinue(
+      workId: workId,
+      chapterId: third,
+      contextWindow: 32000,
+    );
+    final related = context.sections.firstWhere((s) => s.label == '相关前文片段');
+    expect(related.content, contains('铜印'));
+    expect(related.content, contains('第一章'));
+
+    final chat = await builder.buildChat(
+      workId: workId,
+      chapterList: await chapters.listChapters(workId),
+      history: const <ChatContextTurn>[],
+      message: '铜印是什么？',
+      contextWindow: 32000,
+    );
+    expect(chat.system, contains('【相关正文片段】'));
+    expect(chat.system, contains('铜印'));
   });
 }

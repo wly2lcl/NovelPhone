@@ -12,6 +12,7 @@ import '../../core/ai/sanitize_ai_text.dart';
 import '../../core/formatting.dart';
 import '../../core/word_count.dart';
 import '../../data/data_providers.dart';
+import '../../data/repositories/chapter_repository.dart';
 import '../../data/repositories/settings_repository.dart';
 import '../../l10n/error_text.dart';
 import '../../l10n/l10n.dart';
@@ -279,6 +280,7 @@ class _EditorPageState extends ConsumerState<EditorPage> {
               chapterId: widget.chapterId,
               initialMode: _aiMode!,
               onInsert: _controller.insertAtCursor,
+              onBeforeApply: _snapshotBeforeAiApply,
               rewriteText: _rewriteText,
               onReplace: _applyRewrite,
               outlineSeed: _outlineSeed,
@@ -671,6 +673,21 @@ class _EditorPageState extends ConsumerState<EditorPage> {
     _rewriteEnd = end;
     _rewriteText = selected;
     return true;
+  }
+
+  /// AI 首次写入正文前自动留一版（ENH-30）：撤销栈只覆盖当前会话，
+  /// 快照保证重启后仍可回到采纳前的内容。
+  Future<void> _snapshotBeforeAiApply() async {
+    final content = _controller.textController.text;
+    if (content.trim().isEmpty) return;
+    await ref
+        .read(chapterRepositoryProvider)
+        .createSnapshot(
+          chapterId: widget.chapterId,
+          title: _controller.title,
+          content: content,
+          note: ChapterRepository.noteAiBeforeAdopt,
+        );
   }
 
   /// 把改写结果替换回原文区间（ENH-04）：原文漂移则拒绝；仅成功才抢回焦点。

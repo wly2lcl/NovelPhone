@@ -22,6 +22,7 @@ import '../../data/repositories/character_repository.dart';
 import '../../data/repositories/mcp_audit_repository.dart';
 import '../../data/repositories/outline_repository.dart';
 import '../../data/repositories/setting_repository.dart';
+import '../../data/repositories/story_state_repository.dart';
 import '../../data/repositories/settings_repository.dart';
 import '../../data/repositories/token_stats_repository.dart';
 import '../../data/repositories/work_repository.dart';
@@ -371,6 +372,7 @@ class AiService {
     required this.outline,
     required this.stats,
     this.settingRepository,
+    this.storyStateRepository,
     this.httpClient,
     this.mcpOpener,
     this.mcpAudit,
@@ -381,6 +383,7 @@ class AiService {
       characters: characters,
       outline: outline,
       settings: settingRepository,
+      storyStates: storyStateRepository,
     );
   }
 
@@ -393,6 +396,9 @@ class AiService {
 
   /// 设定集（B-09）：供上下文组装使用（可空，未注入则不参与）。
   final SettingRepository? settingRepository;
+
+  /// 故事状态卡（ENH-31）：供上下文组装使用（可空，未注入则不参与）。
+  final StoryStateRepository? storyStateRepository;
 
   final http.Client? httpClient;
 
@@ -1579,9 +1585,14 @@ class AiService {
     int usageId,
     String outcome, {
     int adoptedChars = 0,
+    int? adoptedEditPercent,
   }) {
     if (outcome == AiOutcome.adopted) {
-      return stats.markAdopted(usageId, adoptedChars);
+      return stats.markAdopted(
+        usageId,
+        adoptedChars,
+        editPercent: adoptedEditPercent,
+      );
     }
     return stats.updateOutcome(usageId, outcome);
   }

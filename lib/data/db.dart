@@ -77,6 +77,9 @@ class ChapterSnapshots extends Table {
       integer().references(Chapters, #id, onDelete: KeyAction.cascade)();
   TextColumn get title => text().withDefault(const Constant(''))();
   TextColumn get content => text().withDefault(const Constant(''))();
+
+  /// 快照来源标记（ENH-30）：如 `ai_before_adopt`，空串表示手动创建。
+  TextColumn get note => text().withDefault(const Constant(''))();
   IntColumn get wordCount => integer().withDefault(const Constant(0))();
   DateTimeColumn get createdAt => dateTime()();
 }
@@ -146,6 +149,9 @@ class AiUsages extends Table {
   /// AI 生成的总字数与最终被插入正文字数，支撑 PRD 2.2 的字符口径采纳率。
   IntColumn get outputChars => integer().withDefault(const Constant(0))();
   IntColumn get adoptedChars => integer().withDefault(const Constant(0))();
+
+  /// AI 原稿到最终采纳文本的编辑比例（ENH-30，0~100，空值表示旧记录）。
+  IntColumn get adoptedEditPercent => integer().nullable()();
   TextColumn get outcome => text().withDefault(
     const Constant('pending'),
   )(); // adopted/ignored/regenerated/aborted/pending
@@ -220,6 +226,28 @@ class CharacterRelations extends Table {
   TextColumn get label => text().withDefault(const Constant(''))();
 }
 
+/// 故事状态卡（ENH-31）：角色状态 / 伏笔 / 时间线三类结构化条目。
+/// 与角色卡、章纲互补——这里记录「当下状态」与「待回收线索」，供 AI 续写注入。
+@TableIndex(name: 'story_states_work_id', columns: {#workId})
+class StoryStates extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  IntColumn get workId =>
+      integer().references(Works, #id, onDelete: KeyAction.cascade)();
+  TextColumn get kind => text()(); // character / foreshadow / timeline
+  TextColumn get title => text().withLength(min: 1, max: 50)();
+  TextColumn get detail => text().withDefault(const Constant(''))();
+
+  /// 伏笔状态：open / closed；角色与时间线条目固定存 open。
+  TextColumn get status => text().withDefault(const Constant('open'))();
+  IntColumn get chapterId => integer().nullable().references(
+    Chapters,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+  DateTimeColumn get updatedAt => dateTime()();
+}
+
 @DriftDatabase(
   tables: [
     Works,
@@ -235,6 +263,7 @@ class CharacterRelations extends Table {
     DailyWritingStats,
     SettingEntries,
     CharacterRelations,
+    StoryStates,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -244,7 +273,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 14;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -306,6 +335,16 @@ class AppDatabase extends _$AppDatabase {
         await m.addColumn(works, works.styleGuide);
         await m.addColumn(modelGroups, modelGroups.inputPricePerMillion);
         await m.addColumn(modelGroups, modelGroups.outputPricePerMillion);
+      }
+      // v13（ENH-30）：快照来源标记；AI 用量追加采纳编辑比例。
+      if (from < 13) {
+        await m.addColumn(chapterSnapshots, chapterSnapshots.note);
+        await m.addColumn(aiUsages, aiUsages.adoptedEditPercent);
+      }
+      // v14（ENH-31）：追加 STORY_STATE 表（角色状态 / 伏笔 / 时间线）。
+      if (from < 14) {
+        await m.createTable(storyStates);
+        await m.createIndex(storyStatesWorkId);
       }
     },
     beforeOpen: (details) async {

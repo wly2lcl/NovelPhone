@@ -1837,6 +1837,16 @@ class $ChapterSnapshotsTable extends ChapterSnapshots
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  @override
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+    'note',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   static const VerificationMeta _wordCountMeta = const VerificationMeta(
     'wordCount',
   );
@@ -1866,6 +1876,7 @@ class $ChapterSnapshotsTable extends ChapterSnapshots
     chapterId,
     title,
     content,
+    note,
     wordCount,
     createdAt,
   ];
@@ -1902,6 +1913,12 @@ class $ChapterSnapshotsTable extends ChapterSnapshots
       context.handle(
         _contentMeta,
         content.isAcceptableOrUnknown(data['content']!, _contentMeta),
+      );
+    }
+    if (data.containsKey('note')) {
+      context.handle(
+        _noteMeta,
+        note.isAcceptableOrUnknown(data['note']!, _noteMeta),
       );
     }
     if (data.containsKey('word_count')) {
@@ -1943,6 +1960,10 @@ class $ChapterSnapshotsTable extends ChapterSnapshots
         DriftSqlType.string,
         data['${effectivePrefix}content'],
       )!,
+      note: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note'],
+      )!,
       wordCount: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}word_count'],
@@ -1965,6 +1986,9 @@ class ChapterSnapshot extends DataClass implements Insertable<ChapterSnapshot> {
   final int chapterId;
   final String title;
   final String content;
+
+  /// 快照来源标记（ENH-30）：如 `ai_before_adopt`，空串表示手动创建。
+  final String note;
   final int wordCount;
   final DateTime createdAt;
   const ChapterSnapshot({
@@ -1972,6 +1996,7 @@ class ChapterSnapshot extends DataClass implements Insertable<ChapterSnapshot> {
     required this.chapterId,
     required this.title,
     required this.content,
+    required this.note,
     required this.wordCount,
     required this.createdAt,
   });
@@ -1982,6 +2007,7 @@ class ChapterSnapshot extends DataClass implements Insertable<ChapterSnapshot> {
     map['chapter_id'] = Variable<int>(chapterId);
     map['title'] = Variable<String>(title);
     map['content'] = Variable<String>(content);
+    map['note'] = Variable<String>(note);
     map['word_count'] = Variable<int>(wordCount);
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
@@ -1993,6 +2019,7 @@ class ChapterSnapshot extends DataClass implements Insertable<ChapterSnapshot> {
       chapterId: Value(chapterId),
       title: Value(title),
       content: Value(content),
+      note: Value(note),
       wordCount: Value(wordCount),
       createdAt: Value(createdAt),
     );
@@ -2008,6 +2035,7 @@ class ChapterSnapshot extends DataClass implements Insertable<ChapterSnapshot> {
       chapterId: serializer.fromJson<int>(json['chapterId']),
       title: serializer.fromJson<String>(json['title']),
       content: serializer.fromJson<String>(json['content']),
+      note: serializer.fromJson<String>(json['note']),
       wordCount: serializer.fromJson<int>(json['wordCount']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
@@ -2020,6 +2048,7 @@ class ChapterSnapshot extends DataClass implements Insertable<ChapterSnapshot> {
       'chapterId': serializer.toJson<int>(chapterId),
       'title': serializer.toJson<String>(title),
       'content': serializer.toJson<String>(content),
+      'note': serializer.toJson<String>(note),
       'wordCount': serializer.toJson<int>(wordCount),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
@@ -2030,6 +2059,7 @@ class ChapterSnapshot extends DataClass implements Insertable<ChapterSnapshot> {
     int? chapterId,
     String? title,
     String? content,
+    String? note,
     int? wordCount,
     DateTime? createdAt,
   }) => ChapterSnapshot(
@@ -2037,6 +2067,7 @@ class ChapterSnapshot extends DataClass implements Insertable<ChapterSnapshot> {
     chapterId: chapterId ?? this.chapterId,
     title: title ?? this.title,
     content: content ?? this.content,
+    note: note ?? this.note,
     wordCount: wordCount ?? this.wordCount,
     createdAt: createdAt ?? this.createdAt,
   );
@@ -2046,6 +2077,7 @@ class ChapterSnapshot extends DataClass implements Insertable<ChapterSnapshot> {
       chapterId: data.chapterId.present ? data.chapterId.value : this.chapterId,
       title: data.title.present ? data.title.value : this.title,
       content: data.content.present ? data.content.value : this.content,
+      note: data.note.present ? data.note.value : this.note,
       wordCount: data.wordCount.present ? data.wordCount.value : this.wordCount,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
@@ -2058,6 +2090,7 @@ class ChapterSnapshot extends DataClass implements Insertable<ChapterSnapshot> {
           ..write('chapterId: $chapterId, ')
           ..write('title: $title, ')
           ..write('content: $content, ')
+          ..write('note: $note, ')
           ..write('wordCount: $wordCount, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
@@ -2066,7 +2099,7 @@ class ChapterSnapshot extends DataClass implements Insertable<ChapterSnapshot> {
 
   @override
   int get hashCode =>
-      Object.hash(id, chapterId, title, content, wordCount, createdAt);
+      Object.hash(id, chapterId, title, content, note, wordCount, createdAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2075,6 +2108,7 @@ class ChapterSnapshot extends DataClass implements Insertable<ChapterSnapshot> {
           other.chapterId == this.chapterId &&
           other.title == this.title &&
           other.content == this.content &&
+          other.note == this.note &&
           other.wordCount == this.wordCount &&
           other.createdAt == this.createdAt);
 }
@@ -2084,6 +2118,7 @@ class ChapterSnapshotsCompanion extends UpdateCompanion<ChapterSnapshot> {
   final Value<int> chapterId;
   final Value<String> title;
   final Value<String> content;
+  final Value<String> note;
   final Value<int> wordCount;
   final Value<DateTime> createdAt;
   const ChapterSnapshotsCompanion({
@@ -2091,6 +2126,7 @@ class ChapterSnapshotsCompanion extends UpdateCompanion<ChapterSnapshot> {
     this.chapterId = const Value.absent(),
     this.title = const Value.absent(),
     this.content = const Value.absent(),
+    this.note = const Value.absent(),
     this.wordCount = const Value.absent(),
     this.createdAt = const Value.absent(),
   });
@@ -2099,6 +2135,7 @@ class ChapterSnapshotsCompanion extends UpdateCompanion<ChapterSnapshot> {
     required int chapterId,
     this.title = const Value.absent(),
     this.content = const Value.absent(),
+    this.note = const Value.absent(),
     this.wordCount = const Value.absent(),
     required DateTime createdAt,
   }) : chapterId = Value(chapterId),
@@ -2108,6 +2145,7 @@ class ChapterSnapshotsCompanion extends UpdateCompanion<ChapterSnapshot> {
     Expression<int>? chapterId,
     Expression<String>? title,
     Expression<String>? content,
+    Expression<String>? note,
     Expression<int>? wordCount,
     Expression<DateTime>? createdAt,
   }) {
@@ -2116,6 +2154,7 @@ class ChapterSnapshotsCompanion extends UpdateCompanion<ChapterSnapshot> {
       if (chapterId != null) 'chapter_id': chapterId,
       if (title != null) 'title': title,
       if (content != null) 'content': content,
+      if (note != null) 'note': note,
       if (wordCount != null) 'word_count': wordCount,
       if (createdAt != null) 'created_at': createdAt,
     });
@@ -2126,6 +2165,7 @@ class ChapterSnapshotsCompanion extends UpdateCompanion<ChapterSnapshot> {
     Value<int>? chapterId,
     Value<String>? title,
     Value<String>? content,
+    Value<String>? note,
     Value<int>? wordCount,
     Value<DateTime>? createdAt,
   }) {
@@ -2134,6 +2174,7 @@ class ChapterSnapshotsCompanion extends UpdateCompanion<ChapterSnapshot> {
       chapterId: chapterId ?? this.chapterId,
       title: title ?? this.title,
       content: content ?? this.content,
+      note: note ?? this.note,
       wordCount: wordCount ?? this.wordCount,
       createdAt: createdAt ?? this.createdAt,
     );
@@ -2154,6 +2195,9 @@ class ChapterSnapshotsCompanion extends UpdateCompanion<ChapterSnapshot> {
     if (content.present) {
       map['content'] = Variable<String>(content.value);
     }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
     if (wordCount.present) {
       map['word_count'] = Variable<int>(wordCount.value);
     }
@@ -2170,6 +2214,7 @@ class ChapterSnapshotsCompanion extends UpdateCompanion<ChapterSnapshot> {
           ..write('chapterId: $chapterId, ')
           ..write('title: $title, ')
           ..write('content: $content, ')
+          ..write('note: $note, ')
           ..write('wordCount: $wordCount, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
@@ -3447,6 +3492,16 @@ class $AiUsagesTable extends AiUsages with TableInfo<$AiUsagesTable, AiUsage> {
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _adoptedEditPercentMeta =
+      const VerificationMeta('adoptedEditPercent');
+  @override
+  late final GeneratedColumn<int> adoptedEditPercent = GeneratedColumn<int>(
+    'adopted_edit_percent',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _outcomeMeta = const VerificationMeta(
     'outcome',
   );
@@ -3481,6 +3536,7 @@ class $AiUsagesTable extends AiUsages with TableInfo<$AiUsagesTable, AiUsage> {
     completionTokens,
     outputChars,
     adoptedChars,
+    adoptedEditPercent,
     outcome,
     createdAt,
   ];
@@ -3563,6 +3619,15 @@ class $AiUsagesTable extends AiUsages with TableInfo<$AiUsagesTable, AiUsage> {
         ),
       );
     }
+    if (data.containsKey('adopted_edit_percent')) {
+      context.handle(
+        _adoptedEditPercentMeta,
+        adoptedEditPercent.isAcceptableOrUnknown(
+          data['adopted_edit_percent']!,
+          _adoptedEditPercentMeta,
+        ),
+      );
+    }
     if (data.containsKey('outcome')) {
       context.handle(
         _outcomeMeta,
@@ -3622,6 +3687,10 @@ class $AiUsagesTable extends AiUsages with TableInfo<$AiUsagesTable, AiUsage> {
         DriftSqlType.int,
         data['${effectivePrefix}adopted_chars'],
       )!,
+      adoptedEditPercent: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}adopted_edit_percent'],
+      ),
       outcome: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}outcome'],
@@ -3651,6 +3720,9 @@ class AiUsage extends DataClass implements Insertable<AiUsage> {
   /// AI 生成的总字数与最终被插入正文字数，支撑 PRD 2.2 的字符口径采纳率。
   final int outputChars;
   final int adoptedChars;
+
+  /// AI 原稿到最终采纳文本的编辑比例（ENH-30，0~100，空值表示旧记录）。
+  final int? adoptedEditPercent;
   final String outcome;
   final DateTime createdAt;
   const AiUsage({
@@ -3663,6 +3735,7 @@ class AiUsage extends DataClass implements Insertable<AiUsage> {
     required this.completionTokens,
     required this.outputChars,
     required this.adoptedChars,
+    this.adoptedEditPercent,
     required this.outcome,
     required this.createdAt,
   });
@@ -3682,6 +3755,9 @@ class AiUsage extends DataClass implements Insertable<AiUsage> {
     map['completion_tokens'] = Variable<int>(completionTokens);
     map['output_chars'] = Variable<int>(outputChars);
     map['adopted_chars'] = Variable<int>(adoptedChars);
+    if (!nullToAbsent || adoptedEditPercent != null) {
+      map['adopted_edit_percent'] = Variable<int>(adoptedEditPercent);
+    }
     map['outcome'] = Variable<String>(outcome);
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
@@ -3702,6 +3778,9 @@ class AiUsage extends DataClass implements Insertable<AiUsage> {
       completionTokens: Value(completionTokens),
       outputChars: Value(outputChars),
       adoptedChars: Value(adoptedChars),
+      adoptedEditPercent: adoptedEditPercent == null && nullToAbsent
+          ? const Value.absent()
+          : Value(adoptedEditPercent),
       outcome: Value(outcome),
       createdAt: Value(createdAt),
     );
@@ -3722,6 +3801,7 @@ class AiUsage extends DataClass implements Insertable<AiUsage> {
       completionTokens: serializer.fromJson<int>(json['completionTokens']),
       outputChars: serializer.fromJson<int>(json['outputChars']),
       adoptedChars: serializer.fromJson<int>(json['adoptedChars']),
+      adoptedEditPercent: serializer.fromJson<int?>(json['adoptedEditPercent']),
       outcome: serializer.fromJson<String>(json['outcome']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
@@ -3739,6 +3819,7 @@ class AiUsage extends DataClass implements Insertable<AiUsage> {
       'completionTokens': serializer.toJson<int>(completionTokens),
       'outputChars': serializer.toJson<int>(outputChars),
       'adoptedChars': serializer.toJson<int>(adoptedChars),
+      'adoptedEditPercent': serializer.toJson<int?>(adoptedEditPercent),
       'outcome': serializer.toJson<String>(outcome),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
@@ -3754,6 +3835,7 @@ class AiUsage extends DataClass implements Insertable<AiUsage> {
     int? completionTokens,
     int? outputChars,
     int? adoptedChars,
+    Value<int?> adoptedEditPercent = const Value.absent(),
     String? outcome,
     DateTime? createdAt,
   }) => AiUsage(
@@ -3766,6 +3848,9 @@ class AiUsage extends DataClass implements Insertable<AiUsage> {
     completionTokens: completionTokens ?? this.completionTokens,
     outputChars: outputChars ?? this.outputChars,
     adoptedChars: adoptedChars ?? this.adoptedChars,
+    adoptedEditPercent: adoptedEditPercent.present
+        ? adoptedEditPercent.value
+        : this.adoptedEditPercent,
     outcome: outcome ?? this.outcome,
     createdAt: createdAt ?? this.createdAt,
   );
@@ -3788,6 +3873,9 @@ class AiUsage extends DataClass implements Insertable<AiUsage> {
       adoptedChars: data.adoptedChars.present
           ? data.adoptedChars.value
           : this.adoptedChars,
+      adoptedEditPercent: data.adoptedEditPercent.present
+          ? data.adoptedEditPercent.value
+          : this.adoptedEditPercent,
       outcome: data.outcome.present ? data.outcome.value : this.outcome,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
@@ -3805,6 +3893,7 @@ class AiUsage extends DataClass implements Insertable<AiUsage> {
           ..write('completionTokens: $completionTokens, ')
           ..write('outputChars: $outputChars, ')
           ..write('adoptedChars: $adoptedChars, ')
+          ..write('adoptedEditPercent: $adoptedEditPercent, ')
           ..write('outcome: $outcome, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
@@ -3822,6 +3911,7 @@ class AiUsage extends DataClass implements Insertable<AiUsage> {
     completionTokens,
     outputChars,
     adoptedChars,
+    adoptedEditPercent,
     outcome,
     createdAt,
   );
@@ -3838,6 +3928,7 @@ class AiUsage extends DataClass implements Insertable<AiUsage> {
           other.completionTokens == this.completionTokens &&
           other.outputChars == this.outputChars &&
           other.adoptedChars == this.adoptedChars &&
+          other.adoptedEditPercent == this.adoptedEditPercent &&
           other.outcome == this.outcome &&
           other.createdAt == this.createdAt);
 }
@@ -3852,6 +3943,7 @@ class AiUsagesCompanion extends UpdateCompanion<AiUsage> {
   final Value<int> completionTokens;
   final Value<int> outputChars;
   final Value<int> adoptedChars;
+  final Value<int?> adoptedEditPercent;
   final Value<String> outcome;
   final Value<DateTime> createdAt;
   const AiUsagesCompanion({
@@ -3864,6 +3956,7 @@ class AiUsagesCompanion extends UpdateCompanion<AiUsage> {
     this.completionTokens = const Value.absent(),
     this.outputChars = const Value.absent(),
     this.adoptedChars = const Value.absent(),
+    this.adoptedEditPercent = const Value.absent(),
     this.outcome = const Value.absent(),
     this.createdAt = const Value.absent(),
   });
@@ -3877,6 +3970,7 @@ class AiUsagesCompanion extends UpdateCompanion<AiUsage> {
     this.completionTokens = const Value.absent(),
     this.outputChars = const Value.absent(),
     this.adoptedChars = const Value.absent(),
+    this.adoptedEditPercent = const Value.absent(),
     this.outcome = const Value.absent(),
     required DateTime createdAt,
   }) : task = Value(task),
@@ -3892,6 +3986,7 @@ class AiUsagesCompanion extends UpdateCompanion<AiUsage> {
     Expression<int>? completionTokens,
     Expression<int>? outputChars,
     Expression<int>? adoptedChars,
+    Expression<int>? adoptedEditPercent,
     Expression<String>? outcome,
     Expression<DateTime>? createdAt,
   }) {
@@ -3905,6 +4000,8 @@ class AiUsagesCompanion extends UpdateCompanion<AiUsage> {
       if (completionTokens != null) 'completion_tokens': completionTokens,
       if (outputChars != null) 'output_chars': outputChars,
       if (adoptedChars != null) 'adopted_chars': adoptedChars,
+      if (adoptedEditPercent != null)
+        'adopted_edit_percent': adoptedEditPercent,
       if (outcome != null) 'outcome': outcome,
       if (createdAt != null) 'created_at': createdAt,
     });
@@ -3920,6 +4017,7 @@ class AiUsagesCompanion extends UpdateCompanion<AiUsage> {
     Value<int>? completionTokens,
     Value<int>? outputChars,
     Value<int>? adoptedChars,
+    Value<int?>? adoptedEditPercent,
     Value<String>? outcome,
     Value<DateTime>? createdAt,
   }) {
@@ -3933,6 +4031,7 @@ class AiUsagesCompanion extends UpdateCompanion<AiUsage> {
       completionTokens: completionTokens ?? this.completionTokens,
       outputChars: outputChars ?? this.outputChars,
       adoptedChars: adoptedChars ?? this.adoptedChars,
+      adoptedEditPercent: adoptedEditPercent ?? this.adoptedEditPercent,
       outcome: outcome ?? this.outcome,
       createdAt: createdAt ?? this.createdAt,
     );
@@ -3968,6 +4067,9 @@ class AiUsagesCompanion extends UpdateCompanion<AiUsage> {
     if (adoptedChars.present) {
       map['adopted_chars'] = Variable<int>(adoptedChars.value);
     }
+    if (adoptedEditPercent.present) {
+      map['adopted_edit_percent'] = Variable<int>(adoptedEditPercent.value);
+    }
     if (outcome.present) {
       map['outcome'] = Variable<String>(outcome.value);
     }
@@ -3989,6 +4091,7 @@ class AiUsagesCompanion extends UpdateCompanion<AiUsage> {
           ..write('completionTokens: $completionTokens, ')
           ..write('outputChars: $outputChars, ')
           ..write('adoptedChars: $adoptedChars, ')
+          ..write('adoptedEditPercent: $adoptedEditPercent, ')
           ..write('outcome: $outcome, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
@@ -5886,6 +5989,553 @@ class CharacterRelationsCompanion extends UpdateCompanion<CharacterRelation> {
   }
 }
 
+class $StoryStatesTable extends StoryStates
+    with TableInfo<$StoryStatesTable, StoryState> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $StoryStatesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _workIdMeta = const VerificationMeta('workId');
+  @override
+  late final GeneratedColumn<int> workId = GeneratedColumn<int>(
+    'work_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES works (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+    'kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(
+      minTextLength: 1,
+      maxTextLength: 50,
+    ),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _detailMeta = const VerificationMeta('detail');
+  @override
+  late final GeneratedColumn<String> detail = GeneratedColumn<String>(
+    'detail',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('open'),
+  );
+  static const VerificationMeta _chapterIdMeta = const VerificationMeta(
+    'chapterId',
+  );
+  @override
+  late final GeneratedColumn<int> chapterId = GeneratedColumn<int>(
+    'chapter_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES chapters (id) ON DELETE SET NULL',
+    ),
+  );
+  static const VerificationMeta _sortOrderMeta = const VerificationMeta(
+    'sortOrder',
+  );
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+    'sort_order',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    workId,
+    kind,
+    title,
+    detail,
+    status,
+    chapterId,
+    sortOrder,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'story_states';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<StoryState> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('work_id')) {
+      context.handle(
+        _workIdMeta,
+        workId.isAcceptableOrUnknown(data['work_id']!, _workIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_workIdMeta);
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+        _kindMeta,
+        kind.isAcceptableOrUnknown(data['kind']!, _kindMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_kindMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('detail')) {
+      context.handle(
+        _detailMeta,
+        detail.isAcceptableOrUnknown(data['detail']!, _detailMeta),
+      );
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('chapter_id')) {
+      context.handle(
+        _chapterIdMeta,
+        chapterId.isAcceptableOrUnknown(data['chapter_id']!, _chapterIdMeta),
+      );
+    }
+    if (data.containsKey('sort_order')) {
+      context.handle(
+        _sortOrderMeta,
+        sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  StoryState map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return StoryState(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      workId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}work_id'],
+      )!,
+      kind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}kind'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      detail: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}detail'],
+      )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      chapterId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}chapter_id'],
+      ),
+      sortOrder: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sort_order'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $StoryStatesTable createAlias(String alias) {
+    return $StoryStatesTable(attachedDatabase, alias);
+  }
+}
+
+class StoryState extends DataClass implements Insertable<StoryState> {
+  final int id;
+  final int workId;
+  final String kind;
+  final String title;
+  final String detail;
+
+  /// 伏笔状态：open / closed；角色与时间线条目固定存 open。
+  final String status;
+  final int? chapterId;
+  final int sortOrder;
+  final DateTime updatedAt;
+  const StoryState({
+    required this.id,
+    required this.workId,
+    required this.kind,
+    required this.title,
+    required this.detail,
+    required this.status,
+    this.chapterId,
+    required this.sortOrder,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['work_id'] = Variable<int>(workId);
+    map['kind'] = Variable<String>(kind);
+    map['title'] = Variable<String>(title);
+    map['detail'] = Variable<String>(detail);
+    map['status'] = Variable<String>(status);
+    if (!nullToAbsent || chapterId != null) {
+      map['chapter_id'] = Variable<int>(chapterId);
+    }
+    map['sort_order'] = Variable<int>(sortOrder);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  StoryStatesCompanion toCompanion(bool nullToAbsent) {
+    return StoryStatesCompanion(
+      id: Value(id),
+      workId: Value(workId),
+      kind: Value(kind),
+      title: Value(title),
+      detail: Value(detail),
+      status: Value(status),
+      chapterId: chapterId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(chapterId),
+      sortOrder: Value(sortOrder),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory StoryState.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return StoryState(
+      id: serializer.fromJson<int>(json['id']),
+      workId: serializer.fromJson<int>(json['workId']),
+      kind: serializer.fromJson<String>(json['kind']),
+      title: serializer.fromJson<String>(json['title']),
+      detail: serializer.fromJson<String>(json['detail']),
+      status: serializer.fromJson<String>(json['status']),
+      chapterId: serializer.fromJson<int?>(json['chapterId']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'workId': serializer.toJson<int>(workId),
+      'kind': serializer.toJson<String>(kind),
+      'title': serializer.toJson<String>(title),
+      'detail': serializer.toJson<String>(detail),
+      'status': serializer.toJson<String>(status),
+      'chapterId': serializer.toJson<int?>(chapterId),
+      'sortOrder': serializer.toJson<int>(sortOrder),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  StoryState copyWith({
+    int? id,
+    int? workId,
+    String? kind,
+    String? title,
+    String? detail,
+    String? status,
+    Value<int?> chapterId = const Value.absent(),
+    int? sortOrder,
+    DateTime? updatedAt,
+  }) => StoryState(
+    id: id ?? this.id,
+    workId: workId ?? this.workId,
+    kind: kind ?? this.kind,
+    title: title ?? this.title,
+    detail: detail ?? this.detail,
+    status: status ?? this.status,
+    chapterId: chapterId.present ? chapterId.value : this.chapterId,
+    sortOrder: sortOrder ?? this.sortOrder,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  StoryState copyWithCompanion(StoryStatesCompanion data) {
+    return StoryState(
+      id: data.id.present ? data.id.value : this.id,
+      workId: data.workId.present ? data.workId.value : this.workId,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      title: data.title.present ? data.title.value : this.title,
+      detail: data.detail.present ? data.detail.value : this.detail,
+      status: data.status.present ? data.status.value : this.status,
+      chapterId: data.chapterId.present ? data.chapterId.value : this.chapterId,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('StoryState(')
+          ..write('id: $id, ')
+          ..write('workId: $workId, ')
+          ..write('kind: $kind, ')
+          ..write('title: $title, ')
+          ..write('detail: $detail, ')
+          ..write('status: $status, ')
+          ..write('chapterId: $chapterId, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    workId,
+    kind,
+    title,
+    detail,
+    status,
+    chapterId,
+    sortOrder,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is StoryState &&
+          other.id == this.id &&
+          other.workId == this.workId &&
+          other.kind == this.kind &&
+          other.title == this.title &&
+          other.detail == this.detail &&
+          other.status == this.status &&
+          other.chapterId == this.chapterId &&
+          other.sortOrder == this.sortOrder &&
+          other.updatedAt == this.updatedAt);
+}
+
+class StoryStatesCompanion extends UpdateCompanion<StoryState> {
+  final Value<int> id;
+  final Value<int> workId;
+  final Value<String> kind;
+  final Value<String> title;
+  final Value<String> detail;
+  final Value<String> status;
+  final Value<int?> chapterId;
+  final Value<int> sortOrder;
+  final Value<DateTime> updatedAt;
+  const StoryStatesCompanion({
+    this.id = const Value.absent(),
+    this.workId = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.title = const Value.absent(),
+    this.detail = const Value.absent(),
+    this.status = const Value.absent(),
+    this.chapterId = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  StoryStatesCompanion.insert({
+    this.id = const Value.absent(),
+    required int workId,
+    required String kind,
+    required String title,
+    this.detail = const Value.absent(),
+    this.status = const Value.absent(),
+    this.chapterId = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    required DateTime updatedAt,
+  }) : workId = Value(workId),
+       kind = Value(kind),
+       title = Value(title),
+       updatedAt = Value(updatedAt);
+  static Insertable<StoryState> custom({
+    Expression<int>? id,
+    Expression<int>? workId,
+    Expression<String>? kind,
+    Expression<String>? title,
+    Expression<String>? detail,
+    Expression<String>? status,
+    Expression<int>? chapterId,
+    Expression<int>? sortOrder,
+    Expression<DateTime>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (workId != null) 'work_id': workId,
+      if (kind != null) 'kind': kind,
+      if (title != null) 'title': title,
+      if (detail != null) 'detail': detail,
+      if (status != null) 'status': status,
+      if (chapterId != null) 'chapter_id': chapterId,
+      if (sortOrder != null) 'sort_order': sortOrder,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  StoryStatesCompanion copyWith({
+    Value<int>? id,
+    Value<int>? workId,
+    Value<String>? kind,
+    Value<String>? title,
+    Value<String>? detail,
+    Value<String>? status,
+    Value<int?>? chapterId,
+    Value<int>? sortOrder,
+    Value<DateTime>? updatedAt,
+  }) {
+    return StoryStatesCompanion(
+      id: id ?? this.id,
+      workId: workId ?? this.workId,
+      kind: kind ?? this.kind,
+      title: title ?? this.title,
+      detail: detail ?? this.detail,
+      status: status ?? this.status,
+      chapterId: chapterId ?? this.chapterId,
+      sortOrder: sortOrder ?? this.sortOrder,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (workId.present) {
+      map['work_id'] = Variable<int>(workId.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (detail.present) {
+      map['detail'] = Variable<String>(detail.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (chapterId.present) {
+      map['chapter_id'] = Variable<int>(chapterId.value);
+    }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('StoryStatesCompanion(')
+          ..write('id: $id, ')
+          ..write('workId: $workId, ')
+          ..write('kind: $kind, ')
+          ..write('title: $title, ')
+          ..write('detail: $detail, ')
+          ..write('status: $status, ')
+          ..write('chapterId: $chapterId, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -5906,6 +6556,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $SettingEntriesTable settingEntries = $SettingEntriesTable(this);
   late final $CharacterRelationsTable characterRelations =
       $CharacterRelationsTable(this);
+  late final $StoryStatesTable storyStates = $StoryStatesTable(this);
   late final Index volumesWorkId = Index(
     'volumes_work_id',
     'CREATE INDEX volumes_work_id ON volumes (work_id)',
@@ -5938,6 +6589,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     'character_relations_work_id',
     'CREATE INDEX character_relations_work_id ON character_relations (work_id)',
   );
+  late final Index storyStatesWorkId = Index(
+    'story_states_work_id',
+    'CREATE INDEX story_states_work_id ON story_states (work_id)',
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -5956,6 +6611,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     dailyWritingStats,
     settingEntries,
     characterRelations,
+    storyStates,
     volumesWorkId,
     chaptersVolumeId,
     chapterSnapshotsChapterId,
@@ -5964,6 +6620,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     inspirationsWorkId,
     settingEntriesWorkId,
     characterRelationsWorkId,
+    storyStatesWorkId,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -6064,6 +6721,20 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('character_relations', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'works',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('story_states', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'chapters',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('story_states', kind: UpdateKind.update)],
     ),
   ]);
   @override
@@ -6228,6 +6899,24 @@ final class $$WorksTableReferences
     final cache = $_typedResult.readTableOrNull(
       _characterRelationsRefsTable($_db),
     );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$StoryStatesTable, List<StoryState>>
+  _storyStatesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.storyStates,
+    aliasName: 'works__id__story_states__work_id',
+  );
+
+  $$StoryStatesTableProcessedTableManager get storyStatesRefs {
+    final manager = $$StoryStatesTableTableManager(
+      $_db,
+      $_db.storyStates,
+    ).filter((f) => f.workId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_storyStatesRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -6458,6 +7147,31 @@ class $$WorksTableFilterComposer extends Composer<_$AppDatabase, $WorksTable> {
           }) => $$CharacterRelationsTableFilterComposer(
             $db: $db,
             $table: $db.characterRelations,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> storyStatesRefs(
+    Expression<bool> Function($$StoryStatesTableFilterComposer f) f,
+  ) {
+    final $$StoryStatesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.storyStates,
+      getReferencedColumn: (t) => t.workId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StoryStatesTableFilterComposer(
+            $db: $db,
+            $table: $db.storyStates,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -6750,6 +7464,31 @@ class $$WorksTableAnnotationComposer
         );
     return f(composer);
   }
+
+  Expression<T> storyStatesRefs<T extends Object>(
+    Expression<T> Function($$StoryStatesTableAnnotationComposer a) f,
+  ) {
+    final $$StoryStatesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.storyStates,
+      getReferencedColumn: (t) => t.workId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StoryStatesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.storyStates,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$WorksTableTableManager
@@ -6773,6 +7512,7 @@ class $$WorksTableTableManager
             bool aiUsagesRefs,
             bool settingEntriesRefs,
             bool characterRelationsRefs,
+            bool storyStatesRefs,
           })
         > {
   $$WorksTableTableManager(_$AppDatabase db, $WorksTable table)
@@ -6851,6 +7591,7 @@ class $$WorksTableTableManager
                 aiUsagesRefs = false,
                 settingEntriesRefs = false,
                 characterRelationsRefs = false,
+                storyStatesRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -6862,6 +7603,7 @@ class $$WorksTableTableManager
                     if (aiUsagesRefs) db.aiUsages,
                     if (settingEntriesRefs) db.settingEntries,
                     if (characterRelationsRefs) db.characterRelations,
+                    if (storyStatesRefs) db.storyStates,
                   ],
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
@@ -6997,6 +7739,27 @@ class $$WorksTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (storyStatesRefs)
+                        await $_getPrefetchedData<
+                          Work,
+                          $WorksTable,
+                          StoryState
+                        >(
+                          currentTable: table,
+                          referencedTable: $$WorksTableReferences
+                              ._storyStatesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$WorksTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).storyStatesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.workId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -7025,6 +7788,7 @@ typedef $$WorksTableProcessedTableManager =
         bool aiUsagesRefs,
         bool settingEntriesRefs,
         bool characterRelationsRefs,
+        bool storyStatesRefs,
       })
     >;
 typedef $$VolumesTableCreateCompanionBuilder =
@@ -7665,6 +8429,24 @@ final class $$ChaptersTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<$StoryStatesTable, List<StoryState>>
+  _storyStatesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.storyStates,
+    aliasName: 'chapters__id__story_states__chapter_id',
+  );
+
+  $$StoryStatesTableProcessedTableManager get storyStatesRefs {
+    final manager = $$StoryStatesTableTableManager(
+      $_db,
+      $_db.storyStates,
+    ).filter((f) => f.chapterId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_storyStatesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$ChaptersTableFilterComposer
@@ -7825,6 +8607,31 @@ class $$ChaptersTableFilterComposer
           }) => $$AiUsagesTableFilterComposer(
             $db: $db,
             $table: $db.aiUsages,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> storyStatesRefs(
+    Expression<bool> Function($$StoryStatesTableFilterComposer f) f,
+  ) {
+    final $$StoryStatesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.storyStates,
+      getReferencedColumn: (t) => t.chapterId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StoryStatesTableFilterComposer(
+            $db: $db,
+            $table: $db.storyStates,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -8076,6 +8883,31 @@ class $$ChaptersTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> storyStatesRefs<T extends Object>(
+    Expression<T> Function($$StoryStatesTableAnnotationComposer a) f,
+  ) {
+    final $$StoryStatesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.storyStates,
+      getReferencedColumn: (t) => t.chapterId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$StoryStatesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.storyStates,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$ChaptersTableTableManager
@@ -8096,6 +8928,7 @@ class $$ChaptersTableTableManager
             bool chapterSnapshotsRefs,
             bool outlineEntriesRefs,
             bool aiUsagesRefs,
+            bool storyStatesRefs,
           })
         > {
   $$ChaptersTableTableManager(_$AppDatabase db, $ChaptersTable table)
@@ -8183,6 +9016,7 @@ class $$ChaptersTableTableManager
                 chapterSnapshotsRefs = false,
                 outlineEntriesRefs = false,
                 aiUsagesRefs = false,
+                storyStatesRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -8190,6 +9024,7 @@ class $$ChaptersTableTableManager
                     if (chapterSnapshotsRefs) db.chapterSnapshots,
                     if (outlineEntriesRefs) db.outlineEntries,
                     if (aiUsagesRefs) db.aiUsages,
+                    if (storyStatesRefs) db.storyStates,
                   ],
                   addJoins:
                       <
@@ -8288,6 +9123,27 @@ class $$ChaptersTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (storyStatesRefs)
+                        await $_getPrefetchedData<
+                          Chapter,
+                          $ChaptersTable,
+                          StoryState
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ChaptersTableReferences
+                              ._storyStatesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ChaptersTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).storyStatesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.chapterId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -8313,6 +9169,7 @@ typedef $$ChaptersTableProcessedTableManager =
         bool chapterSnapshotsRefs,
         bool outlineEntriesRefs,
         bool aiUsagesRefs,
+        bool storyStatesRefs,
       })
     >;
 typedef $$ChapterSnapshotsTableCreateCompanionBuilder =
@@ -8321,6 +9178,7 @@ typedef $$ChapterSnapshotsTableCreateCompanionBuilder =
       required int chapterId,
       Value<String> title,
       Value<String> content,
+      Value<String> note,
       Value<int> wordCount,
       required DateTime createdAt,
     });
@@ -8330,6 +9188,7 @@ typedef $$ChapterSnapshotsTableUpdateCompanionBuilder =
       Value<int> chapterId,
       Value<String> title,
       Value<String> content,
+      Value<String> note,
       Value<int> wordCount,
       Value<DateTime> createdAt,
     });
@@ -8382,6 +9241,11 @@ class $$ChapterSnapshotsTableFilterComposer
 
   ColumnFilters<String> get content => $composableBuilder(
     column: $table.content,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get note => $composableBuilder(
+    column: $table.note,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -8443,6 +9307,11 @@ class $$ChapterSnapshotsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get wordCount => $composableBuilder(
     column: $table.wordCount,
     builder: (column) => ColumnOrderings(column),
@@ -8494,6 +9363,9 @@ class $$ChapterSnapshotsTableAnnotationComposer
 
   GeneratedColumn<String> get content =>
       $composableBuilder(column: $table.content, builder: (column) => column);
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
 
   GeneratedColumn<int> get wordCount =>
       $composableBuilder(column: $table.wordCount, builder: (column) => column);
@@ -8559,6 +9431,7 @@ class $$ChapterSnapshotsTableTableManager
                 Value<int> chapterId = const Value.absent(),
                 Value<String> title = const Value.absent(),
                 Value<String> content = const Value.absent(),
+                Value<String> note = const Value.absent(),
                 Value<int> wordCount = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
               }) => ChapterSnapshotsCompanion(
@@ -8566,6 +9439,7 @@ class $$ChapterSnapshotsTableTableManager
                 chapterId: chapterId,
                 title: title,
                 content: content,
+                note: note,
                 wordCount: wordCount,
                 createdAt: createdAt,
               ),
@@ -8575,6 +9449,7 @@ class $$ChapterSnapshotsTableTableManager
                 required int chapterId,
                 Value<String> title = const Value.absent(),
                 Value<String> content = const Value.absent(),
+                Value<String> note = const Value.absent(),
                 Value<int> wordCount = const Value.absent(),
                 required DateTime createdAt,
               }) => ChapterSnapshotsCompanion.insert(
@@ -8582,6 +9457,7 @@ class $$ChapterSnapshotsTableTableManager
                 chapterId: chapterId,
                 title: title,
                 content: content,
+                note: note,
                 wordCount: wordCount,
                 createdAt: createdAt,
               ),
@@ -10023,6 +10899,7 @@ typedef $$AiUsagesTableCreateCompanionBuilder =
       Value<int> completionTokens,
       Value<int> outputChars,
       Value<int> adoptedChars,
+      Value<int?> adoptedEditPercent,
       Value<String> outcome,
       required DateTime createdAt,
     });
@@ -10037,6 +10914,7 @@ typedef $$AiUsagesTableUpdateCompanionBuilder =
       Value<int> completionTokens,
       Value<int> outputChars,
       Value<int> adoptedChars,
+      Value<int?> adoptedEditPercent,
       Value<String> outcome,
       Value<DateTime> createdAt,
     });
@@ -10121,6 +10999,11 @@ class $$AiUsagesTableFilterComposer
 
   ColumnFilters<int> get adoptedChars => $composableBuilder(
     column: $table.adoptedChars,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get adoptedEditPercent => $composableBuilder(
+    column: $table.adoptedEditPercent,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -10225,6 +11108,11 @@ class $$AiUsagesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get adoptedEditPercent => $composableBuilder(
+    column: $table.adoptedEditPercent,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get outcome => $composableBuilder(
     column: $table.outcome,
     builder: (column) => ColumnOrderings(column),
@@ -10320,6 +11208,11 @@ class $$AiUsagesTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<int> get adoptedEditPercent => $composableBuilder(
+    column: $table.adoptedEditPercent,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get outcome =>
       $composableBuilder(column: $table.outcome, builder: (column) => column);
 
@@ -10410,6 +11303,7 @@ class $$AiUsagesTableTableManager
                 Value<int> completionTokens = const Value.absent(),
                 Value<int> outputChars = const Value.absent(),
                 Value<int> adoptedChars = const Value.absent(),
+                Value<int?> adoptedEditPercent = const Value.absent(),
                 Value<String> outcome = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
               }) => AiUsagesCompanion(
@@ -10422,6 +11316,7 @@ class $$AiUsagesTableTableManager
                 completionTokens: completionTokens,
                 outputChars: outputChars,
                 adoptedChars: adoptedChars,
+                adoptedEditPercent: adoptedEditPercent,
                 outcome: outcome,
                 createdAt: createdAt,
               ),
@@ -10436,6 +11331,7 @@ class $$AiUsagesTableTableManager
                 Value<int> completionTokens = const Value.absent(),
                 Value<int> outputChars = const Value.absent(),
                 Value<int> adoptedChars = const Value.absent(),
+                Value<int?> adoptedEditPercent = const Value.absent(),
                 Value<String> outcome = const Value.absent(),
                 required DateTime createdAt,
               }) => AiUsagesCompanion.insert(
@@ -10448,6 +11344,7 @@ class $$AiUsagesTableTableManager
                 completionTokens: completionTokens,
                 outputChars: outputChars,
                 adoptedChars: adoptedChars,
+                adoptedEditPercent: adoptedEditPercent,
                 outcome: outcome,
                 createdAt: createdAt,
               ),
@@ -12044,6 +12941,479 @@ typedef $$CharacterRelationsTableProcessedTableManager =
         bool toCharacterId,
       })
     >;
+typedef $$StoryStatesTableCreateCompanionBuilder =
+    StoryStatesCompanion Function({
+      Value<int> id,
+      required int workId,
+      required String kind,
+      required String title,
+      Value<String> detail,
+      Value<String> status,
+      Value<int?> chapterId,
+      Value<int> sortOrder,
+      required DateTime updatedAt,
+    });
+typedef $$StoryStatesTableUpdateCompanionBuilder =
+    StoryStatesCompanion Function({
+      Value<int> id,
+      Value<int> workId,
+      Value<String> kind,
+      Value<String> title,
+      Value<String> detail,
+      Value<String> status,
+      Value<int?> chapterId,
+      Value<int> sortOrder,
+      Value<DateTime> updatedAt,
+    });
+
+final class $$StoryStatesTableReferences
+    extends BaseReferences<_$AppDatabase, $StoryStatesTable, StoryState> {
+  $$StoryStatesTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $WorksTable _workIdTable(_$AppDatabase db) =>
+      db.works.createAlias('story_states__work_id__works__id');
+
+  $$WorksTableProcessedTableManager get workId {
+    final $_column = $_itemColumn<int>('work_id')!;
+
+    final manager = $$WorksTableTableManager(
+      $_db,
+      $_db.works,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_workIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $ChaptersTable _chapterIdTable(_$AppDatabase db) =>
+      db.chapters.createAlias('story_states__chapter_id__chapters__id');
+
+  $$ChaptersTableProcessedTableManager? get chapterId {
+    final $_column = $_itemColumn<int>('chapter_id');
+    if ($_column == null) return null;
+    final manager = $$ChaptersTableTableManager(
+      $_db,
+      $_db.chapters,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_chapterIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$StoryStatesTableFilterComposer
+    extends Composer<_$AppDatabase, $StoryStatesTable> {
+  $$StoryStatesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get detail => $composableBuilder(
+    column: $table.detail,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$WorksTableFilterComposer get workId {
+    final $$WorksTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workId,
+      referencedTable: $db.works,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorksTableFilterComposer(
+            $db: $db,
+            $table: $db.works,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ChaptersTableFilterComposer get chapterId {
+    final $$ChaptersTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.chapterId,
+      referencedTable: $db.chapters,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ChaptersTableFilterComposer(
+            $db: $db,
+            $table: $db.chapters,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$StoryStatesTableOrderingComposer
+    extends Composer<_$AppDatabase, $StoryStatesTable> {
+  $$StoryStatesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get detail => $composableBuilder(
+    column: $table.detail,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$WorksTableOrderingComposer get workId {
+    final $$WorksTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workId,
+      referencedTable: $db.works,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorksTableOrderingComposer(
+            $db: $db,
+            $table: $db.works,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ChaptersTableOrderingComposer get chapterId {
+    final $$ChaptersTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.chapterId,
+      referencedTable: $db.chapters,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ChaptersTableOrderingComposer(
+            $db: $db,
+            $table: $db.chapters,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$StoryStatesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $StoryStatesTable> {
+  $$StoryStatesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get detail =>
+      $composableBuilder(column: $table.detail, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  $$WorksTableAnnotationComposer get workId {
+    final $$WorksTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.workId,
+      referencedTable: $db.works,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WorksTableAnnotationComposer(
+            $db: $db,
+            $table: $db.works,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ChaptersTableAnnotationComposer get chapterId {
+    final $$ChaptersTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.chapterId,
+      referencedTable: $db.chapters,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ChaptersTableAnnotationComposer(
+            $db: $db,
+            $table: $db.chapters,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$StoryStatesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $StoryStatesTable,
+          StoryState,
+          $$StoryStatesTableFilterComposer,
+          $$StoryStatesTableOrderingComposer,
+          $$StoryStatesTableAnnotationComposer,
+          $$StoryStatesTableCreateCompanionBuilder,
+          $$StoryStatesTableUpdateCompanionBuilder,
+          (StoryState, $$StoryStatesTableReferences),
+          StoryState,
+          PrefetchHooks Function({bool workId, bool chapterId})
+        > {
+  $$StoryStatesTableTableManager(_$AppDatabase db, $StoryStatesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$StoryStatesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$StoryStatesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$StoryStatesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> workId = const Value.absent(),
+                Value<String> kind = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<String> detail = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<int?> chapterId = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => StoryStatesCompanion(
+                id: id,
+                workId: workId,
+                kind: kind,
+                title: title,
+                detail: detail,
+                status: status,
+                chapterId: chapterId,
+                sortOrder: sortOrder,
+                updatedAt: updatedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int workId,
+                required String kind,
+                required String title,
+                Value<String> detail = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<int?> chapterId = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
+                required DateTime updatedAt,
+              }) => StoryStatesCompanion.insert(
+                id: id,
+                workId: workId,
+                kind: kind,
+                title: title,
+                detail: detail,
+                status: status,
+                chapterId: chapterId,
+                sortOrder: sortOrder,
+                updatedAt: updatedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$StoryStatesTable, StoryState>(table),
+                  $$StoryStatesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({workId = false, chapterId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (workId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.workId,
+                                referencedTable: $$StoryStatesTableReferences
+                                    ._workIdTable(db),
+                                referencedColumn: $$StoryStatesTableReferences
+                                    ._workIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
+                    if (chapterId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.chapterId,
+                                referencedTable: $$StoryStatesTableReferences
+                                    ._chapterIdTable(db),
+                                referencedColumn: $$StoryStatesTableReferences
+                                    ._chapterIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$StoryStatesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $StoryStatesTable,
+      StoryState,
+      $$StoryStatesTableFilterComposer,
+      $$StoryStatesTableOrderingComposer,
+      $$StoryStatesTableAnnotationComposer,
+      $$StoryStatesTableCreateCompanionBuilder,
+      $$StoryStatesTableUpdateCompanionBuilder,
+      (StoryState, $$StoryStatesTableReferences),
+      StoryState,
+      PrefetchHooks Function({bool workId, bool chapterId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -12074,4 +13444,6 @@ class $AppDatabaseManager {
       $$SettingEntriesTableTableManager(_db, _db.settingEntries);
   $$CharacterRelationsTableTableManager get characterRelations =>
       $$CharacterRelationsTableTableManager(_db, _db.characterRelations);
+  $$StoryStatesTableTableManager get storyStates =>
+      $$StoryStatesTableTableManager(_db, _db.storyStates);
 }

@@ -22,6 +22,7 @@ import '../features/work_detail/plot_plan_page.dart';
 import '../features/work_detail/continuity_scan_page.dart';
 import '../features/work_detail/relation_graph_page.dart';
 import '../features/work_detail/replace_page.dart';
+import '../features/work_detail/story_state_page.dart';
 import '../features/work_detail/style_guide_page.dart';
 import '../features/work_detail/work_chat_page.dart';
 import '../features/work_detail/work_detail_page.dart';
@@ -173,6 +174,13 @@ final GoRouter appRouter = GoRouter(
           path: 'relations',
           name: 'relations',
           builder: (context, state) => RelationGraphPage(
+            workId: int.parse(state.pathParameters['workId']!),
+          ),
+        ),
+        GoRoute(
+          path: 'story-state',
+          name: 'storyState',
+          builder: (context, state) => StoryStatePage(
             workId: int.parse(state.pathParameters['workId']!),
           ),
         ),

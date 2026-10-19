@@ -20,6 +20,7 @@ class SnapshotDao {
       ..addColumns(<Expression<Object>>[
         _db.chapterSnapshots.id,
         _db.chapterSnapshots.title,
+        _db.chapterSnapshots.note,
         _db.chapterSnapshots.wordCount,
         _db.chapterSnapshots.createdAt,
       ])
@@ -36,6 +37,7 @@ class SnapshotDao {
               chapterId: chapterId,
               title: row.read(_db.chapterSnapshots.title)!,
               content: '',
+              note: row.read(_db.chapterSnapshots.note)!,
               wordCount: row.read(_db.chapterSnapshots.wordCount)!,
               createdAt: row.read(_db.chapterSnapshots.createdAt)!,
             ),

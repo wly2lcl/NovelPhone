@@ -384,11 +384,15 @@ class ChapterRepository {
   Future<List<ChapterSnapshot>> listSnapshots(int chapterId) =>
       _snapshots.findByChapter(chapterId);
 
+  /// 快照来源标记（ENH-30）：AI 首次写入正文前自动创建。
+  static const String noteAiBeforeAdopt = 'ai_before_adopt';
+
   /// 为当前标题与正文创建一份快照；超出上限时清理最旧的一条。
   Future<int> createSnapshot({
     required int chapterId,
     required String title,
     required String content,
+    String note = '',
   }) {
     return _db.transaction(() async {
       final id = await _snapshots.insert(
@@ -396,6 +400,7 @@ class ChapterRepository {
           chapterId: chapterId,
           title: Value(title),
           content: Value(content),
+          note: Value(note),
           wordCount: Value(countWords(content)),
           createdAt: DateTime.now(),
         ),

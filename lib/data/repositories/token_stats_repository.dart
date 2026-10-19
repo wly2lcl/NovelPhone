@@ -40,6 +40,7 @@ class TokenStatRow {
     required this.outputChars,
     required this.adoptedChars,
     required this.adopted,
+    required this.verbatimAdopted,
     required this.ignored,
   });
 
@@ -51,6 +52,7 @@ class TokenStatRow {
   final int outputChars;
   final int adoptedChars;
   final int adopted;
+  final int verbatimAdopted;
   final int ignored;
 }
 
@@ -75,10 +77,15 @@ class TokenStats {
 
   int get adopted => rows.fold(0, (sum, r) => sum + r.adopted);
 
+  int get verbatimAdopted => rows.fold(0, (sum, r) => sum + r.verbatimAdopted);
+
   int get ignored => rows.fold(0, (sum, r) => sum + r.ignored);
 
   /// 采纳率：被插入正文字数 / AI 生成总字数（PRD 2.2 字符口径）。
   double get adoptionRate => outputChars == 0 ? 0 : adoptedChars / outputChars;
+
+  /// 原样采纳率（ENH-30）：采纳中编辑不超过 10% 的占比。
+  double get verbatimRate => adopted == 0 ? 0 : verbatimAdopted / adopted;
 
   /// 忽略率：忽略次数 / 生成总次数。
   double get ignoreRate => calls == 0 ? 0 : ignored / calls;
@@ -120,9 +127,14 @@ class TokenStatsRepository {
   Future<void> updateOutcome(int id, String outcome) =>
       _dao.updateOutcome(id, outcome);
 
-  /// 采纳时同时记录实际插入的字数（字符口径采纳率）。
-  Future<void> markAdopted(int id, int adoptedChars) =>
-      _dao.updateAdoptedChars(id, adoptedChars, AiOutcome.adopted);
+  /// 采纳时同时记录实际插入的字数与编辑比例（ENH-30）。
+  Future<void> markAdopted(int id, int adoptedChars, {int? editPercent}) =>
+      _dao.updateAdoptedChars(
+        id,
+        adoptedChars,
+        AiOutcome.adopted,
+        editPercent: editPercent,
+      );
 
   Stream<TokenStats> watchStats() => _dao.watchAggregated().map(_toStats);
 
@@ -157,6 +169,7 @@ class TokenStatsRepository {
               outputChars: a.outputChars,
               adoptedChars: a.adoptedChars,
               adopted: a.adopted,
+              verbatimAdopted: a.verbatimAdopted,
               ignored: a.ignored,
             ),
         ]..sort((a, b) {

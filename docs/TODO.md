@@ -15,7 +15,7 @@
 | M3 AI 核心能力 | AI 客户端、Agent Core、上下文组装、续写灵感、设置 | 已完成（含真机验收 M3-21/22） | 22 / 22 |
 | M4 AI 感检查与打磨 | 规则引擎、LLM 深检、检查面板、异常流、主题细节、合规资料 | 已完成（含真机全流程回归 M4-14 与验收 M4-15） | 16 / 16 |
 
-当前迭代：M1-M4 全部完成，MVP 范围收口（78 / 78）；MVP 后增强 ENH-01~29 全部完成（最近一轮 ENH-29，2026-10-19）。阻塞项：无。
+当前迭代：M1-M4 全部完成，MVP 范围收口（78 / 78）；MVP 后增强 ENH-01~32 全部完成（最近一轮 ENH-32，2026-10-19）。阻塞项：无。
 
 M1 自动化验证记录（2026-09-30）：`flutter analyze` 无问题；`flutter test` 39 个用例全部通过（数据层 15 + 字数统计 7 + 编辑器控制器 14 + 作品列表页 3）。M1-22 的冷启动耗时、10 万字输入流畅度、杀进程恢复三项需在真机上人工验收。
 
@@ -490,11 +490,42 @@ AI 协作反馈闭环（2026-10-19）——ENH-29 **段落负反馈 + 状态一�
     - 原文对比：按钮接线与 diff 弹窗由 widget 测试覆盖（adb 长按选区与 Flutter 选择菜单交互不稳定，未作为真机验收项）；whole-run `logcat` 无 Flutter 异常 / FATAL。
   - 环境处理：假模型组使用占位 Key `test-key`，仅指向本机假服务；真实 API Key 始终只存在于设备安全存储，未写入仓库、提交、文档或日志。
 
+AI 采纳质量与留档（2026-10-19）——ENH-30 **采纳前自动快照 + AI 结果资产化 + 编辑后采纳率**：
+
+- [x] ENH-30（P1）AI 采纳质量与留档（4 项）：
+  - ① 采纳前自动快照：编辑器向 AI 面板传入 `onBeforeApply: _snapshotBeforeAiApply`；面板用 `_snapshotTaken` 保证每轮生成（含重新生成 / 切换候选）只在首次写入正文前留档一次，空章节跳过。快照复用 `ChapterRepository.createSnapshot(note:)`，note 固定为 `ChapterRepository.noteAiBeforeAdopt`（`ai_before_adopt`），版本历史通过元数据展示本地化「AI 采纳前」；快照失败不阻断采纳。
+  - ② AI 结果资产化：续写 / 改写面板新增「存入灵感箱」（`_saveToInspiration`），保存结果全文后把未决候选标 `ignored` 再关闭面板——不写正文、不计采纳；灵感 / 开篇模式仍按既有逻辑计为采纳。
+  - ③ 编辑后采纳比例：新增 `lib/core/ai/adoption_metrics.dart`，去空白后按字符 bigram 多重集 Dice 相似度取补值，得到 0–100 的编辑比例；采纳时写入 `AI_USAGE.adoptedEditPercent`。偏好样本只采集编辑 ≤ 30% 的文本，避免大改样本污染语气参考；Token 统计新增「原样采纳率」（`adoptedEditPercent <= 10` 的采纳占比，SQL 过滤）。
+  - ④ 数据与兼容：Drift schema v13，`CHAPTER_SNAPSHOT.note` 默认空串、`AI_USAGE.adopted_edit_percent` 可空；v8 → v13 迁移测试补验两列；备份恢复对 v13 之前的 zip 补 `note: ''`，旧备份可直接恢复。ARB 新增 2 键（zh / en 各 936）；新增 7 个用例（编辑比例 5、快照来源标记 1、原样采纳率 SQL 1），`dart format` / `flutter analyze` 无问题，`flutter test` 507 用例全绿（较 ENH-29 的 500 增加 7）。
+  - adb 验收（2026-10-19，API 36.1 arm64 模拟器 1080×1920，release APK + `tool/fake_llm_server.dart` 的 `/openai-enh27`，`adb reverse tcp:8899`，模型组占位 Key `test-key`）：
+    - 采纳前快照：第一章 123 字，AI 续写 3 候选后「插入光标处」写回 191 字；版本历史出现「第一章 密文归来 / AI 采纳前 · 刚刚 · 123 字」。
+    - 结果资产化：再次续写后点「存入灵感箱」，提示「已存入灵感箱」，正文保持 191 字；作品菜单「灵感箱」出现该结果全文（刚刚）。
+    - 原样采纳率：设置 →「Token 与采纳统计」显示「采纳率 8.3% / 原样采纳率 25.0% / 忽略率 50.0%」，与累计 4 次采纳中 1 次未编辑采纳一致。
+    - whole-run `logcat` 无 Flutter 异常 / FATAL。
+  - 环境处理：假模型组使用占位 Key `test-key`，仅指向本机假服务；真实 API Key 始终只存在于设备安全存储，未写入仓库、提交、文档或日志。
+
+AI 上下文增强（2026-10-19）——ENH-31 **故事状态卡** + ENH-32 **本地检索增强（RAG-lite）**：
+
+- [x] ENH-31（P2）故事状态卡：
+  - ① 数据与页面：新增 `STORY_STATE` 表（`kind` / `title` / `detail` / `status` / 可空 `chapterId` / `sortOrder` / `updatedAt`）与 `story_states_work_id` 索引，Drift schema v14（`if (from < 14)` 块 `createTable` + `createIndex`）；`StoryStateRepository` 提供列表 / 新增 / 更新 / 切换伏笔状态 / 删除；作品详情新增「故事状态」入口（`/work/:workId/story-states`），角色状态 / 伏笔 / 时间线三个 Tab，伏笔显示未回收 / 已回收并可一键切换；章节删除时条目保留但 `chapterId` 置空，作品永久删除时随外键级联。
+  - ② 上下文注入：`ContextBuilder` 新增 `storyStates` 依赖，续写 / 改写注入角色状态（≤12）、未回收伏笔（`status = open`，≤12）与最近 8 条时间线，关联章节显示为「第 N 章 标题」；已回收伏笔不注入；作品问答以「【故事状态卡】」注入作品资料。待确认面板的上下文详情同步展示「故事状态卡」段落。
+  - ③ 备份与兼容：`BackupRepository.exportData` 导出 `storyStates`，覆盖恢复先清空该表，恢复时按 `workIdMap` + `chapterIdMap` 重映射外键后批量写入；旧备份无该表键时跳过。新增 4 个数据层 / 备份用例（排序与状态切换、章节删除置空与删除、合并恢复章节重映射、旧备份缺表）。
+  - ④ 测试与本地化：ARB 新增 27 键（zh / en 各 963）；迁移测试升级为 v8 → v14 并校验新表列与索引；`dart format` / `flutter analyze` 无问题，`flutter test` 517 用例全绿。
+  - adb 验收（2026-10-19，API 36.1 arm64 模拟器 1080×1920，release APK + `tool/fake_llm_server.dart` 的 `/openai-enh27`，`adb reverse tcp:8899`，模型组占位 Key `test-key`）：状态页三个 Tab 正常；创建角色状态 `Shen / left after hand arm hurt`、未回收伏笔 `TongYin / copper seal clue`、已回收伏笔 `MiXin / letter resolved`、时间线 `RainyNight / entered city`，均提示「状态卡已保存」。AI 续写的上下文详情出现「【角色状态】- Shen…」「【未回收伏笔】- TongYin…」「【时间线】- RainyNight…」，已回收的 `MiXin` 未出现；作品问答上下文出现「【故事状态卡】」。
+  - 环境处理：假模型组使用占位 Key `test-key`；真实 API Key 始终只存在于设备安全存储，未写入仓库、提交、文档或日志。
+
+- [x] ENH-32（P2）本地检索增强（RAG-lite）：
+  - ① 检索实现：新增 `lib/core/ai/retrieval.dart`（纯 Dart）——按空行切段并合并为 ≤320 字的块（超长段按长度硬切），以字符二元组 Dice 重合度 + 整串命中 0.5 加分排序，支持 `topK` / `maxPerChapter` / `excludeChapterId` / `maxScanChars`（默认 40 万字）；`formatRetrievedPassages` 输出带「第 N 章 标题」的片段列表。不引入向量库 / 嵌入模型，不联网、不落库。
+  - ② 上下文接入：续写 / 改写以本章尾部与章纲为查询，只回看**本章之前最多 60 章**，按 Top-3、每章 1 段、块 280 字注入「相关前文片段」；作品问答以作者问题为查询检索全部章节（Top-4、每章 2 段），注入「相关正文片段」。两段内容均进入上下文详情，并参与既有超预算丢弃顺序（卷级大纲 → 设定集 → 状态卡 → 相关片段 → 角色卡减张……）。
+  - ③ 测试：新增 `test/core/retrieval_test.dart` 4 个用例（相关片段命中并排除当前章、空查询 / 无命中、每章上限与扫描预算、格式化输出）；`context_builder_test` 新增续写 / 问答检索注入用例，并把 ENH-12 的正文读取集合更新为「摘要缺失章 + 检索范围章」。
+  - adb 验收：续写上下文详情出现「相关前文片段 - 第 1 章 第一章 密文归来…」；作品问答上下文出现「【相关正文片段】- 第 2 章 未命名章节：Shen opened the door…」；whole-run `logcat` 无 Flutter 异常 / FATAL。
+  - 环境处理：同上，仅使用假服务与占位 Key。
+
 ---
 
 ## 后置 backlog（不进 MVP 承诺）
 
-进度：B-01、B-02、B-03、B-04、B-05、B-06、B-07、B-08、B-09 全部已完成；MVP 收口后的增强 ENH-01（429/5xx 自动退避重试）、ENH-02（设定集纳入 AI 上下文）、ENH-03（全 App 深色模式）、ENH-04（专注模式 + 选中段落 AI 改写 + 导出 EPUB）、ENH-05（AI 逐章摘要 + 多候选续写 + AI 章纲扩写）、ENH-06（滚动摘要（本卷前情回顾）+ 摘要查看编辑）、ENH-07（体验与上下文优化 O1-O9）、ENH-08（稳健性与性能修正：小数误删修复 + 索引 + 弹窗收敛）、ENH-09（性能与一致性优化：编辑器不重写整章 + 多候选共用上下文 + 写入正文前清洗 + 码点截断 + 快照轻量清理）、ENH-10（大数据量读取与内存优化：目录流只读元数据 + 词库单趟匹配 + 撤销栈累计字符上限 + 字数重算防抖 + 快照/卷内章节列表不读全文）、ENH-11（检索响应与 Provider 生命周期优化：搜索防抖 + 搜索/详情/统计 Provider autoDispose + 规则引擎 isolate 化 + 导入预览字数懒缓存）、ENH-12（网络连接复用与大数据量读取优化：共享 `http.Client` + 上下文组装只读元数据并按需取正文 + `get_outline` 只读元数据 + 导入解析 isolate 化）、ENH-13（卷回顾与检查范围的大数据量读取优化：单章检查只读该章正文 + 本卷回顾前置校验只读元数据 + `buildVolumeSummary` 只读本卷并按需取正文 + 设定集/角色关系补 `workId` 索引）、ENH-14（大数据量写入/导出/检索优化：自动保存轻量投影读取 + 作品汇总增量维护 + docx/epub 导出 isolate 化 + 备份 `jsonEncode`+zip isolate 化 + 全局搜索在 SQL 内计算命中片段）、ENH-15（备份恢复与统计聚合优化：备份 zip 解析 isolate 化 + 备份 markdown 拼接整体 isolate 化 + Token 统计改 SQL 分组聚合 + 备份恢复叶表批量写入）、ENH-16（发布工程与错误路径真机验证：release 签名 + R8 混淆、CI 与全仓格式化、搜索命中偏移码点/UTF-16 偏差修复、假 LLM 服务工具 + 429/5xx/内容过滤/Anthropic 真机验证）、ENH-17（全 App 国际化：583 键 zh/en ARB + 应用内语言三态切换 + 错误链按 locale 重组 + 真机双语验证）、ENH-18（快照差异对比 + 写作趋势图 + iOS 构建收尾：段落级 diff 弹窗、近 7/30 天字数趋势图、Xcode 27 下 iOS 无签名 release 构建通过）、ENH-19（发布感知收尾 + 写作热力图 + 全书查找替换：品牌图标与启动闪屏、关于 / 隐私说明页、近一年写作热力图、跨章预览一键替换并自动留存快照）、ENH-20（发布产物交付：allowBackup / dataExtractionRules 隐私修正、AAB 与分 ABI APK 产物、AAB 符号校验的 cmdline-tools 环境修复）、ENH-21（开放能力与可访问性：MCP OAuth 2.1 PKCE、技能 front matter 文件 / 粘贴导入、无障碍 Semantics、CI iOS 构建 job）、ENH-22（本地可靠性：回收站（作品 / 章节软删除 + 30 天清理）、MCP 调用审计、备份 SHA-256 校验与恢复预览、技能导出 / 分享、AI 设定一致性检查）、ENH-23（AI 创作增强：作品文风档案与上下文注入、AI 设定补全（抽取 / 去重 / 合并）、剧情推演并存入灵感箱、作品问答（本地检索 + 40 轮持久化）、全书一致性体检与流式停止保留部分结果、连接 / 流式空闲超时、Token 费用估算）、ENH-24（发布收口与工作流闭环：CI AAB / APK 产物归档、RELEASE / PRIVACY 上架资料、隐私外链、Markdown / EPUB 导入、推演转章纲、角色关系抽取、批量摘要、月度 AI 预算、推理模型空输出显式报错）、ENH-25（自动重试与应用锁：推理模型空正文自动翻倍输出上限重试一次（逐次计用量、工具循环不重放）+ 生物识别 / 设备凭据应用锁（冷启动与后台返回解锁、Offstage 保留编辑状态））、ENH-26（截屏与最近任务缩略图保护：Android `FLAG_SECURE` + iOS 退后台遮罩；可选备份密码加密：`.npbak` / NPBK v1 / PBKDF2-HMAC-SHA256 210,000 次 + AES-256-GCM，密码仅存安全存储、无静默明文回退，恢复兼容旧版 zip）、ENH-27（AI 结果协作：分段勾选 / 直接编辑后采纳、基于当前草稿的结果内多轮修改、忽略原因采集与最近采纳片段的本地偏好注入）、ENH-28（AI 协作体验补强：插入光标处空行分隔、作者协作偏好可视化管理与永久删除清理、结果内修订历史切换 / 对比）、ENH-29（AI 协作反馈闭环：段落级未采纳原因并与整篇原因合并注入、任务优先采纳样本、修订 / 关闭 / 切换模式的用量状态一致性、快捷修订指令与改写原文对比）已完成。
+进度：B-01、B-02、B-03、B-04、B-05、B-06、B-07、B-08、B-09 全部已完成；MVP 收口后的增强 ENH-01（429/5xx 自动退避重试）、ENH-02（设定集纳入 AI 上下文）、ENH-03（全 App 深色模式）、ENH-04（专注模式 + 选中段落 AI 改写 + 导出 EPUB）、ENH-05（AI 逐章摘要 + 多候选续写 + AI 章纲扩写）、ENH-06（滚动摘要（本卷前情回顾）+ 摘要查看编辑）、ENH-07（体验与上下文优化 O1-O9）、ENH-08（稳健性与性能修正：小数误删修复 + 索引 + 弹窗收敛）、ENH-09（性能与一致性优化：编辑器不重写整章 + 多候选共用上下文 + 写入正文前清洗 + 码点截断 + 快照轻量清理）、ENH-10（大数据量读取与内存优化：目录流只读元数据 + 词库单趟匹配 + 撤销栈累计字符上限 + 字数重算防抖 + 快照/卷内章节列表不读全文）、ENH-11（检索响应与 Provider 生命周期优化：搜索防抖 + 搜索/详情/统计 Provider autoDispose + 规则引擎 isolate 化 + 导入预览字数懒缓存）、ENH-12（网络连接复用与大数据量读取优化：共享 `http.Client` + 上下文组装只读元数据并按需取正文 + `get_outline` 只读元数据 + 导入解析 isolate 化）、ENH-13（卷回顾与检查范围的大数据量读取优化：单章检查只读该章正文 + 本卷回顾前置校验只读元数据 + `buildVolumeSummary` 只读本卷并按需取正文 + 设定集/角色关系补 `workId` 索引）、ENH-14（大数据量写入/导出/检索优化：自动保存轻量投影读取 + 作品汇总增量维护 + docx/epub 导出 isolate 化 + 备份 `jsonEncode`+zip isolate 化 + 全局搜索在 SQL 内计算命中片段）、ENH-15（备份恢复与统计聚合优化：备份 zip 解析 isolate 化 + 备份 markdown 拼接整体 isolate 化 + Token 统计改 SQL 分组聚合 + 备份恢复叶表批量写入）、ENH-16（发布工程与错误路径真机验证：release 签名 + R8 混淆、CI 与全仓格式化、搜索命中偏移码点/UTF-16 偏差修复、假 LLM 服务工具 + 429/5xx/内容过滤/Anthropic 真机验证）、ENH-17（全 App 国际化：583 键 zh/en ARB + 应用内语言三态切换 + 错误链按 locale 重组 + 真机双语验证）、ENH-18（快照差异对比 + 写作趋势图 + iOS 构建收尾：段落级 diff 弹窗、近 7/30 天字数趋势图、Xcode 27 下 iOS 无签名 release 构建通过）、ENH-19（发布感知收尾 + 写作热力图 + 全书查找替换：品牌图标与启动闪屏、关于 / 隐私说明页、近一年写作热力图、跨章预览一键替换并自动留存快照）、ENH-20（发布产物交付：allowBackup / dataExtractionRules 隐私修正、AAB 与分 ABI APK 产物、AAB 符号校验的 cmdline-tools 环境修复）、ENH-21（开放能力与可访问性：MCP OAuth 2.1 PKCE、技能 front matter 文件 / 粘贴导入、无障碍 Semantics、CI iOS 构建 job）、ENH-22（本地可靠性：回收站（作品 / 章节软删除 + 30 天清理）、MCP 调用审计、备份 SHA-256 校验与恢复预览、技能导出 / 分享、AI 设定一致性检查）、ENH-23（AI 创作增强：作品文风档案与上下文注入、AI 设定补全（抽取 / 去重 / 合并）、剧情推演并存入灵感箱、作品问答（本地检索 + 40 轮持久化）、全书一致性体检与流式停止保留部分结果、连接 / 流式空闲超时、Token 费用估算）、ENH-24（发布收口与工作流闭环：CI AAB / APK 产物归档、RELEASE / PRIVACY 上架资料、隐私外链、Markdown / EPUB 导入、推演转章纲、角色关系抽取、批量摘要、月度 AI 预算、推理模型空输出显式报错）、ENH-25（自动重试与应用锁：推理模型空正文自动翻倍输出上限重试一次（逐次计用量、工具循环不重放）+ 生物识别 / 设备凭据应用锁（冷启动与后台返回解锁、Offstage 保留编辑状态））、ENH-26（截屏与最近任务缩略图保护：Android `FLAG_SECURE` + iOS 退后台遮罩；可选备份密码加密：`.npbak` / NPBK v1 / PBKDF2-HMAC-SHA256 210,000 次 + AES-256-GCM，密码仅存安全存储、无静默明文回退，恢复兼容旧版 zip）、ENH-27（AI 结果协作：分段勾选 / 直接编辑后采纳、基于当前草稿的结果内多轮修改、忽略原因采集与最近采纳片段的本地偏好注入）、ENH-28（AI 协作体验补强：插入光标处空行分隔、作者协作偏好可视化管理与永久删除清理、结果内修订历史切换 / 对比）、ENH-29（AI 协作反馈闭环：段落级未采纳原因并与整篇原因合并注入、任务优先采纳样本、修订 / 关闭 / 切换模式的用量状态一致性、快捷修订指令与改写原文对比）、ENH-30（AI 采纳质量与留档：采纳前自动快照与来源标记、续写 / 改写结果存入灵感箱、编辑后采纳比例与原样采纳率、大改样本不进入偏好）、ENH-31（故事状态卡：角色状态 / 伏笔 open-closed / 时间线三类条目，注入续写、改写与作品问答，随整库备份往返）、ENH-32（本地检索增强：纯 Dart RAG-lite 按字符二元组从本章之前最多 60 章 / 问答全部章节检索 Top-K 片段注入上下文，受限扫描且不联网不落库）已完成。
 
 - [x] B-01（P2）Responses 端点适配器：新增 `ResponsesAdapter implements AiClient`（架构 9 章触发条件成熟时）
   - 新增 `lib/core/ai/responses_adapter.dart`（端点 `POST {baseUrl}/v1/responses`，system 提为顶层 `instructions`，`input[]` 支持消息 / `function_call` / `function_call_output`；解析 `response.output_text.delta`、`response.completed` 的 usage 与 status；工具调用经 `response.output_item.*` / `response.function_call_arguments.delta` 累积）；`AiProvider.responses` 登记并在 `buildAiClient` 分发；设置页协议类型增第三段「Responses」。

@@ -135,6 +135,14 @@ class WorkDetailPage extends ConsumerWidget {
                     },
                   ),
                   ListTile(
+                    leading: const Icon(Icons.dashboard_customize_outlined),
+                    title: Text(l10n.storyStateTitle),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      context.push('/work/$workId/story-state');
+                    },
+                  ),
+                  ListTile(
                     leading: const Icon(Icons.hub_outlined),
                     title: Text(l10n.relationGraphTitle),
                     onTap: () {

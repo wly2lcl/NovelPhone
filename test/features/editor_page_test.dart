@@ -297,11 +297,11 @@ void main() {
     await tester.tap(find.text('AI 改写'));
     await settle(tester, find.text('替换原文'));
 
-    // 4 种意图齐备；改写模式不显示「存入灵感箱」。
+    // 4 种意图齐备；ENH-30 起改写模式也可把结果存入灵感箱。
     for (final label in <String>['润色', '扩写', '缩写', '改语气']) {
       expect(find.text(label), findsOneWidget, reason: label);
     }
-    expect(find.text('存入灵感箱'), findsNothing);
+    expect(find.text('存入灵感箱'), findsOneWidget);
     expect(find.text('换个方向'), findsNothing);
 
     final replaceButton = find.widgetWithText(FilledButton, '替换原文');

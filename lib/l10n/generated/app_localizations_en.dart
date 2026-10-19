@@ -919,6 +919,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get snapshotHistoryTitle => 'Version history';
 
   @override
+  String get snapshotNoteAiBeforeAdopt => 'Before AI insertion';
+
+  @override
   String get snapshotCreate => 'Create snapshot';
 
   @override
@@ -1847,6 +1850,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tokenStatsAdoptionRate => 'Adoption rate';
 
   @override
+  String get tokenStatsVerbatimRate => 'Verbatim adoption';
+
+  @override
   String get tokenStatsIgnoreRate => 'Ignore rate';
 
   @override
@@ -2489,6 +2495,88 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get workDetailInspirationsTitle => 'Inspiration box';
+
+  @override
+  String get storyStateTitle => 'Story state';
+
+  @override
+  String get storyStateTabCharacter => 'Character state';
+
+  @override
+  String get storyStateTabForeshadow => 'Foreshadowing';
+
+  @override
+  String get storyStateTabTimeline => 'Timeline';
+
+  @override
+  String get storyStateEmptyCharacter => 'No character states yet';
+
+  @override
+  String get storyStateEmptyForeshadow => 'No foreshadowing recorded';
+
+  @override
+  String get storyStateEmptyTimeline => 'No timeline events yet';
+
+  @override
+  String get storyStateEmptyHint =>
+      'Track current states and unresolved threads; AI continuation references them automatically.';
+
+  @override
+  String get storyStateAdd => 'Add';
+
+  @override
+  String get storyStateEdit => 'Edit';
+
+  @override
+  String get storyStateDelete => 'Delete';
+
+  @override
+  String get storyStateDeleted => 'Card deleted';
+
+  @override
+  String get storyStateSaved => 'Card saved';
+
+  @override
+  String get storyStateTitleRequired => 'Title is required';
+
+  @override
+  String get storyStateFieldTitle => 'Title';
+
+  @override
+  String get storyStateFieldDetail => 'Details';
+
+  @override
+  String get storyStateFieldChapter => 'Related chapter';
+
+  @override
+  String get storyStateNoChapter => 'Not linked';
+
+  @override
+  String get storyStateOpen => 'Open';
+
+  @override
+  String get storyStateClosed => 'Resolved';
+
+  @override
+  String get storyStateTitleHintCharacter => 'Character name';
+
+  @override
+  String get storyStateTitleHintForeshadow => 'Foreshadowing name';
+
+  @override
+  String get storyStateTitleHintTimeline => 'Event';
+
+  @override
+  String get storyStateDetailHint => 'Current state / clue / what happened';
+
+  @override
+  String get storyStateMoreActions => 'More actions';
+
+  @override
+  String get storyStateDeleteTitle => 'Delete this card?';
+
+  @override
+  String get storyStateDeleteBody => 'This cannot be undone.';
 
   @override
   String get workDetailAiSettings => 'AI settings';

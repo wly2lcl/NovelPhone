@@ -1598,6 +1598,12 @@ abstract class AppLocalizations {
   /// **'版本历史'**
   String get snapshotHistoryTitle;
 
+  /// No description provided for @snapshotNoteAiBeforeAdopt.
+  ///
+  /// In zh, this message translates to:
+  /// **'AI 采纳前'**
+  String get snapshotNoteAiBeforeAdopt;
+
   /// No description provided for @snapshotCreate.
   ///
   /// In zh, this message translates to:
@@ -2984,6 +2990,12 @@ abstract class AppLocalizations {
   /// **'采纳率'**
   String get tokenStatsAdoptionRate;
 
+  /// No description provided for @tokenStatsVerbatimRate.
+  ///
+  /// In zh, this message translates to:
+  /// **'原样采纳率'**
+  String get tokenStatsVerbatimRate;
+
   /// No description provided for @tokenStatsIgnoreRate.
   ///
   /// In zh, this message translates to:
@@ -4015,6 +4027,168 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'灵感箱'**
   String get workDetailInspirationsTitle;
+
+  /// No description provided for @storyStateTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'故事状态卡'**
+  String get storyStateTitle;
+
+  /// No description provided for @storyStateTabCharacter.
+  ///
+  /// In zh, this message translates to:
+  /// **'角色状态'**
+  String get storyStateTabCharacter;
+
+  /// No description provided for @storyStateTabForeshadow.
+  ///
+  /// In zh, this message translates to:
+  /// **'伏笔'**
+  String get storyStateTabForeshadow;
+
+  /// No description provided for @storyStateTabTimeline.
+  ///
+  /// In zh, this message translates to:
+  /// **'时间线'**
+  String get storyStateTabTimeline;
+
+  /// No description provided for @storyStateEmptyCharacter.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂无角色状态'**
+  String get storyStateEmptyCharacter;
+
+  /// No description provided for @storyStateEmptyForeshadow.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂未记录伏笔'**
+  String get storyStateEmptyForeshadow;
+
+  /// No description provided for @storyStateEmptyTimeline.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂无时间线事件'**
+  String get storyStateEmptyTimeline;
+
+  /// No description provided for @storyStateEmptyHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'记录当下状态与未回收伏笔，AI 续写会自动参考。'**
+  String get storyStateEmptyHint;
+
+  /// No description provided for @storyStateAdd.
+  ///
+  /// In zh, this message translates to:
+  /// **'新增'**
+  String get storyStateAdd;
+
+  /// No description provided for @storyStateEdit.
+  ///
+  /// In zh, this message translates to:
+  /// **'编辑'**
+  String get storyStateEdit;
+
+  /// No description provided for @storyStateDelete.
+  ///
+  /// In zh, this message translates to:
+  /// **'删除'**
+  String get storyStateDelete;
+
+  /// No description provided for @storyStateDeleted.
+  ///
+  /// In zh, this message translates to:
+  /// **'状态卡已删除'**
+  String get storyStateDeleted;
+
+  /// No description provided for @storyStateSaved.
+  ///
+  /// In zh, this message translates to:
+  /// **'状态卡已保存'**
+  String get storyStateSaved;
+
+  /// No description provided for @storyStateTitleRequired.
+  ///
+  /// In zh, this message translates to:
+  /// **'请填写标题'**
+  String get storyStateTitleRequired;
+
+  /// No description provided for @storyStateFieldTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'标题'**
+  String get storyStateFieldTitle;
+
+  /// No description provided for @storyStateFieldDetail.
+  ///
+  /// In zh, this message translates to:
+  /// **'详情'**
+  String get storyStateFieldDetail;
+
+  /// No description provided for @storyStateFieldChapter.
+  ///
+  /// In zh, this message translates to:
+  /// **'关联章节'**
+  String get storyStateFieldChapter;
+
+  /// No description provided for @storyStateNoChapter.
+  ///
+  /// In zh, this message translates to:
+  /// **'不关联'**
+  String get storyStateNoChapter;
+
+  /// No description provided for @storyStateOpen.
+  ///
+  /// In zh, this message translates to:
+  /// **'未回收'**
+  String get storyStateOpen;
+
+  /// No description provided for @storyStateClosed.
+  ///
+  /// In zh, this message translates to:
+  /// **'已回收'**
+  String get storyStateClosed;
+
+  /// No description provided for @storyStateTitleHintCharacter.
+  ///
+  /// In zh, this message translates to:
+  /// **'角色名'**
+  String get storyStateTitleHintCharacter;
+
+  /// No description provided for @storyStateTitleHintForeshadow.
+  ///
+  /// In zh, this message translates to:
+  /// **'伏笔名称'**
+  String get storyStateTitleHintForeshadow;
+
+  /// No description provided for @storyStateTitleHintTimeline.
+  ///
+  /// In zh, this message translates to:
+  /// **'事件'**
+  String get storyStateTitleHintTimeline;
+
+  /// No description provided for @storyStateDetailHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'角色当下状态 / 伏笔线索 / 事件经过'**
+  String get storyStateDetailHint;
+
+  /// No description provided for @storyStateMoreActions.
+  ///
+  /// In zh, this message translates to:
+  /// **'更多操作'**
+  String get storyStateMoreActions;
+
+  /// No description provided for @storyStateDeleteTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'删除这条状态卡？'**
+  String get storyStateDeleteTitle;
+
+  /// No description provided for @storyStateDeleteBody.
+  ///
+  /// In zh, this message translates to:
+  /// **'删除后不可恢复。'**
+  String get storyStateDeleteBody;
 
   /// No description provided for @workDetailAiSettings.
   ///
