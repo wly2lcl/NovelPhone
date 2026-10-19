@@ -9,10 +9,13 @@ import '../../core/ai/ai_client.dart';
 import '../../core/ai/context_builder.dart';
 import '../../core/ai/sanitize_ai_text.dart';
 import '../../data/data_providers.dart';
+import '../../data/repositories/settings_repository.dart' show AiTask;
 import '../../l10n/error_text.dart';
 import '../../l10n/l10n.dart';
 import '../ai/ai_providers.dart';
 import '../ai/ai_service.dart';
+import 'ai_feedback_dialog.dart';
+import 'ai_merge_dialog.dart';
 
 /// 面板模式：续写 / 桥段点子 / 开篇助手 / 改写 / 逐章摘要 / 章纲扩写。
 enum AiPanelMode {
@@ -120,6 +123,14 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
   String _intent = RewriteIntent.polish;
   String _instruction = '';
 
+  /// 结果内多轮修改（ENH-27）：基于当前候选继续改，而不是整段重生成。
+  final TextEditingController _revisionInstruction = TextEditingController();
+  String _revisionInstructionText = '';
+  String _revisionDraft = '';
+  int? _revisionIndex;
+  bool _revisionTextStarted = false;
+  bool _revising = false;
+
   /// 是否处于多候选状态（仅续写生效）。
   bool get _multiMode =>
       _mode == AiPanelMode.continueWriting && _multiCandidate;
@@ -148,6 +159,7 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
     for (final controller in _results) {
       controller.dispose();
     }
+    _revisionInstruction.dispose();
     super.dispose();
   }
 
@@ -227,6 +239,8 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
         return l10n.aiSectionRequirements;
       case '用户技能':
         return l10n.aiSectionUserSkills;
+      case '作者协作偏好':
+        return l10n.aiSectionPreferences;
       default:
         return label;
     }
@@ -244,6 +258,12 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
       _needsConfig = false;
       _context = null;
       _selected = 0;
+      _revising = false;
+      _revisionDraft = '';
+      _revisionInstructionText = '';
+      _revisionIndex = null;
+      _revisionTextStarted = false;
+      _revisionInstruction.clear();
       for (var i = 0; i < _errors.length; i++) {
         _errors[i] = null;
         _usageIds[i] = null;
@@ -287,8 +307,10 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
           chapterId: widget.chapterId,
           direction: _lastDirection.isEmpty ? null : _lastDirection,
           length: _length.round(),
-          variant: _multiMode ? index : null,
-          prebuilt: _prebuilt,
+          variant: _revising ? null : (_multiMode ? index : null),
+          prebuilt: _revising ? null : _prebuilt,
+          revisionDraft: _revising ? _revisionDraft : null,
+          revisionInstruction: _revising ? _revisionInstructionText : null,
         );
       case AiPanelMode.inspireIdeas:
       case AiPanelMode.inspireOpening:
@@ -307,6 +329,8 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
           selectedText: widget.rewriteText ?? '',
           intent: _intent,
           instruction: _instruction.isEmpty ? null : _instruction,
+          revisionDraft: _revising ? _revisionDraft : null,
+          revisionInstruction: _revising ? _revisionInstructionText : null,
         );
       case AiPanelMode.summarize:
         return service.summarizeChapter(
@@ -334,9 +358,16 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
         // 多候选共享同一上下文，取首个即可。
         if (_context == null) setState(() => _context = event.context);
       case AiTextChunk():
-        setState(
-          () => _results[index].text = _results[index].text + event.text,
-        );
+        setState(() {
+          final controller = _results[index];
+          // ENH-27：多轮修改的第一段直接替换旧草稿，失败时旧结果仍可保留。
+          if (_revising && index == _revisionIndex && !_revisionTextStarted) {
+            _revisionTextStarted = true;
+            controller.text = event.text;
+          } else {
+            controller.text = controller.text + event.text;
+          }
+        });
       case AiFinished():
         _usageIds[index] = event.usageId < 0 ? null : event.usageId;
         _finishOne();
@@ -421,7 +452,7 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
   }
 
   /// 采纳当前候选：选中记 adopted，其余候选（仅续写多候选）记 ignored。
-  Future<void> _markAdoption(int chars) async {
+  Future<void> _markAdoption(int chars, {String? adoptedText}) async {
     final service = ref.read(aiServiceProvider);
     for (var i = 0; i < _usageIds.length; i++) {
       final id = _usageIds[i];
@@ -432,11 +463,120 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
         await service.markOutcome(id, 'ignored');
       }
     }
+    // ENH-27：续写 / 改写的采纳样本仅存本机，供后续生成的语气参考。
+    final sample = adoptedText?.trim() ?? '';
+    if (sample.isNotEmpty && _isWritingMode) {
+      await ref
+          .read(settingsRepositoryProvider)
+          .recordAdoptedSample(
+            widget.workId,
+            text: sample,
+            task: _mode == AiPanelMode.rewrite
+                ? AiTask.rewrite
+                : AiTask.continueWriting,
+          );
+    }
+  }
+
+  bool get _isWritingMode =>
+      _mode == AiPanelMode.continueWriting || _mode == AiPanelMode.rewrite;
+
+  /// 结果内多轮修改（ENH-27）：把当前候选 + 修改意见交给模型重写。
+  Future<void> _startRevision() async {
+    if (_streaming) return;
+    final instruction = _revisionInstruction.text.trim();
+    if (instruction.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.aiPanelReviseNeedInstruction)),
+      );
+      return;
+    }
+    final draft = sanitizeAiText(_activeResult.text).trim();
+    if (draft.isEmpty) return;
+    final index = _activeIndex;
+    for (final sub in _subs) {
+      await sub.cancel();
+    }
+    _subs = const <StreamSubscription<AiEvent>>[];
+    // 旧结果被替换前记为「重新生成」，不污染采纳率。
+    final previousUsage = _usageIds[index];
+    if (previousUsage != null) {
+      await ref
+          .read(aiServiceProvider)
+          .markOutcome(previousUsage, 'regenerated');
+    }
+    if (!mounted) return;
+    setState(() {
+      _revising = true;
+      _revisionDraft = draft;
+      _revisionInstructionText = instruction;
+      _revisionIndex = index;
+      _revisionTextStarted = false;
+      _streaming = true;
+      _errorKind = null;
+      _needsConfig = false;
+      _context = null;
+      _pending = 1;
+      _errors[index] = null;
+      _usageIds[index] = null;
+      _revisionInstruction.clear();
+    });
+    _startElapsed();
+    _subs = <StreamSubscription<AiEvent>>[
+      _buildStream(index).listen((event) => _onEvent(event, index)),
+    ];
   }
 
   Future<void> _abandon() async {
+    final hasOutput =
+        _results.any((c) => c.text.trim().isNotEmpty) &&
+        _usageIds.any((id) => id != null);
+    var reason = '';
+    if (hasOutput) {
+      final picked = await showAiDiscardReasonDialog(context);
+      if (picked == null) return;
+      reason = picked;
+    }
+    for (final sub in _subs) {
+      await sub.cancel();
+    }
+    _subs = const <StreamSubscription<AiEvent>>[];
     await _markOutcomeForAll('ignored');
+    if (reason.isNotEmpty) {
+      await ref
+          .read(settingsRepositoryProvider)
+          .recordAiFeedback(widget.workId, reason);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.l10n.aiFeedbackRecorded)),
+        );
+      }
+    }
     widget.onClose();
+  }
+
+  /// 分段采纳（ENH-27）：按段落合并后再写入 / 替换，仍走编辑器撤销栈。
+  Future<void> _merge() async {
+    if (_streaming || !_isWritingMode) return;
+    final source = sanitizeAiText(_activeResult.text).trim();
+    if (source.isEmpty) return;
+    final merged = await showAiMergeDialog(
+      context,
+      text: source,
+      baseText: _mode == AiPanelMode.rewrite
+          ? sanitizeAiText(widget.rewriteText ?? '').trim()
+          : null,
+    );
+    if (!mounted || merged == null) return;
+    final text = sanitizeAiText(merged).trim();
+    if (text.isEmpty) return;
+    if (_mode == AiPanelMode.rewrite) {
+      widget.onReplace?.call(text);
+    } else {
+      widget.onInsert(text);
+    }
+    await _markAdoption(text.length, adoptedText: text);
+    if (mounted) widget.onClose();
   }
 
   Future<void> _insert() async {
@@ -444,7 +584,7 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
     final text = sanitizeAiText(_activeResult.text).trim();
     if (text.isEmpty) return;
     widget.onInsert(text);
-    await _markAdoption(text.length);
+    await _markAdoption(text.length, adoptedText: text);
     widget.onClose();
   }
 
@@ -456,7 +596,7 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
     final replace = widget.onReplace;
     if (replace == null) return;
     replace(text);
-    await _markAdoption(text.length);
+    await _markAdoption(text.length, adoptedText: text);
     widget.onClose();
   }
 
@@ -550,6 +690,7 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
                   if (_context != null) _buildContextDetails(_context!),
                   const SizedBox(height: 6),
                   _buildResult(),
+                  if (_isWritingMode) _buildCollaborationRow(),
                   if (_activeError != null) _buildError(),
                   const SizedBox(height: 8),
                   _buildActions(),
@@ -807,6 +948,60 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
     );
   }
 
+  /// 结果内协作（ENH-27）：分段采纳 + 基于当前结果继续修改。
+  Widget _buildCollaborationRow() {
+    final l10n = context.l10n;
+    final hasText = _activeResult.text.trim().isNotEmpty;
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              TextButton.icon(
+                onPressed: hasText && !_streaming ? _merge : null,
+                icon: const Icon(Icons.checklist, size: 18),
+                label: Text(l10n.aiPanelMerge),
+              ),
+              const Spacer(),
+              if (_revising && _streaming)
+                Text(
+                  l10n.aiPanelRevising,
+                  style: TextStyle(fontSize: 12, color: context.paper.inkSoft),
+                ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: <Widget>[
+              Expanded(
+                child: TextField(
+                  controller: _revisionInstruction,
+                  enabled: !_streaming,
+                  minLines: 1,
+                  maxLines: 2,
+                  style: const TextStyle(fontSize: 13),
+                  decoration: InputDecoration(
+                    hintText: l10n.aiPanelReviseHint,
+                    isDense: true,
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              FilledButton.tonal(
+                onPressed: hasText && !_streaming ? _startRevision : null,
+                child: Text(l10n.aiPanelRevise),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildResult() {
     return TextField(
       key: ValueKey<int>(_activeIndex),
@@ -815,6 +1010,8 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
       // ENH-07 O1：输出框限高，避免过长正文吞掉垂直滚动手势、挤占上下文详情区。
       maxLines: 6,
       style: TextStyle(fontSize: 15, height: 1.6, color: context.paper.ink),
+      // 手动编辑后刷新按钮可用态（分段采纳 / 继续修改 / 主操作）。
+      onChanged: (_) => setState(() {}),
       decoration: InputDecoration(
         hintText: context.l10n.aiPanelResultHint,
         fillColor: context.paper.background,

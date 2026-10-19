@@ -165,6 +165,11 @@ class ContextBuilder {
     int contextWindow = 32000,
     String? direction,
     int? length,
+    // ENH-27：本地协作偏好 / 近期采纳片段（非空时追加到 system）。
+    String preferenceText = '',
+    // ENH-27：结果内多轮修改——当前草稿与作者修改意见。
+    String? revisionDraft,
+    String? revisionInstruction,
   }) async {
     final budget = (contextWindow * 0.5).round();
     final work = await works.getWork(workId);
@@ -205,6 +210,8 @@ class ContextBuilder {
     // 设定集（世界观 / 地点 / 道具）：排在角色卡之后
     final settingsText = await _settingsText(workId);
 
+    final draft = revisionDraft?.trim() ?? '';
+    final revising = draft.isNotEmpty;
     return _assemble(
       workTitle: work?.title ?? '',
       budget: budget,
@@ -214,7 +221,15 @@ class ContextBuilder {
       matchedCharacters: matched,
       settingsText: settingsText,
       volumeOutline: volumeOutline,
-      task: _continueTask(direction: direction, length: length),
+      task: revising
+          ? _revisionContinueTask(
+              direction: direction,
+              length: length,
+              instruction: revisionInstruction,
+            )
+          : _continueTask(direction: direction, length: length),
+      payload: revising ? '【当前续写草稿】\n$draft' : '',
+      preferenceText: preferenceText,
       styleText: _styleText(work),
     );
   }
@@ -269,6 +284,11 @@ class ContextBuilder {
     required String intent,
     String? instruction,
     int contextWindow = 32000,
+    // ENH-27：本地协作偏好 / 近期采纳片段（非空时追加到 system）。
+    String preferenceText = '',
+    // ENH-27：结果内多轮修改——当前改写草稿与作者修改意见。
+    String? revisionDraft,
+    String? revisionInstruction,
   }) async {
     final budget = (contextWindow * 0.5).round();
     final work = await works.getWork(workId);
@@ -301,6 +321,8 @@ class ContextBuilder {
       fallbackContents: recap.fallbackContents,
     );
 
+    final draft = revisionDraft?.trim() ?? '';
+    final revising = draft.isNotEmpty;
     return _assemble(
       workTitle: work?.title ?? '',
       budget: budget,
@@ -310,9 +332,14 @@ class ContextBuilder {
       matchedCharacters: matched,
       settingsText: await _settingsText(workId),
       volumeOutline: _volumeOutline(outlineEntries, volume?.id, chapterId),
-      task: _rewriteTask(intent, instruction),
-      payload: '【待改写原文】\n$selectedText',
+      task: revising
+          ? _revisionRewriteTask(intent, instruction, revisionInstruction)
+          : _rewriteTask(intent, instruction),
+      payload: revising
+          ? '【待改写原文】\n$selectedText\n\n【当前改写草稿】\n$draft'
+          : '【待改写原文】\n$selectedText',
       systemOverride: _rewriteSystem(),
+      preferenceText: preferenceText,
       styleText: _styleText(work),
     );
   }
@@ -1066,12 +1093,17 @@ class ContextBuilder {
     String? systemOverride,
     // ENH-23：作品文风档案，非空时追加到 system 并在上下文详情中展示。
     String styleText = '',
+    // ENH-27：本地协作偏好 / 近期采纳片段，非空时追加到 system 并展示。
+    String preferenceText = '',
   }) {
     final baseSystem = systemOverride ?? _systemPrompt(workTitle);
     final styleBlock = styleText.trim();
-    final system = styleBlock.isEmpty
-        ? baseSystem
-        : '$baseSystem\n\n$styleBlock';
+    final preferenceBlock = preferenceText.trim();
+    final extras = <String>[
+      if (styleBlock.isNotEmpty) styleBlock,
+      if (preferenceBlock.isNotEmpty) preferenceBlock,
+    ].join('\n\n');
+    final system = extras.isEmpty ? baseSystem : '$baseSystem\n\n$extras';
 
     var volumeText = volumeOutline;
     var charactersText = matchedCharacters.map(formatCharacter).join('\n');
@@ -1160,10 +1192,12 @@ class ContextBuilder {
       task,
       if (payload.isNotEmpty) payload,
     ].join('\n\n');
-    // 文风档案已在 system 中，详情里只展示、不重复进入用户消息。
+    // 文风档案与协作偏好已在 system 中，详情里只展示、不重复进入用户消息。
     final displaySections = <ContextSection>[
       if (styleBlock.isNotEmpty)
         ContextSection(label: '作品文风档案', content: styleBlock),
+      if (preferenceBlock.isNotEmpty)
+        ContextSection(label: '作者协作偏好', content: preferenceBlock),
       ...sections,
     ];
 
@@ -1200,6 +1234,24 @@ class ContextBuilder {
     if (length != null) buffer.writeln('本次续写约 $length 字。');
     final trimmed = direction?.trim() ?? '';
     if (trimmed.isNotEmpty) buffer.writeln('作者补充的方向：$trimmed');
+    return buffer.toString();
+  }
+
+  /// 结果内多轮修改（ENH-27）：作者对当前续写草稿提出意见，按意见重写。
+  String _revisionContinueTask({
+    String? direction,
+    int? length,
+    String? instruction,
+  }) {
+    final buffer = StringBuffer(
+      '【修订要求】\n作者对当前续写草稿不满意，请保留其中可用内容并按意见重写整段续写，输出纯正文。',
+    );
+    if (length != null) buffer.writeln('修订后仍保持约 $length 字。');
+    final directionText = direction?.trim() ?? '';
+    if (directionText.isNotEmpty) buffer.writeln('原定方向：$directionText');
+    final revision = instruction?.trim() ?? '';
+    if (revision.isNotEmpty) buffer.writeln('作者本次修改意见（优先满足）：$revision');
+    buffer.writeln('只输出修订后的正文，不解释修改过程。');
     return buffer.toString();
   }
 
@@ -1258,6 +1310,31 @@ class ContextBuilder {
   /// 改写任务说明（ENH-04）：[intent] 取值与 RewriteIntent 对齐（polish/expand/condense/tone）。
   String _rewriteTask(String intent, String? instruction) {
     final buffer = StringBuffer('【改写要求】\n改写"待改写原文"，输出纯正文。');
+    _writeIntentRule(buffer, intent);
+    final trimmed = instruction?.trim() ?? '';
+    if (trimmed.isNotEmpty) buffer.writeln('作者补充指令：$trimmed');
+    return buffer.toString();
+  }
+
+  /// 结果内多轮修改（ENH-27）：基于当前改写草稿与作者意见重写，保持改写意图。
+  String _revisionRewriteTask(
+    String intent,
+    String? instruction,
+    String? revisionInstruction,
+  ) {
+    final buffer = StringBuffer(
+      '【修订要求】\n作者对当前改写草稿不满意，请在保留原文事实与既有改写意图的前提下按意见重写，输出纯正文。',
+    );
+    _writeIntentRule(buffer, intent);
+    final original = instruction?.trim() ?? '';
+    if (original.isNotEmpty) buffer.writeln('作者最初的补充指令：$original');
+    final revision = revisionInstruction?.trim() ?? '';
+    if (revision.isNotEmpty) buffer.writeln('本次修改意见（优先满足）：$revision');
+    buffer.writeln('只输出修订后的正文，不解释修改过程。');
+    return buffer.toString();
+  }
+
+  void _writeIntentRule(StringBuffer buffer, String intent) {
     switch (intent) {
       case 'expand':
         buffer.writeln('扩写：篇幅约为原文的 1.5~2 倍，补充细节与描写，不新增情节事实。');
@@ -1269,9 +1346,6 @@ class ContextBuilder {
       default:
         buffer.writeln('润色：字数与原文基本相当，只提升表达，不改变内容。');
     }
-    final trimmed = instruction?.trim() ?? '';
-    if (trimmed.isNotEmpty) buffer.writeln('作者补充指令：$trimmed');
-    return buffer.toString();
   }
 
   String _tailOf(String content) {

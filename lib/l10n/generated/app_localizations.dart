@@ -914,6 +914,138 @@ abstract class AppLocalizations {
   /// **'已存入灵感箱'**
   String get aiPanelSavedToInspiration;
 
+  /// No description provided for @aiPanelMerge.
+  ///
+  /// In zh, this message translates to:
+  /// **'分段采纳'**
+  String get aiPanelMerge;
+
+  /// No description provided for @aiPanelRevise.
+  ///
+  /// In zh, this message translates to:
+  /// **'继续修改'**
+  String get aiPanelRevise;
+
+  /// No description provided for @aiPanelReviseHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'告诉 AI 怎么改，例如：对白更克制，删掉最后一句'**
+  String get aiPanelReviseHint;
+
+  /// No description provided for @aiPanelReviseNeedInstruction.
+  ///
+  /// In zh, this message translates to:
+  /// **'请先填写修改意见'**
+  String get aiPanelReviseNeedInstruction;
+
+  /// No description provided for @aiPanelRevising.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在按意见修改…'**
+  String get aiPanelRevising;
+
+  /// No description provided for @aiMergeTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'分段采纳 AI 结果'**
+  String get aiMergeTitle;
+
+  /// No description provided for @aiMergeHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'勾选要写入正文的段落，可直接修改文字；未勾选的段落不会写入。'**
+  String get aiMergeHint;
+
+  /// No description provided for @aiMergeSelectAll.
+  ///
+  /// In zh, this message translates to:
+  /// **'全选'**
+  String get aiMergeSelectAll;
+
+  /// No description provided for @aiMergeSelectNone.
+  ///
+  /// In zh, this message translates to:
+  /// **'全不选'**
+  String get aiMergeSelectNone;
+
+  /// No description provided for @aiMergeSelected.
+  ///
+  /// In zh, this message translates to:
+  /// **'已选 {selected}/{total} 段'**
+  String aiMergeSelected(int selected, int total);
+
+  /// No description provided for @aiMergeChanged.
+  ///
+  /// In zh, this message translates to:
+  /// **'改动'**
+  String get aiMergeChanged;
+
+  /// No description provided for @aiMergeApply.
+  ///
+  /// In zh, this message translates to:
+  /// **'采用 {count} 段'**
+  String aiMergeApply(int count);
+
+  /// No description provided for @aiFeedbackTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'这次结果哪里不合适？'**
+  String get aiFeedbackTitle;
+
+  /// No description provided for @aiFeedbackHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'原因只保存在本机，并用于后续生成时避雷。'**
+  String get aiFeedbackHint;
+
+  /// No description provided for @aiFeedbackTooAi.
+  ///
+  /// In zh, this message translates to:
+  /// **'太像 AI'**
+  String get aiFeedbackTooAi;
+
+  /// No description provided for @aiFeedbackOffCharacter.
+  ///
+  /// In zh, this message translates to:
+  /// **'角色出戏'**
+  String get aiFeedbackOffCharacter;
+
+  /// No description provided for @aiFeedbackSlowPace.
+  ///
+  /// In zh, this message translates to:
+  /// **'节奏拖沓'**
+  String get aiFeedbackSlowPace;
+
+  /// No description provided for @aiFeedbackOffSetting.
+  ///
+  /// In zh, this message translates to:
+  /// **'设定不符'**
+  String get aiFeedbackOffSetting;
+
+  /// No description provided for @aiFeedbackOther.
+  ///
+  /// In zh, this message translates to:
+  /// **'其他'**
+  String get aiFeedbackOther;
+
+  /// No description provided for @aiFeedbackSkip.
+  ///
+  /// In zh, this message translates to:
+  /// **'直接放弃'**
+  String get aiFeedbackSkip;
+
+  /// No description provided for @aiFeedbackConfirm.
+  ///
+  /// In zh, this message translates to:
+  /// **'记录并放弃'**
+  String get aiFeedbackConfirm;
+
+  /// No description provided for @aiFeedbackRecorded.
+  ///
+  /// In zh, this message translates to:
+  /// **'已记录，后续生成会参考'**
+  String get aiFeedbackRecorded;
+
   /// No description provided for @rewriteIntentPolish.
   ///
   /// In zh, this message translates to:
@@ -1009,6 +1141,12 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'用户技能'**
   String get aiSectionUserSkills;
+
+  /// No description provided for @aiSectionPreferences.
+  ///
+  /// In zh, this message translates to:
+  /// **'作者协作偏好'**
+  String get aiSectionPreferences;
 
   /// No description provided for @flavorTitle.
   ///

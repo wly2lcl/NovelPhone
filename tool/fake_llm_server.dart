@@ -12,6 +12,8 @@
 //   /openai-style        返回文风档案 JSON（验证 ENH-23 文风提取）
 //   /openai-extract      返回角色 / 设定抽取 JSON（验证 ENH-23 设定补全）
 //   /openai-plan         返回剧情走向与分章建议 JSON（验证 ENH-23 剧情推演）
+//   /openai-enh27        多段落续写；带修订要求的请求返回不同草稿
+//                        （验证 ENH-27 分段采纳与结果内继续修改）
 //   /openai-tool         首次返回 tool_calls（优先选 mcp_ 前缀或名为 echo 的工具，
 //                        否则选第一个），收到 tool 结果后返回文本（验证 MCP 调用与审计）
 //   /openai-empty-first  首次只返回空正文（模拟推理模型耗尽输出预算），之后正常
@@ -118,6 +120,8 @@ class FakeLlmServer {
         );
       case 'openai-plan':
         return _openaiStream(request.response, pieces: <String>[_plotPlanJson]);
+      case 'openai-enh27':
+        return _openaiEnh27(request);
       case 'openai-tool':
         return _openaiToolStream(request);
       case 'openai-empty-first':
@@ -187,6 +191,33 @@ class FakeLlmServer {
     response.write('data: [DONE]\n\n');
     await response.flush();
     await response.close();
+  }
+
+  /// ENH-27 验收：多段落续写；带修订要求的请求返回不同草稿，便于验证分段采纳与继续修改。
+  Future<void> _openaiEnh27(HttpRequest request) async {
+    final raw = await utf8.decoder.bind(request).join();
+    final body = jsonDecode(raw) as Map<String, dynamic>;
+    final messages = (body['messages'] as List<dynamic>?) ?? const <dynamic>[];
+    final user = messages
+        .whereType<Map>()
+        .map((message) => '${message['content'] ?? ''}')
+        .join('\n');
+    final revising = user.contains('修订要求') || user.contains('本次修改意见');
+    final pieces = revising
+        ? <String>[
+            '他停在门槛内，雨水顺着衣角落下。\n\n',
+            '屋里没有点灯，只有窗纸透进一线灰白。\n\n',
+            '里间传来一声轻咳，随即又安静下去。\n\n',
+            '沈砚没有出声，把手按在刀柄上。',
+          ]
+        : <String>[
+            '屋里没有点灯，只有窗纸透进一线灰白。\n\n',
+            '他听见里间有人轻轻咳嗽，随即又安静下来。\n\n',
+            '空气中有一股潮湿的墨味，像是刚写完不久的纸页。\n\n',
+            '沈砚没有出声，把手按在刀柄上。',
+          ];
+    stdout.writeln('[fake-llm] openai-enh27：${revising ? '修订' : '续写'}');
+    return _openaiStream(request.response, pieces: pieces);
   }
 
   /// 首次无可见正文，之后正常；两次请求都打印 max_tokens 以便核对自动加倍。

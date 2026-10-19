@@ -136,6 +136,45 @@
   "aiPanelSaveToInspiration": "Save to inspiration box",
   "aiPanelDiscard": "Discard",
   "aiPanelSavedToInspiration": "Saved to inspiration box",
+  "aiPanelMerge": "Review by paragraph",
+  "aiPanelRevise": "Refine",
+  "aiPanelReviseHint": "Tell the AI how to revise, e.g. keep the dialogue restrained and cut the last line",
+  "aiPanelReviseNeedInstruction": "Enter revision notes first",
+  "aiPanelRevising": "Revising…",
+  "aiMergeTitle": "Review AI result by paragraph",
+  "aiMergeHint": "Check the paragraphs to keep; edit them inline. Unchecked paragraphs are skipped.",
+  "aiMergeSelectAll": "Select all",
+  "aiMergeSelectNone": "Clear",
+  "aiMergeSelected": "{selected}/{total} selected",
+  "@aiMergeSelected": {
+    "placeholders": {
+      "selected": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "aiMergeChanged": "Changed",
+  "aiMergeApply": "Use {count}",
+  "@aiMergeApply": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "aiFeedbackTitle": "What was wrong with this result?",
+  "aiFeedbackHint": "Reasons stay on this device and help future generations avoid the same issues.",
+  "aiFeedbackTooAi": "Too AI-sounding",
+  "aiFeedbackOffCharacter": "Out of character",
+  "aiFeedbackSlowPace": "Slow pacing",
+  "aiFeedbackOffSetting": "Conflicts with setting",
+  "aiFeedbackOther": "Other",
+  "aiFeedbackSkip": "Discard without reason",
+  "aiFeedbackConfirm": "Record and discard",
+  "aiFeedbackRecorded": "Recorded; future generations will use it",
   "rewriteIntentPolish": "Polish",
   "rewriteIntentExpand": "Expand",
   "rewriteIntentCondense": "Condense",
@@ -152,6 +191,7 @@
   "aiSectionChapterTail": "Written chapter text (tail)",
   "aiSectionRequirements": "Generation requirements",
   "aiSectionUserSkills": "User skills",
+  "aiSectionPreferences": "Author preferences",
   "flavorTitle": "AI-flavor check",
   "flavorShownOfTotal": "Showing the first {shown} of {total}",
   "flavorIssueCount": "{count, plural, =1{1 issue} other{{count} issues}}",

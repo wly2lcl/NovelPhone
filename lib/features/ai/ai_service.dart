@@ -14,6 +14,7 @@ import '../../core/ai/mcp/mcp_bridge.dart';
 import '../../core/ai/skills/skill.dart';
 import '../../core/ai/structured_response.dart';
 import '../../core/ai/tools/local_tools.dart';
+import '../../core/ai/writing_preferences.dart';
 import '../../core/ai_flavor_rules.dart';
 import '../../data/db.dart';
 import '../../data/repositories/chapter_repository.dart';
@@ -433,6 +434,9 @@ class AiService {
     int? variant,
     // ENH-09：多候选共用的预组装上下文（见 prebuildContinue）；为空时现组装。
     BuiltContext? prebuilt,
+    // ENH-27：结果内多轮修改（当前草稿 + 作者意见）。
+    String? revisionDraft,
+    String? revisionInstruction,
   }) async* {
     final resolved = await settings.resolveTaskModelWithKey(
       AiTask.continueWriting,
@@ -459,6 +463,9 @@ class AiService {
             contextWindow: group.contextWindow,
             direction: direction,
             length: length,
+            preferenceText: await _preferenceText(workId),
+            revisionDraft: revisionDraft,
+            revisionInstruction: revisionInstruction,
           ),
           await settings.listEnabledSkills(),
         );
@@ -508,6 +515,7 @@ class AiService {
       contextWindow: group.contextWindow,
       direction: direction,
       length: length,
+      preferenceText: await _preferenceText(workId),
     );
     return _withSkills(built, await settings.listEnabledSkills());
   }
@@ -679,6 +687,9 @@ class AiService {
     required String selectedText,
     String intent = RewriteIntent.polish,
     String? instruction,
+    // ENH-27：结果内多轮修改（当前改写草稿 + 作者意见）。
+    String? revisionDraft,
+    String? revisionInstruction,
   }) async* {
     final resolved = await _resolveRewriteModel();
     if (resolved == null) {
@@ -699,6 +710,9 @@ class AiService {
       intent: intent,
       instruction: instruction,
       contextWindow: group.contextWindow,
+      preferenceText: await _preferenceText(workId),
+      revisionDraft: revisionDraft,
+      revisionInstruction: revisionInstruction,
     );
     // B-03：把启用技能作为附加 system 指令注入。
     final injected = _withSkills(built, await settings.listEnabledSkills());
@@ -1726,6 +1740,16 @@ class AiService {
         label: '用户技能',
         content: skills.map((s) => s.name).join('、'),
       ),
+    );
+  }
+
+  /// 本地协作偏好（ENH-27）：高频忽略原因 + 近期采纳片段，注入了续写/改写 system。
+  Future<String> _preferenceText(int workId) async {
+    final counts = await settings.readAiFeedback(workId);
+    final samples = await settings.readAdoptedSamples(workId);
+    return WritingPreferences.promptBlock(
+      reasonCounts: counts,
+      samples: samples,
     );
   }
 

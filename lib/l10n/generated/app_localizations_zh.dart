@@ -463,6 +463,76 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aiPanelSavedToInspiration => '已存入灵感箱';
 
   @override
+  String get aiPanelMerge => '分段采纳';
+
+  @override
+  String get aiPanelRevise => '继续修改';
+
+  @override
+  String get aiPanelReviseHint => '告诉 AI 怎么改，例如：对白更克制，删掉最后一句';
+
+  @override
+  String get aiPanelReviseNeedInstruction => '请先填写修改意见';
+
+  @override
+  String get aiPanelRevising => '正在按意见修改…';
+
+  @override
+  String get aiMergeTitle => '分段采纳 AI 结果';
+
+  @override
+  String get aiMergeHint => '勾选要写入正文的段落，可直接修改文字；未勾选的段落不会写入。';
+
+  @override
+  String get aiMergeSelectAll => '全选';
+
+  @override
+  String get aiMergeSelectNone => '全不选';
+
+  @override
+  String aiMergeSelected(int selected, int total) {
+    return '已选 $selected/$total 段';
+  }
+
+  @override
+  String get aiMergeChanged => '改动';
+
+  @override
+  String aiMergeApply(int count) {
+    return '采用 $count 段';
+  }
+
+  @override
+  String get aiFeedbackTitle => '这次结果哪里不合适？';
+
+  @override
+  String get aiFeedbackHint => '原因只保存在本机，并用于后续生成时避雷。';
+
+  @override
+  String get aiFeedbackTooAi => '太像 AI';
+
+  @override
+  String get aiFeedbackOffCharacter => '角色出戏';
+
+  @override
+  String get aiFeedbackSlowPace => '节奏拖沓';
+
+  @override
+  String get aiFeedbackOffSetting => '设定不符';
+
+  @override
+  String get aiFeedbackOther => '其他';
+
+  @override
+  String get aiFeedbackSkip => '直接放弃';
+
+  @override
+  String get aiFeedbackConfirm => '记录并放弃';
+
+  @override
+  String get aiFeedbackRecorded => '已记录，后续生成会参考';
+
+  @override
   String get rewriteIntentPolish => '润色';
 
   @override
@@ -509,6 +579,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aiSectionUserSkills => '用户技能';
+
+  @override
+  String get aiSectionPreferences => '作者协作偏好';
 
   @override
   String get flavorTitle => 'AI 感检查';

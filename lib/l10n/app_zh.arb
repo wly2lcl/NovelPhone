@@ -300,6 +300,45 @@
   "aiPanelSaveToInspiration": "存入灵感箱",
   "aiPanelDiscard": "放弃",
   "aiPanelSavedToInspiration": "已存入灵感箱",
+  "aiPanelMerge": "分段采纳",
+  "aiPanelRevise": "继续修改",
+  "aiPanelReviseHint": "告诉 AI 怎么改，例如：对白更克制，删掉最后一句",
+  "aiPanelReviseNeedInstruction": "请先填写修改意见",
+  "aiPanelRevising": "正在按意见修改…",
+  "aiMergeTitle": "分段采纳 AI 结果",
+  "aiMergeHint": "勾选要写入正文的段落，可直接修改文字；未勾选的段落不会写入。",
+  "aiMergeSelectAll": "全选",
+  "aiMergeSelectNone": "全不选",
+  "aiMergeSelected": "已选 {selected}/{total} 段",
+  "@aiMergeSelected": {
+    "placeholders": {
+      "selected": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "aiMergeChanged": "改动",
+  "aiMergeApply": "采用 {count} 段",
+  "@aiMergeApply": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "aiFeedbackTitle": "这次结果哪里不合适？",
+  "aiFeedbackHint": "原因只保存在本机，并用于后续生成时避雷。",
+  "aiFeedbackTooAi": "太像 AI",
+  "aiFeedbackOffCharacter": "角色出戏",
+  "aiFeedbackSlowPace": "节奏拖沓",
+  "aiFeedbackOffSetting": "设定不符",
+  "aiFeedbackOther": "其他",
+  "aiFeedbackSkip": "直接放弃",
+  "aiFeedbackConfirm": "记录并放弃",
+  "aiFeedbackRecorded": "已记录，后续生成会参考",
   "rewriteIntentPolish": "润色",
   "rewriteIntentExpand": "扩写",
   "rewriteIntentCondense": "缩写",
@@ -316,6 +355,7 @@
   "aiSectionChapterTail": "本章已写内容（尾部）",
   "aiSectionRequirements": "生成要求",
   "aiSectionUserSkills": "用户技能",
+  "aiSectionPreferences": "作者协作偏好",
   "flavorTitle": "AI 感检查",
   "flavorShownOfTotal": "仅显示前 {shown} 条，共 {total} 条",
   "@flavorShownOfTotal": {

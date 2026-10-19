@@ -513,6 +513,79 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aiPanelSavedToInspiration => 'Saved to inspiration box';
 
   @override
+  String get aiPanelMerge => 'Review by paragraph';
+
+  @override
+  String get aiPanelRevise => 'Refine';
+
+  @override
+  String get aiPanelReviseHint =>
+      'Tell the AI how to revise, e.g. keep the dialogue restrained and cut the last line';
+
+  @override
+  String get aiPanelReviseNeedInstruction => 'Enter revision notes first';
+
+  @override
+  String get aiPanelRevising => 'Revising…';
+
+  @override
+  String get aiMergeTitle => 'Review AI result by paragraph';
+
+  @override
+  String get aiMergeHint =>
+      'Check the paragraphs to keep; edit them inline. Unchecked paragraphs are skipped.';
+
+  @override
+  String get aiMergeSelectAll => 'Select all';
+
+  @override
+  String get aiMergeSelectNone => 'Clear';
+
+  @override
+  String aiMergeSelected(int selected, int total) {
+    return '$selected/$total selected';
+  }
+
+  @override
+  String get aiMergeChanged => 'Changed';
+
+  @override
+  String aiMergeApply(int count) {
+    return 'Use $count';
+  }
+
+  @override
+  String get aiFeedbackTitle => 'What was wrong with this result?';
+
+  @override
+  String get aiFeedbackHint =>
+      'Reasons stay on this device and help future generations avoid the same issues.';
+
+  @override
+  String get aiFeedbackTooAi => 'Too AI-sounding';
+
+  @override
+  String get aiFeedbackOffCharacter => 'Out of character';
+
+  @override
+  String get aiFeedbackSlowPace => 'Slow pacing';
+
+  @override
+  String get aiFeedbackOffSetting => 'Conflicts with setting';
+
+  @override
+  String get aiFeedbackOther => 'Other';
+
+  @override
+  String get aiFeedbackSkip => 'Discard without reason';
+
+  @override
+  String get aiFeedbackConfirm => 'Record and discard';
+
+  @override
+  String get aiFeedbackRecorded => 'Recorded; future generations will use it';
+
+  @override
   String get rewriteIntentPolish => 'Polish';
 
   @override
@@ -560,6 +633,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aiSectionUserSkills => 'User skills';
+
+  @override
+  String get aiSectionPreferences => 'Author preferences';
 
   @override
   String get flavorTitle => 'AI-flavor check';

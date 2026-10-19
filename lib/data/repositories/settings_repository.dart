@@ -6,6 +6,7 @@ import '../../core/ai/ai_client_factory.dart';
 import '../../core/ai/mcp/mcp_bridge.dart';
 import '../../core/ai/mcp/mcp_oauth.dart';
 import '../../core/ai/skills/skill.dart';
+import '../../core/ai/writing_preferences.dart';
 import '../../core/writing_stats.dart';
 import '../../models/cloud_backup_config.dart';
 import '../dao/app_setting_dao.dart';
@@ -284,6 +285,51 @@ class SettingsRepository {
       if (await hasApiKey(group.id)) return true;
     }
     return false;
+  }
+
+  // ---------- AI 协作偏好（ENH-27）----------
+
+  /// 忽略原因计数的落库键（按作品隔离，仅本机）。
+  static String aiFeedbackKey(int workId) => 'ai_feedback_$workId';
+
+  /// 最近采纳片段的落库键（按作品隔离，仅本机）。
+  static String aiAdoptedSamplesKey(int workId) => 'ai_adopted_samples_$workId';
+
+  Future<Map<String, int>> readAiFeedback(int workId) async =>
+      WritingPreferences.parseReasonCounts(
+        await getSetting(aiFeedbackKey(workId)),
+      );
+
+  Future<void> recordAiFeedback(int workId, String reason) async {
+    if (!AiFeedbackReason.all.contains(reason)) return;
+    final counts = await readAiFeedback(workId);
+    counts[reason] = (counts[reason] ?? 0) + 1;
+    await setSetting(
+      aiFeedbackKey(workId),
+      WritingPreferences.encodeReasonCounts(counts),
+    );
+  }
+
+  Future<List<AdoptedSample>> readAdoptedSamples(int workId) async =>
+      WritingPreferences.parseSamples(
+        await getSetting(aiAdoptedSamplesKey(workId)),
+      );
+
+  Future<void> recordAdoptedSample(
+    int workId, {
+    required String text,
+    required String task,
+  }) async {
+    if (text.trim().isEmpty) return;
+    final samples = await readAdoptedSamples(workId);
+    final next = WritingPreferences.addSample(
+      samples,
+      AdoptedSample(text: text, task: task, createdAt: DateTime.now()),
+    );
+    await setSetting(
+      aiAdoptedSamplesKey(workId),
+      WritingPreferences.encodeSamples(next),
+    );
   }
 
   // ---------- MCP server（B-02）----------
