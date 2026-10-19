@@ -1,8 +1,11 @@
+import 'dart:typed_data';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/exporter/backup_archive.dart';
+import '../../core/exporter/backup_crypto.dart';
 import '../../core/exporter/share_export.dart';
 import '../../core/formatting.dart';
 import '../../data/data_providers.dart';
@@ -18,14 +21,29 @@ Future<void> exportBackup(BuildContext context, WidgetRef ref) async {
   final l10n = context.l10n;
   try {
     final repository = ref.read(backupRepositoryProvider);
-    final bytes = await exportBackupZipBytes(repository);
+    final settings = ref.read(settingsRepositoryProvider);
+    var bytes = await exportBackupZipBytes(repository);
+    var extension = 'zip';
+    // 开启加密后绝不静默导出明文：密码缺失时直接中止并提示。
+    if (await settings.backupEncryptionEnabled()) {
+      final passphrase = await settings.readBackupPassphrase();
+      if (passphrase == null ||
+          passphrase.length < kMinBackupPassphraseLength) {
+        messenger.showSnackBar(
+          SnackBar(content: Text(l10n.backupEncryptMissingPassphrase)),
+        );
+        return;
+      }
+      bytes = await encryptBackupBytesAsync(bytes, passphrase);
+      extension = kEncryptedBackupExtension;
+    }
     final stamp = DateTime.now()
         .toIso8601String()
         .substring(0, 19)
         .replaceAll(RegExp(r'[:\-T]'), '');
     if (!context.mounted) return;
     await shareExport(
-      fileName: '${kBackupFilePrefix}_$stamp.zip',
+      fileName: '${kBackupFilePrefix}_$stamp.$extension',
       bytes: bytes,
       title: l10n.backupShareTitle,
     );
@@ -40,14 +58,19 @@ Future<void> restoreBackup(BuildContext context, WidgetRef ref) async {
   final l10n = context.l10n;
   final ParsedBackup parsed;
   try {
-    final file = await FilePicker.pickFile(
-      type: FileType.custom,
-      allowedExtensions: const <String>['zip'],
-    );
+    // 不用 FileType.custom 过滤：Android 的 MimeTypeMap 不认识 `.npbak`，
+    // 而 zip 能解析出 MIME，导致加密备份被系统选择器置灰。文件格式交由
+    // 魔数（isEncryptedBackup）与 zip 解析校验，选错文件会给出格式错误提示。
+    final file = await FilePicker.pickFile(type: FileType.any);
     if (file == null) return;
+    final raw = await file.readAsBytes();
+    if (!context.mounted) return;
+    // ENH-26：加密备份先输入密码解密；明文 zip 保持既有流程。
+    final bytes = await maybeDecryptBackup(context, raw);
+    if (bytes == null) return;
     // ENH-15：解压 + jsonDecode 放到 isolate，避免恢复大备份时卡住 UI。
     // ENH-22：同时校验 manifest 中的 SHA-256，并在恢复前展示预览。
-    parsed = await inspectBackupZipAsync(await file.readAsBytes());
+    parsed = await inspectBackupZipAsync(bytes);
   } on FormatException catch (e) {
     messenger.showSnackBar(SnackBar(content: Text(backupErrorText(l10n, e))));
     return;
@@ -155,6 +178,162 @@ Future<bool> showBackupPreviewDialog(
     },
   );
   return confirmed ?? false;
+}
+
+/// 加密备份恢复入口（ENH-26）：检测 `NPBK` 魔数，需要时弹窗输入密码，
+/// 解密在 isolate 中完成。用户取消密码输入时返回 null。
+Future<Uint8List?> maybeDecryptBackup(
+  BuildContext context,
+  Uint8List bytes,
+) async {
+  if (!isEncryptedBackup(bytes)) return bytes;
+  if (!context.mounted) return null;
+  final passphrase = await showBackupPassphrasePrompt(context);
+  if (passphrase == null) return null;
+  return decryptBackupBytesAsync(bytes, passphrase);
+}
+
+/// 开启备份加密时设置密码：两次输入一致且不短于下限。
+Future<String?> showSetBackupPassphraseDialog(BuildContext context) async {
+  final l10n = context.l10n;
+  final passphrase = TextEditingController();
+  final confirm = TextEditingController();
+  final result = await showDialog<String>(
+    context: context,
+    builder: (dialogContext) {
+      String? error;
+      return StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text(l10n.backupPassphraseSetTitle),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(l10n.backupPassphraseSetBody(kMinBackupPassphraseLength)),
+              const SizedBox(height: 16),
+              TextField(
+                controller: passphrase,
+                obscureText: true,
+                autofocus: true,
+                decoration: InputDecoration(
+                  labelText: l10n.backupPassphraseLabel,
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: confirm,
+                obscureText: true,
+                decoration: InputDecoration(
+                  labelText: l10n.backupPassphraseConfirmLabel,
+                ),
+              ),
+              if (error != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    error!,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(l10n.commonCancel),
+            ),
+            FilledButton(
+              onPressed: () {
+                final value = passphrase.text;
+                if (value.length < kMinBackupPassphraseLength) {
+                  setState(
+                    () => error = l10n.backupPassphraseTooShort(
+                      kMinBackupPassphraseLength,
+                    ),
+                  );
+                  return;
+                }
+                if (value != confirm.text) {
+                  setState(() => error = l10n.backupPassphraseMismatch);
+                  return;
+                }
+                Navigator.of(dialogContext).pop(value);
+              },
+              child: Text(l10n.commonConfirm),
+            ),
+          ],
+        ),
+      );
+    },
+  );
+  passphrase.dispose();
+  confirm.dispose();
+  return result;
+}
+
+/// 恢复加密备份时输入密码。
+Future<String?> showBackupPassphrasePrompt(BuildContext context) async {
+  final l10n = context.l10n;
+  final controller = TextEditingController();
+  final result = await showDialog<String>(
+    context: context,
+    builder: (dialogContext) {
+      String? error;
+      return StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text(l10n.backupPassphrasePromptTitle),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(l10n.backupPassphrasePromptBody),
+              const SizedBox(height: 16),
+              TextField(
+                controller: controller,
+                obscureText: true,
+                autofocus: true,
+                decoration: InputDecoration(
+                  labelText: l10n.backupPassphraseLabel,
+                ),
+              ),
+              if (error != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    error!,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(l10n.commonCancel),
+            ),
+            FilledButton(
+              onPressed: () {
+                if (controller.text.isEmpty) {
+                  setState(() => error = l10n.backupPassphraseRequired);
+                  return;
+                }
+                Navigator.of(dialogContext).pop(controller.text);
+              },
+              child: Text(l10n.backupPassphraseUnlock),
+            ),
+          ],
+        ),
+      );
+    },
+  );
+  controller.dispose();
+  return result;
 }
 
 /// 恢复方式二选一（PRD 功能 12）：合并为新增作品 / 覆盖并清空本地。

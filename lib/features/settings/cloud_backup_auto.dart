@@ -56,6 +56,13 @@ class CloudBackupScheduler {
           secretKey.isEmpty) {
         return;
       }
+      // 开启加密但密码缺失时宁可不备份，也不能上传明文。
+      String? passphrase;
+      if (await settings.backupEncryptionEnabled()) {
+        passphrase = await settings.readBackupPassphrase();
+        if (passphrase == null || passphrase.isEmpty) return;
+      }
+
       final lastAt = await settings.cloudLastBackupAt();
       final now = _clock();
       if (!isCloudBackupDue(
@@ -71,6 +78,7 @@ class CloudBackupScheduler {
         config: config,
         accessKeyId: accessKey,
         secretAccessKey: secretKey,
+        passphrase: passphrase,
         client: clientFactory?.call(config, accessKey, secretKey),
         clock: _clock,
       );

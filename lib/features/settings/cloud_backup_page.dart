@@ -143,11 +143,21 @@ class _CloudBackupPageState extends ConsumerState<CloudBackupPage> {
       _showMessage(l10n.cloudNeedCredentials, ok: false);
       return null;
     }
+    // 加密开关打开但密码缺失时中止，避免把明文传到云端。
+    String? passphrase;
+    if (await repo.backupEncryptionEnabled()) {
+      passphrase = await repo.readBackupPassphrase();
+      if (passphrase == null || passphrase.isEmpty) {
+        _showMessage(l10n.backupEncryptMissingPassphrase, ok: false);
+        return null;
+      }
+    }
     return CloudBackupService(
       backupRepository: ref.read(backupRepositoryProvider),
       config: config,
       accessKeyId: accessKey,
       secretAccessKey: secretKey,
+      passphrase: passphrase,
     );
   }
 
@@ -223,7 +233,12 @@ class _CloudBackupPageState extends ConsumerState<CloudBackupPage> {
     try {
       // ENH-15：解压 + jsonDecode 放到 isolate，避免恢复大备份时卡住 UI。
       // ENH-22：同时校验 SHA-256 并获取预览信息。
-      parsed = await inspectBackupZipAsync(await service.download(object.key));
+      // ENH-26：加密备份先输入密码解密；旧明文备份直接预览。
+      final raw = await service.download(object.key);
+      if (!mounted) return;
+      final bytes = await maybeDecryptBackup(context, raw);
+      if (bytes == null) return;
+      parsed = await inspectBackupZipAsync(bytes);
     } on FormatException catch (e) {
       _showMessage(cloudErrorText(l10n, e), ok: false);
     } catch (e) {

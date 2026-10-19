@@ -139,3 +139,13 @@ final appLockControllerProvider = Provider<AppLockController>((ref) {
 final appLockEnabledProvider = StreamProvider<bool>(
   (ref) => ref.watch(settingsRepositoryProvider).watchAppLockEnabled(),
 );
+
+/// 截屏 / 后台缩略图保护开关（ENH-26）。
+final screenProtectionEnabledProvider = StreamProvider<bool>(
+  (ref) => ref.watch(settingsRepositoryProvider).watchScreenProtectionEnabled(),
+);
+
+/// 备份密码加密开关（ENH-26）。
+final backupEncryptionEnabledProvider = StreamProvider<bool>(
+  (ref) => ref.watch(settingsRepositoryProvider).watchBackupEncryptionEnabled(),
+);

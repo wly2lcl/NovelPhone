@@ -117,6 +117,8 @@ graph TB
 | go_router | 声明式路由；作品列表 → 作品详情 → 编辑器三层导航与深度链接 | `[Expert judgment]` |
 | flutter_secure_storage | key 存入 keychain / keystore，满足 PRD 5.8 的安全要求 | `[Expert judgment]` |
 | local_auth | 应用锁（ENH-25）：调用系统生物识别 / 设备凭证，不自实现密码校验，也不接触指纹与人脸原始数据 | `[Research-backed]` 平台 BiometricPrompt / LocalAuthentication |
+| cryptography | 备份密码加密（ENH-26）：PBKDF2-HMAC-SHA256（210,000 次）派生 256 位密钥 + AES-256-GCM 认证加密；纯 Dart 实现、无平台通道，可在 isolate 内执行 | `[Research-backed]` pub.dev cryptography 2.9 / RFC 8018 / NIST SP 800-38D |
+| 平台截屏保护 | Android `FLAG_SECURE` 经 MethodChannel 控制（同时阻止截屏 / 录屏与最近任务缩略图）；iOS 无阻止前台截屏的公开 API，退后台时以不透明遮罩覆盖（ENH-26） | `[Research-backed]` Android WindowManager；iOS applicationWillResignActive |
 | http | 出网请求；SSE 流式用 `StreamedResponse` 逐行解析，不引入更重的客户端 | `[Expert judgment]` |
 | mcp_dart | 实现 MCP 2026-07-28 规范核心 wire surface，支持 Streamable HTTP 与 stdio，与官方 TS/Python SDK 有互操作验证；B-02 引入 2.4.2，不自研协议 | `[Research-backed]` pub.dev 包文档 |
 
@@ -135,7 +137,7 @@ graph TB
 ```
 lib/
 ├── main.dart                     # 入口：初始化 drift、secure storage、ProviderScope
-├── app/                          # 应用壳：主题（PaperPalette 亮/暗调色板 + 全局深浅模式）、go_router 路由表、应用内语言（app/locale.dart，ENH-17）、应用锁门禁（app_lock_gate.dart，ENH-25）
+├── app/                          # 应用壳：主题（PaperPalette 亮/暗调色板 + 全局深浅模式）、go_router 路由表、应用内语言（app/locale.dart，ENH-17）、应用锁门禁（app_lock_gate.dart，ENH-25）、截屏保护宿主（screen_protection_host.dart，ENH-26）
 ├── l10n/                         # 国际化（ENH-17）：app_zh.arb / app_en.arb（zh 为模板）+ generated/（gen-l10n 产物）+ l10n.dart（context.l10n 扩展）+ error_text.dart（错误文案展示时本地化）
 ├── models/                       # 数据模型（与 drift 表对应的实体；含 MCP 审计条目 mcp_audit_entry.dart，ENH-22；文风档案 work_style_guide.dart 与问答轮次 work_chat_turn.dart，ENH-23）
 ├── data/
@@ -164,9 +166,10 @@ lib/
 │   ├── text_diff.dart            # 段落级文本 diff（ENH-18）：快照与当前文本对比（LCS + 超限回退）
 │   ├── text_search.dart          # 查找/替换匹配原语（ENH-19）：编辑器查找与全书替换共用（大小写折叠、非重叠匹配、UTF-16 偏移）
 │   ├── security/app_lock_auth.dart # 应用锁系统认证适配（local_auth，ENH-25）
+│   ├── security/screen_protection.dart # 截屏保护 MethodChannel（novelphone/security，ENH-26）
 │   ├── word_count.dart           # 中文字数统计
 │   ├── importer/                 # txt/docx/Markdown/EPUB 导入与分章（Markdown/EPUB 为 ENH-24）
-│   ├── exporter/                 # 单章/整作导出（txt/md/docx/epub）、备份 zip 组装与解析（含 manifest + SHA-256 校验预览，ENH-22）与分享
+│   ├── exporter/                 # 单章/整作导出（txt/md/docx/epub）、备份 zip 组装与解析（含 manifest + SHA-256 校验预览，ENH-22）、备份密码加解密（backup_crypto.dart，NPBK v1，ENH-26）与分享
 │   └── cloud/                    # 云备份（B-08）：S3 兼容客户端（SigV4 签名）与备份编排
 └── features/
     ├── works/                    # 作品列表
@@ -175,7 +178,7 @@ lib/
     ├── ai/                       # 续写 / 灵感 / 文风 / 抽取 / 推演 / 问答 / 一致性检查用例编排
     ├── search/                   # 全局搜索（B-06）：跨作品检索章节标题与正文；公共高亮组件（ENH-19，search 与全书替换共用）
     ├── stats/                    # 写作统计（B-07）：每日目标、连击、番茄钟、近 7/30 天字数趋势图（ENH-18）与全年写作热力图（ENH-19）
-    └── settings/                 # key 与模型配置（含每百万 token 价格，ENH-23）、token 统计（含估算费用与月度预算，ENH-23 / ENH-24）、本地备份与恢复（含校验预览）、云备份（B-08）、回收站与 MCP 调用审计（ENH-22）、关于页（ENH-19，含隐私政策外链）、MCP OAuth 授权与技能导入导出（ENH-21 / ENH-22）、应用锁开关与解锁页（ENH-25）
+    └── settings/                 # key 与模型配置（含每百万 token 价格，ENH-23）、token 统计（含估算费用与月度预算，ENH-23 / ENH-24）、本地备份与恢复（含校验预览）、云备份（B-08）、回收站与 MCP 调用审计（ENH-22）、关于页（ENH-19，含隐私政策外链）、MCP OAuth 授权与技能导入导出（ENH-21 / ENH-22）、应用锁开关与解锁页（ENH-25）、截屏保护与备份加密开关（ENH-26）
 ```
 
 | 模块 | 职责 | 输入 | 输出 | 依赖 | 明确不做 |
@@ -194,10 +197,10 @@ lib/
 | core/ai_flavor_rules | 规则引擎检测 | 章节文本 | 问题列表 | 无 | 不做 LLM 检测 |
 | core/text_search | 查找/替换匹配原语（ENH-19）：大小写折叠、非重叠匹配、UTF-16 偏移、段替换计数 | 文本、关键词（+ 替换词） | 匹配区间列表 / 替换结果与次数 | 无 | 不做正则与全词匹配；编辑器查找与全书替换共用同一实现 |
 | core/importer | 解析与分章（由 features 侧经 `Isolate.run` 调用，避免整文同步计算卡 UI，ENH-12）：编码探测 / 正则分章 / docx / Markdown（ENH-24）/ EPUB（ENH-24，OPF spine + XHTML 正文）/ HTML 实体解码 | 文件 bytes | 分割预览 | 无 | 不写库（确认后交 Repository） |
-| core/exporter | 导出文本生成与备份 zip 组装/解析（组装与解析的重活经 isolate 执行，ENH-14 / ENH-15）；备份 manifest 与 SHA-256 校验预览（ENH-22） | 章节数据、导出数据 Map | txt/md/docx bytes、zip bytes、BackupPreview | archive、crypto | 不写库、不直接调分享面板（由 features 触发） |
-| core/cloud | 云备份（B-08）：S3 兼容对象存储读写（SigV4 签名）与备份/恢复编排（上传、列举、清理、下载） | 服务商配置（endpoint/region/bucket/凭证）+ zip bytes / 远端对象列表 | 远端对象列表、下载 bytes、操作结果 | http、core/exporter（zip 组装） | 不直接读写数据库（配置与编排由 features/settings 与 SettingsRepository 协作），不含中心化服务器与账号体系 |
-| features/settings | key/模型配置、token 累计、本地备份与恢复（恢复前校验预览，ENH-22）、云备份配置与触发（B-08）、语言设置（ENH-17）、回收站（ENH-22）、MCP 调用审计（ENH-22）、关于页（ENH-19，package_info_plus 读取版本号 + 隐私说明 + 开源许可）、MCP OAuth 授权（ENH-21，系统浏览器 + loopback 回调）与技能文件 / 粘贴导入、导出分享（ENH-21 / ENH-22）、应用锁开关（ENH-25，开关与禁用均需系统认证） | 用户输入 / 文件 bytes / 粘贴文本 | 经 Repository 落库、经安全存储存 key / 令牌、经 core/cloud 上传下载 | SettingsRepository、TokenStatsRepository、TrashRepository、McpAuditRepository、AiUseCase(testConnection / checkContinuity)、CloudBackupService、McpOAuthClient、AppLockAuthenticator（ENH-25） | 不直接接触数据库、安全存储与网络（file_picker 例外：仅读取用户选中的文件） |
-| l10n | 国际化（ENH-17）：ARB 资源（zh 模板 + en 翻译，859 键）、`context.l10n` 读取扩展、错误文案展示时本地化（error_text.dart） | ARB 生成代码、结构化错误（kind/code/detail） | 本地化文案 | Flutter gen-l10n（编译期生成） | 不翻译 AI 提示词与中文语料域数据（flavor 词库/规则名/导出内容/DB 默认值） |
+| core/exporter | 导出文本生成与备份 zip 组装/解析（组装与解析的重活经 isolate 执行，ENH-14 / ENH-15）；备份 manifest 与 SHA-256 校验预览（ENH-22）；备份密码加解密（ENH-26）：`NPBK` 魔数信封、PBKDF2-HMAC-SHA256 210,000 次、AES-256-GCM，错误密码 / 篡改统一映射 `decryptionFailed` | 章节数据、导出数据 Map、明文 zip bytes + 口令 / 密文 + 口令 | txt/md/docx bytes、zip bytes、`.npbak` bytes、BackupPreview | archive、crypto、cryptography | 不写库、不直接调分享面板（由 features 触发）；不提供明文回退 |
+| core/cloud | 云备份（B-08）：S3 兼容对象存储读写（SigV4 签名）与备份/恢复编排（上传、列举、清理、下载）；开启备份加密时上传 `.npbak` 密文并按扩展名列举（ENH-26） | 服务商配置（endpoint/region/bucket/凭证）+ zip / 密文 bytes / 远端对象列表 | 远端对象列表、下载 bytes、操作结果 | http、core/exporter（zip 组装与加解密） | 不直接读写数据库（配置与编排由 features/settings 与 SettingsRepository 协作），不含中心化服务器与账号体系 |
+| features/settings | key/模型配置、token 累计、本地备份与恢复（恢复前校验预览，ENH-22；加密备份解密，ENH-26）、云备份配置与触发（B-08）、语言设置（ENH-17）、回收站（ENH-22）、MCP 调用审计（ENH-22）、关于页（ENH-19，package_info_plus 读取版本号 + 隐私说明 + 开源许可）、MCP OAuth 授权（ENH-21，系统浏览器 + loopback 回调）与技能文件 / 粘贴导入、导出分享（ENH-21 / ENH-22）、应用锁开关（ENH-25，开关与禁用均需系统认证）、截屏保护与备份加密开关（ENH-26，加密开关需先设置不少于 8 位的备份密码） | 用户输入 / 文件 bytes / 粘贴文本 | 经 Repository 落库、经安全存储存 key / 令牌 / 备份密码、经 core/cloud 上传下载 | SettingsRepository、TokenStatsRepository、TrashRepository、McpAuditRepository、AiUseCase(testConnection / checkContinuity)、CloudBackupService、McpOAuthClient、AppLockAuthenticator（ENH-25） | 不直接接触数据库、安全存储与网络（file_picker 例外：仅读取用户选中的文件） |
+| l10n | 国际化（ENH-17）：ARB 资源（zh 模板 + en 翻译，883 键）、`context.l10n` 读取扩展、错误文案展示时本地化（error_text.dart） | ARB 生成代码、结构化错误（kind/code/detail） | 本地化文案 | Flutter gen-l10n（编译期生成） | 不翻译 AI 提示词与中文语料域数据（flavor 词库/规则名/导出内容/DB 默认值） |
 
 依赖方向：features → repositories / ai 用例 → core/ai → ai_client；无环 `[Expert judgment]`。
 
@@ -630,10 +633,10 @@ Responses（OpenAI Responses 端点，B-01 已实现）：
 | 启动性能 | 冷启动到可编辑 ≤ 3s（中端机） | drift 懒加载、列表分页、避免启动时聚合查询 `[Expert judgment]` |
 | 保存可靠性 | 输入停止 1s 内落盘；进程被杀不丢已保存内容 | 防抖 + 事务写入；保存失败可见可重试 |
 | 编辑流畅度 | 10 万字章节输入不掉帧 | TextField 分段渲染、避免每次按键重建全文组件、字数统计防抖 `[Expert judgment]` |
-| 安全 | key 不出设备；备份不含 key；无遥测上传；可选的本地应用锁 | flutter_secure_storage；zip 导出过滤；除用户配置的模型服务端点外，无任何出网请求 `[Data-backed]` PRD 原则；应用锁（ENH-25）仅在开启后本地调用系统认证，不上传任何生物识别数据 |
+| 安全 | key 不出设备；备份不含 key；无遥测上传；可选的本地应用锁、截屏保护与备份加密 | flutter_secure_storage；zip 导出过滤；除用户配置的模型服务端点外，无任何出网请求 `[Data-backed]` PRD 原则；应用锁（ENH-25）仅在开启后本地调用系统认证，不上传任何生物识别数据；截屏保护（ENH-26）仅在 Android 设置窗口 `FLAG_SECURE`、iOS 退后台时本地盖遮罩，不采集屏幕内容；备份加密（ENH-26）使用 PBKDF2 + AES-256-GCM，密码只存安全存储 |
 | 离线 | 非 AI 功能全离线 | 所有 Repository 本地；AI 失败不影响写作主链路 |
 | 可测试性 | 核心逻辑可单测 | AiClient 可注入 fake 实现；规则引擎纯函数；ContextBuilder 输入为 Repository 接口，可 mock `[Expert judgment]` |
-| 备份 | 整库 zip 可迁移 | 导出全部表数据为 JSON（含正文与回收站条目，供恢复）+ `manifest.json`（schema 版本、导出时间、`data.json` 大小与 SHA-256）+ 各作品 markdown 全文（供人工查阅与迁移）；恢复前校验哈希并预览作品/章节/角色数量（旧备份无 manifest 仍可恢复），支持合并/覆盖 |
+| 备份 | 整库 zip 可迁移 | 导出全部表数据为 JSON（含正文与回收站条目，供恢复）+ `manifest.json`（schema 版本、导出时间、`data.json` 大小与 SHA-256）+ 各作品 markdown 全文（供人工查阅与迁移）；恢复前校验哈希并预览作品/章节/角色数量（旧备份无 manifest 仍可恢复），支持合并/覆盖；可选密码加密（ENH-26）在 zip 外层封装 `NPBK` v1 信封（PBKDF2-HMAC-SHA256 210,000 次 → AES-256-GCM），导出 / 恢复 / 云备份同一口径 |
 | 国际化 | zh / en 双语 UI，默认跟随系统（ENH-17） | Flutter gen-l10n + ARB（zh 为模板，值即原硬编码串保证 zh 行为不变；en 计数用 ICU plural）；`context.l10n` 统一读取；语言设置三态（跟随系统 / 简体中文 / English，落 `APP_SETTING.app_locale`，null=跟随系统）；错误文案经 `error_text.dart` 展示时本地化；AI 提示词、flavor 词库/规则名、导出内容与 DB 默认值保持中文（域数据不随 UI 语言变化）`[Expert judgment]` |
 
 ---
@@ -645,6 +648,10 @@ Responses（OpenAI Responses 端点，B-01 已实现）：
 错误文案本地化（ENH-17）：错误对象的 message 保持 zh 构造不变（保护既有行为与断言），另携带结构化字段 `kind` / `code` / `detail`；UI 展示统一经 `lib/l10n/error_text.dart` 的 `aiErrorText` / `aiFailureText`（AiFailed / CheckDeepFailed 事件）/ `cloudErrorText` / `backupErrorText` / `testResultText` 按当前 locale 重组合文案；类型或字段无法识别时回退原始 message / toString，保证信息不丢。
 
 应用锁（ENH-25）：开关默认关闭，状态落 `APP_SETTING.app_lock_enabled`。`AppLockController`（`features/settings/app_lock_controller.dart`）在冷启动时读取开关，并在 `AppLifecycleState` 变为后台时标记锁定、回到前台时重新加锁（认证进行中忽略生命周期事件，避免系统认证页自身进出前后台造成误锁）。`AppLockGate`（`lib/app/app_lock_gate.dart`）位于 `MaterialApp.builder` 内，锁定态用 `Offstage` 导航器 + 全屏解锁页**覆盖**原界面而非销毁路由——编辑器文本控制器与未保存内容得以保留，解锁后回到原页面。认证统一经 `AppLockAuthenticator`（`lib/core/security/app_lock_auth.dart`，`local_auth`）：`biometricOnly: false` 允许设备 PIN / 图案 / 密码兜底，`persistAcrossBackgrounding: true` + `sensitiveTransaction: true` 约束认证生命周期；开启与关闭应用锁都必须先通过一次系统认证，设备未配置任何安全锁时禁用开关并提示。平台侧：Android `MainActivity` 继承 `FlutterFragmentActivity`（`local_auth` 的 BiometricPrompt 要求）、清单声明 `android.permission.USE_BIOMETRIC`、日间 / 夜间启动主题改用 AppCompat 并引入 `androidx.appcompat:appcompat:1.7.1`；iOS 在 `Info.plist` 声明 `NSFaceIDUsageDescription`。应用锁只保护本机 UI 入口，不改变数据库与备份的既有隐私口径（数据仍不加密落盘，备份仍不含 key）。
+
+截屏保护（ENH-26）：开关默认关闭，状态落 `APP_SETTING.screen_protection_enabled`。`ScreenProtectionHost`（`lib/app/screen_protection_host.dart`）挂在 `MaterialApp.builder` 的 `AppLockGate` 外层：启动时读取已存设置并同步原生窗口，之后通过 `screenProtectionEnabledProvider` 监听开关变化。通道为 `MethodChannel('novelphone/security')` 的 `setSecureScreen {'enabled': bool}`：Android 端 `MainActivity` 增删 `WindowManager.LayoutParams.FLAG_SECURE`（同时阻止截屏 / 录屏并使最近任务缩略图空白）；iOS 端在 `AppDelegate.applicationWillResignActive` 立即向窗口加不透明 `.systemBackground` 遮罩、`applicationDidBecomeActive` 移除，避免切换器快照泄露正文。iOS 不提供阻止前台截屏的公开 API，此限制在设置项说明与文档中明确标注；Flutter 侧对 `MissingPluginException` / `PlatformException` 静默降级，原生不可用时不影响设置保存与写作。
+
+备份密码加密（ENH-26）：`lib/core/exporter/backup_crypto.dart` 定义 `NPBK` v1 信封——4 字节魔数 `NPBK` + 1 字节版本 + 16 字节随机 salt + 12 字节随机 nonce + 16 字节 GCM MAC + 密文；密钥经 PBKDF2-HMAC-SHA256（210,000 次、256 位）从用户口令派生，正文用 AES-256-GCM 认证加密（`cryptography` 2.9）。口令最短 8 位，仅以 `backup_passphrase` 存 `flutter_secure_storage`，不落库、不进入任何备份；开关状态落 `APP_SETTING.backup_encryption_enabled`。本地导出与云备份共用同一封装，加密文件扩展名 `.npbak`；云备份对象与列举过滤同步支持 `.npbak`，自动备份在开关开启但口令缺失时直接跳过、不发起网络请求。开启加密后不存在明文回退：口令缺失 / 过短即中止导出并提示。恢复侧按魔数而非扩展名识别（Android `MimeTypeMap` 不认识 `.npbak`，文件选择器因此不做扩展名过滤，由魔数与 zip 解析校验格式），加密文件先经 `decryptBackupBytesAsync`（`Isolate.run`）解密再走既有 manifest / SHA-256 预览；旧版明文 `.zip` 保持原流程。错误密码、密文篡改、版本不支持分别映射 `BackupErrorKind.decryptionFailed` / `invalidFormat`，UI 统一提示「密码错误或备份文件已损坏，无法解密」。
 
 ---
 
@@ -696,7 +703,7 @@ Responses（OpenAI Responses 端点，B-01 已实现）：
 - CI（ENH-16 / ENH-21）：`.github/workflows/ci.yml` 在 push / PR to main 上执行 `flutter pub get` → `dart format --output=none --set-exit-if-changed lib test` → `flutter analyze` → `flutter test`，Flutter 版本固定 3.44.3 与本地一致；格式校验只覆盖 `lib` / `test`（`tool/` 为开发工具，只参与 analyze）。ENH-21 新增 `ios-build` job（`macos-latest`）：同一 Flutter 版本下执行 `flutter build ios --release --no-codesign`，尽早发现 iOS 工程 / 插件集成问题；只做编译校验、不产出可分发产物，也不需要签名证书。ENH-24 新增 `android-release` job（`main` push 或手动触发）：用 runner 内临时生成的 keystore 构建 AAB 与分 ABI APK，并作为 artifacts 保留 14 天；CI 签名与正式发布签名不同，产物仅供构建链路与结构验证，正式上架按 `docs/RELEASE.md` §2.1 用离线证书重建。
 - 假 LLM 服务（ENH-16 / ENH-22，开发工具）：`tool/fake_llm_server.dart` 在本机回环模拟 Chat Completions / Messages 正常流与 429 / 5xx / 内容过滤错误（分场景路径 `openai` / `anthropic` / `openai-429-first` / `openai-429-always` / `openai-500` / `openai-filter` 等，`GET /stats` 观测请求计数、`GET /stats/reset` 重置），`dart run tool/fake_llm_server.dart [port] [chunkDelayMs]` 启动；配合 `adb reverse tcp:8899 tcp:8899` 可在真机验证重试与错误分类路径，无需真实供应商 Key，不随应用产物发布。ENH-22 新增 `/openai-tool` 场景：按请求里的工具清单优先选 `mcp_` 前缀（或名字含 echo）的工具先返回 `tool_calls`，收到 `role: tool` 结果后再输出文本——用于真机贯通「MCP 工具注入 → 远程调用 → 结果回传 → 审计落库」；ENH-23 新增 `/openai-style`（文风档案 JSON）、`/openai-extract`（角色/设定抽取 JSON）与 `/openai-plan`（剧情推演 JSON）三个场景，供真机验证文风提取、设定补全与剧情推演；ENH-25 新增 `/openai-empty-first`（首次仅返回角色行与 `finish_reason: length`、无可见正文，第二次正常；两次请求均打印 `max_tokens`，用于核对自动翻倍）。SSE 响应显式 `bufferOutput = false`：Dart `HttpResponse` 默认缓冲输出，整段流会攒到连接关闭才发给客户端，导致真机无法观察增量输出与「停止保留部分结果」。`tool/fake_mcp_oauth_server.dart` 提供对应的假 MCP / 授权服务器。
 - 本地增强约定（ENH-22）：schemaVersion 11（WORK / CHAPTER 的 `deletedAt` 软删除列）；回收站保留 30 天，`TrashRepository.purgeExpired` 由启动维护（`lib/app/startup_maintenance.dart`）与回收站页触发，永久删除才清理关联行；MCP 审计最多 100 条、存 APP_SETTING、不含认证信息；备份 zip 的 `manifest.json` 带 `dataSha256`，旧备份无 manifest 仍可恢复；设定一致性检查任务键 `task_model_continuity`（回退 `task_model_check` → 续写组）。
-- 本地增强约定（ENH-23）：schemaVersion 12（`WORK.styleGuide` 文风档案 JSON 列 + `MODEL_GROUP.inputPricePerMillion` / `outputPricePerMillion` 费用单价列，`if (from < 12)` 块三次 `m.addColumn`）；文风档案空串表示未配置，备份按普通字段映射；作品问答历史存 APP_SETTING `work_chat_<workId>`、最多 40 轮、不随备份导出；AI 连接超时 30 秒（`aiConnectTimeout`）、流空闲超时 90 秒（`aiStreamIdleTimeout`，直接作用于原始 `response.stream`），均映射为 `AiErrorKind.network`；token 统计页按模型组每百万 token 单价（CNY）估算费用，未填单价时提示不可估算；ENH-24 新增月度 AI 预算（`APP_SETTING.ai_monthly_budget_cny`，按自然月聚合 `AI_USAGE.createdAt`，0 表示不限制，80% 提示 / 100% 红色告警但不阻断调用）；导入新增 Markdown / EPUB（见 3.1），剧情推演转章纲与批量摘要见 5.3 / 5.6。ENH-25 新增应用锁（`APP_SETTING.app_lock_enabled`，默认关闭；平台侧需 `FlutterFragmentActivity` / `USE_BIOMETRIC` / AppCompat 启动主题与 iOS `NSFaceIDUsageDescription`）与空正文自动重试（见 5.2）。ARB zh / en 各 859 键；当前 `flutter test` 458 用例。
+- 本地增强约定（ENH-23）：schemaVersion 12（`WORK.styleGuide` 文风档案 JSON 列 + `MODEL_GROUP.inputPricePerMillion` / `outputPricePerMillion` 费用单价列，`if (from < 12)` 块三次 `m.addColumn`）；文风档案空串表示未配置，备份按普通字段映射；作品问答历史存 APP_SETTING `work_chat_<workId>`、最多 40 轮、不随备份导出；AI 连接超时 30 秒（`aiConnectTimeout`）、流空闲超时 90 秒（`aiStreamIdleTimeout`，直接作用于原始 `response.stream`），均映射为 `AiErrorKind.network`；token 统计页按模型组每百万 token 单价（CNY）估算费用，未填单价时提示不可估算；ENH-24 新增月度 AI 预算（`APP_SETTING.ai_monthly_budget_cny`，按自然月聚合 `AI_USAGE.createdAt`，0 表示不限制，80% 提示 / 100% 红色告警但不阻断调用）；导入新增 Markdown / EPUB（见 3.1），剧情推演转章纲与批量摘要见 5.3 / 5.6。ENH-25 新增应用锁（`APP_SETTING.app_lock_enabled`，默认关闭；平台侧需 `FlutterFragmentActivity` / `USE_BIOMETRIC` / AppCompat 启动主题与 iOS `NSFaceIDUsageDescription`）与空正文自动重试（见 5.2）。ENH-26 新增截屏保护（`APP_SETTING.screen_protection_enabled`，默认关闭；Android `FLAG_SECURE`，iOS 退后台遮罩）与备份密码加密（`APP_SETTING.backup_encryption_enabled` + 安全存储 `backup_passphrase`；`.npbak` / NPBK v1 / PBKDF2 210,000 次 + AES-256-GCM；无明文回退，恢复兼容旧 zip）。ARB zh / en 各 883 键；当前 `flutter test` 469 用例。
 - 国际化（ENH-17）：`l10n.yaml` 配置 `arb-dir: lib/l10n`、`template-arb-file: app_zh.arb`（zh 为模板）、输出 `lib/l10n/generated/`、`nullable-getter: false`；`pubspec.yaml` 开启 `flutter: generate: true`，`flutter pub get` 自动重新生成（产物确定性、经 `dart format` 保持整洁）。UI 读取统一 `context.l10n.x`（`lib/l10n/l10n.dart` 扩展）；新增 UI 文案一律加键到两份 ARB，禁止硬编码中文（AI 提示词、`flavor_lexicon.dart` / `ai_flavor_rules.dart` 语料、导出内容与 DB 默认数据除外）；en 计数文案用 ICU plural，zh 模板值为原硬编码串（保证 zh 行为与全部既有测试断言不变）；iOS 侧 `Info.plist` 声明 `CFBundleLocalizations`。
 - iOS 构建基线（ENH-18）：`ios/Runner.xcodeproj/project.pbxproj` 的 `IPHONEOS_DEPLOYMENT_TARGET` 为 15.0（Xcode 27 最低支持的部署目标即 15.0，13.0 会被直接拒绝构建）；Flutter 3.44.3 走 Swift Package Manager（`ios/Flutter/ephemeral/Packages`），本机未安装 CocoaPods 也可 `flutter build ios --no-codesign --release` 构建通过。iOS 侧暂以无签名 release 构建为验证基线（本机无 Apple 签名证书，未做真机 / 模拟器安装），Android 仍为主要交付与真机验收目标。
 - 品牌资源（ENH-19）：应用图标为钢笔笔尖主题自适应图标（Android `mipmap-anydpi-v26/ic_launcher.xml` 前景/背景分层 + 各密度 PNG 回退；iOS `Assets.xcassets/AppIcon.appiconset` 全尺寸替换；源图在 `vibe_images/`，不入库）。启动闪屏在 Android 12+ 由 `values-v31` 主题（`windowSplashScreenBackground` + `windowSplashScreenAnimatedIcon`）呈现，旧版本走 `launch_background.xml`（暖纸色 + 居中图标），深浅配色见 `values/colors.xml` 与 `values-night/colors.xml`（另有 `values-night-v31/`）；iOS 侧 `LaunchScreen.storyboard` + `LaunchBackground.colorset` 同理，均随 release 构建验证。关于页（`features/settings/about_page.dart`）展示应用名、版本号（package_info_plus）、隐私说明要点与开源许可清单入口。

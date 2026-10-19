@@ -5251,6 +5251,150 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'未填单价'**
   String get modelGroupsNoPrice;
+
+  /// No description provided for @settingsScreenProtection.
+  ///
+  /// In zh, this message translates to:
+  /// **'截屏保护'**
+  String get settingsScreenProtection;
+
+  /// No description provided for @settingsScreenProtectionSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'阻止截屏、录屏与后台缩略图泄露正文'**
+  String get settingsScreenProtectionSubtitle;
+
+  /// No description provided for @settingsScreenProtectionEnabled.
+  ///
+  /// In zh, this message translates to:
+  /// **'截屏保护已开启'**
+  String get settingsScreenProtectionEnabled;
+
+  /// No description provided for @settingsScreenProtectionDisabled.
+  ///
+  /// In zh, this message translates to:
+  /// **'截屏保护已关闭'**
+  String get settingsScreenProtectionDisabled;
+
+  /// No description provided for @settingsBackupEncryption.
+  ///
+  /// In zh, this message translates to:
+  /// **'备份加密'**
+  String get settingsBackupEncryption;
+
+  /// No description provided for @settingsBackupEncryptionOff.
+  ///
+  /// In zh, this message translates to:
+  /// **'未开启：备份文件为明文 zip'**
+  String get settingsBackupEncryptionOff;
+
+  /// No description provided for @settingsBackupEncryptionOn.
+  ///
+  /// In zh, this message translates to:
+  /// **'已开启：导出与云备份使用 AES-256-GCM 加密'**
+  String get settingsBackupEncryptionOn;
+
+  /// No description provided for @settingsBackupEncryptionEnabled.
+  ///
+  /// In zh, this message translates to:
+  /// **'备份加密已开启'**
+  String get settingsBackupEncryptionEnabled;
+
+  /// No description provided for @settingsBackupEncryptionDisabled.
+  ///
+  /// In zh, this message translates to:
+  /// **'备份加密已关闭'**
+  String get settingsBackupEncryptionDisabled;
+
+  /// No description provided for @settingsBackupEncryptionDisableTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'关闭备份加密？'**
+  String get settingsBackupEncryptionDisableTitle;
+
+  /// No description provided for @settingsBackupEncryptionDisableBody.
+  ///
+  /// In zh, this message translates to:
+  /// **'已加密的旧备份仍需原密码恢复；之后的新备份将以明文保存。'**
+  String get settingsBackupEncryptionDisableBody;
+
+  /// No description provided for @settingsBackupEncryptionDisableAction.
+  ///
+  /// In zh, this message translates to:
+  /// **'关闭'**
+  String get settingsBackupEncryptionDisableAction;
+
+  /// No description provided for @backupEncryptMissingPassphrase.
+  ///
+  /// In zh, this message translates to:
+  /// **'未找到备份密码，请先在设置中重新设置'**
+  String get backupEncryptMissingPassphrase;
+
+  /// No description provided for @backupPassphraseSetTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'设置备份密码'**
+  String get backupPassphraseSetTitle;
+
+  /// No description provided for @backupPassphraseSetBody.
+  ///
+  /// In zh, this message translates to:
+  /// **'密码至少 {count} 位。忘记密码将无法恢复此后的加密备份，请妥善保管。'**
+  String backupPassphraseSetBody(int count);
+
+  /// No description provided for @backupPassphraseLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'备份密码'**
+  String get backupPassphraseLabel;
+
+  /// No description provided for @backupPassphraseConfirmLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'再次输入密码'**
+  String get backupPassphraseConfirmLabel;
+
+  /// No description provided for @backupPassphraseTooShort.
+  ///
+  /// In zh, this message translates to:
+  /// **'密码至少 {count} 位'**
+  String backupPassphraseTooShort(int count);
+
+  /// No description provided for @backupPassphraseMismatch.
+  ///
+  /// In zh, this message translates to:
+  /// **'两次输入的密码不一致'**
+  String get backupPassphraseMismatch;
+
+  /// No description provided for @backupPassphraseRequired.
+  ///
+  /// In zh, this message translates to:
+  /// **'请输入备份密码'**
+  String get backupPassphraseRequired;
+
+  /// No description provided for @backupPassphrasePromptTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'输入备份密码'**
+  String get backupPassphrasePromptTitle;
+
+  /// No description provided for @backupPassphrasePromptBody.
+  ///
+  /// In zh, this message translates to:
+  /// **'该备份文件已加密，请输入导出时设置的密码。'**
+  String get backupPassphrasePromptBody;
+
+  /// No description provided for @backupPassphraseUnlock.
+  ///
+  /// In zh, this message translates to:
+  /// **'解密恢复'**
+  String get backupPassphraseUnlock;
+
+  /// No description provided for @backupErrorDecryptionFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'密码错误或备份文件已损坏，无法解密'**
+  String get backupErrorDecryptionFailed;
 }
 
 class _AppLocalizationsDelegate

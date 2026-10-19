@@ -635,6 +635,43 @@ class SettingsRepository {
   Future<void> setAppLockEnabled(bool enabled) =>
       setSetting(appLockEnabledKey, enabled ? '1' : '0');
 
+  /// 截屏 / 后台缩略图保护（ENH-26）：默认关闭。
+  /// Android 通过 FLAG_SECURE 阻止截屏、录屏与最近任务缩略图；
+  /// iOS 在应用失活时以原生遮罩覆盖窗口。
+  static const String screenProtectionEnabledKey = 'screen_protection_enabled';
+
+  Stream<bool> watchScreenProtectionEnabled() =>
+      _settings.watch(screenProtectionEnabledKey).map((value) => value == '1');
+
+  Future<bool> screenProtectionEnabled() async =>
+      await getSetting(screenProtectionEnabledKey) == '1';
+
+  Future<void> setScreenProtectionEnabled(bool enabled) =>
+      setSetting(screenProtectionEnabledKey, enabled ? '1' : '0');
+
+  /// 备份密码（ENH-26）：只存设备安全存储，不入库、不随备份导出。
+  /// 开启加密后自动备份与手动备份共用该密码；关闭加密时删除。
+  static const String backupPassphraseRef = 'backup_passphrase';
+
+  Future<String?> readBackupPassphrase() => _keyStore.read(backupPassphraseRef);
+
+  Future<void> saveBackupPassphrase(String passphrase) =>
+      _keyStore.write(backupPassphraseRef, passphrase);
+
+  Future<void> clearBackupPassphrase() => _keyStore.delete(backupPassphraseRef);
+
+  /// 备份加密开关（ENH-26）：默认关闭；关闭时新备份为明文 zip。
+  static const String backupEncryptionEnabledKey = 'backup_encryption_enabled';
+
+  Stream<bool> watchBackupEncryptionEnabled() =>
+      _settings.watch(backupEncryptionEnabledKey).map((value) => value == '1');
+
+  Future<bool> backupEncryptionEnabled() async =>
+      await getSetting(backupEncryptionEnabledKey) == '1';
+
+  Future<void> setBackupEncryptionEnabled(bool enabled) =>
+      setSetting(backupEncryptionEnabledKey, enabled ? '1' : '0');
+
   /// 月度 AI 预算（元，ENH-24）。0 表示未设置预算。
   static const String aiMonthlyBudgetKey = 'ai_monthly_budget_cny';
 

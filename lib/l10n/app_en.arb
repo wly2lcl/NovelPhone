@@ -964,5 +964,43 @@
   "tokenStatsBudgetInvalid": "Enter a valid amount",
   "tokenStatsBudgetSaved": "Monthly budget updated",
   "modelGroupsPriceLine": "¥{input} / ¥{output} per 1M tokens",
-  "modelGroupsNoPrice": "No price set"
+  "modelGroupsNoPrice": "No price set",
+  "settingsScreenProtection": "Screen protection",
+  "settingsScreenProtectionSubtitle": "Block screenshots, screen recording and background thumbnails from exposing your manuscript",
+  "settingsScreenProtectionEnabled": "Screen protection enabled",
+  "settingsScreenProtectionDisabled": "Screen protection disabled",
+  "settingsBackupEncryption": "Backup encryption",
+  "settingsBackupEncryptionOff": "Off: backups are plain zip files",
+  "settingsBackupEncryptionOn": "On: exports and cloud backups use AES-256-GCM",
+  "settingsBackupEncryptionEnabled": "Backup encryption enabled",
+  "settingsBackupEncryptionDisabled": "Backup encryption disabled",
+  "settingsBackupEncryptionDisableTitle": "Turn off backup encryption?",
+  "settingsBackupEncryptionDisableBody": "Old encrypted backups still need the original password; new backups will be saved as plaintext.",
+  "settingsBackupEncryptionDisableAction": "Turn off",
+  "backupEncryptMissingPassphrase": "Backup password not found. Set it again in Settings.",
+  "backupPassphraseSetTitle": "Set backup password",
+  "backupPassphraseSetBody": "At least {count} characters. If you forget it, encrypted backups cannot be recovered.",
+  "@backupPassphraseSetBody": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "backupPassphraseLabel": "Backup password",
+  "backupPassphraseConfirmLabel": "Confirm password",
+  "backupPassphraseTooShort": "Use at least {count} characters",
+  "@backupPassphraseTooShort": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "backupPassphraseMismatch": "Passwords do not match",
+  "backupPassphraseRequired": "Enter the backup password",
+  "backupPassphrasePromptTitle": "Enter backup password",
+  "backupPassphrasePromptBody": "This backup is encrypted. Enter the password used when it was exported.",
+  "backupPassphraseUnlock": "Decrypt and restore",
+  "backupErrorDecryptionFailed": "Wrong password or corrupted backup file"
 }

@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import '../../data/repositories/backup_repository.dart';
 import '../../models/cloud_backup_config.dart';
 import '../exporter/backup_archive.dart';
+import '../exporter/backup_crypto.dart';
 import 'cloud_storage_client.dart';
 
 /// 一次云备份的结果。
@@ -32,6 +33,7 @@ class CloudBackupService {
     required CloudBackupConfig config,
     required String accessKeyId,
     required String secretAccessKey,
+    this.passphrase,
     CloudStorageClient? client,
     DateTime Function()? clock,
   }) : _repository = backupRepository,
@@ -49,15 +51,29 @@ class CloudBackupService {
 
   final BackupRepository _repository;
   final CloudBackupConfig _config;
+
+  /// 非空表示上传前用该密码加密（ENH-26）。
+  final String? passphrase;
   final DateTime Function() _clock;
   final CloudStorageClient _client;
   final bool _ownsClient;
 
   /// 立即备份：上传当前整库备份，并按保留份数清理最旧文件。
   Future<CloudBackupResult> backupNow() async {
-    final bytes = await exportBackupZipBytes(_repository);
-    final key = '${_config.normalizedPrefix}${objectStamp(_clock())}.zip';
-    await _client.putObject(key, bytes, contentType: 'application/zip');
+    var bytes = await exportBackupZipBytes(_repository);
+    final passphrase = this.passphrase;
+    final encrypted = passphrase != null && passphrase.isNotEmpty;
+    if (encrypted) {
+      bytes = await encryptBackupBytesAsync(bytes, passphrase);
+    }
+    final extension = encrypted ? kEncryptedBackupExtension : 'zip';
+    final key =
+        '${_config.normalizedPrefix}${objectStamp(_clock())}.$extension';
+    await _client.putObject(
+      key,
+      bytes,
+      contentType: encrypted ? 'application/octet-stream' : 'application/zip',
+    );
     final pruned = await pruneOldBackups();
     return CloudBackupResult(key: key, bytes: bytes.length, pruned: pruned);
   }
@@ -68,7 +84,12 @@ class CloudBackupService {
     final objects = await _client.listObjects(prefix);
     final backups =
         objects
-            .where((o) => o.key.startsWith(prefix) && o.key.endsWith('.zip'))
+            .where(
+              (o) =>
+                  o.key.startsWith(prefix) &&
+                  (o.key.endsWith('.zip') ||
+                      o.key.endsWith('.$kEncryptedBackupExtension')),
+            )
             .toList()
           ..sort((a, b) => b.key.compareTo(a.key));
     return backups;

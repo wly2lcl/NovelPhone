@@ -7,6 +7,7 @@ import 'package:http/testing.dart';
 import 'package:novelphone/core/cloud/cloud_backup_service.dart';
 import 'package:novelphone/core/cloud/cloud_storage_client.dart';
 import 'package:novelphone/core/cloud/s3_signer.dart';
+import 'package:novelphone/core/exporter/backup_crypto.dart';
 import 'package:novelphone/data/db.dart';
 import 'package:novelphone/data/repositories/backup_repository.dart';
 import 'package:novelphone/data/repositories/settings_repository.dart';
@@ -274,7 +275,11 @@ void main() {
 
     tearDown(() async => db.close());
 
-    CloudBackupService serviceWith(List<DateTime> times, {int keepCount = 2}) {
+    CloudBackupService serviceWith(
+      List<DateTime> times, {
+      int keepCount = 2,
+      String? passphrase,
+    }) {
       var index = 0;
       return CloudBackupService(
         backupRepository: BackupRepository(db),
@@ -287,6 +292,7 @@ void main() {
         ),
         accessKeyId: 'ak',
         secretAccessKey: 'sk',
+        passphrase: passphrase,
         client: storage,
         clock: () => times[index++],
       );
@@ -346,6 +352,24 @@ void main() {
       expect(second.pruned, 1);
       expect(storage.objects, hasLength(1));
     });
+
+    test('配置密码后上传 .npbak，且可用同一密码解出原备份', () async {
+      final service = serviceWith(<DateTime>[
+        DateTime(2026, 10, 8, 10, 0, 0),
+      ], passphrase: 'cloud-pass-123');
+
+      final result = await service.backupNow();
+      expect(result.key, endsWith('.npbak'));
+
+      final bytes = storage.objects[result.key]!;
+      expect(isEncryptedBackup(bytes), isTrue);
+      final zip = await decryptBackupBytes(bytes, 'cloud-pass-123');
+      expect(zip.length, greaterThan(0));
+      expect(String.fromCharCodes(zip.take(2)), 'PK');
+
+      final backups = await service.listBackups();
+      expect(backups.map((o) => o.key), <String>[result.key]);
+    }, timeout: const Timeout(Duration(seconds: 90)));
   });
 
   group('云备份自动调度', () {
@@ -477,6 +501,22 @@ void main() {
       ).checkAndRun();
       expect(await settings.cloudLastBackupAt(), isNull);
     });
+
+    test('开启加密但缺密码时不上传；补密码后自动上传 .npbak', () async {
+      storage = _FakeStorageModel();
+      await enableAuto();
+      await settings.setBackupEncryptionEnabled(true);
+
+      await scheduler(DateTime(2026, 10, 8, 10)).checkAndRun();
+      expect(storage.objects, isEmpty);
+      expect(await settings.cloudLastBackupAt(), isNull);
+
+      await settings.saveBackupPassphrase('auto-pass-123');
+      await scheduler(DateTime(2026, 10, 8, 10)).checkAndRun();
+      expect(storage.objects, hasLength(1));
+      expect(storage.objects.keys.single, endsWith('.npbak'));
+      expect(await settings.cloudLastBackupAt(), DateTime(2026, 10, 8, 10));
+    }, timeout: const Timeout(Duration(seconds: 90)));
   });
 
   group('SettingsRepository 云备份持久化', () {
@@ -517,6 +557,39 @@ void main() {
       await settings.clearCloudCredentials();
       expect(await settings.readCloudAccessKey(), isNull);
       expect(await settings.readCloudSecretKey(), isNull);
+
+      await db.close();
+    });
+
+    test('截屏保护 / 备份加密开关落库，密码只进安全存储', () async {
+      final db = AppDatabase.memory();
+      final keyStore = InMemoryKeyStore();
+      final settings = SettingsRepository(db, keyStore);
+
+      expect(await settings.screenProtectionEnabled(), isFalse);
+      await settings.setScreenProtectionEnabled(true);
+      expect(await settings.screenProtectionEnabled(), isTrue);
+      expect(
+        await settings.getSetting(
+          SettingsRepository.screenProtectionEnabledKey,
+        ),
+        '1',
+      );
+
+      expect(await settings.backupEncryptionEnabled(), isFalse);
+      await settings.setBackupEncryptionEnabled(true);
+      await settings.saveBackupPassphrase('pass-123456');
+      expect(await settings.backupEncryptionEnabled(), isTrue);
+      expect(await settings.readBackupPassphrase(), 'pass-123456');
+
+      final raw = await settings.getSetting(
+        SettingsRepository.backupEncryptionEnabledKey,
+      );
+      expect(raw, '1');
+      expect(raw, isNot(contains('pass-123456')));
+
+      await settings.clearBackupPassphrase();
+      expect(await settings.readBackupPassphrase(), isNull);
 
       await db.close();
     });

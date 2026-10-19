@@ -13,7 +13,7 @@ Two design principles:
 - **Your data stays yours** — SQLite storage on device, API keys in the OS secure store, backups to local files or your own object storage;
 - **Curating the "AI flavor"** — a built-in rule engine plus optional LLM deep-check flags clichés and repetitive sentence patterns with locate-and-replace actions; AI continuation generates multiple candidates in parallel for you to compare.
 
-Status: the MVP scope (78 / 78) is complete, followed by 25 enhancements (ENH-01~25, including a full Simplified-Chinese / English bilingual UI, MCP OAuth 2.1 PKCE and skill front-matter import, accessibility semantics, a branded app icon / launch splash, release-artifact delivery, plus the recycle bin, MCP call audit, backup checksum preview, skill export, style profile, AI setting completion, plot brainstorming, work Q&A, whole-work consistency scan and stability hardening; ENH-24 adds Markdown / EPUB import, plot-to-outline transfer, relation extraction, batch summaries, a monthly AI budget and release closure; ENH-25 adds automatic output-limit retry for empty reasoning-model responses and an app lock backed by biometrics / device credentials). Android release signing, AAB / split-ABI APKs and GitHub Actions CI (including an iOS unsigned-build job and release-artifact archiving) are in place; the iOS unsigned release build passes and 458 automated tests pass. Real-device acceptance records are in [docs/TODO.md](docs/TODO.md) (Chinese). On 2026-10-18 the ENH-23 style profile, AI setting completion and plot brainstorming were re-verified against two real model channels — `deepseek-v4-flash` and `agnes-3.0-flash` (portrait comparison screenshots below).
+Status: the MVP scope (78 / 78) is complete, followed by 26 enhancements (ENH-01~26, including a full Simplified-Chinese / English bilingual UI, MCP OAuth 2.1 PKCE and skill front-matter import, accessibility semantics, a branded app icon / launch splash, release-artifact delivery, plus the recycle bin, MCP call audit, backup checksum preview, skill export, style profile, AI setting completion, plot brainstorming, work Q&A, whole-work consistency scan and stability hardening; ENH-24 adds Markdown / EPUB import, plot-to-outline transfer, relation extraction, batch summaries, a monthly AI budget and release closure; ENH-25 adds automatic output-limit retry for empty reasoning-model responses and an app lock backed by biometrics / device credentials; ENH-26 adds screenshot / recent-task thumbnail protection and optional passphrase encryption for backups). Android release signing, AAB / split-ABI APKs and GitHub Actions CI (including an iOS unsigned-build job and release-artifact archiving) are in place; the iOS unsigned release build passes and 469 automated tests pass. Real-device acceptance records are in [docs/TODO.md](docs/TODO.md) (Chinese). On 2026-10-18 the ENH-23 style profile, AI setting completion and plot brainstorming were re-verified against two real model channels — `deepseek-v4-flash` and `agnes-3.0-flash` (portrait comparison screenshots below).
 
 ## Screenshots
 
@@ -88,11 +88,13 @@ Status: the MVP scope (78 / 78) is complete, followed by 25 enhancements (ENH-01
 - Branded look: a fountain-pen-nib app icon and a warm launch splash; an About page with the version number, privacy highlights and the open-source license list
 - Accessibility: labeled switches / color swatches / overflow menus, long-press-only actions exposed as custom screen-reader actions (work cards, chapter rows), summary descriptions for charts, and sliders merged with their labels
 - **App lock**: off by default; once enabled it locks on cold launch and whenever the app returns from the background, requiring system biometrics or the device PIN / pattern / password. Enabling and disabling both require system authentication; the lock covers the UI instead of tearing down the editor, so unsaved edits survive
+- **Screen protection**: off by default. On Android, `FLAG_SECURE` blocks screenshots / screen recording and blanks the app thumbnail in the recent-tasks switcher; on iOS an opaque overlay covers the app the moment it resigns active, hiding manuscript text from the app switcher snapshot (iOS exposes no public API to block foreground screenshots — this limit is stated in the UI and docs)
 
 ### Data, stats & privacy
 
 - Backup to file: whole-database zip (`data.json` + `manifest.json` + per-work markdown). Before restoring, a preview shows the export time, data version and work / chapter / character counts and verifies the **SHA-256** checksum (legacy backups without a manifest are clearly labeled); restore either as "merge as new works" or "overwrite local data"
-- Cloud backup: bring your own S3-compatible storage (AWS S3 / Alibaba Cloud OSS / Qiniu Kodo / Tencent COS / Huawei OBS), SigV4 signed directly, off by default, manual and interval-based automatic backups
+- **Passphrase-encrypted backups**: off by default. Local export and cloud backup share the `.npbak` envelope (`NPBK` v1: PBKDF2-HMAC-SHA256 with 210,000 iterations + AES-256-GCM authenticated encryption); the passphrase lives only in the OS secure store and never ships inside a backup. With encryption enabled, a missing passphrase aborts the export — there is no silent plaintext fallback. Restore accepts both encrypted `.npbak` and legacy plaintext `.zip`; wrong passwords and tampered ciphertext both report "wrong password or corrupted backup"
+- Cloud backup: bring your own S3-compatible storage (AWS S3 / Alibaba Cloud OSS / Qiniu Kodo / Tencent COS / Huawei OBS), SigV4 signed directly, off by default, manual and interval-based automatic backups; when backup encryption is on, cloud objects are `.npbak` ciphertext too, and scheduled backups skip without any network request when the passphrase is missing
 - Writing stats: daily word-count goal progress, writing streak, pomodoro, a 7 / 30-day word-count trend chart and a year-long writing heatmap
 - Token & adoption stats: grouped by task · model, tracking generations, token usage, adoption and ignore rates; model groups accept per-million input / output token prices, and the stats page estimates cost in CNY; an optional **monthly AI budget** warns at 80% and turns red at 100% (it does not block calls)
 - Release materials: a standalone bilingual [privacy policy](docs/PRIVACY.md) and [release guide](docs/RELEASE.md) (build commands, Google Play listing, Data safety answers, iOS blockers); the About page opens the privacy policy externally
@@ -106,6 +108,7 @@ Status: the MVP scope (78 / 78) is complete, followed by 25 enhancements (ENH-01
 | Data | Drift (SQLite, schema v12 with a full migration chain) |
 | Secure storage | flutter_secure_storage (keychain / keystore) |
 | App lock | local_auth (biometrics / device credentials) |
+| Privacy protection | Android `FLAG_SECURE` (MethodChannel-controlled, also blanks recent-task thumbnails); iOS background overlay; backup encryption via cryptography (PBKDF2-HMAC-SHA256 210,000 iterations + AES-256-GCM) |
 | Network | http (SSE stream parsing), crypto (cloud-backup SigV4 signing) |
 | AI interop | three endpoint-protocol adapters, mcp_dart (remote MCP), custom-skill orchestration |
 | Platform | Single codebase for iOS / Android; Android is currently the primary delivery and acceptance target (iOS has passed an unsigned release build check) |
@@ -157,7 +160,7 @@ dart run build_runner build --delete-conflicting-outputs
 ```bash
 dart format --output=none --set-exit-if-changed lib test
 flutter analyze
-flutter test    # 458 cases: data layer / editor controller / AI client & orchestration / empty-output retry / style profiles and structured output / work Q&A and retrieval / import parsing (txt / Markdown / EPUB) / MCP OAuth, audit and skill import-export / check engine / app lock / widgets
+flutter test    # 469 cases: data layer / editor controller / AI client & orchestration / empty-output retry / app lock and screen protection / backup encryption (NPBK, wrong passphrase, tamper detection) / style profiles and structured output / work Q&A and retrieval / import parsing (txt / Markdown / EPUB) / MCP OAuth, audit and skill import-export / check engine / widgets
 ```
 
 GitHub Actions ([ci.yml](.github/workflows/ci.yml)) runs the three checks on pushes and pull requests and additionally runs an unsigned iOS release build (`flutter build ios --release --no-codesign`) on `macos-latest` to catch iOS project / plugin integration issues early. On `main` pushes or manual dispatch it also builds an AAB and split-ABI APKs with an ephemeral keystore and archives them for 14 days (build verification only; rebuild with the offline release certificate before uploading, see [docs/RELEASE.md](docs/RELEASE.md)).
@@ -170,7 +173,7 @@ Dev helpers: [tool/fake_llm_server.dart](tool/fake_llm_server.dart) simulates Ch
 |---|---|
 | [docs/PRD.md](docs/PRD.md) | Product positioning, scope and acceptance criteria |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Tech choices, layering, data model and AI-layer design |
-| [docs/TODO.md](docs/TODO.md) | Task list, progress tracking and real-device acceptance records (M1-M4 + ENH-01~25) |
+| [docs/TODO.md](docs/TODO.md) | Task list, progress tracking and real-device acceptance records (M1-M4 + ENH-01~26) |
 | [docs/COMPLIANCE.md](docs/COMPLIANCE.md) | Privacy policy, data-security notes and store-listing points |
 | [docs/RELEASE.md](docs/RELEASE.md) | Build commands, store listing, Data safety answers and known limitations |
 | [docs/PRIVACY.md](docs/PRIVACY.md) | Public privacy policy (bilingual, shared by the store listing and the in-app About page) |

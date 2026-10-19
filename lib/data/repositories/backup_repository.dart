@@ -31,6 +31,9 @@ enum BackupErrorKind {
 
   /// 备份表数据不完整。
   incomplete,
+
+  /// 密码错误或密文被篡改，GCM 校验失败（ENH-26）。
+  decryptionFailed,
 }
 
 /// 备份格式错误：继承 [FormatException] 以保持既有捕获语义

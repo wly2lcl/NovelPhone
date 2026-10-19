@@ -123,6 +123,8 @@ String backupErrorText(AppLocalizations l10n, Object error) {
       return l10n.backupErrorChecksumMismatch;
     case BackupErrorKind.incomplete:
       return l10n.backupErrorIncomplete;
+    case BackupErrorKind.decryptionFailed:
+      return l10n.backupErrorDecryptionFailed;
   }
 }
 

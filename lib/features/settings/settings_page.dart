@@ -117,6 +117,8 @@ class SettingsPage extends ConsumerWidget {
           const Divider(),
           _SectionTitle(l10n.settingsSectionSecurity),
           const _AppLockTile(),
+          const _ScreenProtectionTile(),
+          const _BackupEncryptionTile(),
           const Divider(),
           _SectionTitle(l10n.settingsSectionAbout),
           ListTile(
@@ -160,6 +162,116 @@ class _AppLockTile extends ConsumerStatefulWidget {
 
   @override
   ConsumerState<_AppLockTile> createState() => _AppLockTileState();
+}
+
+/// 截屏 / 录屏 / 后台缩略图保护（ENH-26）。
+/// 值变更后由 [ScreenProtectionHost] 立即同步到原生窗口。
+class _ScreenProtectionTile extends ConsumerWidget {
+  const _ScreenProtectionTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final enabled = ref.watch(screenProtectionEnabledProvider).value ?? false;
+    return SwitchListTile(
+      secondary: const Icon(Icons.visibility_off_outlined),
+      title: Text(l10n.settingsScreenProtection),
+      subtitle: Text(l10n.settingsScreenProtectionSubtitle),
+      value: enabled,
+      onChanged: (value) async {
+        final messenger = ScaffoldMessenger.of(context);
+        await ref
+            .read(settingsRepositoryProvider)
+            .setScreenProtectionEnabled(value);
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              value
+                  ? l10n.settingsScreenProtectionEnabled
+                  : l10n.settingsScreenProtectionDisabled,
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// 备份密码加密开关（ENH-26）：开启时设置密码并存入设备安全存储；
+/// 关闭后新备份为明文，已加密的旧备份仍需原密码恢复。
+class _BackupEncryptionTile extends ConsumerStatefulWidget {
+  const _BackupEncryptionTile();
+
+  @override
+  ConsumerState<_BackupEncryptionTile> createState() =>
+      _BackupEncryptionTileState();
+}
+
+class _BackupEncryptionTileState extends ConsumerState<_BackupEncryptionTile> {
+  bool _busy = false;
+
+  Future<void> _toggle(bool enable) async {
+    final l10n = context.l10n;
+    final messenger = ScaffoldMessenger.of(context);
+    final settings = ref.read(settingsRepositoryProvider);
+    if (enable) {
+      final passphrase = await showSetBackupPassphraseDialog(context);
+      if (passphrase == null) return;
+      setState(() => _busy = true);
+      await settings.saveBackupPassphrase(passphrase);
+      await settings.setBackupEncryptionEnabled(true);
+      if (!mounted) return;
+      setState(() => _busy = false);
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.settingsBackupEncryptionEnabled)),
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.settingsBackupEncryptionDisableTitle),
+        content: Text(l10n.settingsBackupEncryptionDisableBody),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(l10n.commonCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(l10n.settingsBackupEncryptionDisableAction),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    setState(() => _busy = true);
+    await settings.setBackupEncryptionEnabled(false);
+    await settings.clearBackupPassphrase();
+    if (!mounted) return;
+    setState(() => _busy = false);
+    messenger.showSnackBar(
+      SnackBar(content: Text(l10n.settingsBackupEncryptionDisabled)),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final enabled = ref.watch(backupEncryptionEnabledProvider).value ?? false;
+    return SwitchListTile(
+      secondary: const Icon(Icons.enhanced_encryption_outlined),
+      title: Text(l10n.settingsBackupEncryption),
+      subtitle: Text(
+        enabled
+            ? l10n.settingsBackupEncryptionOn
+            : l10n.settingsBackupEncryptionOff,
+      ),
+      value: enabled,
+      onChanged: _busy ? null : _toggle,
+    );
+  }
 }
 
 class _AppLockTileState extends ConsumerState<_AppLockTile> {

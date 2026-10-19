@@ -2883,4 +2883,81 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get modelGroupsNoPrice => '未填单价';
+
+  @override
+  String get settingsScreenProtection => '截屏保护';
+
+  @override
+  String get settingsScreenProtectionSubtitle => '阻止截屏、录屏与后台缩略图泄露正文';
+
+  @override
+  String get settingsScreenProtectionEnabled => '截屏保护已开启';
+
+  @override
+  String get settingsScreenProtectionDisabled => '截屏保护已关闭';
+
+  @override
+  String get settingsBackupEncryption => '备份加密';
+
+  @override
+  String get settingsBackupEncryptionOff => '未开启：备份文件为明文 zip';
+
+  @override
+  String get settingsBackupEncryptionOn => '已开启：导出与云备份使用 AES-256-GCM 加密';
+
+  @override
+  String get settingsBackupEncryptionEnabled => '备份加密已开启';
+
+  @override
+  String get settingsBackupEncryptionDisabled => '备份加密已关闭';
+
+  @override
+  String get settingsBackupEncryptionDisableTitle => '关闭备份加密？';
+
+  @override
+  String get settingsBackupEncryptionDisableBody =>
+      '已加密的旧备份仍需原密码恢复；之后的新备份将以明文保存。';
+
+  @override
+  String get settingsBackupEncryptionDisableAction => '关闭';
+
+  @override
+  String get backupEncryptMissingPassphrase => '未找到备份密码，请先在设置中重新设置';
+
+  @override
+  String get backupPassphraseSetTitle => '设置备份密码';
+
+  @override
+  String backupPassphraseSetBody(int count) {
+    return '密码至少 $count 位。忘记密码将无法恢复此后的加密备份，请妥善保管。';
+  }
+
+  @override
+  String get backupPassphraseLabel => '备份密码';
+
+  @override
+  String get backupPassphraseConfirmLabel => '再次输入密码';
+
+  @override
+  String backupPassphraseTooShort(int count) {
+    return '密码至少 $count 位';
+  }
+
+  @override
+  String get backupPassphraseMismatch => '两次输入的密码不一致';
+
+  @override
+  String get backupPassphraseRequired => '请输入备份密码';
+
+  @override
+  String get backupPassphrasePromptTitle => '输入备份密码';
+
+  @override
+  String get backupPassphrasePromptBody => '该备份文件已加密，请输入导出时设置的密码。';
+
+  @override
+  String get backupPassphraseUnlock => '解密恢复';
+
+  @override
+  String get backupErrorDecryptionFailed => '密码错误或备份文件已损坏，无法解密';
 }

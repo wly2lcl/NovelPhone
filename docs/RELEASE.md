@@ -75,6 +75,13 @@ flutter build ios --release --no-codesign   # CI 已覆盖，可验证 Pod / Xco
 - 功能默认关闭，不改变商店 Data safety 的「不收集」口径；生物识别数据由系统保管，应用只接收校验结果。
 - 验收：开启应用锁（需先通过一次系统认证）→ 冷启动应出现解锁页 → 解锁后回到原页面；切到后台再返回应重新锁定；关闭应用锁同样需系统认证（详见 TODO ENH-25）。
 
+### 2.5 截屏保护与备份加密（ENH-26）的平台前置
+
+- 截屏保护：Android 侧依赖窗口 `FLAG_SECURE`，对系统截屏、录屏与最近任务预览生效（不同厂商 ROM 的表现可能略有差异）；**iOS 无公开 API 阻止应用在前台被主动截屏**，仅通过 `applicationWillResignActive` 遮罩覆盖后台 / 任务切换快照——设置页与隐私政策均已注明。开关由 `MainActivity` / `AppDelegate` 的原生通道实现，Flutter 侧 `ScreenProtectionHost` 在设置变化时下发，无 Android 新权限、无 iOS `Info.plist` 新键。
+- 备份密码加密：加密算法在 Dart 层实现（`cryptography` 2.9，PBKDF2-HMAC-SHA256 210,000 次 + AES-256-GCM），导出 `.npbak`；密码只存 `flutter_secure_storage`，不落库、不进备份、不写日志。发布前确认：开启加密后本地导出与云备份均只产出 `.npbak`（无静默明文回退）；密码错误 / 文件被篡改时拒绝恢复；旧版明文 `.zip` 仍可正常恢复；自动云备份在缺密码时不联网跳过。
+- 验收：开启截屏保护 → `adb shell dumpsys window` 含 `SECURE` 且 `adb shell screencap` 产出 0 字节；关闭后截屏恢复。加密备份 → 错误密码提示「密码错误或备份文件已损坏，无法解密」；正确密码显示导出时间 / 数据版本 / 计数 / SHA-256 校验并通过恢复（详见 TODO ENH-26）。
+- 商店口径不变：以上均为默认关闭的本地能力，不新增数据收集、不新增权限、不改变 Data safety 的「不收集」结论。
+
 ## 3. Google Play 商店资料
 
 ### 3.1 商品信息（中文）
@@ -87,7 +94,7 @@ flutter build ios --release --no-codesign   # CI 已覆盖，可验证 Pod / Xco
 >
 > 需要时，你可以接入自己的大模型服务商（OpenAI 兼容 / Anthropic），获得续写、改写、灵感、逐章摘要、设定补全、剧情推演、作品问答与一致性检查；上下文按预算最小化发送，不经过任何中转服务器。
 >
-> 支持 Markdown / EPUB / txt / docx 导入，txt / docx / markdown / EPUB 导出，整库备份与恢复，自持对象存储云备份，写作统计与热力图。
+> 支持 Markdown / EPUB / txt / docx 导入，txt / docx / markdown / EPUB 导出，整库备份与恢复（可选密码加密），自持对象存储云备份，写作统计与热力图。
 
 - **分类**：图书与工具书 / 生产力（建议主分类「图书与工具书」，次分类「生产力」）
 - **标签**：小说写作、写作工具、AI 写作、本地优先、隐私
@@ -111,7 +118,7 @@ flutter build ios --release --no-codesign   # CI 已覆盖，可验证 Pod / Xco
 | Do you provide a way for users to request that their data is deleted? | 不适用（数据不离开设备）；卸载即删除，应用内可删除作品 / 清空问答历史 / 重置统计 |
 | Data linked to the user | 无 |
 | Data shared with third parties | 无 |
-| 说明备注（如表单允许） | The app has no accounts, ads, analytics or telemetry. AI requests are initiated by the user and sent directly to the user's own model provider with the user's own API key. Optional cloud backup is off by default and goes directly to the user's own storage. |
+| 说明备注（如表单允许） | The app has no accounts, ads, analytics or telemetry. AI requests are initiated by the user and sent directly to the user's own model provider with the user's own API key. Optional cloud backup is off by default and goes directly to the user's own storage. Optional screen protection and backup encryption are on-device features and collect no data. |
 
 > 注意口径：Google 的「收集」指传输离开设备。本应用只有在用户主动触发 AI / MCP / 云备份时才发送最小上下文，且接收方由用户自行配置、凭证由用户自持；按当前 Data safety 定义仍填「不收集」。如未来加入任何遥测或账号，需同步修改本表与隐私政策。
 
@@ -142,6 +149,8 @@ flutter build ios --release --no-codesign   # CI 已覆盖，可验证 Pod / Xco
 - [ ] `flutter build apk --release --split-per-abi` 成功，`apksigner verify` 通过
 - [ ] 真机安装 release 包：冷启动、作品列表、编辑器、导入导出、备份、AI 未配置提示均正常
 - [ ] 应用锁：开启 / 冷启动 / 后台返回 / 关闭四项都正确要求系统认证（设备已设 PIN 或生物识别）
+- [ ] 截屏保护：开启后系统截屏为空白 / 0 字节、最近任务预览被遮挡；关闭后恢复正常（Android 用 `dumpsys window` 确认 `SECURE`；iOS 切后台查看任务切换器）
+- [ ] 备份加密：开启并设置密码 → 本地导出与云备份为 `.npbak`；错误密码被拒绝且数据未变；正确密码可预览并恢复；旧版明文 zip 仍可恢复；自动云备份缺密码时不联网
 - [ ] `docs/PRIVACY.md`、关于页隐私说明、商店 Data safety 三处口径一致
 - [ ] 隐私政策 URL 公网可访问，内容含生效日期与联系方式
 - [ ] 商店截图 / 图标 / 特色图片已上传且无测试数据、无真实 API Key

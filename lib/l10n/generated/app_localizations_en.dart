@@ -3273,4 +3273,87 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get modelGroupsNoPrice => 'No price set';
+
+  @override
+  String get settingsScreenProtection => 'Screen protection';
+
+  @override
+  String get settingsScreenProtectionSubtitle =>
+      'Block screenshots, screen recording and background thumbnails from exposing your manuscript';
+
+  @override
+  String get settingsScreenProtectionEnabled => 'Screen protection enabled';
+
+  @override
+  String get settingsScreenProtectionDisabled => 'Screen protection disabled';
+
+  @override
+  String get settingsBackupEncryption => 'Backup encryption';
+
+  @override
+  String get settingsBackupEncryptionOff => 'Off: backups are plain zip files';
+
+  @override
+  String get settingsBackupEncryptionOn =>
+      'On: exports and cloud backups use AES-256-GCM';
+
+  @override
+  String get settingsBackupEncryptionEnabled => 'Backup encryption enabled';
+
+  @override
+  String get settingsBackupEncryptionDisabled => 'Backup encryption disabled';
+
+  @override
+  String get settingsBackupEncryptionDisableTitle =>
+      'Turn off backup encryption?';
+
+  @override
+  String get settingsBackupEncryptionDisableBody =>
+      'Old encrypted backups still need the original password; new backups will be saved as plaintext.';
+
+  @override
+  String get settingsBackupEncryptionDisableAction => 'Turn off';
+
+  @override
+  String get backupEncryptMissingPassphrase =>
+      'Backup password not found. Set it again in Settings.';
+
+  @override
+  String get backupPassphraseSetTitle => 'Set backup password';
+
+  @override
+  String backupPassphraseSetBody(int count) {
+    return 'At least $count characters. If you forget it, encrypted backups cannot be recovered.';
+  }
+
+  @override
+  String get backupPassphraseLabel => 'Backup password';
+
+  @override
+  String get backupPassphraseConfirmLabel => 'Confirm password';
+
+  @override
+  String backupPassphraseTooShort(int count) {
+    return 'Use at least $count characters';
+  }
+
+  @override
+  String get backupPassphraseMismatch => 'Passwords do not match';
+
+  @override
+  String get backupPassphraseRequired => 'Enter the backup password';
+
+  @override
+  String get backupPassphrasePromptTitle => 'Enter backup password';
+
+  @override
+  String get backupPassphrasePromptBody =>
+      'This backup is encrypted. Enter the password used when it was exported.';
+
+  @override
+  String get backupPassphraseUnlock => 'Decrypt and restore';
+
+  @override
+  String get backupErrorDecryptionFailed =>
+      'Wrong password or corrupted backup file';
 }

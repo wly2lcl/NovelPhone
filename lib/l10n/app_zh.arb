@@ -1946,5 +1946,43 @@
       }
     }
   },
-  "modelGroupsNoPrice": "未填单价"
+  "modelGroupsNoPrice": "未填单价",
+  "settingsScreenProtection": "截屏保护",
+  "settingsScreenProtectionSubtitle": "阻止截屏、录屏与后台缩略图泄露正文",
+  "settingsScreenProtectionEnabled": "截屏保护已开启",
+  "settingsScreenProtectionDisabled": "截屏保护已关闭",
+  "settingsBackupEncryption": "备份加密",
+  "settingsBackupEncryptionOff": "未开启：备份文件为明文 zip",
+  "settingsBackupEncryptionOn": "已开启：导出与云备份使用 AES-256-GCM 加密",
+  "settingsBackupEncryptionEnabled": "备份加密已开启",
+  "settingsBackupEncryptionDisabled": "备份加密已关闭",
+  "settingsBackupEncryptionDisableTitle": "关闭备份加密？",
+  "settingsBackupEncryptionDisableBody": "已加密的旧备份仍需原密码恢复；之后的新备份将以明文保存。",
+  "settingsBackupEncryptionDisableAction": "关闭",
+  "backupEncryptMissingPassphrase": "未找到备份密码，请先在设置中重新设置",
+  "backupPassphraseSetTitle": "设置备份密码",
+  "backupPassphraseSetBody": "密码至少 {count} 位。忘记密码将无法恢复此后的加密备份，请妥善保管。",
+  "@backupPassphraseSetBody": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "backupPassphraseLabel": "备份密码",
+  "backupPassphraseConfirmLabel": "再次输入密码",
+  "backupPassphraseTooShort": "密码至少 {count} 位",
+  "@backupPassphraseTooShort": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "backupPassphraseMismatch": "两次输入的密码不一致",
+  "backupPassphraseRequired": "请输入备份密码",
+  "backupPassphrasePromptTitle": "输入备份密码",
+  "backupPassphrasePromptBody": "该备份文件已加密，请输入导出时设置的密码。",
+  "backupPassphraseUnlock": "解密恢复",
+  "backupErrorDecryptionFailed": "密码错误或备份文件已损坏，无法解密"
 }

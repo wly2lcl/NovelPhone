@@ -13,7 +13,7 @@
 - **数据归你**——SQLite 本地存储、API Key 存系统安全区、备份导出到本地文件或你自己的对象存储；
 - **治理「AI 味」**——内置规则引擎与可选 LLM 深检标记套话、重复句式等问题，支持定位与一键替换；AI 续写默认并发生成多个候选，供你对照挑选。
 
-当前状态：MVP 功能范围（78 / 78）已收口，此后 25 项增强（ENH-01~25，含全 App 简体中文 / English 双语 UI、MCP OAuth 2.1 PKCE 与技能 front matter 导入、无障碍语义、应用图标 / 启动闪屏品牌化、发布产物交付，以及回收站、MCP 调用审计、备份校验预览、技能导出、文风档案、AI 设定补全、剧情推演、作品问答、全书一致性体检与稳定性增强；ENH-24 补齐 Markdown / EPUB 导入、推演转章纲、角色关系抽取、批量摘要、月度 AI 预算与发布收口；ENH-25 新增推理模型空正文自动提高输出上限重试与系统生物识别 / 设备凭证应用锁）全部落地；Android release 签名、AAB / 分 ABI APK 产物与 GitHub Actions CI（含 iOS 无签名构建 job 与 release 产物归档）就绪，iOS 无签名 release 构建通过，458 个自动化用例通过，真机验收记录见 [docs/TODO.md](docs/TODO.md)。ENH-23 的文风档案、AI 设定补全与剧情推演已于 2026-10-18 经 `deepseek-v4-flash` / `agnes-3.0-flash` 两个真实模型通道复验（竖屏对比截图见下）。
+当前状态：MVP 功能范围（78 / 78）已收口，此后 26 项增强（ENH-01~26，含全 App 简体中文 / English 双语 UI、MCP OAuth 2.1 PKCE 与技能 front matter 导入、无障碍语义、应用图标 / 启动闪屏品牌化、发布产物交付，以及回收站、MCP 调用审计、备份校验预览、技能导出、文风档案、AI 设定补全、剧情推演、作品问答、全书一致性体检与稳定性增强；ENH-24 补齐 Markdown / EPUB 导入、推演转章纲、角色关系抽取、批量摘要、月度 AI 预算与发布收口；ENH-25 新增推理模型空正文自动提高输出上限重试与系统生物识别 / 设备凭证应用锁；ENH-26 新增截屏 / 最近任务缩略图保护与可选密码加密备份）全部落地；Android release 签名、AAB / 分 ABI APK 产物与 GitHub Actions CI（含 iOS 无签名构建 job 与 release 产物归档）就绪，iOS 无签名 release 构建通过，469 个自动化用例通过，真机验收记录见 [docs/TODO.md](docs/TODO.md)。ENH-23 的文风档案、AI 设定补全与剧情推演已于 2026-10-18 经 `deepseek-v4-flash` / `agnes-3.0-flash` 两个真实模型通道复验（竖屏对比截图见下）。
 
 ## 截图
 
@@ -88,11 +88,13 @@
 - 品牌化外观：钢笔笔尖主题应用图标与暖色启动闪屏；「关于」页展示版本号、隐私说明要点与开源许可清单
 - 无障碍：开关 / 色块 / 弹层菜单带语义标签，仅长按可达的操作（作品卡、章节行）暴露为屏幕阅读器自定义动作，图表提供摘要描述，滑杆与标签合并播报
 - 应用锁：可选开启（默认关闭），启动与从后台返回时用系统生物识别或锁屏密码 / 图案解锁；开启与关闭都需要先通过系统验证，锁定期间仅遮挡界面、不销毁导航树，解锁后仍停留在原编辑位置；设备未设置安全锁屏时给出明确提示，不降级为明文保护
+- 截屏保护：可选开启（默认关闭）——Android 通过 `FLAG_SECURE` 阻止截屏 / 录屏，并让最近任务中的应用缩略图显示为空白；iOS 在应用退到后台时立即覆盖不透明遮罩，避免切换器快照泄露正文（系统不提供阻止前台截屏的公开 API，此限制已在界面与文档中说明）
 
 ### 数据、统计与隐私
 
 - 备份到文件：整库 zip（`data.json` + `manifest.json` + 每作品 markdown），恢复前展示导出时间、数据版本、作品 / 章 / 角色数量并校验 **SHA-256**（旧版无清单的备份会明确提示「未包含校验信息」）；恢复时可「合并为新增作品」或「覆盖并清空本地」
-- 云备份：用户自带的 S3 兼容对象存储（AWS S3 / 阿里云 OSS / 七牛 Kodo / 腾讯 COS / 华为 OBS），SigV4 直签、默认关闭，支持手动与按间隔自动备份
+- 备份密码加密：可选开启（默认关闭）——导出与云备份统一封装为 `.npbak`（`NPBK` v1 信封：PBKDF2-HMAC-SHA256 21 万次派生 + AES-256-GCM 认证加密），密码只存设备安全存储、不随备份导出；开启后密码缺失即中止导出，绝不静默回退明文；恢复同时支持加密 `.npbak` 与旧版明文 `.zip`，密码错误或密文被篡改统一提示「密码错误或备份文件已损坏」
+- 云备份：用户自带的 S3 兼容对象存储（AWS S3 / 阿里云 OSS / 七牛 Kodo / 腾讯 COS / 华为 OBS），SigV4 直签、默认关闭，支持手动与按间隔自动备份；开启备份加密时云端对象同样为 `.npbak` 密文，自动备份在密码缺失时跳过且不发起网络请求
 - 写作统计：每日字数目标进度、连续写作天数、番茄钟、近 7 / 30 天字数趋势图与近一年写作热力图
 - Token 与采纳统计：按「任务 · 模型」分组，记录生成次数、token 用量与采纳率 / 忽略率；模型组可填每百万 token 输入 / 输出价格，统计页据此估算费用（人民币）；可设置**月度 AI 预算**，达到 80% 提示、100% 红色告警（仅提示，不阻断调用）
 - 发布资料：独立的 [隐私政策](docs/PRIVACY.md)（中英双语）与 [发布说明](docs/RELEASE.md)（构建命令、Google Play 商品信息、Data safety 表单口径、iOS 阻塞项）；「关于」页可直接打开隐私政策外链
@@ -106,6 +108,7 @@
 | 数据 | Drift（SQLite，schema v12，含完整迁移链） |
 | 安全存储 | flutter_secure_storage（keychain / keystore） |
 | 应用锁 | local_auth（系统生物识别 / 设备凭证，Android FlutterFragmentActivity + USE_BIOMETRIC，iOS Face ID 用途说明） |
+| 隐私保护 | Android `FLAG_SECURE`（MethodChannel 控制，同时遮挡最近任务缩略图）；iOS 退后台遮罩；备份加密使用 cryptography（PBKDF2-HMAC-SHA256 210,000 次 + AES-256-GCM） |
 | 网络 | http（SSE 流式解析）、crypto（云备份 SigV4 直签） |
 | AI 互操作 | 三类端点协议适配、mcp_dart（远程 MCP）、自定义技能编排 |
 | 平台 | 单代码库交付 iOS / Android；当前以 Android 为主要交付与真机验收目标（iOS 已通过无签名 release 构建验证） |
@@ -157,7 +160,7 @@ dart run build_runner build --delete-conflicting-outputs
 ```bash
 dart format --output=none --set-exit-if-changed lib test
 flutter analyze
-flutter test    # 458 个用例：数据层 / 编辑器控制器 / AI 客户端与编排 / 空正文重试 / 应用锁 / 文风与结构化输出 / 作品问答与检索 / 导入解析（txt / Markdown / EPUB）/ MCP OAuth、审计与技能导入导出 / 检查引擎 / 页面 widget
+flutter test    # 469 个用例：数据层 / 编辑器控制器 / AI 客户端与编排 / 空正文重试 / 应用锁与截屏保护 / 备份加密（NPBK / 错误密码 / 篡改检测）/ 文风与结构化输出 / 作品问答与检索 / 导入解析（txt / Markdown / EPUB）/ MCP OAuth、审计与技能导入导出 / 检查引擎 / 页面 widget
 ```
 
 GitHub Actions（[ci.yml](.github/workflows/ci.yml)）在 push 与 PR 上执行上述三项检查，并在 `macos-latest` 上额外执行 iOS 无签名 release 构建（`flutter build ios --release --no-codesign`）以尽早发现 iOS 工程 / 插件集成问题；`main` push 或手动触发时还会用临时 keystore 构建 AAB 与分 ABI APK 并归档 14 天（仅供构建验证，正式上架需用离线发布证书重建，见 [docs/RELEASE.md](docs/RELEASE.md)）。
@@ -170,7 +173,7 @@ GitHub Actions（[ci.yml](.github/workflows/ci.yml)）在 push 与 PR 上执行�
 |---|---|
 | [docs/PRD.md](docs/PRD.md) | 产品定位、功能范围与验收标准 |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 技术选型、分层模块、数据模型与 AI 层设计 |
-| [docs/TODO.md](docs/TODO.md) | 任务清单、进度跟踪与真机验收记录（M1-M4 + ENH-01~25） |
+| [docs/TODO.md](docs/TODO.md) | 任务清单、进度跟踪与真机验收记录（M1-M4 + ENH-01~26） |
 | [docs/RELEASE.md](docs/RELEASE.md) | 发布命令、商店资料、Data safety 口径与已知限制 |
 | [docs/PRIVACY.md](docs/PRIVACY.md) | 对外隐私政策（中英双语，商店与应用内共用） |
 | [docs/COMPLIANCE.md](docs/COMPLIANCE.md) | 隐私政策、数据安全说明与上架资料要点 |

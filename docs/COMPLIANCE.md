@@ -12,6 +12,8 @@
 - 应用设置（模型组、baseUrl、模型名、温度与输出上限、任务→模型映射、token 与处置率计数）：保存在设备本地。
 - API Key：保存在**设备安全区**（iOS Keychain / Android Keystore），库中只保存引用标识，明文不落库、不导出、不上传。
 - 应用锁（可选，默认关闭，ENH-25）：只调用操作系统提供的生物识别 / 设备凭证校验接口（`local_auth`），**不读取、不存储、不上传**指纹或人脸等生物识别数据；应用仅保存「应用锁是否开启」这一布尔设置。
+- 截屏 / 最近任务缩略图保护（可选，默认关闭，ENH-26）：仅设置平台窗口标志（Android `FLAG_SECURE`）或在本应用退后台时覆盖一层遮罩（iOS），不采集、不上传任何屏幕内容；开启后系统截屏与任务切换器中的预览由操作系统置空或遮挡。iOS 无公开 API 阻止应用在前台时的主动截屏，此限制在设置页注明。
+- 备份密码加密（可选，默认关闭，ENH-26）：加密在本机完成，密码仅保存在设备安全存储，**不上传、不写入备份文件、不写日志**；备份内容以 AES-256-GCM 密文（`.npbak`）保存，未设置密码或未开启时仍生成与旧版一致的明文 zip。
 
 ### 1.2 何时会联网
 
@@ -23,7 +25,7 @@
 - **本地规则引擎的 AI 感检查完全离线**，绝不联网扫描你的正文。
 - 若你主动配置了 **MCP 工具服务**（设置页「MCP 工具服务」），灵感类任务在 AI 决定调用其工具时，会把你自行配置的 MCP server 所需的参数经 `Authorization` 等自定义请求头直连该服务地址；不配置该功能则不产生此类请求。
 - 若 MCP 服务选择 **OAuth 2.1（PKCE）** 认证，点「开始授权」后会打开**系统浏览器**直达该 MCP 服务的授权服务器（元数据发现、动态客户端注册与令牌交换都直连该服务器），授权完成后通过 `127.0.0.1` 本机回环回调把授权码换为令牌；NovelPhone 不设中转服务器，也不接收你的账号密码——登录与同意都在浏览器内由授权服务器完成。
-- 若你在设置页「云备份」中开启，则在你手动触发（立即备份 / 刷新远端备份 / 从云端恢复）或开启「自动备份」后于应用启动 / 回到前台按所选频率自动触发时，会把整库备份 zip **直连你自行配置的对象存储**（S3 兼容：AWS S3 / 阿里云 OSS / 七牛云 Kodo / 腾讯云 COS / 华为云 OBS）上传或下载；NovelPhone 不设中转服务器。AccessKey / SecretKey 只存本机安全存储，不落库、不随备份导出。**该开关默认关闭；关闭时不联网、不产生任何云端请求。**
+- 若你在设置页「云备份」中开启，则在你手动触发（立即备份 / 刷新远端备份 / 从云端恢复）或开启「自动备份」后于应用启动 / 回到前台按所选频率自动触发时，会把整库备份 zip **直连你自行配置的对象存储**（S3 兼容：AWS S3 / 阿里云 OSS / 七牛云 Kodo / 腾讯云 COS / 华为云 OBS）上传或下载；若同时开启备份密码加密，上传内容为 `.npbak` 密文。NovelPhone 不设中转服务器。AccessKey / SecretKey 只存本机安全存储，不落库、不随备份导出。**该开关默认关闭；关闭时不联网、不产生任何云端请求。**
 
 ### 1.3 数据的删除与导出
 
@@ -47,7 +49,8 @@
 | API Key | 仅存 flutter_secure_storage（Keychain / Keystore）；库中只存 `apiKeyRef` 引用；删除模型组时同步清除安全区 Key |
 | MCP 认证头 | 与 API Key 同策略：只存 flutter_secure_storage（`mcp_server_<id>`），配置 JSON 仅存 URL / 名称 / 工具白名单 / OAuth client_id 与 scope；删除 MCP 服务时同步清除 |
 | MCP OAuth 令牌 | access / refresh 令牌与过期时间以 JSON 只存 flutter_secure_storage（`mcp_oauth_<id>`），不落库、不随备份导出、不写日志；授权走 PKCE（S256）、无客户端密钥落地，令牌过期自动用 refresh_token 续期，刷新失败提示重新授权；删除 MCP 服务或「清除授权」时立即删除 |
-| 备份文件 | zip 导出时过滤 Key 字段；恢复后需重新填写 Key |
+| 备份文件 | zip 导出时过滤 Key 字段；恢复后需重新填写 Key。开启备份密码加密（ENH-26）后导出 `.npbak` 密文：PBKDF2-HMAC-SHA256 210,000 次 + 随机 16 字节 salt 派生密钥，AES-256-GCM 认证加密（随机 12 字节 nonce / 16 字节 MAC）；密码至少 8 位、仅存 flutter_secure_storage（`backup_passphrase`），不写日志；密码错误或文件被篡改时拒绝恢复并提示「密码错误或备份文件已损坏」 |
+| 截屏保护（ENH-26） | 默认关闭；开关状态存 APP_SETTING（`screen_protection_enabled`），不随备份导出；Android 仅增删窗口 `FLAG_SECURE`，iOS 退后台时叠加遮罩，不采集屏幕内容、不申请额外权限；关闭后立即恢复系统截屏能力 |
 | 云备份凭证 | 与 API Key 同策略：AccessKey / SecretKey 仅存 flutter_secure_storage；配置 JSON（服务商 / endpoint / region / bucket / 前缀 / 保留份数）存 APP_SETTING，不含凭证、不随备份导出 |
 | 作品问答历史 | 按作品存 APP_SETTING（`work_chat_<workId>`，最多保留 40 轮），仅保存在本机、不随备份导出、不写日志；在作品问答页清空后立即删除。使用作品问答时，最近对话会作为上下文直接发送给你配置的模型服务商 |
 | 应用锁（ENH-25） | 默认关闭；开关状态存 APP_SETTING（`app_lock_enabled`），不涉及任何生物特征数据；解锁时由系统 BiometricPrompt / LocalAuthentication 完成校验并把结果返回应用，生物识别模板由操作系统保管，应用不接触、不记录、不上传；Android 仅声明 `USE_BIOMETRIC` 权限 |
