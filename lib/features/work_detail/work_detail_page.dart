@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../data/data_providers.dart';
 import '../../l10n/l10n.dart';
 import '../editor/flavor_check_panel.dart';
+import 'ai_preferences_dialog.dart';
 import 'chapters_tab.dart';
 import 'characters_tab.dart';
 import 'export_actions.dart';
@@ -88,124 +89,142 @@ class WorkDetailPage extends ConsumerWidget {
   ) async {
     await showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
       builder: (sheetContext) {
         final l10n = sheetContext.l10n;
         return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              ListTile(
-                leading: const Icon(Icons.upload_file_outlined),
-                title: Text(l10n.workDetailImportTxtDocx),
-                onTap: () async {
-                  Navigator.of(sheetContext).pop();
-                  final count = await context.push<int>('/work/$workId/import');
-                  if (count != null && count > 0 && context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(l10n.workDetailImportedCount(count)),
-                      ),
-                    );
-                  }
-                },
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.8,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  ListTile(
+                    leading: const Icon(Icons.upload_file_outlined),
+                    title: Text(l10n.workDetailImportTxtDocx),
+                    onTap: () async {
+                      Navigator.of(sheetContext).pop();
+                      final count = await context.push<int>(
+                        '/work/$workId/import',
+                      );
+                      if (count != null && count > 0 && context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(l10n.workDetailImportedCount(count)),
+                          ),
+                        );
+                      }
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.find_replace),
+                    title: Text(l10n.replaceTitle),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      context.push('/work/$workId/replace');
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.lightbulb_outline),
+                    title: Text(l10n.workDetailInspirationsTitle),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      context.push('/work/$workId/inspirations');
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.hub_outlined),
+                    title: Text(l10n.relationGraphTitle),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      context.push('/work/$workId/relations');
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.style_outlined),
+                    title: Text(l10n.workDetailStyleGuide),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      context.push('/work/$workId/style');
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.person_add_alt_1_outlined),
+                    title: Text(l10n.entityExtractTitle),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      context.push('/work/$workId/extract');
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.route_outlined),
+                    title: Text(l10n.plotPlanTitle),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      context.push('/work/$workId/plot');
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.summarize_outlined),
+                    title: Text(l10n.batchSummaryTitle),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      context.push('/work/$workId/summaries');
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.forum_outlined),
+                    title: Text(l10n.chatTitle),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      context.push('/work/$workId/chat');
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.fact_check_outlined),
+                    title: Text(l10n.continuityScanTitle),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      context.push('/work/$workId/continuity');
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.file_download_outlined),
+                    title: Text(l10n.exportActionsExportWorkTitle),
+                    onTap: () async {
+                      Navigator.of(sheetContext).pop();
+                      await exportWork(context, ref, workId);
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.psychology_alt_outlined),
+                    title: Text(l10n.workDetailAiPreferences),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      showAiPreferencesDialog(context, workId);
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.tune),
+                    title: Text(l10n.workDetailAiSettings),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      context.push('/settings');
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.drive_file_rename_outline),
+                    title: Text(l10n.workDetailRenameWork),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      _renameWork(context, ref, workId);
+                    },
+                  ),
+                ],
               ),
-              ListTile(
-                leading: const Icon(Icons.find_replace),
-                title: Text(l10n.replaceTitle),
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  context.push('/work/$workId/replace');
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.lightbulb_outline),
-                title: Text(l10n.workDetailInspirationsTitle),
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  context.push('/work/$workId/inspirations');
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.hub_outlined),
-                title: Text(l10n.relationGraphTitle),
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  context.push('/work/$workId/relations');
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.style_outlined),
-                title: Text(l10n.workDetailStyleGuide),
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  context.push('/work/$workId/style');
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.person_add_alt_1_outlined),
-                title: Text(l10n.entityExtractTitle),
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  context.push('/work/$workId/extract');
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.route_outlined),
-                title: Text(l10n.plotPlanTitle),
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  context.push('/work/$workId/plot');
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.summarize_outlined),
-                title: Text(l10n.batchSummaryTitle),
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  context.push('/work/$workId/summaries');
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.forum_outlined),
-                title: Text(l10n.chatTitle),
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  context.push('/work/$workId/chat');
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.fact_check_outlined),
-                title: Text(l10n.continuityScanTitle),
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  context.push('/work/$workId/continuity');
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.file_download_outlined),
-                title: Text(l10n.exportActionsExportWorkTitle),
-                onTap: () async {
-                  Navigator.of(sheetContext).pop();
-                  await exportWork(context, ref, workId);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.tune),
-                title: Text(l10n.workDetailAiSettings),
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  context.push('/settings');
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.drive_file_rename_outline),
-                title: Text(l10n.workDetailRenameWork),
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  _renameWork(context, ref, workId);
-                },
-              ),
-            ],
+            ),
           ),
         );
       },

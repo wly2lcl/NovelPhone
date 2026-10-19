@@ -1046,6 +1046,102 @@ abstract class AppLocalizations {
   /// **'已记录，后续生成会参考'**
   String get aiFeedbackRecorded;
 
+  /// No description provided for @aiPreferencesTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'作者协作偏好'**
+  String get aiPreferencesTitle;
+
+  /// No description provided for @aiPreferencesDescription.
+  ///
+  /// In zh, this message translates to:
+  /// **'这些偏好只保存在本机，用于后续续写 / 改写；不随备份导出。'**
+  String get aiPreferencesDescription;
+
+  /// No description provided for @aiPreferencesEnabled.
+  ///
+  /// In zh, this message translates to:
+  /// **'生成时参考本机偏好'**
+  String get aiPreferencesEnabled;
+
+  /// No description provided for @aiPreferencesEmpty.
+  ///
+  /// In zh, this message translates to:
+  /// **'还没有记录。放弃结果时选择原因、采纳结果后会自动积累参考片段。'**
+  String get aiPreferencesEmpty;
+
+  /// No description provided for @aiPreferencesReasons.
+  ///
+  /// In zh, this message translates to:
+  /// **'放弃原因'**
+  String get aiPreferencesReasons;
+
+  /// No description provided for @aiPreferencesSamples.
+  ///
+  /// In zh, this message translates to:
+  /// **'最近采纳片段'**
+  String get aiPreferencesSamples;
+
+  /// No description provided for @aiPreferencesNoSamples.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂无采纳片段'**
+  String get aiPreferencesNoSamples;
+
+  /// No description provided for @aiPreferencesCount.
+  ///
+  /// In zh, this message translates to:
+  /// **'{count} 次'**
+  String aiPreferencesCount(int count);
+
+  /// No description provided for @aiPreferencesClear.
+  ///
+  /// In zh, this message translates to:
+  /// **'清空偏好与样本'**
+  String get aiPreferencesClear;
+
+  /// No description provided for @aiPreferencesClearTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'清空作者协作偏好？'**
+  String get aiPreferencesClearTitle;
+
+  /// No description provided for @aiPreferencesClearBody.
+  ///
+  /// In zh, this message translates to:
+  /// **'原因计数与最近采纳片段将被删除，且无法恢复。'**
+  String get aiPreferencesClearBody;
+
+  /// No description provided for @aiPreferencesCleared.
+  ///
+  /// In zh, this message translates to:
+  /// **'已清空作者协作偏好'**
+  String get aiPreferencesCleared;
+
+  /// No description provided for @aiRevisionOriginal.
+  ///
+  /// In zh, this message translates to:
+  /// **'原稿'**
+  String get aiRevisionOriginal;
+
+  /// No description provided for @aiRevisionNumber.
+  ///
+  /// In zh, this message translates to:
+  /// **'修订 {number}'**
+  String aiRevisionNumber(int number);
+
+  /// No description provided for @aiRevisionCompare.
+  ///
+  /// In zh, this message translates to:
+  /// **'对比上一版'**
+  String get aiRevisionCompare;
+
+  /// No description provided for @aiRevisionCompareTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'对比修订版本'**
+  String get aiRevisionCompareTitle;
+
   /// No description provided for @rewriteIntentPolish.
   ///
   /// In zh, this message translates to:
@@ -3859,6 +3955,12 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'AI 设置'**
   String get workDetailAiSettings;
+
+  /// No description provided for @workDetailAiPreferences.
+  ///
+  /// In zh, this message translates to:
+  /// **'作者协作偏好'**
+  String get workDetailAiPreferences;
 
   /// No description provided for @workDetailStyleGuide.
   ///

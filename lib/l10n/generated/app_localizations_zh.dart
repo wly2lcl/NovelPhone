@@ -533,6 +533,58 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aiFeedbackRecorded => '已记录，后续生成会参考';
 
   @override
+  String get aiPreferencesTitle => '作者协作偏好';
+
+  @override
+  String get aiPreferencesDescription => '这些偏好只保存在本机，用于后续续写 / 改写；不随备份导出。';
+
+  @override
+  String get aiPreferencesEnabled => '生成时参考本机偏好';
+
+  @override
+  String get aiPreferencesEmpty => '还没有记录。放弃结果时选择原因、采纳结果后会自动积累参考片段。';
+
+  @override
+  String get aiPreferencesReasons => '放弃原因';
+
+  @override
+  String get aiPreferencesSamples => '最近采纳片段';
+
+  @override
+  String get aiPreferencesNoSamples => '暂无采纳片段';
+
+  @override
+  String aiPreferencesCount(int count) {
+    return '$count 次';
+  }
+
+  @override
+  String get aiPreferencesClear => '清空偏好与样本';
+
+  @override
+  String get aiPreferencesClearTitle => '清空作者协作偏好？';
+
+  @override
+  String get aiPreferencesClearBody => '原因计数与最近采纳片段将被删除，且无法恢复。';
+
+  @override
+  String get aiPreferencesCleared => '已清空作者协作偏好';
+
+  @override
+  String get aiRevisionOriginal => '原稿';
+
+  @override
+  String aiRevisionNumber(int number) {
+    return '修订 $number';
+  }
+
+  @override
+  String get aiRevisionCompare => '对比上一版';
+
+  @override
+  String get aiRevisionCompareTitle => '对比修订版本';
+
+  @override
   String get rewriteIntentPolish => '润色';
 
   @override
@@ -2114,6 +2166,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get workDetailAiSettings => 'AI 设置';
+
+  @override
+  String get workDetailAiPreferences => '作者协作偏好';
 
   @override
   String get workDetailStyleGuide => '文风档案';

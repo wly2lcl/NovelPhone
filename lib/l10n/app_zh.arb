@@ -339,6 +339,36 @@
   "aiFeedbackSkip": "直接放弃",
   "aiFeedbackConfirm": "记录并放弃",
   "aiFeedbackRecorded": "已记录，后续生成会参考",
+  "aiPreferencesTitle": "作者协作偏好",
+  "aiPreferencesDescription": "这些偏好只保存在本机，用于后续续写 / 改写；不随备份导出。",
+  "aiPreferencesEnabled": "生成时参考本机偏好",
+  "aiPreferencesEmpty": "还没有记录。放弃结果时选择原因、采纳结果后会自动积累参考片段。",
+  "aiPreferencesReasons": "放弃原因",
+  "aiPreferencesSamples": "最近采纳片段",
+  "aiPreferencesNoSamples": "暂无采纳片段",
+  "aiPreferencesCount": "{count} 次",
+  "@aiPreferencesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "aiPreferencesClear": "清空偏好与样本",
+  "aiPreferencesClearTitle": "清空作者协作偏好？",
+  "aiPreferencesClearBody": "原因计数与最近采纳片段将被删除，且无法恢复。",
+  "aiPreferencesCleared": "已清空作者协作偏好",
+  "aiRevisionOriginal": "原稿",
+  "aiRevisionNumber": "修订 {number}",
+  "@aiRevisionNumber": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "aiRevisionCompare": "对比上一版",
+  "aiRevisionCompareTitle": "对比修订版本",
   "rewriteIntentPolish": "润色",
   "rewriteIntentExpand": "扩写",
   "rewriteIntentCondense": "缩写",
@@ -1447,6 +1477,7 @@
   "workDetailImportTxtDocx": "导入 txt / docx / Markdown / EPUB",
   "workDetailInspirationsTitle": "灵感箱",
   "workDetailAiSettings": "AI 设置",
+  "workDetailAiPreferences": "作者协作偏好",
   "workDetailStyleGuide": "文风档案",
   "styleGuideTitle": "文风档案",
   "styleGuideIntro": "文风档案会注入续写、改写、开篇与剧情推演，让 AI 更贴近你的写法。",

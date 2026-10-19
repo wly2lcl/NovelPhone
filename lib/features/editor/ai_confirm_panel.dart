@@ -16,6 +16,8 @@ import '../ai/ai_providers.dart';
 import '../ai/ai_service.dart';
 import 'ai_feedback_dialog.dart';
 import 'ai_merge_dialog.dart';
+import 'ai_revision_history.dart';
+import 'snapshot_diff_dialog.dart';
 
 /// 面板模式：续写 / 桥段点子 / 开篇助手 / 改写 / 逐章摘要 / 章纲扩写。
 enum AiPanelMode {
@@ -130,6 +132,10 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
   int? _revisionIndex;
   bool _revisionTextStarted = false;
   bool _revising = false;
+
+  /// 修订历史（ENH-27.3）：每个候选各自保留最近 5 版。
+  final List<AiRevisionHistory> _revisionHistory =
+      List<AiRevisionHistory>.generate(3, (_) => AiRevisionHistory());
 
   /// 是否处于多候选状态（仅续写生效）。
   bool get _multiMode =>
@@ -264,6 +270,9 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
       _revisionIndex = null;
       _revisionTextStarted = false;
       _revisionInstruction.clear();
+      for (final history in _revisionHistory) {
+        history.clear();
+      }
       for (var i = 0; i < _errors.length; i++) {
         _errors[i] = null;
         _usageIds[i] = null;
@@ -370,6 +379,16 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
         });
       case AiFinished():
         _usageIds[index] = event.usageId < 0 ? null : event.usageId;
+        // ENH-27.3：每次生成 / 修订完成后记一版，供切换与对比。
+        final text = _results[index].text;
+        if (text.trim().isNotEmpty) {
+          _revisionHistory[index].record(
+            text,
+            instruction: _revising && index == _revisionIndex
+                ? _revisionInstructionText
+                : '',
+          );
+        }
         _finishOne();
       case AiFailed():
         _errors[index] = aiFailureText(
@@ -494,6 +513,8 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
     final draft = sanitizeAiText(_activeResult.text).trim();
     if (draft.isEmpty) return;
     final index = _activeIndex;
+    // 把作者在候选框里的直接编辑写回当前版本，切换历史时不丢失。
+    _revisionHistory[index].updateSelected(draft);
     for (final sub in _subs) {
       await sub.cancel();
     }
@@ -690,6 +711,7 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
                   if (_context != null) _buildContextDetails(_context!),
                   const SizedBox(height: 6),
                   _buildResult(),
+                  if (_isWritingMode) _buildRevisionHistoryRow(),
                   if (_isWritingMode) _buildCollaborationRow(),
                   if (_activeError != null) _buildError(),
                   const SizedBox(height: 8),
@@ -945,6 +967,67 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
           ],
         ),
       ),
+    );
+  }
+
+  /// 修订历史（ENH-27.3）：切换原稿 / 各修订版，并与上一版对比。
+  Widget _buildRevisionHistoryRow() {
+    final history = _revisionHistory[_activeIndex];
+    if (_streaming || history.length < 2) return const SizedBox.shrink();
+    final l10n = context.l10n;
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: <Widget>[
+            for (var i = 0; i < history.length; i++)
+              Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: ChoiceChip(
+                  label: Text(
+                    i == 0 ? l10n.aiRevisionOriginal : l10n.aiRevisionNumber(i),
+                  ),
+                  selected: history.selectedIndex == i,
+                  onSelected: (_) => _switchRevision(i),
+                ),
+              ),
+            if (history.canCompare)
+              TextButton.icon(
+                onPressed: _compareRevisions,
+                icon: const Icon(Icons.difference_outlined, size: 18),
+                label: Text(l10n.aiRevisionCompare),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _switchRevision(int index) {
+    final history = _revisionHistory[_activeIndex];
+    history.updateSelected(_activeResult.text);
+    final text = history.select(index);
+    if (text == null) return;
+    setState(() {
+      _activeResult.value = TextEditingValue(
+        text: text,
+        selection: TextSelection.collapsed(offset: text.length),
+      );
+    });
+  }
+
+  void _compareRevisions() {
+    final history = _revisionHistory[_activeIndex];
+    history.updateSelected(_activeResult.text);
+    final previous = history.previous;
+    final current = history.selected;
+    if (previous == null || current == null) return;
+    showSnapshotDiffDialog(
+      context,
+      oldText: previous.text,
+      newText: current.text,
+      title: context.l10n.aiRevisionCompareTitle,
     );
   }
 

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 
+import '../../core/ai/insert_separator.dart';
 import '../../core/text_search.dart';
 import '../../core/word_count.dart';
 import '../../data/repositories/chapter_repository.dart';
@@ -418,11 +419,17 @@ class EditorController extends ChangeNotifier {
     final offset = raw >= 0
         ? raw.clamp(0, textController.text.length)
         : textController.text.length;
-    final newText = textController.text.replaceRange(offset, offset, text);
+    // ENH-27.1：按插入点两侧内容补足空行，避免 AI 文本与原文粘连。
+    final insertion = composeAiInsertion(
+      document: textController.text,
+      offset: offset,
+      text: text,
+    );
+    final newText = textController.text.replaceRange(offset, offset, insertion);
     _commitHistoryNow();
     textController.value = TextEditingValue(
       text: newText,
-      selection: TextSelection.collapsed(offset: offset + text.length),
+      selection: TextSelection.collapsed(offset: offset + insertion.length),
     );
     _commitHistoryNow();
   }

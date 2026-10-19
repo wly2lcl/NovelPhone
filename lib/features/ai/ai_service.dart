@@ -1745,6 +1745,7 @@ class AiService {
 
   /// 本地协作偏好（ENH-27）：高频忽略原因 + 近期采纳片段，注入了续写/改写 system。
   Future<String> _preferenceText(int workId) async {
+    if (!await settings.readAiPreferencesEnabled(workId)) return '';
     final counts = await settings.readAiFeedback(workId);
     final samples = await settings.readAdoptedSamples(workId);
     return WritingPreferences.promptBlock(

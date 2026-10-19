@@ -9,6 +9,7 @@ Future<void> showSnapshotDiffDialog(
   BuildContext context, {
   required String oldText,
   required String newText,
+  String? title,
 }) async {
   final lines = diffParagraphs(oldText, newText);
   await showDialog<void>(
@@ -28,7 +29,7 @@ Future<void> showSnapshotDiffDialog(
                   children: <Widget>[
                     Expanded(
                       child: Text(
-                        l10n.snapshotDiffTitle,
+                        title ?? l10n.snapshotDiffTitle,
                         style: Theme.of(dialogContext).textTheme.titleMedium,
                       ),
                     ),

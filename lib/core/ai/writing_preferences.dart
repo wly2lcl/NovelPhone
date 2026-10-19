@@ -73,6 +73,17 @@ class AdoptedSample {
 class WritingPreferences {
   const WritingPreferences._();
 
+  static String feedbackKey(int workId) => 'ai_feedback_$workId';
+  static String adoptedSamplesKey(int workId) => 'ai_adopted_samples_$workId';
+  static String enabledKey(int workId) => 'ai_preferences_enabled_$workId';
+
+  /// 作品永久删除时一并清理的偏好键。
+  static List<String> keysFor(int workId) => <String>[
+    feedbackKey(workId),
+    adoptedSamplesKey(workId),
+    enabledKey(workId),
+  ];
+
   /// 本地最多保留的采纳片段数。
   static const int maxSamples = 5;
 

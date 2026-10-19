@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 
+import '../../core/ai/writing_preferences.dart';
 import '../../models/work_cover_colors.dart';
 import '../../models/work_style_guide.dart';
 import '../dao/volume_dao.dart';
@@ -90,6 +91,9 @@ class WorkRepository {
         _db.inspirations,
       )..where((t) => t.workId.equals(id))).go();
       await (_db.delete(_db.volumes)..where((t) => t.workId.equals(id))).go();
+      await (_db.delete(
+        _db.appSettings,
+      )..where((t) => t.key.isIn(WritingPreferences.keysFor(id)))).go();
       await _works.deleteById(id);
     });
   }

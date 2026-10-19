@@ -164,6 +164,55 @@ void main() {
     expect(built.system, contains('作者偏好'));
   });
 
+  test('关闭偏好开关后不再注入，清空只删计数与样本', () async {
+    await config.recordAiFeedback(workId, AiFeedbackReason.offCharacter);
+    await config.recordAiFeedback(workId, AiFeedbackReason.offCharacter);
+    await config.recordAdoptedSample(
+      workId,
+      text: '他把刀放回鞘里，没说话。',
+      task: AiTask.continueWriting,
+    );
+    expect(await config.readAiPreferencesEnabled(workId), isTrue);
+
+    await config.setAiPreferencesEnabled(workId, false);
+    expect(await config.readAiPreferencesEnabled(workId), isFalse);
+
+    await configure(AiTask.continueWriting);
+    String? requestBody;
+    final client = MockClient((request) async {
+      requestBody = request.body;
+      return sseResponse('他停了半步。');
+    });
+    await serviceWith(client)
+        .continueWriting(workId: workId, chapterId: chapterId, length: 300)
+        .toList();
+    final decoded = jsonDecode(requestBody!) as Map<String, dynamic>;
+    final messages = decoded['messages'] as List<dynamic>;
+    final system =
+        (messages.first as Map<String, dynamic>)['content'] as String;
+    expect(system, isNot(contains('【作者协作偏好】')));
+
+    await config.clearAiPreferences(workId);
+    expect(await config.readAiFeedback(workId), isEmpty);
+    expect(await config.readAdoptedSamples(workId), isEmpty);
+    expect(await config.readAiPreferencesEnabled(workId), isFalse);
+  });
+
+  test('永久删除作品时清理偏好键', () async {
+    await config.recordAiFeedback(workId, AiFeedbackReason.tooAi);
+    await config.recordAdoptedSample(workId, text: '片段', task: AiTask.rewrite);
+    await config.setAiPreferencesEnabled(workId, false);
+    for (final key in WritingPreferences.keysFor(workId)) {
+      expect(await config.getSetting(key), isNotNull);
+    }
+
+    await works.deleteWork(workId);
+
+    for (final key in WritingPreferences.keysFor(workId)) {
+      expect(await config.getSetting(key), isNull);
+    }
+  });
+
   test('续写请求注入高频偏好与采纳片段，修订意见进入用户消息', () async {
     await configure(AiTask.continueWriting);
     await config.recordAiFeedback(workId, AiFeedbackReason.offCharacter);

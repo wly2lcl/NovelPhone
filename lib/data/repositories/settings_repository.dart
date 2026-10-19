@@ -290,10 +290,12 @@ class SettingsRepository {
   // ---------- AI 协作偏好（ENH-27）----------
 
   /// 忽略原因计数的落库键（按作品隔离，仅本机）。
-  static String aiFeedbackKey(int workId) => 'ai_feedback_$workId';
+  static String aiFeedbackKey(int workId) =>
+      WritingPreferences.feedbackKey(workId);
 
   /// 最近采纳片段的落库键（按作品隔离，仅本机）。
-  static String aiAdoptedSamplesKey(int workId) => 'ai_adopted_samples_$workId';
+  static String aiAdoptedSamplesKey(int workId) =>
+      WritingPreferences.adoptedSamplesKey(workId);
 
   Future<Map<String, int>> readAiFeedback(int workId) async =>
       WritingPreferences.parseReasonCounts(
@@ -330,6 +332,21 @@ class SettingsRepository {
       aiAdoptedSamplesKey(workId),
       WritingPreferences.encodeSamples(next),
     );
+  }
+
+  /// 是否在续写 / 改写时参考本地协作偏好（默认开启）。
+  Future<bool> readAiPreferencesEnabled(int workId) async {
+    final raw = await getSetting(WritingPreferences.enabledKey(workId));
+    return raw != '0';
+  }
+
+  Future<void> setAiPreferencesEnabled(int workId, bool enabled) =>
+      setSetting(WritingPreferences.enabledKey(workId), enabled ? '1' : '0');
+
+  /// 清空原因计数与采纳片段，保留开关状态。
+  Future<void> clearAiPreferences(int workId) async {
+    await _settings.remove(WritingPreferences.feedbackKey(workId));
+    await _settings.remove(WritingPreferences.adoptedSamplesKey(workId));
   }
 
   // ---------- MCP server（B-02）----------

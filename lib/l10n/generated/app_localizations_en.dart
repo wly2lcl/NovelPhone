@@ -586,6 +586,67 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aiFeedbackRecorded => 'Recorded; future generations will use it';
 
   @override
+  String get aiPreferencesTitle => 'Author preferences';
+
+  @override
+  String get aiPreferencesDescription =>
+      'These preferences stay on this device and guide later continuation / rewrite requests. They are excluded from backups.';
+
+  @override
+  String get aiPreferencesEnabled => 'Use local preferences when generating';
+
+  @override
+  String get aiPreferencesEmpty =>
+      'Nothing recorded yet. Pick a reason when discarding a result, and adopted results will add reference passages automatically.';
+
+  @override
+  String get aiPreferencesReasons => 'Discard reasons';
+
+  @override
+  String get aiPreferencesSamples => 'Recently adopted passages';
+
+  @override
+  String get aiPreferencesNoSamples => 'No adopted passages yet';
+
+  @override
+  String aiPreferencesCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count times',
+      one: '1 time',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get aiPreferencesClear => 'Clear preferences and samples';
+
+  @override
+  String get aiPreferencesClearTitle => 'Clear author preferences?';
+
+  @override
+  String get aiPreferencesClearBody =>
+      'Reason counts and recently adopted passages will be deleted permanently.';
+
+  @override
+  String get aiPreferencesCleared => 'Author preferences cleared';
+
+  @override
+  String get aiRevisionOriginal => 'Original';
+
+  @override
+  String aiRevisionNumber(int number) {
+    return 'Revision $number';
+  }
+
+  @override
+  String get aiRevisionCompare => 'Compare with previous';
+
+  @override
+  String get aiRevisionCompareTitle => 'Compare revisions';
+
+  @override
   String get rewriteIntentPolish => 'Polish';
 
   @override
@@ -2390,6 +2451,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get workDetailAiSettings => 'AI settings';
+
+  @override
+  String get workDetailAiPreferences => 'Author preferences';
 
   @override
   String get workDetailStyleGuide => 'Style profile';

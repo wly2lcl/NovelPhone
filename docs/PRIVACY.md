@@ -13,7 +13,7 @@ NovelPhone（以下简称「本应用」）是一款本地优先的手机小说�
 - 应用锁（可选，默认关闭）只调用系统提供的生物识别 / 设备凭证校验，不读取、不存储、不上传指纹或人脸等生物识别数据。
 - 截屏保护（可选，默认关闭）：开启后仅在系统层阻止截屏与最近任务预览（Android `FLAG_SECURE`），iOS 在退后台时以遮罩覆盖系统快照；本应用不采集、不上传屏幕内容。iOS 无公开 API 阻止前台主动截屏，设置页已注明此限制。
 - 备份密码加密（可选，默认关闭）：加密完全在本机完成，密码只保存在设备安全存储，不写入备份文件、不上传、不写日志。
-- AI 协作偏好（ENH-27，默认仅在本地）：放弃 AI 结果时选择的原因、最近采纳的写作片段只保存在本机，用于后续续写 / 改写的风格参考；不上传、不进入备份。
+- AI 协作偏好（ENH-27 / ENH-28，默认仅在本地、默认开启注入）：放弃 AI 结果时选择的原因、最近采纳的写作片段与每部作品的偏好总开关只保存在本机，用于后续续写 / 改写的风格参考；不上传、不进入备份。你可以在作品菜单查看、关闭或清空这些偏好；永久删除作品时会一并清除。
 
 ## 2. 数据保存在哪里
 
@@ -22,7 +22,7 @@ NovelPhone（以下简称「本应用」）是一款本地优先的手机小说�
 - 作品、卷、章节正文、章纲、角色卡、角色关系、设定集、灵感箱、写作统计与版本快照；
 - 应用设置（模型组名称 / baseUrl / 模型名 / 生成参数、任务映射、界面偏好、月度 AI 预算）；
 - 作品问答历史（每部作品最多 40 轮，在本机保存，可随时清空）；
-- AI 协作偏好（放弃原因计数与最近采纳片段，每部作品最多 5 条、单条最多 600 字；仅保存在本机，不进入备份）。
+- AI 协作偏好（放弃原因计数、最近采纳片段与总开关；每部作品最多 5 条、单条最多 600 字；仅保存在本机，不进入备份，可在作品菜单清空）。
 
 API Key、MCP 认证头、MCP OAuth 令牌、云备份凭证与备份加密密码仅保存在操作系统的安全存储（iOS Keychain / Android Keystore），数据库中只保存引用标识或布尔开关。
 
@@ -32,7 +32,7 @@ API Key、MCP 认证头、MCP OAuth 令牌、云备份凭证与备份加密密�
 
 只有你主动触发以下功能时，本应用才会发起网络请求：
 
-1. **AI 功能**（续写、灵感、改写、摘要、设定补全、剧情推演、作品问答、一致性检查等）：本应用会把该次请求所需的最小上下文（当前章节内容、章纲、相关角色卡、前情摘要等）**直接发送给你自行配置的模型服务商**。请求由你提供的 API Key 鉴权。不经过 NovelPhone 的服务器。使用续写 / 改写（含结果内多轮修改）时，当前候选草稿、你的修改意见，以及本机保存的高频放弃原因约束与截断后的采纳片段也会随该次请求一并发送。
+1. **AI 功能**（续写、灵感、改写、摘要、设定补全、剧情推演、作品问答、一致性检查等）：本应用会把该次请求所需的最小上下文（当前章节内容、章纲、相关角色卡、前情摘要等）**直接发送给你自行配置的模型服务商**。请求由你提供的 API Key 鉴权。不经过 NovelPhone 的服务器。使用续写 / 改写（含结果内多轮修改）时，当前候选草稿、你的修改意见，以及本机保存的高频放弃原因约束与截断后的采纳片段（仅当该作品的偏好开关开启）也会随该次请求一并发送。
 2. **MCP 工具服务**（可选）：若你配置了 MCP 服务并触发相关 AI 任务，本应用会直连你配置的 MCP 地址；若使用 OAuth 2.1，则通过系统浏览器在你与授权服务器之间完成授权。
 3. **云备份**（可选，默认关闭）：若你开启并触发备份，本应用会把整库备份直接上传到你自行配置的对象存储（S3 兼容）；开启备份密码加密时上传 `.npbak` 密文，否则上传与本地一致的 zip。凭证与加密密码只存本机。
 
@@ -45,7 +45,7 @@ API Key、MCP 认证头、MCP OAuth 令牌、云备份凭证与备份加密密�
 ## 5. 数据删除与导出
 
 - 你可以在应用内导出作品（txt / docx / markdown / EPUB）与整库备份（备份不包含 API Key）；整库备份可选择密码加密（`.npbak`，AES-256-GCM），密码由你保管、本应用不提供找回。
-- 你可以删除单部作品（进入回收站后可进一步彻底删除）、清空作品问答历史、重置 Token 统计。
+- 你可以删除单部作品（进入回收站后可进一步彻底删除；彻底删除会同时清除该作品的 AI 协作偏好）、清空作品问答历史、清空作者协作偏好、重置 Token 统计。
 - 卸载应用会清除本地数据库与安全存储中的凭证。
 - 系统级自动云备份已关闭：Android 声明 `android:allowBackup="false"`，并在 Android 12+ 通过 `dataExtractionRules` 排除 cloud-backup 的全部数据域，作品数据不会进入 Google Drive 等系统云备份；换机设备直传（D2D）保留，数据只在你自己的两台设备间直接迁移。
 
@@ -70,12 +70,12 @@ NovelPhone is a local-first novel-writing app. **It collects no data by default;
 - The optional app lock (off by default) delegates verification to the OS biometric / device-credential prompt. The app never reads, stores or uploads fingerprint or face data; it only receives a pass/fail result.
 - The optional screen protection (off by default) only sets a platform window flag on Android (`FLAG_SECURE`) and overlays an opaque view while the app is backgrounded on iOS, so the system screenshots and task-switcher previews are blocked or masked. The app never captures or uploads screen content. iOS exposes no public API to block a foreground screenshot; the settings screen states this limitation.
 - The optional backup passphrase encryption (off by default) runs entirely on-device. The passphrase lives only in the OS secure store; it is never written into the backup file, uploaded or logged.
-- AI collaboration preferences (ENH-27) stay on-device by default: the reasons you pick when discarding an AI result and a few recently adopted passages are stored locally to guide later continuation / rewrite requests. They are never uploaded on their own and are excluded from backups.
+- AI collaboration preferences (ENH-27 / ENH-28) stay on-device: the reasons you pick when discarding an AI result, a few recently adopted passages, and a per-work on/off switch (on by default) are stored locally to guide later continuation / rewrite requests. You can view, disable or clear them from the work menu, and permanently deleting a work removes them. They are never uploaded on their own and are excluded from backups.
 - Manuscripts, story bible, outlines, inspirations and writing stats are stored only in the app's private SQLite database on your device. API keys, cloud-backup credentials and the optional backup passphrase live in the OS secure store (Keychain / Keystore).
-- The app connects to the network only when you actively use AI features, an MCP tool server, or cloud backup. Requests go **directly to the provider you configure**; NovelPhone operates no relay server. The minimum context needed for each request is sent, authenticated with your own key. For continuation / rewrite (including in-result revisions), the request also carries the current draft, your revision instruction, and the locally stored high-frequency discard rules and truncated adopted samples.
+- The app connects to the network only when you actively use AI features, an MCP tool server, or cloud backup. Requests go **directly to the provider you configure**; NovelPhone operates no relay server. The minimum context needed for each request is sent, authenticated with your own key. For continuation / rewrite (including in-result revisions), the request also carries the current draft, your revision instruction, and — only when that work's preference switch is on — the locally stored high-frequency discard rules and truncated adopted samples.
 - Optional cloud backup is off by default and uploads directly to your own S3-compatible storage. When backup passphrase encryption is enabled, the uploaded file is `.npbak` ciphertext; otherwise it is the same zip as the local backup. Credentials and the passphrase stay on your device.
 - You can export works and full-library backups at any time; backups never contain API keys. Encrypted backups (`.npbak`, AES-256-GCM) use a passphrase you keep yourself — there is no recovery mechanism.
-- Uninstalling the app removes local data and secure-store credentials. Android auto backup is disabled (`allowBackup="false"` plus `dataExtractionRules` excluding all cloud-backup domains); device-to-device transfer remains available and never goes through the cloud.
+- Uninstalling the app removes local data and secure-store credentials. You can permanently delete a work (which also clears its AI collaboration preferences), clear chat history or clear AI collaboration preferences at any time. Android auto backup is disabled (`allowBackup="false"` plus `dataExtractionRules` excluding all cloud-backup domains); device-to-device transfer remains available and never goes through the cloud.
 - No third-party SDKs are bundled. Data sent to your chosen model provider is governed by that provider's privacy policy.
 
 Contact: <https://github.com/wly2lcl/NovelPhone/issues>

@@ -175,6 +175,36 @@
   "aiFeedbackSkip": "Discard without reason",
   "aiFeedbackConfirm": "Record and discard",
   "aiFeedbackRecorded": "Recorded; future generations will use it",
+  "aiPreferencesTitle": "Author preferences",
+  "aiPreferencesDescription": "These preferences stay on this device and guide later continuation / rewrite requests. They are excluded from backups.",
+  "aiPreferencesEnabled": "Use local preferences when generating",
+  "aiPreferencesEmpty": "Nothing recorded yet. Pick a reason when discarding a result, and adopted results will add reference passages automatically.",
+  "aiPreferencesReasons": "Discard reasons",
+  "aiPreferencesSamples": "Recently adopted passages",
+  "aiPreferencesNoSamples": "No adopted passages yet",
+  "aiPreferencesCount": "{count, plural, =1{1 time} other{{count} times}}",
+  "@aiPreferencesCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "aiPreferencesClear": "Clear preferences and samples",
+  "aiPreferencesClearTitle": "Clear author preferences?",
+  "aiPreferencesClearBody": "Reason counts and recently adopted passages will be deleted permanently.",
+  "aiPreferencesCleared": "Author preferences cleared",
+  "aiRevisionOriginal": "Original",
+  "aiRevisionNumber": "Revision {number}",
+  "@aiRevisionNumber": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "aiRevisionCompare": "Compare with previous",
+  "aiRevisionCompareTitle": "Compare revisions",
   "rewriteIntentPolish": "Polish",
   "rewriteIntentExpand": "Expand",
   "rewriteIntentCondense": "Condense",
@@ -685,6 +715,7 @@
   "workDetailImportTxtDocx": "Import txt / docx / Markdown / EPUB",
   "workDetailInspirationsTitle": "Inspiration box",
   "workDetailAiSettings": "AI settings",
+  "workDetailAiPreferences": "Author preferences",
   "workDetailStyleGuide": "Style profile",
   "styleGuideTitle": "Style profile",
   "styleGuideIntro": "The style profile is injected into continuation, rewrite, opening, and plot planning so AI follows your voice.",
