@@ -72,6 +72,33 @@ class RewriteIntent {
   }
 }
 
+/// 多候选续写的叙事侧重（ENH-36）：三路共用资料，但各自聚焦不同写法。
+class ContinueStrategy {
+  const ContinueStrategy._();
+
+  static const String dialogue = 'dialogue';
+  static const String action = 'action';
+  static const String atmosphere = 'atmosphere';
+
+  static const List<String> all = <String>[dialogue, action, atmosphere];
+
+  static String prompt(String strategy) {
+    switch (strategy) {
+      case dialogue:
+        return '本候选以对话推进：用人物对白承载冲突与信息，'
+            '叙述只保留必要的动作和停顿，让人物自己把话说完。';
+      case action:
+        return '本候选以动作推进：让人物用具体行动改变局面，'
+            '少写解释性心理，用可见的动作和后果带出情绪。';
+      case atmosphere:
+        return '本候选以氛围推进：多用环境、感官与细节营造张力，'
+            '节奏可以更慢，但每个细节都要服务当下处境。';
+      default:
+        return '';
+    }
+  }
+}
+
 /// 用例产出的统一事件（ARCHITECTURE 6.1：全部用例共享同一套事件与错误处理）。
 sealed class AiEvent {
   const AiEvent();
@@ -236,6 +263,17 @@ class PlotPlanResult {
   const PlotPlanResult({required this.plan, required this.result});
 
   final PlotPlan plan;
+  final AiOneShotResult result;
+}
+
+/// 本章状态变化提取结果（ENH-35）。
+class StoryStateExtractionResult {
+  const StoryStateExtractionResult({
+    required this.extraction,
+    required this.result,
+  });
+
+  final StoryStateExtraction extraction;
   final AiOneShotResult result;
 }
 
@@ -426,6 +464,9 @@ class AiService {
     if (task == AiTask.extract) return await _resolveExtractModel() != null;
     if (task == AiTask.plan) return await _resolvePlanModel() != null;
     if (task == AiTask.chat) return await _resolveChatModel() != null;
+    if (task == AiTask.storyState) {
+      return await _resolveStoryStateModel() != null;
+    }
     return await settings.resolveTaskModelWithKey(task) != null;
   }
 
@@ -438,6 +479,8 @@ class AiService {
     int? length,
     // ENH-05：多候选续写时按候选序号微调温度制造差异（0/1/2 → -0.15/+0/+0.15）。
     int? variant,
+    // ENH-36：多候选各自的叙事侧重（对白 / 动作 / 氛围），共用资料只改 system。
+    String? strategy,
     // ENH-09：多候选共用的预组装上下文（见 prebuildContinue）；为空时现组装。
     BuiltContext? prebuilt,
     // ENH-27：结果内多轮修改（当前草稿 + 作者意见）。
@@ -458,9 +501,9 @@ class AiService {
       return;
     }
 
-    // ENH-09：多候选续写三路只在温度上不同、上下文完全一致，由 prebuildContinue
-    // 预先组装好传入，避免每个候选重复取数与组装。
-    final injected =
+    // ENH-09：多候选续写共用预组装上下文，避免每个候选重复取数与组装。
+    // ENH-36：各候选在此之上只追加自己的叙事侧重，资料部分仍完全一致。
+    final base =
         prebuilt ??
         _withSkills(
           await contexts.buildContinue(
@@ -478,6 +521,9 @@ class AiService {
           ),
           await settings.listEnabledSkills(),
         );
+    final injected = strategy == null || strategy.isEmpty
+        ? base
+        : _withContinueStrategy(base, strategy);
     yield AiContextBuilt(injected);
 
     final client = buildAiClient(
@@ -503,8 +549,8 @@ class AiService {
     );
   }
 
-  /// 预组装续写上下文（ENH-09）：多候选续写的三个候选只在温度上不同，上下文
-  /// 完全一致，这里一次组装好供三路流共用，省掉两次全量取数与组装。
+  /// 预组装续写上下文（ENH-09）：多候选续写的公共资料一次组装好供三路流共用；
+  /// 各候选的叙事侧重由 [continueWriting] 的 `strategy` 在 system 上追加（ENH-36）。
   /// 返回 null 表示尚未配置可用模型，此时各流会自行走 NeedsConfig 分支。
   Future<BuiltContext?> prebuildContinue({
     required int workId,
@@ -989,6 +1035,48 @@ class AiService {
     return EntityExtractionResult(extraction: extraction, result: result);
   }
 
+  /// 从单章正文提取故事状态卡变化（ENH-35），结果由 UI 勾选后再落库。
+  Future<StoryStateExtractionResult> extractStoryStates({
+    required int workId,
+    required int chapterId,
+  }) async {
+    final resolved = await _resolveStoryStateModel();
+    if (resolved == null) throw const AiServiceNeedsConfig();
+    final chapter = await chapters.getChapter(chapterId);
+    if (chapter == null) {
+      throw const AiServiceException(
+        kind: AiErrorKind.badRequest,
+        message: '章节不存在，无法提取状态变化',
+      );
+    }
+    if (chapter.content.trim().isEmpty) {
+      throw const AiServiceException(
+        kind: AiErrorKind.badRequest,
+        message: '本章还没有正文，先写一些内容再提取状态变化',
+      );
+    }
+    final built = await contexts.buildStoryStateExtraction(
+      workId: workId,
+      chapterId: chapterId,
+      contextWindow: resolved.group.contextWindow,
+    );
+    final result = await _completeOnce(
+      resolved: resolved,
+      built: built,
+      task: AiTask.storyState,
+      workId: workId,
+      chapterId: chapterId,
+    );
+    final extraction = parseStoryStateExtractionResponse(result.text);
+    if (extraction.parseFailed) {
+      throw const AiServiceException(
+        kind: AiErrorKind.badRequest,
+        message: 'AI 返回的状态变化无法解析，请重试',
+      );
+    }
+    return StoryStateExtractionResult(extraction: extraction, result: result);
+  }
+
   /// 基于已有章纲与最近正文推演后续剧情。
   Future<PlotPlanResult> planPlot({
     required int workId,
@@ -1127,6 +1215,11 @@ class AiService {
 
   Future<ResolvedModel?> _resolveChatModel() async =>
       await settings.resolveTaskModelWithKey(AiTask.chat) ??
+      await settings.resolveTaskModelWithKey(AiTask.continueWriting);
+
+  Future<ResolvedModel?> _resolveStoryStateModel() async =>
+      await settings.resolveTaskModelWithKey(AiTask.storyState) ??
+      await settings.resolveTaskModelWithKey(AiTask.extract) ??
       await settings.resolveTaskModelWithKey(AiTask.continueWriting);
 
   /// 非流式一次性调用（文风 / 设定补全 / 剧情推演共用）。
@@ -1757,6 +1850,17 @@ class AiService {
         label: '用户技能',
         content: skills.map((s) => s.name).join('、'),
       ),
+    );
+  }
+
+  /// 追加候选的叙事侧重（ENH-36）：只改 system 与上下文详情，
+  /// 角色卡 / 前文等资料三路仍共用同一份。
+  BuiltContext _withContinueStrategy(BuiltContext built, String strategy) {
+    final prompt = ContinueStrategy.prompt(strategy);
+    if (prompt.isEmpty) return built;
+    return built.withSystem(
+      '${built.system}\n\n【本候选侧重】\n$prompt',
+      section: ContextSection(label: '候选侧重', content: prompt),
     );
   }
 

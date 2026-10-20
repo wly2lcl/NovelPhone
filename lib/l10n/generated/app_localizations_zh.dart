@@ -248,6 +248,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get editorToolContinuity => '设定一致性检查';
 
   @override
+  String get editorToolStoryState => '提取本章状态变化';
+
+  @override
   String get editorToolEditSummary => '查看/编辑本章摘要';
 
   @override
@@ -419,6 +422,30 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String aiPanelVersion(int n) {
     return '版本 $n';
+  }
+
+  @override
+  String get aiPanelMixCandidates => '跨候选组合';
+
+  @override
+  String get candidateMixTitle => '跨候选组合';
+
+  @override
+  String get candidateMixIntro => '每个段落可以选自不同候选，组合结果会替换当前候选内容，正文不会被直接改动。';
+
+  @override
+  String candidateMixSlot(int count) {
+    return '第 $count 段';
+  }
+
+  @override
+  String candidateMixCandidate(int index) {
+    return '候选 $index';
+  }
+
+  @override
+  String candidateMixApply(int count) {
+    return '组合并采纳 $count 段';
   }
 
   @override
@@ -669,6 +696,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aiSectionPreferences => '作者协作偏好';
+
+  @override
+  String get aiSectionCandidateStrategy => '候选侧重';
 
   @override
   String get flavorTitle => 'AI 感检查';
@@ -1585,6 +1615,41 @@ class AppLocalizationsZh extends AppLocalizations {
   String get taskMapUnassigned => '未指定';
 
   @override
+  String get taskModelRecommendTitle => '按采纳质量推荐';
+
+  @override
+  String get taskModelRecommendIntro =>
+      '基于近 30 天各模型的采纳率；至少 3 次调用、且比当前映射高 10 个百分点才会推荐。';
+
+  @override
+  String taskModelRecommendStat(
+    String model,
+    int calls,
+    int adoption,
+    int verbatim,
+  ) {
+    return '$model · $calls 次调用 · 采纳率 $adoption%（原样 $verbatim%）';
+  }
+
+  @override
+  String taskModelRecommendCurrent(String model) {
+    return '当前：$model';
+  }
+
+  @override
+  String get taskModelRecommendNoCurrent => '当前未单独指定，使用回退模型';
+
+  @override
+  String taskModelRecommendApply(String group) {
+    return '改用「$group」';
+  }
+
+  @override
+  String taskModelRecommendApplied(String group) {
+    return '已切换到「$group」';
+  }
+
+  @override
   String get aiTaskContinue => 'AI 续写';
 
   @override
@@ -2285,6 +2350,46 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get storyStateDeleteBody => '删除后不可恢复。';
+
+  @override
+  String get storyStateExtractTitle => 'AI 提取状态变化';
+
+  @override
+  String get storyStateExtractIntro =>
+      'AI 会从本章正文提取角色当下状态、伏笔进展与时间线事件，并与现有卡片对照；勾选后才会写入。';
+
+  @override
+  String get storyStateExtractRunning => '正在提取本章状态变化…';
+
+  @override
+  String storyStateExtractFailed(String message) {
+    return '提取失败：$message';
+  }
+
+  @override
+  String get storyStateExtractParseFailed => 'AI 返回的状态变化无法解析，请重试';
+
+  @override
+  String get storyStateExtractEmpty => '本章没有可提取的状态变化';
+
+  @override
+  String get storyStateExtractNew => '新增';
+
+  @override
+  String get storyStateExtractUpdate => '更新';
+
+  @override
+  String get storyStateExtractUnchanged => '与现有卡片一致';
+
+  @override
+  String storyStateExtractApply(int count) {
+    return '应用选中项（$count）';
+  }
+
+  @override
+  String storyStateExtractApplied(int created, int updated) {
+    return '已新增 $created 张、更新 $updated 张状态卡';
+  }
 
   @override
   String get workDetailAiSettings => 'AI 设置';
@@ -3058,6 +3163,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aiTaskChat => 'AI 作品问答';
+
+  @override
+  String get aiTaskStoryState => 'AI 状态提取';
 
   @override
   String get tokenStatsEstimatedCost => '预计费用';

@@ -25,6 +25,7 @@ import 'editor_controller.dart';
 import 'find_replace_panel.dart';
 import 'flavor_check_panel.dart';
 import 'snapshot_panel.dart';
+import 'story_state_extraction_dialog.dart';
 
 /// AI 章节工具菜单项（ENH-06）：面板模式 + 非面板动作（查看/编辑摘要）。
 enum _ChapterTool {
@@ -32,6 +33,7 @@ enum _ChapterTool {
   volumeSummary,
   outlineExpand,
   consistency,
+  storyState,
   editSummary,
 }
 
@@ -241,6 +243,10 @@ class _EditorPageState extends ConsumerState<EditorPage> {
                 child: Text(context.l10n.editorToolContinuity),
               ),
               PopupMenuItem<_ChapterTool>(
+                value: _ChapterTool.storyState,
+                child: Text(context.l10n.editorToolStoryState),
+              ),
+              PopupMenuItem<_ChapterTool>(
                 value: _ChapterTool.editSummary,
                 child: Text(context.l10n.editorToolEditSummary),
               ),
@@ -421,6 +427,8 @@ class _EditorPageState extends ConsumerState<EditorPage> {
         await _openAi(AiPanelMode.outlineExpand);
       case _ChapterTool.consistency:
         await _checkContinuity();
+      case _ChapterTool.storyState:
+        await _extractStoryStates();
       case _ChapterTool.editSummary:
         await _editAiSummary();
     }
@@ -523,6 +531,29 @@ class _EditorPageState extends ConsumerState<EditorPage> {
       ),
     );
     if (go == true && mounted) context.push('/settings');
+  }
+
+  /// AI 提取本章状态变化（ENH-35）：结果与现有状态卡对照后勾选落库。
+  Future<void> _extractStoryStates() async {
+    if (_controller.textController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.editorContinuityEmpty)),
+      );
+      return;
+    }
+    final ready = await ref.read(aiServiceProvider).isReady(AiTask.storyState);
+    if (!mounted) return;
+    if (!ready) {
+      await _promptModelSetup();
+      return;
+    }
+    if (!await ensureAiNotice(context, ref)) return;
+    if (!mounted) return;
+    await showStoryStateExtractionDialog(
+      context,
+      workId: widget.workId,
+      chapterId: widget.chapterId,
+    );
   }
 
   /// 设定一致性检查（ENH-22 / ENH-23）：流式返回，对话框内可停止并保留部分结果。

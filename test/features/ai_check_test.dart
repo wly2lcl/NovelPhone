@@ -446,6 +446,49 @@ void main() {
       expect(temperatures, hasLength(2));
       expect(temperatures[1], greaterThan(temperatures[0]));
     });
+
+    test('多候选按策略注入不同侧重且共用预组装上下文（ENH-36）', () async {
+      await configureContinueModel();
+      final systems = <String>[];
+      final service = serviceWith(
+        MockClient((req) async {
+          final body = jsonDecode(req.body) as Map<String, dynamic>;
+          final messages = body['messages'] as List<dynamic>;
+          systems.add(
+            (messages.first as Map<String, dynamic>)['content'] as String,
+          );
+          return sseResponse('她点头。');
+        }),
+      );
+
+      final prebuilt = await service.prebuildContinue(
+        workId: workId,
+        chapterId: chapterId,
+      );
+      expect(prebuilt, isNotNull);
+
+      for (final strategy in ContinueStrategy.all) {
+        final events = await service
+            .continueWriting(
+              workId: workId,
+              chapterId: chapterId,
+              strategy: strategy,
+              prebuilt: prebuilt,
+            )
+            .toList();
+        final built = events.whereType<AiContextBuilt>().single.context;
+        expect(identical(built.messages, prebuilt!.messages), isTrue);
+        expect(built.sections.map((section) => section.label), <String>[
+          '候选侧重',
+          ...prebuilt.sections.map((s) => s.label),
+        ]);
+      }
+
+      expect(systems, hasLength(3));
+      expect(systems[0], contains('本候选以对话推进'));
+      expect(systems[1], contains('本候选以动作推进'));
+      expect(systems[2], contains('本候选以氛围推进'));
+    });
   });
 
   group('本卷前情回顾用例（ENH-06）', () {

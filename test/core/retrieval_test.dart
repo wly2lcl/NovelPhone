@@ -46,7 +46,7 @@ void main() {
     expect(retrievePassages(chapters: chapters, query: '宇宙飞船降落在火星'), isEmpty);
   });
 
-  test('同章片段数量与 topK 受限，且不扫描超过字符上限的内容', () {
+  test('同章片段数量与 topK 受限', () {
     final long = _chapter(
       5,
       '铜印',
@@ -59,15 +59,26 @@ void main() {
       maxPerChapter: 2,
     );
     expect(hits.length, lessThanOrEqualTo(2));
+  });
 
-    // 第一个无命中章节已耗尽扫描预算，后续章节不再读取。
-    final filler = _chapter(6, '集市', '清晨的集市人来人往，卖鱼人高声吆喝。');
-    final limited = retrievePassages(
-      chapters: <Chapter>[filler, long],
-      query: '铜印的秘密',
-      maxScanChars: 10,
+  test('扫描预算按章均分，长篇靠后章节仍可命中（ENH-33）', () {
+    final filler = _chapter(
+      6,
+      '集市',
+      List<String>.generate(400, (i) => '清晨的集市人来人往，卖鱼人高声吆喝。').join('\n\n'),
     );
-    expect(limited, isEmpty);
+    final later = _chapter(
+      7,
+      '铜印',
+      List<String>.generate(400, (i) => '铜印的秘密仍未解开。').join('\n\n'),
+    );
+    final hits = retrievePassages(
+      chapters: <Chapter>[filler, later],
+      query: '铜印的秘密',
+      maxScanChars: 640,
+    );
+    expect(hits, isNotEmpty);
+    expect(hits.first.chapterId, 7);
   });
 
   test('格式化输出包含章节序号、标题与片段正文', () {

@@ -855,6 +855,123 @@ void main() {
     expect(context.estimatedTokens, lessThanOrEqualTo(context.budgetTokens));
   });
 
+  test('buildContinuityCheck 注入故事状态卡并要求冲突注明来源（ENH-34）', () async {
+    final workId = await seedWork();
+    final third = await chapters.createChapter(workId: workId, title: '第三章');
+    await chapters.saveChapter(
+      chapterId: third,
+      title: '第三章',
+      content: '沈砚左臂完好，抬手推开了窗。',
+      cursorOffset: 0,
+      scrollOffset: 0,
+    );
+    await outline.saveChapterSummary(
+      workId: workId,
+      chapterId: third,
+      summary: '沈砚在客栈养伤。',
+    );
+    await characters.createCharacter(
+      workId: workId,
+      name: '沈砚',
+      identity: '游侠',
+    );
+    await settings.createEntry(
+      workId: workId,
+      type: SettingType.worldview,
+      name: '玄洲',
+      content: '北境终年积雪。',
+    );
+    final states = StoryStateRepository(db);
+    await states.createEntry(
+      workId: workId,
+      kind: StoryStateKind.character,
+      title: '沈砚',
+      detail: '左臂受伤，不能提刀',
+    );
+    await states.createEntry(
+      workId: workId,
+      kind: StoryStateKind.foreshadow,
+      title: '铜印来历',
+      status: 'open',
+    );
+    final localBuilder = ContextBuilder(
+      works: works,
+      chapters: chapters,
+      characters: characters,
+      outline: outline,
+      settings: settings,
+      storyStates: states,
+    );
+
+    final context = await localBuilder.buildContinuityCheck(
+      workId: workId,
+      chapterId: third,
+      contextWindow: 32000,
+    );
+
+    final labels = context.sections.map((s) => s.label).toList();
+    expect(labels, contains('故事状态卡'));
+    expect(labels.indexOf('故事状态卡'), labels.indexOf('设定集') + 1);
+    final stateSection = context.sections.firstWhere((s) => s.label == '故事状态卡');
+    expect(stateSection.content, contains('沈砚：左臂受伤，不能提刀'));
+    expect(stateSection.content, contains('铜印来历'));
+
+    final prompt = context.messages.single.content;
+    expect(prompt, contains('【故事状态卡】'));
+    expect(prompt, contains('故事状态卡、前情摘要'));
+    expect(context.system, contains('来源卡片'));
+    expect(context.system, contains('故事状态·卡片名'));
+    expect(context.truncated, isFalse);
+  });
+
+  test('buildStoryStateExtraction 注入现有卡片并保留已回收伏笔（ENH-35）', () async {
+    final workId = await seedWork();
+    final states = StoryStateRepository(db);
+    await states.createEntry(
+      workId: workId,
+      kind: StoryStateKind.character,
+      title: '沈砚',
+      detail: '左臂受伤',
+    );
+    await states.createEntry(
+      workId: workId,
+      kind: StoryStateKind.foreshadow,
+      title: '铜印来历',
+    );
+    await states.createEntry(
+      workId: workId,
+      kind: StoryStateKind.foreshadow,
+      title: '密信去向',
+      status: 'closed',
+    );
+    final localBuilder = ContextBuilder(
+      works: works,
+      chapters: chapters,
+      characters: characters,
+      outline: outline,
+      settings: settings,
+      storyStates: states,
+    );
+
+    final context = await localBuilder.buildStoryStateExtraction(
+      workId: workId,
+      chapterId: (await chapters.listChapters(workId)).first.id,
+      contextWindow: 32000,
+    );
+
+    expect(context.sections.map((s) => s.label), <String>['已有状态卡', '本章正文']);
+    final existing = context.sections.first.content;
+    expect(existing, contains('【角色状态】'));
+    expect(existing, contains('- 沈砚：左臂受伤'));
+    expect(existing, contains('- 铜印来历（未回收）'));
+    expect(existing, contains('- 密信去向（已回收）'));
+    expect(context.messages.single.content, contains('少年推开木门'));
+    expect(context.messages.single.content, contains('相对【已有状态卡】'));
+    expect(context.system, contains('"states"'));
+    expect(context.system, contains('status 填 closed'));
+    expect(context.truncated, isFalse);
+  });
+
   test('文风档案只进入 system 与上下文详情，不重复进入用户消息（ENH-23）', () async {
     final workId = await seedWork();
     await works.updateStyleGuide(

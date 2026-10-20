@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:novelphone/core/ai/structured_response.dart';
 import 'package:novelphone/models/setting_type.dart';
+import 'package:novelphone/models/story_state_kind.dart';
 import 'package:novelphone/models/work_style_guide.dart';
 
 void main() {
@@ -101,6 +102,59 @@ void main() {
       final extraction = parseEntityExtractionResponse('好的，我已抽取完成。');
       expect(extraction.parseFailed, isTrue);
       expect(extraction.isEmpty, isTrue);
+    });
+  });
+
+  group('parseStoryStateExtractionResponse', () {
+    test('解析 states 数组并归一化类型与回收状态（ENH-35）', () {
+      final extraction = parseStoryStateExtractionResponse('''
+```json
+{
+  "states": [
+    {"类型": "角色", "名称": "沈砚", "描述": "左臂中箭，暂不能提刀"},
+    {"kind": "foreshadow", "title": "铜印来历", "status": "已回收"},
+    {"kind": "timeline", "title": "雨夜入城", "detail": "子时从西门进城"}
+  ]
+}
+```
+''');
+
+      expect(extraction.parseFailed, isFalse);
+      expect(extraction.suggestions, hasLength(3));
+      expect(extraction.suggestions[0].kind, StoryStateKind.character);
+      expect(extraction.suggestions[0].detail, '左臂中箭，暂不能提刀');
+      expect(extraction.suggestions[0].closes, isFalse);
+      expect(extraction.suggestions[1].kind, StoryStateKind.foreshadow);
+      expect(extraction.suggestions[1].closes, isTrue);
+      expect(extraction.suggestions[2].kind, StoryStateKind.timeline);
+      expect(extraction.suggestions[2].detail, '子时从西门进城');
+    });
+
+    test('支持按类型分组与直接数组，同类同名以最后一条为准', () {
+      final grouped = parseStoryStateExtractionResponse(
+        '{"characters":[{"name":"沈砚","detail":"旧伤未愈"}],'
+        '"foreshadows":[{"title":"铜印来历"}],'
+        '"timeline":[{"title":"雨夜入城"}]}',
+      );
+      expect(grouped.suggestions, hasLength(3));
+      expect(grouped.suggestions[0].kind, StoryStateKind.character);
+      expect(grouped.suggestions[1].kind, StoryStateKind.foreshadow);
+      expect(grouped.suggestions[2].kind, StoryStateKind.timeline);
+
+      final merged = parseStoryStateExtractionResponse(
+        '[{"kind":"character","title":"沈砚","detail":"旧伤未愈"},'
+        '{"kind":"character","title":"沈砚","detail":"左臂中箭"}]',
+      );
+      expect(merged.suggestions, hasLength(1));
+      expect(merged.suggestions.single.detail, '左臂中箭');
+    });
+
+    test('非 JSON 标记解析失败，空变化不算失败', () {
+      expect(parseStoryStateExtractionResponse('本章没有变化').parseFailed, isTrue);
+      final empty = parseStoryStateExtractionResponse('{"states":[]}');
+      expect(empty.parseFailed, isFalse);
+      expect(empty.isEmpty, isTrue);
+      expect(parseStoryStateExtractionResponse('[]').parseFailed, isFalse);
     });
   });
 

@@ -12,6 +12,10 @@
 //   /openai-style        返回文风档案 JSON（验证 ENH-23 文风提取）
 //   /openai-extract      返回角色 / 设定抽取 JSON（验证 ENH-23 设定补全）
 //   /openai-plan         返回剧情走向与分章建议 JSON（验证 ENH-23 剧情推演）
+//   /openai-states       返回本章状态变化 JSON（验证 ENH-35 状态卡提取）
+//   /openai-continuity   检查请求是否携带故事状态卡并回显（验证 ENH-34）
+//   /openai-strategies   按 system 中的候选侧重返回不同段落
+//                        （验证 ENH-36 多候选策略与跨候选组合）
 //   /openai-enh27        多段落续写；带修订要求的请求返回不同草稿
 //                        （验证 ENH-27 分段采纳与结果内继续修改）
 //   /openai-enh29-revise-fail  首次多段落续写正常，后续修订请求始终 500
@@ -41,9 +45,10 @@ Future<void> main(List<String> args) async {
   stdout.writeln('fake-llm 已启动：http://127.0.0.1:$port （分片间隔 ${delayMs}ms）');
   stdout.writeln(
     '场景基址：http://127.0.0.1:$port/openai、/openai-style、/openai-extract、'
-    '/openai-plan、/openai-tool、/openai-empty-first、/openai-429-first、'
-    '/openai-429-always、/openai-500、/openai-filter、/openai-enh27、'
-    '/openai-enh29-revise-fail、/anthropic、/anthropic-429',
+    '/openai-plan、/openai-states、/openai-continuity、/openai-strategies、'
+    '/openai-tool、/openai-empty-first、/openai-429-first、/openai-429-always、'
+    '/openai-500、/openai-filter、/openai-enh27、/openai-enh29-revise-fail、'
+    '/anthropic、/anthropic-429',
   );
   stdout.writeln('观测：GET /stats、GET /stats/reset');
 }
@@ -123,6 +128,15 @@ class FakeLlmServer {
         );
       case 'openai-plan':
         return _openaiStream(request.response, pieces: <String>[_plotPlanJson]);
+      case 'openai-states':
+        return _openaiStream(
+          request.response,
+          pieces: <String>[_storyStatesJson],
+        );
+      case 'openai-continuity':
+        return _openaiContinuity(request);
+      case 'openai-strategies':
+        return _openaiStrategies(request);
       case 'openai-enh27':
         return _openaiEnh27(request);
       case 'openai-enh29-revise-fail':
@@ -196,6 +210,37 @@ class FakeLlmServer {
     response.write('data: [DONE]\n\n');
     await response.flush();
     await response.close();
+  }
+
+  /// ENH-34 验收：检查请求是否携带故事状态卡，并把结果回显到检查报告。
+  Future<void> _openaiContinuity(HttpRequest request) async {
+    final raw = await utf8.decoder.bind(request).join();
+    final hasStates = raw.contains('故事状态卡') && raw.contains('故事状态·');
+    return _openaiStream(
+      request.response,
+      pieces: <String>[hasStates ? '未发现设定冲突（已读取故事状态卡）。' : '未发现设定冲突（缺少故事状态卡）。'],
+    );
+  }
+
+  /// ENH-36 验收：按 system 中的「本候选侧重」返回不同段落，便于跨候选组合。
+  Future<void> _openaiStrategies(HttpRequest request) async {
+    final raw = await utf8.decoder.bind(request).join();
+    final body = jsonDecode(raw) as Map<String, dynamic>;
+    final messages = (body['messages'] as List<dynamic>?) ?? const <dynamic>[];
+    final system = messages
+        .whereType<Map>()
+        .where((message) => message['role'] == 'system')
+        .map((message) => '${message['content'] ?? ''}')
+        .join('\n');
+    final List<String> pieces;
+    if (system.contains('本候选以动作推进')) {
+      pieces = <String>['沈砚踏前一步，横刀挡在门前。\n\n', '他反手扣住门闩，把风雨关在门外。'];
+    } else if (system.contains('本候选以氛围推进')) {
+      pieces = <String>['雨声压低了整条巷子，灯影在窗纸上轻轻发抖。\n\n', '他听见自己的呼吸，比檐下的滴水还慢。'];
+    } else {
+      pieces = <String>['“谁在里面？”沈砚低声问。\n\n', '里间沉默片刻，才有人答：“故人。”'];
+    }
+    return _openaiStream(request.response, pieces: pieces);
   }
 
   /// ENH-27 验收：多段落续写；带修订要求的请求返回不同草稿，便于验证分段采纳与继续修改。
@@ -487,6 +532,13 @@ class FakeLlmServer {
       '"beats":["苏晚拿出旧照片","沈砚否认","两人不欢而散"],'
       '"hook":"灭门案线索浮出水面，但真相可能伤到苏晚"}],'
       '"chapters":[{"title":"第十二章 雪夜","summary":"两人在诊所对质，旧案时间线出现矛盾。"}]}';
+
+  static const String _storyStatesJson =
+      '{"states":['
+      '{"kind":"character","title":"沈砚","detail":"左臂中箭，仍握紧铜印","status":"open"},'
+      '{"kind":"foreshadow","title":"铜印来历","detail":"铜印上的纹样与灭门案有关","status":"open"},'
+      '{"kind":"foreshadow","title":"密信去向","status":"closed"},'
+      '{"kind":"timeline","title":"雨夜入城","detail":"子时从西门进城，遇见守夜人"}]}';
 
   static const Map<String, dynamic> _rateLimitBody = <String, dynamic>{
     'error': <String, dynamic>{

@@ -151,6 +151,15 @@ class TokenStatsRepository {
     return _toStats(await _dao.findAggregated(since: since));
   }
 
+  /// 近 30 天统计（ENH-37）：推荐只看近期表现，避免早期试验数据干扰。
+  Future<TokenStats> recentStats({
+    Duration window = const Duration(days: 30),
+    DateTime? now,
+  }) async {
+    final since = (now ?? DateTime.now()).subtract(window);
+    return _toStats(await _dao.findAggregated(since: since));
+  }
+
   static DateTime _monthStart(DateTime now) => DateTime(now.year, now.month, 1);
 
   Future<void> reset() => _dao.deleteAll();

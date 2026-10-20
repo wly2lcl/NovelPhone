@@ -512,6 +512,12 @@ abstract class AppLocalizations {
   /// **'设定一致性检查'**
   String get editorToolContinuity;
 
+  /// No description provided for @editorToolStoryState.
+  ///
+  /// In zh, this message translates to:
+  /// **'提取本章状态变化'**
+  String get editorToolStoryState;
+
   /// No description provided for @editorToolEditSummary.
   ///
   /// In zh, this message translates to:
@@ -835,6 +841,42 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'版本 {n}'**
   String aiPanelVersion(int n);
+
+  /// No description provided for @aiPanelMixCandidates.
+  ///
+  /// In zh, this message translates to:
+  /// **'跨候选组合'**
+  String get aiPanelMixCandidates;
+
+  /// No description provided for @candidateMixTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'跨候选组合'**
+  String get candidateMixTitle;
+
+  /// No description provided for @candidateMixIntro.
+  ///
+  /// In zh, this message translates to:
+  /// **'每个段落可以选自不同候选，组合结果会替换当前候选内容，正文不会被直接改动。'**
+  String get candidateMixIntro;
+
+  /// No description provided for @candidateMixSlot.
+  ///
+  /// In zh, this message translates to:
+  /// **'第 {count} 段'**
+  String candidateMixSlot(int count);
+
+  /// No description provided for @candidateMixCandidate.
+  ///
+  /// In zh, this message translates to:
+  /// **'候选 {index}'**
+  String candidateMixCandidate(int index);
+
+  /// No description provided for @candidateMixApply.
+  ///
+  /// In zh, this message translates to:
+  /// **'组合并采纳 {count} 段'**
+  String candidateMixApply(int count);
 
   /// No description provided for @aiPanelContextTitle.
   ///
@@ -1309,6 +1351,12 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'作者协作偏好'**
   String get aiSectionPreferences;
+
+  /// No description provided for @aiSectionCandidateStrategy.
+  ///
+  /// In zh, this message translates to:
+  /// **'候选侧重'**
+  String get aiSectionCandidateStrategy;
 
   /// No description provided for @flavorTitle.
   ///
@@ -2900,6 +2948,53 @@ abstract class AppLocalizations {
   /// **'未指定'**
   String get taskMapUnassigned;
 
+  /// No description provided for @taskModelRecommendTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'按采纳质量推荐'**
+  String get taskModelRecommendTitle;
+
+  /// No description provided for @taskModelRecommendIntro.
+  ///
+  /// In zh, this message translates to:
+  /// **'基于近 30 天各模型的采纳率；至少 3 次调用、且比当前映射高 10 个百分点才会推荐。'**
+  String get taskModelRecommendIntro;
+
+  /// No description provided for @taskModelRecommendStat.
+  ///
+  /// In zh, this message translates to:
+  /// **'{model} · {calls} 次调用 · 采纳率 {adoption}%（原样 {verbatim}%）'**
+  String taskModelRecommendStat(
+    String model,
+    int calls,
+    int adoption,
+    int verbatim,
+  );
+
+  /// No description provided for @taskModelRecommendCurrent.
+  ///
+  /// In zh, this message translates to:
+  /// **'当前：{model}'**
+  String taskModelRecommendCurrent(String model);
+
+  /// No description provided for @taskModelRecommendNoCurrent.
+  ///
+  /// In zh, this message translates to:
+  /// **'当前未单独指定，使用回退模型'**
+  String get taskModelRecommendNoCurrent;
+
+  /// No description provided for @taskModelRecommendApply.
+  ///
+  /// In zh, this message translates to:
+  /// **'改用「{group}」'**
+  String taskModelRecommendApply(String group);
+
+  /// No description provided for @taskModelRecommendApplied.
+  ///
+  /// In zh, this message translates to:
+  /// **'已切换到「{group}」'**
+  String taskModelRecommendApplied(String group);
+
   /// No description provided for @aiTaskContinue.
   ///
   /// In zh, this message translates to:
@@ -4189,6 +4284,72 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'删除后不可恢复。'**
   String get storyStateDeleteBody;
+
+  /// No description provided for @storyStateExtractTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'AI 提取状态变化'**
+  String get storyStateExtractTitle;
+
+  /// No description provided for @storyStateExtractIntro.
+  ///
+  /// In zh, this message translates to:
+  /// **'AI 会从本章正文提取角色当下状态、伏笔进展与时间线事件，并与现有卡片对照；勾选后才会写入。'**
+  String get storyStateExtractIntro;
+
+  /// No description provided for @storyStateExtractRunning.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在提取本章状态变化…'**
+  String get storyStateExtractRunning;
+
+  /// No description provided for @storyStateExtractFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'提取失败：{message}'**
+  String storyStateExtractFailed(String message);
+
+  /// No description provided for @storyStateExtractParseFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'AI 返回的状态变化无法解析，请重试'**
+  String get storyStateExtractParseFailed;
+
+  /// No description provided for @storyStateExtractEmpty.
+  ///
+  /// In zh, this message translates to:
+  /// **'本章没有可提取的状态变化'**
+  String get storyStateExtractEmpty;
+
+  /// No description provided for @storyStateExtractNew.
+  ///
+  /// In zh, this message translates to:
+  /// **'新增'**
+  String get storyStateExtractNew;
+
+  /// No description provided for @storyStateExtractUpdate.
+  ///
+  /// In zh, this message translates to:
+  /// **'更新'**
+  String get storyStateExtractUpdate;
+
+  /// No description provided for @storyStateExtractUnchanged.
+  ///
+  /// In zh, this message translates to:
+  /// **'与现有卡片一致'**
+  String get storyStateExtractUnchanged;
+
+  /// No description provided for @storyStateExtractApply.
+  ///
+  /// In zh, this message translates to:
+  /// **'应用选中项（{count}）'**
+  String storyStateExtractApply(int count);
+
+  /// No description provided for @storyStateExtractApplied.
+  ///
+  /// In zh, this message translates to:
+  /// **'已新增 {created} 张、更新 {updated} 张状态卡'**
+  String storyStateExtractApplied(int created, int updated);
 
   /// No description provided for @workDetailAiSettings.
   ///
@@ -5605,6 +5766,12 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'AI 作品问答'**
   String get aiTaskChat;
+
+  /// No description provided for @aiTaskStoryState.
+  ///
+  /// In zh, this message translates to:
+  /// **'AI 状态提取'**
+  String get aiTaskStoryState;
 
   /// No description provided for @tokenStatsEstimatedCost.
   ///

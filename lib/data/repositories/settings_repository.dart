@@ -39,6 +39,9 @@ class AiTask {
   static const String plan = 'plan';
   static const String chat = 'chat';
 
+  /// ENH-35：从本章正文提取故事状态卡变化。
+  static const String storyState = 'storyState';
+
   static const List<String> all = <String>[
     continueWriting,
     inspire,
@@ -52,6 +55,7 @@ class AiTask {
     extract,
     plan,
     chat,
+    storyState,
   ];
 
   static String label(String task) {
@@ -80,6 +84,8 @@ class AiTask {
         return 'AI 剧情推演';
       case chat:
         return 'AI 作品问答';
+      case storyState:
+        return 'AI 状态提取';
       default:
         return task;
     }

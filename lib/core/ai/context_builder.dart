@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import '../../data/db.dart';
 import '../../data/repositories/chapter_repository.dart';
 import '../../data/repositories/character_repository.dart';
@@ -557,9 +559,9 @@ class ContextBuilder {
     return (previousSummary: previousSummary, chapterOutline: chapterOutline);
   }
 
-  /// 设定一致性检查上下文（ENH-22）：本章正文 + 角色卡 + 设定集 + 前情摘要 /
-  /// 本章章纲，让模型只报告与既有设定明确冲突之处。超预算时依次丢弃
-  /// 前情摘要、章纲、设定集，再截断正文。
+  /// 设定一致性检查上下文（ENH-22）：本章正文 + 角色卡 + 设定集 + 故事状态卡 +
+  /// 前情摘要 / 本章章纲，让模型只报告与既有设定明确冲突之处。超预算时依次丢弃
+  /// 前情摘要、章纲、设定集、故事状态卡，再截断正文。
   Future<BuiltContext> buildContinuityCheck({
     required int workId,
     required int chapterId,
@@ -592,6 +594,9 @@ class ContextBuilder {
       fallbackContents: recap.fallbackContents,
     );
     var settingsText = await _settingsText(workId);
+    // ENH-34：状态卡记录角色当下处境、未回收伏笔与时间线，是最容易与本章
+    // 正文产生硬冲突的资料，必须进入一致性检查。
+    var storyStateText = await _storyStateText(workId, recap.ordered);
     var charactersText = allCharacters.map(formatCharacter).join('\n');
     var outlineText = chapterOutline;
     var body = content;
@@ -602,6 +607,7 @@ class ContextBuilder {
         estimateTokens(body) +
         estimateTokens(charactersText) +
         estimateTokens(settingsText) +
+        estimateTokens(storyStateText) +
         estimateTokens(previousSummary) +
         estimateTokens(outlineText);
 
@@ -618,6 +624,10 @@ class ContextBuilder {
       settingsText = '';
       truncated = true;
     }
+    if (total() > budget && storyStateText.isNotEmpty) {
+      storyStateText = '';
+      truncated = true;
+    }
     if (total() > budget && allCharacters.length > minCharacters) {
       charactersText = allCharacters
           .take(minCharacters)
@@ -632,6 +642,7 @@ class ContextBuilder {
           estimateTokens(header) -
           estimateTokens(charactersText) -
           estimateTokens(settingsText) -
+          estimateTokens(storyStateText) -
           estimateTokens(previousSummary) -
           estimateTokens(outlineText);
       if (room <= 0) {
@@ -649,6 +660,8 @@ class ContextBuilder {
         ContextSection(label: '角色卡', content: charactersText),
       if (settingsText.isNotEmpty)
         ContextSection(label: '设定集', content: settingsText),
+      if (storyStateText.isNotEmpty)
+        ContextSection(label: '故事状态卡', content: storyStateText),
       if (previousSummary.isNotEmpty)
         ContextSection(label: '前情摘要', content: previousSummary),
       if (outlineText.isNotEmpty)
@@ -672,16 +685,108 @@ class ContextBuilder {
   }
 
   static const String _continuityTask =
-      '请检查【本章正文】是否存在与角色卡、设定集、前情摘要或本章章纲明确冲突的地方。'
-      '只列冲突，不评价文笔；最多 8 条，按严重程度排序。';
+      '请检查【本章正文】是否存在与角色卡、设定集、故事状态卡、前情摘要或本章章纲'
+      '明确冲突的地方。只列冲突，不评价文笔；最多 8 条，按严重程度排序。';
 
   String _continuitySystem() =>
       '你是一位严谨的中文小说责任编辑，负责设定一致性校对。\n'
       '规则：\n'
       '1. 只报告与给定设定资料明确冲突的内容，不推测、不评价文笔或剧情好坏；\n'
-      '2. 每条按「冲突原文 → 冲突的设定 → 建议改法」三段式说明，引用原文保持简短；\n'
-      '3. 没有发现冲突时，只回复「未发现设定冲突」；\n'
-      '4. 使用简体中文输出纯文本，不要使用 Markdown 代码块。';
+      '2. 每条按「冲突原文 → 冲突的设定（注明来源卡片） → 建议改法」三段式说明，'
+      '来源写成「角色卡·角色名」「设定集·条目名」「故事状态·卡片名」或「章纲」，'
+      '引用原文保持简短；\n'
+      '3. 同一处冲突涉及多张卡片时都要列出，便于作者回查；\n'
+      '4. 没有发现冲突时，只回复「未发现设定冲突」；\n'
+      '5. 使用简体中文输出纯文本，不要使用 Markdown 代码块。';
+
+  // ---------- ENH-35：本章状态变化提取 ----------
+
+  /// 从单章正文提取故事状态卡变化（角色状态 / 伏笔 / 时间线），并把现有
+  /// 卡片一起给模型：状态有变化时复用原 title，回收伏笔时输出 closed。
+  Future<BuiltContext> buildStoryStateExtraction({
+    required int workId,
+    required int chapterId,
+    int contextWindow = 32000,
+  }) async {
+    final budget = (contextWindow * 0.5).round();
+    final work = await works.getWork(workId);
+    final chapter = await chapters.getChapter(chapterId);
+    final repository = storyStates;
+    final existing = repository == null
+        ? const <StoryState>[]
+        : await repository.listEntries(workId);
+    final title = (chapter?.title ?? '').trim();
+    final titleText = title.isEmpty ? '未命名章节' : title;
+    final system = _storyStateSystem();
+    final header = '作品：《${work?.title ?? ''}》\n本章：$titleText';
+    var existingText = _storyStateExtractionText(existing);
+    var body = (chapter?.content ?? '').trim();
+    var truncated = false;
+
+    final fixed =
+        estimateTokens(system) +
+        estimateTokens(header) +
+        estimateTokens(_storyStateTask);
+    var room = budget - fixed;
+    // 现有卡片优先保留：模型据此复用 title、判断哪些伏笔已回收。
+    if (existingText.isNotEmpty && existingText.length > room * 0.4) {
+      final keep = max(0, (room * 0.4).round());
+      existingText = keep == 0
+          ? ''
+          : '${existingText.substring(0, keep)}\n…（状态卡过长，已截断）';
+      truncated = true;
+    }
+    room = budget - fixed - estimateTokens(existingText);
+    if (room <= 0) {
+      body = '';
+      truncated = true;
+    } else if (body.length > room) {
+      const suffix = '…（本章过长，已截断）';
+      final keep = room > suffix.length ? room - suffix.length : 0;
+      body = '${body.substring(0, keep)}$suffix';
+      truncated = true;
+    }
+
+    final sections = <ContextSection>[
+      if (existingText.isNotEmpty)
+        ContextSection(label: '已有状态卡', content: existingText),
+      ContextSection(label: '本章正文', content: body.isEmpty ? '（本章暂无正文）' : body),
+    ];
+    final userContent = <String>[
+      header,
+      for (final section in sections) '【${section.label}】\n${section.content}',
+      _storyStateTask,
+    ].join('\n\n');
+    return BuiltContext(
+      system: system,
+      messages: <ChatMessage>[ChatMessage.user(userContent)],
+      sections: sections,
+      truncated: truncated,
+      estimatedTokens:
+          estimateTokens(system) +
+          estimateTokens(header) +
+          estimateTokens(existingText) +
+          estimateTokens(body) +
+          estimateTokens(_storyStateTask),
+      budgetTokens: budget,
+    );
+  }
+
+  static const String _storyStateTask =
+      '请提取【本章正文】相对【已有状态卡】发生的变化，按 system 指定格式输出 JSON。';
+
+  String _storyStateSystem() =>
+      '你是一位中文小说编辑助手，负责维护故事状态卡。\n'
+      '规则：\n'
+      '1. 只提取本章正文明确写出的变化，不推测后续剧情；\n'
+      '2. kind 只能是 character（角色当下状态）、foreshadow（伏笔）或 timeline（时间线事件）；\n'
+      '3. 状态有变化的角色沿用角色名作为 title；新伏笔、新事件用简短 title 概括；\n'
+      '4. 本章回收的已有伏笔：沿用原 title，status 填 closed；其余条目 status 填 open；\n'
+      '5. title 必填，detail 写清变化与依据，不要照抄大段原文；\n'
+      '6. 没有变化时输出 {"states": []}；\n'
+      '7. 只输出 JSON，不要 Markdown 代码块或解释。\n'
+      '格式：{"states":[{"kind":"character","title":"沈砚",'
+      '"detail":"左臂中箭，暂不能提刀","status":"open"}]}';
 
   // ---------- ENH-23：文风提取 / 设定补全 / 剧情推演 / 作品问答 ----------
 
@@ -951,13 +1056,19 @@ class ContextBuilder {
         })
         .join('\n');
     final styleText = _styleText(work);
-    final catalogText = chapterList
-        .take(60)
-        .map(
-          (c) =>
-              '${c.id}|${c.title.trim().isEmpty ? '未命名章节' : c.title.trim()}|${c.wordCount} 字',
-        )
-        .join('\n');
+    // ENH-33：目录保留首尾各 30 章（中间以省略行提示），避免长篇后期章节
+    // 完全不可见；模型仍可用 search_chapters 工具检索全部章节。
+    final catalogHead = chapterList.take(30);
+    final catalogTail = chapterList.length > 30
+        ? chapterList.skip(max(30, chapterList.length - 30))
+        : const Iterable<Chapter>.empty();
+    final omitted =
+        chapterList.length - catalogHead.length - catalogTail.length;
+    final catalogText = <String>[
+      for (final c in catalogHead) _catalogLine(c),
+      if (omitted > 0) '…中间省略 $omitted 章…',
+      for (final c in catalogTail) _catalogLine(c),
+    ].join('\n');
     final instructions = _chatSystem(work?.title ?? '');
 
     // 资料区按预算收缩：先保目录与文风，再依次丢弃设定 / 章纲 / 角色卡。
@@ -1629,6 +1740,35 @@ class ContextBuilder {
     return buffer.toString().trim();
   }
 
+  /// 状态提取时展示的现有卡片（ENH-35）：保留已回收伏笔及状态标记，
+  /// 让模型能复用 title 并判断哪些伏笔在本章被关闭。
+  String _storyStateExtractionText(List<StoryState> entries) {
+    final buffer = StringBuffer();
+    void group(String title, StoryStateKind kind) {
+      final items = entries
+          .where((e) => e.kind == kind.value && e.title.trim().isNotEmpty)
+          .take(20)
+          .toList(growable: false);
+      if (items.isEmpty) return;
+      if (buffer.isNotEmpty) buffer.writeln();
+      buffer.writeln('【$title】');
+      for (final entry in items) {
+        final detail = entry.detail.trim();
+        final status = kind == StoryStateKind.foreshadow
+            ? '（${entry.status == 'closed' ? '已回收' : '未回收'}）'
+            : '';
+        buffer.writeln(
+          '- ${entry.title.trim()}${detail.isEmpty ? '' : '：$detail'}$status',
+        );
+      }
+    }
+
+    group('角色状态', StoryStateKind.character);
+    group('伏笔', StoryStateKind.foreshadow);
+    group('时间线', StoryStateKind.timeline);
+    return buffer.toString().trim();
+  }
+
   /// 设定集格式化为一段文本（按世界观 / 地点 / 道具分组），未注入 repository 时返回空。
   Future<String> _settingsText(int workId) async {
     final repository = settings;
@@ -1653,6 +1793,10 @@ class ContextBuilder {
     return buffer.toString().trim();
   }
 }
+
+/// 作品问答章节目录的一行（ENH-33，首尾各展示一部分）。
+String _catalogLine(Chapter c) =>
+    '${c.id}|${c.title.trim().isEmpty ? '未命名章节' : c.title.trim()}|${c.wordCount} 字';
 
 /// 角色卡格式化（同时用于上下文与工具结果）。
 String formatCharacter(Character c) {

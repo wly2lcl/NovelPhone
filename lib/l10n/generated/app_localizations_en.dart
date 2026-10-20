@@ -274,6 +274,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get editorToolContinuity => 'Check setting consistency';
 
   @override
+  String get editorToolStoryState => 'Extract state changes';
+
+  @override
   String get editorToolEditSummary => 'View/edit chapter summary';
 
   @override
@@ -468,6 +471,31 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String aiPanelVersion(int n) {
     return 'Version $n';
+  }
+
+  @override
+  String get aiPanelMixCandidates => 'Mix candidates';
+
+  @override
+  String get candidateMixTitle => 'Mix candidates';
+
+  @override
+  String get candidateMixIntro =>
+      'Each paragraph can come from a different candidate. The mixed result replaces the current candidate\'s text; the manuscript is unchanged.';
+
+  @override
+  String candidateMixSlot(int count) {
+    return 'Paragraph $count';
+  }
+
+  @override
+  String candidateMixCandidate(int index) {
+    return 'Candidate $index';
+  }
+
+  @override
+  String candidateMixApply(int count) {
+    return 'Mix and use $count paragraphs';
   }
 
   @override
@@ -738,6 +766,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aiSectionPreferences => 'Author preferences';
+
+  @override
+  String get aiSectionCandidateStrategy => 'Candidate focus';
 
   @override
   String get flavorTitle => 'AI-flavor check';
@@ -1802,6 +1833,42 @@ class AppLocalizationsEn extends AppLocalizations {
   String get taskMapUnassigned => 'Not assigned';
 
   @override
+  String get taskModelRecommendTitle => 'Recommended by adoption quality';
+
+  @override
+  String get taskModelRecommendIntro =>
+      'Based on adoption over the last 30 days. Requires at least 3 calls and a 10-point lead over the current mapping.';
+
+  @override
+  String taskModelRecommendStat(
+    String model,
+    int calls,
+    int adoption,
+    int verbatim,
+  ) {
+    return '$model · $calls calls · $adoption% adopted ($verbatim% verbatim)';
+  }
+
+  @override
+  String taskModelRecommendCurrent(String model) {
+    return 'Current: $model';
+  }
+
+  @override
+  String get taskModelRecommendNoCurrent =>
+      'Not assigned; uses the fallback model';
+
+  @override
+  String taskModelRecommendApply(String group) {
+    return 'Switch to $group';
+  }
+
+  @override
+  String taskModelRecommendApplied(String group) {
+    return 'Switched to $group';
+  }
+
+  @override
   String get aiTaskContinue => 'AI Continue';
 
   @override
@@ -2577,6 +2644,47 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get storyStateDeleteBody => 'This cannot be undone.';
+
+  @override
+  String get storyStateExtractTitle => 'AI state extraction';
+
+  @override
+  String get storyStateExtractIntro =>
+      'AI extracts character states, foreshadow progress and timeline events from this chapter and compares them with existing cards. Nothing is saved until you select it.';
+
+  @override
+  String get storyStateExtractRunning => 'Extracting state changes...';
+
+  @override
+  String storyStateExtractFailed(String message) {
+    return 'Extraction failed: $message';
+  }
+
+  @override
+  String get storyStateExtractParseFailed =>
+      'Could not parse the state changes returned by AI. Please retry.';
+
+  @override
+  String get storyStateExtractEmpty => 'No state changes found in this chapter';
+
+  @override
+  String get storyStateExtractNew => 'New';
+
+  @override
+  String get storyStateExtractUpdate => 'Update';
+
+  @override
+  String get storyStateExtractUnchanged => 'Matches the existing card';
+
+  @override
+  String storyStateExtractApply(int count) {
+    return 'Apply selected ($count)';
+  }
+
+  @override
+  String storyStateExtractApplied(int created, int updated) {
+    return 'Added $created, updated $updated state cards';
+  }
 
   @override
   String get workDetailAiSettings => 'AI settings';
@@ -3462,6 +3570,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aiTaskChat => 'AI work Q&A';
+
+  @override
+  String get aiTaskStoryState => 'AI state extraction';
 
   @override
   String get tokenStatsEstimatedCost => 'Estimated cost';

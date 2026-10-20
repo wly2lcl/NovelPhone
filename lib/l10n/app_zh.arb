@@ -181,6 +181,7 @@
   "editorToolVolumeSummary": "生成本卷前情回顾",
   "editorToolOutlineExpand": "AI 扩写本章纲",
   "editorToolContinuity": "设定一致性检查",
+  "editorToolStoryState": "提取本章状态变化",
   "editorToolEditSummary": "查看/编辑本章摘要",
   "editorExitFocusMode": "退出专注模式",
   "editorFocusMode": "专注模式",
@@ -273,6 +274,33 @@
   "@aiPanelVersion": {
     "placeholders": {
       "n": {
+        "type": "int"
+      }
+    }
+  },
+  "aiPanelMixCandidates": "跨候选组合",
+  "candidateMixTitle": "跨候选组合",
+  "candidateMixIntro": "每个段落可以选自不同候选，组合结果会替换当前候选内容，正文不会被直接改动。",
+  "candidateMixSlot": "第 {count} 段",
+  "@candidateMixSlot": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "candidateMixCandidate": "候选 {index}",
+  "@candidateMixCandidate": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "candidateMixApply": "组合并采纳 {count} 段",
+  "@candidateMixApply": {
+    "placeholders": {
+      "count": {
         "type": "int"
       }
     }
@@ -404,6 +432,7 @@
   "aiSectionRequirements": "生成要求",
   "aiSectionUserSkills": "用户技能",
   "aiSectionPreferences": "作者协作偏好",
+  "aiSectionCandidateStrategy": "候选侧重",
   "flavorTitle": "AI 感检查",
   "flavorShownOfTotal": "仅显示前 {shown} 条，共 {total} 条",
   "@flavorShownOfTotal": {
@@ -1116,6 +1145,50 @@
   "taskMapEmptyHint": "请先在「模型组与 API Key」中添加模型组",
   "taskMapIntro": "为每类 AI 任务指定使用的模型组；未指定则对应功能不可用。",
   "taskMapUnassigned": "未指定",
+  "taskModelRecommendTitle": "按采纳质量推荐",
+  "taskModelRecommendIntro": "基于近 30 天各模型的采纳率；至少 3 次调用、且比当前映射高 10 个百分点才会推荐。",
+  "taskModelRecommendStat": "{model} · {calls} 次调用 · 采纳率 {adoption}%（原样 {verbatim}%）",
+  "@taskModelRecommendStat": {
+    "placeholders": {
+      "model": {
+        "type": "String"
+      },
+      "calls": {
+        "type": "int"
+      },
+      "adoption": {
+        "type": "int"
+      },
+      "verbatim": {
+        "type": "int"
+      }
+    }
+  },
+  "taskModelRecommendCurrent": "当前：{model}",
+  "@taskModelRecommendCurrent": {
+    "placeholders": {
+      "model": {
+        "type": "String"
+      }
+    }
+  },
+  "taskModelRecommendNoCurrent": "当前未单独指定，使用回退模型",
+  "taskModelRecommendApply": "改用「{group}」",
+  "@taskModelRecommendApply": {
+    "placeholders": {
+      "group": {
+        "type": "String"
+      }
+    }
+  },
+  "taskModelRecommendApplied": "已切换到「{group}」",
+  "@taskModelRecommendApplied": {
+    "placeholders": {
+      "group": {
+        "type": "String"
+      }
+    }
+  },
   "aiTaskContinue": "AI 续写",
   "aiTaskInspire": "AI 灵感",
   "aiTaskRewrite": "AI 改写",
@@ -1523,6 +1596,41 @@
   "storyStateMoreActions": "更多操作",
   "storyStateDeleteTitle": "删除这条状态卡？",
   "storyStateDeleteBody": "删除后不可恢复。",
+  "storyStateExtractTitle": "AI 提取状态变化",
+  "storyStateExtractIntro": "AI 会从本章正文提取角色当下状态、伏笔进展与时间线事件，并与现有卡片对照；勾选后才会写入。",
+  "storyStateExtractRunning": "正在提取本章状态变化…",
+  "storyStateExtractFailed": "提取失败：{message}",
+  "@storyStateExtractFailed": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "storyStateExtractParseFailed": "AI 返回的状态变化无法解析，请重试",
+  "storyStateExtractEmpty": "本章没有可提取的状态变化",
+  "storyStateExtractNew": "新增",
+  "storyStateExtractUpdate": "更新",
+  "storyStateExtractUnchanged": "与现有卡片一致",
+  "storyStateExtractApply": "应用选中项（{count}）",
+  "@storyStateExtractApply": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "storyStateExtractApplied": "已新增 {created} 张、更新 {updated} 张状态卡",
+  "@storyStateExtractApplied": {
+    "placeholders": {
+      "created": {
+        "type": "int"
+      },
+      "updated": {
+        "type": "int"
+      }
+    }
+  },
   "workDetailAiSettings": "AI 设置",
   "workDetailAiPreferences": "作者协作偏好",
   "workDetailStyleGuide": "文风档案",
@@ -1996,6 +2104,7 @@
   "aiTaskExtract": "AI 设定补全",
   "aiTaskPlan": "AI 剧情推演",
   "aiTaskChat": "AI 作品问答",
+  "aiTaskStoryState": "AI 状态提取",
   "tokenStatsEstimatedCost": "预计费用",
   "tokenStatsCostValue": "¥{amount}",
   "@tokenStatsCostValue": {

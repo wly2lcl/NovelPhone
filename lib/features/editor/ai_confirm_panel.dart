@@ -18,6 +18,7 @@ import '../ai/ai_service.dart';
 import 'ai_feedback_dialog.dart';
 import 'ai_merge_dialog.dart';
 import 'ai_revision_history.dart';
+import 'candidate_merge_dialog.dart';
 import 'snapshot_diff_dialog.dart';
 
 /// 面板模式：续写 / 桥段点子 / 开篇助手 / 改写 / 逐章摘要 / 章纲扩写。
@@ -274,6 +275,8 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
         return l10n.aiSectionUserSkills;
       case '作者协作偏好':
         return l10n.aiSectionPreferences;
+      case '候选侧重':
+        return l10n.aiSectionCandidateStrategy;
       default:
         return label;
     }
@@ -352,6 +355,10 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
           direction: _lastDirection.isEmpty ? null : _lastDirection,
           length: _length.round(),
           variant: _revising ? null : (_multiMode ? index : null),
+          // ENH-36：三路各用一种叙事侧重，共用同一份预组装资料。
+          strategy: _revising || !_multiMode
+              ? null
+              : ContinueStrategy.all[index % ContinueStrategy.all.length],
           prebuilt: _revising ? null : _prebuilt,
           revisionDraft: _revising ? _revisionDraft : null,
           revisionInstruction: _revising ? _revisionInstructionText : null,
@@ -731,6 +738,18 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
     if (mounted) widget.onClose();
   }
 
+  /// 跨候选组合（ENH-36）：逐段挑选后替换当前候选的结果，供继续修订或采纳。
+  Future<void> _mixCandidates() async {
+    if (_streaming || !_multiMode) return;
+    final mixed = await showCandidateMergeDialog(
+      context,
+      candidates: <String>[for (final controller in _results) controller.text],
+      selectedIndex: _selected,
+    );
+    if (!mounted || mixed == null) return;
+    setState(() => _results[_selected].text = mixed);
+  }
+
   /// 改写模式（ENH-29）：把当前结果与待改写原文并排对比。
   void _compareWithOriginal() {
     showSnapshotDiffDialog(
@@ -1030,43 +1049,61 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
   }
 
   /// 多候选续写（ENH-05）：开关「3 个候选」，开启后可切换查看 / 采纳某一路。
+  /// ENH-36：候选就绪后可跨候选逐段组合。
   Widget _buildCandidateControls() {
+    final canMix =
+        !_streaming &&
+        _results
+                .where((controller) => controller.text.trim().isNotEmpty)
+                .length >=
+            2;
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          FilterChip(
-            label: Text(context.l10n.aiPanelCandidateCount),
-            selected: _multiCandidate,
-            onSelected: _streaming
-                ? null
-                : (value) {
-                    setState(() => _multiCandidate = value);
-                    _start();
-                  },
-          ),
-          if (_multiMode) ...<Widget>[
-            const SizedBox(width: 8),
-            Expanded(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: SegmentedButton<int>(
-                  segments: <ButtonSegment<int>>[
-                    for (var i = 0; i < 3; i++)
-                      ButtonSegment<int>(
-                        value: i,
-                        label: Text(context.l10n.aiPanelVersion(i + 1)),
-                      ),
-                  ],
-                  selected: <int>{_selected},
-                  onSelectionChanged: _streaming
-                      ? null
-                      : (selection) =>
-                            setState(() => _selected = selection.first),
-                ),
+          Row(
+            children: <Widget>[
+              FilterChip(
+                label: Text(context.l10n.aiPanelCandidateCount),
+                selected: _multiCandidate,
+                onSelected: _streaming
+                    ? null
+                    : (value) {
+                        setState(() => _multiCandidate = value);
+                        _start();
+                      },
               ),
+              if (_multiMode) ...<Widget>[
+                const SizedBox(width: 8),
+                Expanded(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: SegmentedButton<int>(
+                      segments: <ButtonSegment<int>>[
+                        for (var i = 0; i < 3; i++)
+                          ButtonSegment<int>(
+                            value: i,
+                            label: Text(context.l10n.aiPanelVersion(i + 1)),
+                          ),
+                      ],
+                      selected: <int>{_selected},
+                      onSelectionChanged: _streaming
+                          ? null
+                          : (selection) =>
+                                setState(() => _selected = selection.first),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          if (_multiMode && canMix)
+            TextButton.icon(
+              onPressed: _mixCandidates,
+              icon: const Icon(Icons.merge_type, size: 18),
+              label: Text(context.l10n.aiPanelMixCandidates),
             ),
-          ],
         ],
       ),
     );

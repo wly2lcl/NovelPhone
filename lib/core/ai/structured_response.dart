@@ -1,4 +1,5 @@
 import '../../models/setting_type.dart';
+import '../../models/story_state_kind.dart';
 import '../../models/work_style_guide.dart';
 import 'json_extract.dart';
 
@@ -207,6 +208,167 @@ EntityExtraction parseEntityExtractionResponse(String raw) {
     settings: settings,
     relations: relations,
   );
+}
+
+/// 一条 AI 提取出的故事状态变化（ENH-35）。
+class StoryStateSuggestion {
+  const StoryStateSuggestion({
+    required this.kind,
+    required this.title,
+    this.detail = '',
+    this.status = 'open',
+  });
+
+  final StoryStateKind kind;
+  final String title;
+  final String detail;
+  final String status;
+
+  bool get closes => status == 'closed';
+
+  /// 与现有卡片对照时使用的键（同类同名视为同一张卡）。
+  String get key => '${kind.value}|${title.trim().toLowerCase()}';
+}
+
+/// 故事状态提取解析结果。
+class StoryStateExtraction {
+  const StoryStateExtraction({
+    this.suggestions = const <StoryStateSuggestion>[],
+    this.parseFailed = false,
+  });
+
+  final List<StoryStateSuggestion> suggestions;
+
+  /// 模型输出不是可解析的 JSON。
+  final bool parseFailed;
+
+  bool get isEmpty => suggestions.isEmpty;
+}
+
+/// 解析本章状态变化 JSON（ENH-35）。
+/// 兼容 `{"states":[...]}`、按类型分组以及直接返回数组三种写法。
+StoryStateExtraction parseStoryStateExtractionResponse(String raw) {
+  final decoded = extractJson(raw);
+  if (decoded is! Map && decoded is! List) {
+    return const StoryStateExtraction(parseFailed: true);
+  }
+
+  final items = <(Map<dynamic, dynamic>, StoryStateKind?)>[];
+  void collect(dynamic node, StoryStateKind? hint) {
+    if (node is Map) items.add((node, hint));
+  }
+
+  if (decoded is List) {
+    for (final item in decoded) {
+      collect(item, null);
+    }
+  } else {
+    final map = decoded as Map;
+    var wrapped = false;
+    for (final key in const <String>[
+      'states',
+      '状态',
+      '状态变化',
+      'storyStates',
+      'updates',
+      'changes',
+    ]) {
+      final value = map[key];
+      if (value is List) {
+        for (final item in value) {
+          collect(item, null);
+        }
+        wrapped = true;
+        break;
+      }
+    }
+    if (!wrapped) {
+      const groups = <(List<String>, StoryStateKind)>[
+        (<String>['characters', '角色', '角色状态'], StoryStateKind.character),
+        (<String>['foreshadows', '伏笔'], StoryStateKind.foreshadow),
+        (<String>['timeline', '时间线', '事件'], StoryStateKind.timeline),
+      ];
+      for (final group in groups) {
+        for (final item in _listOf(map, group.$1)) {
+          collect(item, group.$2);
+        }
+      }
+      if (items.isEmpty &&
+          (map.containsKey('title') || map.containsKey('标题'))) {
+        collect(map, null);
+      }
+    }
+  }
+
+  final suggestions = <String, StoryStateSuggestion>{};
+  for (final (item, hint) in items) {
+    final title = readJsonString(item, const [
+      'title',
+      'name',
+      '标题',
+      '名称',
+      '角色',
+      '卡片',
+    ]);
+    if (title.isEmpty) continue;
+    final kind =
+        hint ??
+        _storyStateKind(
+          readJsonString(item, const ['kind', 'type', '类型', '类别']),
+        );
+    final detail = readJsonText(item, const [
+      'detail',
+      'content',
+      'description',
+      '详情',
+      '内容',
+      '描述',
+      '变化',
+      '状态',
+    ]);
+    final status = _storyStateStatus(
+      readJsonString(item, const ['status', 'state', '伏笔状态', '卡片状态']),
+    );
+    final suggestion = StoryStateSuggestion(
+      kind: kind,
+      title: title,
+      detail: detail,
+      status: status,
+    );
+    // 同类同名以最后一条为准：模型常先写“角色状态”再补充细节。
+    suggestions[suggestion.key] = suggestion;
+    if (suggestions.length >= 30) break;
+  }
+  return StoryStateExtraction(
+    suggestions: suggestions.values.toList(growable: false),
+  );
+}
+
+StoryStateKind _storyStateKind(String raw) {
+  final value = raw.toLowerCase();
+  if (value.contains('伏笔') ||
+      value.contains('foreshadow') ||
+      value.contains('clue')) {
+    return StoryStateKind.foreshadow;
+  }
+  if (value.contains('时间') ||
+      value.contains('timeline') ||
+      value.contains('event')) {
+    return StoryStateKind.timeline;
+  }
+  return StoryStateKind.character;
+}
+
+String _storyStateStatus(String raw) {
+  final value = raw.toLowerCase();
+  if (value.contains('closed') ||
+      value.contains('resolved') ||
+      value.contains('回收') ||
+      value.contains('解决') ||
+      value.contains('闭合')) {
+    return 'closed';
+  }
+  return 'open';
 }
 
 /// 一条剧情走向（ENH-23 剧情推演）。

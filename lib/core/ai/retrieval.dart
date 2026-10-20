@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import '../../data/db.dart';
 
 /// 本地检索命中的一段前文（ENH-32）。
@@ -24,6 +26,10 @@ class RetrievedPassage {
 ///
 /// 不引入向量库：中文没有天然分词，bigram 召回对人物名、物件名和短句足够，
 /// 且纯 Dart 可在生成前一次性完成，不增加模型调用成本。
+///
+/// [maxScanChars] 是**全书总量**的软上限（ENH-33）：预算按章均分并在章内均匀
+/// 抽样，保证长篇后期章节也能被检索到；旧实现从第一章顺序累加、到达上限即
+/// 停止，导致 40 万字以上的作品问答永远看不到后半部分。
 List<RetrievedPassage> retrievePassages({
   required List<Chapter> chapters,
   required String query,
@@ -40,22 +46,33 @@ List<RetrievedPassage> retrievePassages({
   final queryGrams = _bigrams(normalizedQuery);
   if (queryGrams.isEmpty) return const <RetrievedPassage>[];
 
+  final active = chapters
+      .where(
+        (chapter) =>
+            chapter.id != excludeChapterId && chapter.content.trim().isNotEmpty,
+      )
+      .toList(growable: false);
+  if (active.isEmpty) return const <RetrievedPassage>[];
+
+  // 预算按章均分（至少保留一个块），章内再均匀抽样，避免长作只覆盖开头。
+  final perChapterBudget = max(
+    chunkChars,
+    maxScanChars ~/ max(1, active.length),
+  );
+  final chunksPerChapter = max(1, perChapterBudget ~/ chunkChars);
+
   final hits = <RetrievedPassage>[];
-  var scanned = 0;
   for (var index = 0; index < chapters.length; index++) {
     final chapter = chapters[index];
     if (chapter.id == excludeChapterId) continue;
     final content = chapter.content.trim();
     if (content.isEmpty) continue;
-    if (scanned >= maxScanChars) {
-      break;
-    }
-    scanned += content.length;
     final title = chapter.title.trim().isEmpty ? '未命名章节' : chapter.title.trim();
     final titleMatch = _normalize(title).contains(normalizedQuery);
 
     var perChapter = 0;
-    for (final chunk in _chunks(content, chunkChars)) {
+    final chunks = _chunks(content, chunkChars).toList(growable: false);
+    for (final chunk in _sampleEven(chunks, chunksPerChapter)) {
       if (perChapter >= maxPerChapter) break;
       final normalizedChunk = _normalize(chunk);
       if (normalizedChunk.isEmpty) continue;
@@ -104,6 +121,21 @@ String formatRetrievedPassages(
     );
   }
   return buffer.toString();
+}
+
+/// 在 [items] 中均匀选取至多 [limit] 个元素（含首尾）；`limit == 1` 时取中间。
+List<T> _sampleEven<T>(List<T> items, int limit) {
+  if (items.isEmpty || limit <= 0) return <T>[];
+  if (items.length <= limit) return items;
+  if (limit == 1) return <T>[items[items.length ~/ 2]];
+  final picked = <T>[];
+  for (var i = 0; i < limit; i++) {
+    final index = (i * (items.length - 1) / (limit - 1)).round();
+    if (picked.isEmpty || picked.last != items[index]) {
+      picked.add(items[index]);
+    }
+  }
+  return picked;
 }
 
 /// 按空行切段并合并小段，单块不超过 [chunkChars]；超长段按句号 / 换行再切。

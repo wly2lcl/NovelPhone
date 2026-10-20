@@ -10,12 +10,14 @@ import 'package:novelphone/data/repositories/character_repository.dart';
 import 'package:novelphone/data/repositories/outline_repository.dart';
 import 'package:novelphone/data/repositories/setting_repository.dart';
 import 'package:novelphone/data/repositories/settings_repository.dart';
+import 'package:novelphone/data/repositories/story_state_repository.dart';
 import 'package:novelphone/data/repositories/token_stats_repository.dart';
 import 'package:novelphone/data/repositories/work_repository.dart';
 import 'package:novelphone/core/ai/context_builder.dart';
 import 'package:novelphone/data/secure_key_store.dart';
 import 'package:novelphone/features/ai/ai_service.dart';
 import 'package:novelphone/models/setting_type.dart';
+import 'package:novelphone/models/story_state_kind.dart';
 import 'package:novelphone/models/work_style_guide.dart';
 
 void main() {
@@ -37,6 +39,7 @@ void main() {
     outline: OutlineRepository(db),
     stats: stats,
     settingRepository: settings,
+    storyStateRepository: StoryStateRepository(db),
     httpClient: client,
   );
 
@@ -141,6 +144,55 @@ void main() {
     expect(result.extraction.relations.single.label, '旧识');
     final summary = await stats.stats();
     expect(summary.rows.single.task, AiTask.extract);
+  });
+
+  test('状态提取：携带现有卡片、解析变化并记录 storyState 用量（ENH-35）', () async {
+    final states = StoryStateRepository(db);
+    await states.createEntry(
+      workId: workId,
+      kind: StoryStateKind.foreshadow,
+      title: '铜印来历',
+    );
+    await states.createEntry(
+      workId: workId,
+      kind: StoryStateKind.foreshadow,
+      title: '密信去向',
+      status: 'closed',
+    );
+    await configure(AiTask.storyState);
+    String? systemPrompt;
+    String? userPrompt;
+    final client = MockClient((request) async {
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      systemPrompt = body['messages'][0]['content'] as String;
+      userPrompt = body['messages'][1]['content'] as String;
+      return sseResponse(
+        '{"states":['
+        '{"kind":"character","title":"沈砚","detail":"左臂中箭，暂不能提刀","status":"open"},'
+        '{"kind":"foreshadow","title":"铜印来历","status":"closed"},'
+        '{"kind":"timeline","title":"雨夜入城"}]}',
+      );
+    });
+
+    final result = await serviceWith(
+      client,
+    ).extractStoryStates(workId: workId, chapterId: chapterId);
+
+    expect(result.extraction.parseFailed, isFalse);
+    expect(result.extraction.suggestions, hasLength(3));
+    expect(result.extraction.suggestions[0].kind, StoryStateKind.character);
+    expect(result.extraction.suggestions[0].detail, '左臂中箭，暂不能提刀');
+    expect(result.extraction.suggestions[1].kind, StoryStateKind.foreshadow);
+    expect(result.extraction.suggestions[1].closes, isTrue);
+    expect(result.extraction.suggestions[2].kind, StoryStateKind.timeline);
+    expect(systemPrompt, contains('"states"'));
+    expect(userPrompt, contains('【已有状态卡】'));
+    expect(userPrompt, contains('铜印来历（未回收）'));
+    expect(userPrompt, contains('密信去向（已回收）'));
+    expect(userPrompt, contains('【本章正文】'));
+    expect(userPrompt, contains('他叫沈砚'));
+    final summary = await stats.stats();
+    expect(summary.rows.single.task, AiTask.storyState);
   });
 
   test('剧情推演：携带作者方向并解析走向与分章', () async {

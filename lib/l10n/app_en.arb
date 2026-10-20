@@ -69,6 +69,7 @@
   "editorToolVolumeSummary": "Generate volume recap",
   "editorToolOutlineExpand": "Expand chapter outline with AI",
   "editorToolContinuity": "Check setting consistency",
+  "editorToolStoryState": "Extract state changes",
   "editorToolEditSummary": "View/edit chapter summary",
   "editorExitFocusMode": "Exit focus mode",
   "editorFocusMode": "Focus mode",
@@ -123,6 +124,12 @@
   "aiPanelLengthLabel": "{count, plural, =1{Length: 1 word} other{Length: {count} words}}",
   "aiPanelCandidateCount": "3 candidates",
   "aiPanelVersion": "Version {n}",
+  "aiPanelMixCandidates": "Mix candidates",
+  "candidateMixTitle": "Mix candidates",
+  "candidateMixIntro": "Each paragraph can come from a different candidate. The mixed result replaces the current candidate's text; the manuscript is unchanged.",
+  "candidateMixSlot": "Paragraph {count}",
+  "candidateMixCandidate": "Candidate {index}",
+  "candidateMixApply": "Mix and use {count} paragraphs",
   "aiPanelContextTitle": "Context seen by AI (estimated {estimated} / budget {budget} tokens)",
   "aiPanelTruncated": "Earlier text omitted",
   "aiPanelResultHint": "AI output streams here; edit it before inserting into the text",
@@ -240,6 +247,7 @@
   "aiSectionRequirements": "Generation requirements",
   "aiSectionUserSkills": "User skills",
   "aiSectionPreferences": "Author preferences",
+  "aiSectionCandidateStrategy": "Candidate focus",
   "flavorTitle": "AI-flavor check",
   "flavorShownOfTotal": "Showing the first {shown} of {total}",
   "flavorIssueCount": "{count, plural, =1{1 issue} other{{count} issues}}",
@@ -497,6 +505,13 @@
   "taskMapEmptyHint": "Add a model group in \"Model Groups & API Keys\" first",
   "taskMapIntro": "Assign a model group to each AI task; if none is assigned, the feature is unavailable.",
   "taskMapUnassigned": "Not assigned",
+  "taskModelRecommendTitle": "Recommended by adoption quality",
+  "taskModelRecommendIntro": "Based on adoption over the last 30 days. Requires at least 3 calls and a 10-point lead over the current mapping.",
+  "taskModelRecommendStat": "{model} · {calls} calls · {adoption}% adopted ({verbatim}% verbatim)",
+  "taskModelRecommendCurrent": "Current: {model}",
+  "taskModelRecommendNoCurrent": "Not assigned; uses the fallback model",
+  "taskModelRecommendApply": "Switch to {group}",
+  "taskModelRecommendApplied": "Switched to {group}",
   "aiTaskContinue": "AI Continue",
   "aiTaskInspire": "AI Inspiration",
   "aiTaskRewrite": "AI Rewrite",
@@ -761,6 +776,41 @@
   "storyStateMoreActions": "More actions",
   "storyStateDeleteTitle": "Delete this card?",
   "storyStateDeleteBody": "This cannot be undone.",
+  "storyStateExtractTitle": "AI state extraction",
+  "storyStateExtractIntro": "AI extracts character states, foreshadow progress and timeline events from this chapter and compares them with existing cards. Nothing is saved until you select it.",
+  "storyStateExtractRunning": "Extracting state changes...",
+  "storyStateExtractFailed": "Extraction failed: {message}",
+  "@storyStateExtractFailed": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "storyStateExtractParseFailed": "Could not parse the state changes returned by AI. Please retry.",
+  "storyStateExtractEmpty": "No state changes found in this chapter",
+  "storyStateExtractNew": "New",
+  "storyStateExtractUpdate": "Update",
+  "storyStateExtractUnchanged": "Matches the existing card",
+  "storyStateExtractApply": "Apply selected ({count})",
+  "@storyStateExtractApply": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "storyStateExtractApplied": "Added {created}, updated {updated} state cards",
+  "@storyStateExtractApplied": {
+    "placeholders": {
+      "created": {
+        "type": "int"
+      },
+      "updated": {
+        "type": "int"
+      }
+    }
+  },
   "workDetailAiSettings": "AI settings",
   "workDetailAiPreferences": "Author preferences",
   "workDetailStyleGuide": "Style profile",
@@ -1062,6 +1112,7 @@
   "aiTaskExtract": "AI setting completion",
   "aiTaskPlan": "AI plot planning",
   "aiTaskChat": "AI work Q&A",
+  "aiTaskStoryState": "AI state extraction",
   "tokenStatsEstimatedCost": "Estimated cost",
   "tokenStatsCostValue": "¥{amount}",
   "tokenStatsCostHint": "Add per-million-token prices in a model group to estimate cost here.",
