@@ -214,17 +214,22 @@ double _proximityFactor(int chapterIndex, int nearbyIndex) {
 }
 
 /// 把命中片段格式化为上下文段落（ENH-32）。
+///
+/// [includeId] 为 true 时在章节标题后附上章节 id（ENH-43），让作品问答
+/// 能直接引用检索片段来源。
 String formatRetrievedPassages(
   List<RetrievedPassage> passages, {
   String header = '相关前文片段',
+  bool includeId = false,
 }) {
   if (passages.isEmpty) return '';
   final buffer = StringBuffer();
   if (header.isNotEmpty) buffer.write('【$header】');
   for (final passage in passages) {
     if (buffer.isNotEmpty) buffer.writeln();
+    final id = includeId ? '（id=${passage.chapterId}）' : '';
     buffer.write(
-      '- 第 ${passage.chapterIndex} 章 ${passage.chapterTitle}：'
+      '- 第 ${passage.chapterIndex} 章 ${passage.chapterTitle}$id：'
       '${passage.text}',
     );
   }

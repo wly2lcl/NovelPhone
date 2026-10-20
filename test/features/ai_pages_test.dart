@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:novelphone/app/theme.dart';
 import 'package:novelphone/data/dao/app_setting_dao.dart';
 import 'package:novelphone/data/data_providers.dart';
 import 'package:novelphone/data/db.dart';
 import 'package:novelphone/data/repositories/chat_repository.dart';
 import 'package:novelphone/data/repositories/chapter_repository.dart';
+import 'package:novelphone/data/repositories/inspiration_repository.dart';
 import 'package:novelphone/data/repositories/work_repository.dart';
 import 'package:novelphone/data/secure_key_store.dart';
 import 'package:novelphone/features/work_detail/continuity_scan_page.dart';
@@ -84,6 +86,69 @@ void main() {
 
     expect(find.text('第一章讲了什么？'), findsNothing);
     expect(await chat.load(workId), isEmpty);
+
+    await disposePage(tester);
+  });
+
+  testWidgets('作品问答：引用 chip 可跳转，回答可存入灵感箱（ENH-43）', (tester) async {
+    final chapterId = await ChapterRepository(
+      db,
+    ).createChapter(workId: workId, title: '第一章');
+    await ChapterRepository(
+      db,
+    ).saveChapter(chapterId: chapterId, title: '第一章', content: '沈砚在灯下等人。');
+    await ChatRepository(AppSettingDao(db)).save(workId, <WorkChatTurn>[
+      const WorkChatTurn(role: 'user', content: '第一章讲了什么？'),
+      WorkChatTurn(role: 'assistant', content: '沈砚在灯下等人 [[ch:$chapterId]]。'),
+    ]);
+
+    final router = GoRouter(
+      initialLocation: '/work/$workId/chat',
+      routes: <RouteBase>[
+        GoRoute(
+          path: '/work/:workId/chat',
+          builder: (context, state) => WorkChatPage(workId: workId),
+        ),
+        GoRoute(
+          path: '/work/:workId/chapter/:chapterId',
+          builder: (context, state) =>
+              Scaffold(body: Text('编辑器 ${state.pathParameters['chapterId']}')),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          secureKeyStoreProvider.overrideWithValue(InMemoryKeyStore()),
+        ],
+        child: MaterialApp.router(
+          theme: buildPaperTheme(),
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          routerConfig: router,
+        ),
+      ),
+    );
+    await tester.pump();
+    await pumpUntil(tester, find.text('沈砚在灯下等人。'));
+
+    expect(find.text('第一章'), findsOneWidget);
+    expect(find.text('存入灵感箱'), findsOneWidget);
+
+    await tester.tap(find.text('存入灵感箱'));
+    await tester.pumpAndSettle();
+    final saved = await tester.runAsync(
+      () => InspirationRepository(db).listInspirations(workId),
+    );
+    expect(saved!.single.content, '沈砚在灯下等人。');
+
+    await tester.tap(find.widgetWithText(ActionChip, '第一章'));
+    await tester.pumpAndSettle();
+    expect(find.text('编辑器 $chapterId'), findsOneWidget);
 
     await disposePage(tester);
   });

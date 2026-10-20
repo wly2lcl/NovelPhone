@@ -118,6 +118,42 @@ void main() {
       expect(block, isNot(contains('新改写二')));
     });
 
+    test('原稿→定稿配对随样本保存并注入 prompt（ENH-42）', () {
+      var samples = WritingPreferences.addSample(
+        <AdoptedSample>[],
+        const AdoptedSample(
+          text: '他把刀放回鞘里，没再说话。',
+          source: '他将长刀收回鞘中，沉默不语。',
+          task: 'continue',
+        ),
+      );
+      expect(samples.single.hasSource, isTrue);
+
+      final block = WritingPreferences.promptBlock(
+        reasonCounts: const <String, int>{},
+        samples: samples,
+      );
+      expect(block, contains('模型原稿：他将长刀收回鞘中，沉默不语。'));
+      expect(block, contains('作者定稿：他把刀放回鞘里，没再说话。'));
+
+      final decoded = WritingPreferences.parseSamples(
+        WritingPreferences.encodeSamples(samples),
+      );
+      expect(decoded.single.source, '他将长刀收回鞘中，沉默不语。');
+
+      samples = WritingPreferences.addSample(
+        <AdoptedSample>[],
+        const AdoptedSample(text: '同一段。', source: '同一段。', task: 'continue'),
+      );
+      expect(samples.single.hasSource, isFalse);
+      expect(
+        WritingPreferences.parseSamples(
+          WritingPreferences.encodeSamples(samples),
+        ).single.source,
+        isEmpty,
+      );
+    });
+
     test('JSON 往返与脏数据容错', () {
       final samples = <AdoptedSample>[
         AdoptedSample(

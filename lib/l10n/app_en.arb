@@ -207,6 +207,18 @@
   "aiPreferencesParagraphReasons": "Rejected paragraph reasons",
   "aiPreferencesSamples": "Recently adopted passages",
   "aiPreferencesNoSamples": "No adopted passages yet",
+  "aiPreferencesPairSource": "Model draft: {text}",
+  "@aiPreferencesPairSource": {
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "aiPreferencesIgnoredConflicts": "Ignored continuity conflicts",
+  "aiPreferencesNoIgnored": "No ignored conflicts",
+  "aiPreferencesRestoreConflict": "Restore",
+  "aiPreferencesConflictRestored": "Restored; the next check will report it again",
   "aiPreferencesCount": "{count, plural, =1{1 time} other{{count} times}}",
   "@aiPreferencesCount": {
     "placeholders": {
@@ -217,7 +229,7 @@
   },
   "aiPreferencesClear": "Clear preferences and samples",
   "aiPreferencesClearTitle": "Clear author preferences?",
-  "aiPreferencesClearBody": "Reason counts and recently adopted passages will be deleted permanently.",
+  "aiPreferencesClearBody": "Reason counts, recently adopted passages and ignored continuity conflicts will be deleted permanently.",
   "aiPreferencesCleared": "Author preferences cleared",
   "aiRevisionOriginal": "Original",
   "aiRevisionNumber": "Revision {number}",
@@ -1090,6 +1102,16 @@
   "chatSuggestionGoal": "What is the protagonist trying to do right now?",
   "chatSuggestionForeshadow": "Which foreshadowing threads are still unresolved?",
   "chatSuggestionRelationship": "Summarize the main character relationships",
+  "chatCitationUnknown": "Chapter {id} (deleted)",
+  "@chatCitationUnknown": {
+    "placeholders": {
+      "id": {
+        "type": "int"
+      }
+    }
+  },
+  "chatSaveToInspiration": "Save to inspirations",
+  "chatSavedToInspiration": "Saved to inspirations",
   "editorContinuityStop": "Stop",
   "editorContinuityStopped": "Generation stopped; here is what was produced so far.",
   "editorContinuityStoppedEmpty": "Stopped before any content arrived.",
@@ -1149,6 +1171,24 @@
   },
   "continuityIssueLocate": "Locate quote",
   "continuityIssueRevise": "Draft fix",
+  "continuityIssueIgnore": "Ignore",
+  "continuityIgnoreTitle": "Ignore this conflict",
+  "continuityIgnoreBody": "Future consistency checks will skip the same difference and note it in the context. You can restore it anytime under Author preferences.",
+  "continuityIgnoreReasonLabel": "Reason (optional)",
+  "continuityIgnoreReasonHint": "e.g. intentional / explained later / model false positive",
+  "continuityIgnoreReasonIntentional": "Intentional",
+  "continuityIgnoreReasonLater": "Explained later",
+  "continuityIgnoreReasonFalsePositive": "False positive",
+  "continuityIgnoreConfirm": "Ignore and remember",
+  "continuityIgnoredCount": "{count, plural, =1{1 conflict ignored by your settings} other{{count} conflicts ignored by your settings}}",
+  "@continuityIgnoredCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "continuityIgnoredSnack": "Ignored; restore it under Author preferences",
   "continuityIssueRecheck": "Re-check",
   "continuityIssueParseFallback": "The model did not return a structured result. Raw output is shown below; re-check or switch to a more reliable model.",
   "continuityQuoteNotFound": "This quote is no longer in the chapter text; it may have been edited.",

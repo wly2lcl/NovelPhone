@@ -149,5 +149,19 @@ void main() {
     ]);
     expect(text, contains('【相关前文片段】'));
     expect(text, contains('第 2 章 灯下等人：苏晚问起铜印。'));
+    expect(text, isNot(contains('id=')));
+  });
+
+  test('作品问答来源可附带章节 id（ENH-43）', () {
+    final text = formatRetrievedPassages(<RetrievedPassage>[
+      const RetrievedPassage(
+        chapterId: 2,
+        chapterTitle: '灯下等人',
+        chapterIndex: 2,
+        text: '苏晚问起铜印。',
+        score: 0.8,
+      ),
+    ], includeId: true);
+    expect(text, contains('第 2 章 灯下等人（id=2）：苏晚问起铜印。'));
   });
 }

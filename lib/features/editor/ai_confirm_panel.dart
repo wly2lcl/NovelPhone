@@ -581,15 +581,18 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
     _outcomesMarked = true;
     // ENH-27：续写 / 改写的采纳样本仅存本机，供后续生成的语气参考。
     // ENH-30：大改后的文本不代表模型语气，超过阈值不采集样本。
+    // ENH-42：轻度～中度修改（10% < 编辑比例 ≤ 30%）时保留原稿对照。
     final sample = finalText;
     if (sample.isNotEmpty &&
         _isWritingMode &&
         (editPercent == null || editPercent <= adoptionSampleMaxEditPercent)) {
+      final paired = source.isNotEmpty && adoptionKeepsSource(editPercent);
       await ref
           .read(settingsRepositoryProvider)
           .recordAdoptedSample(
             widget.workId,
             text: sample,
+            source: paired ? source : '',
             task: _mode == AiPanelMode.rewrite
                 ? AiTask.rewrite
                 : AiTask.continueWriting,

@@ -33,6 +33,15 @@ void main() {
     expect(percent, greaterThan(10));
   });
 
+  test('只有轻度～中度修改保留原稿配对（ENH-42）', () {
+    expect(adoptionKeepsSource(null), isFalse);
+    expect(adoptionKeepsSource(0), isFalse);
+    expect(adoptionKeepsSource(10), isFalse);
+    expect(adoptionKeepsSource(11), isTrue);
+    expect(adoptionKeepsSource(30), isTrue);
+    expect(adoptionKeepsSource(31), isFalse);
+  });
+
   test('空文本边界', () {
     expect(adoptionEditPercent('', ''), 0);
     expect(adoptionEditPercent('有内容', ''), 100);

@@ -8,6 +8,7 @@ import '../../core/ai/agent_core.dart';
 import '../../core/ai/ai_client.dart';
 import '../../core/ai/ai_client_factory.dart';
 import '../../core/ai/context_builder.dart';
+import '../../core/ai/continuity_suppression.dart';
 import '../../core/ai/empty_output_retry.dart';
 import '../../core/ai/flavor_check.dart';
 import '../../core/ai/mcp/mcp_bridge.dart';
@@ -166,6 +167,7 @@ class ContinuityReport {
     required this.usageId,
     required this.truncated,
     required this.result,
+    this.ignoredCount = 0,
   });
 
   final String text;
@@ -175,6 +177,9 @@ class ContinuityReport {
   final int promptTokens;
   final int completionTokens;
   final int usageId;
+
+  /// 命中作者忽略清单、已从 [result] 中过滤的冲突数（ENH-41）。
+  final int ignoredCount;
 
   /// 上下文超出模型窗口、已省略部分设定资料（结果可能不完整）。
   final bool truncated;
@@ -882,10 +887,12 @@ class AiService {
       );
     }
 
+    final suppressions = await settings.readContinuitySuppressions(workId);
     final built = await contexts.buildContinuityCheck(
       workId: workId,
       chapterId: chapterId,
       contextWindow: group.contextWindow,
+      suppressions: suppressions,
     );
     final injected = _withSkills(built, await settings.listEnabledSkills());
     final client = buildAiClient(
@@ -962,13 +969,16 @@ class AiService {
         message: 'AI 未返回内容（已自动提高输出上限重试），请再次尝试或改用非推理模型',
       );
     }
+    final parsed = parseContinuityResponse(collected.text);
+    final filtered = ContinuitySuppressions.filterResult(parsed, suppressions);
     return ContinuityReport(
       text: collected.text,
-      result: parseContinuityResponse(collected.text),
+      result: filtered,
       promptTokens: collected.promptTokens,
       completionTokens: collected.completionTokens,
       usageId: usageId,
       truncated: injected.truncated,
+      ignoredCount: parsed.issues.length - filtered.issues.length,
     );
   }
 
@@ -1176,10 +1186,12 @@ class AiService {
       yield _missingModelFailure(group);
       return;
     }
+    final suppressions = await settings.readContinuitySuppressions(workId);
     final built = await contexts.buildContinuityCheck(
       workId: workId,
       chapterId: chapterId,
       contextWindow: group.contextWindow,
+      suppressions: suppressions,
     );
     final injected = _withSkills(built, await settings.listEnabledSkills());
     yield AiContextBuilt(injected);

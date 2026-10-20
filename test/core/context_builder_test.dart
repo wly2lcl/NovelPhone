@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:novelphone/core/ai/context_builder.dart';
+import 'package:novelphone/core/ai/continuity_suppression.dart';
+import 'package:novelphone/core/ai/structured_response.dart';
 import 'package:novelphone/data/db.dart';
 import 'package:novelphone/data/repositories/chapter_repository.dart';
 import 'package:novelphone/data/repositories/character_repository.dart';
@@ -952,6 +954,50 @@ void main() {
     expect(context.truncated, isFalse);
   });
 
+  test('buildContinuityCheck 注入已确认保留的差异（ENH-41）', () async {
+    final workId = await seedWork();
+    final third = await chapters.createChapter(workId: workId, title: '第三章');
+    await chapters.saveChapter(
+      chapterId: third,
+      title: '第三章',
+      content: '沈砚左臂完好，抬手推开了窗。',
+      cursorOffset: 0,
+      scrollOffset: 0,
+    );
+    await characters.createCharacter(
+      workId: workId,
+      name: '沈砚',
+      identity: '游侠',
+    );
+
+    final context = await builder.buildContinuityCheck(
+      workId: workId,
+      chapterId: third,
+      contextWindow: 32000,
+      suppressions: <ContinuitySuppression>[
+        ContinuitySuppression.fromIssue(
+          const ContinuityIssue(
+            quote: '沈砚左臂完好',
+            source: '故事状态·沈砚',
+            detail: '故事状态卡记录左臂受伤',
+          ),
+          reason: '后续情节会解释',
+        ),
+      ],
+    );
+
+    final labels = context.sections.map((section) => section.label).toList();
+    expect(labels.first, '已确认无需报告的差异');
+    final section = context.sections.first;
+    expect(section.content, contains('沈砚左臂完好'));
+    expect(section.content, contains('原因：后续情节会解释'));
+
+    final prompt = context.messages.single.content;
+    expect(prompt, contains('【已确认无需报告的差异】'));
+    expect(context.system, contains('如果【已确认无需报告的差异】'));
+    expect(context.truncated, isFalse);
+  });
+
   test('buildStoryStateExtraction 注入现有卡片并保留已回收伏笔（ENH-35）', () async {
     final workId = await seedWork();
     final states = StoryStateRepository(db);
@@ -1376,5 +1422,9 @@ void main() {
     );
     expect(chat.system, contains('【相关正文片段】'));
     expect(chat.system, contains('铜印'));
+    // ENH-43：检索来源带章节 id，问答指令要求用标记引用，便于界面跳转。
+    expect(chat.system, matches(RegExp(r'第 1 章 第一章（id=\d+）')));
+    expect(chat.system, contains('[[ch:章节id]]'));
+    expect(chat.system, contains('不要编造 id'));
   });
 }

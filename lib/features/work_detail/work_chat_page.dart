@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/theme.dart';
+import '../../core/ai/chat_citations.dart';
 import '../../core/ai/context_builder.dart';
 import '../../data/data_providers.dart';
 import '../../l10n/error_text.dart';
@@ -28,6 +29,8 @@ class _WorkChatPageState extends ConsumerState<WorkChatPage> {
   final ScrollController _scroll = ScrollController();
   StreamSubscription<AiEvent>? _subscription;
   final List<WorkChatTurn> _turns = <WorkChatTurn>[];
+  final Map<int, String> _chapterTitles = <int, String>{};
+  final Set<int> _savedTurns = <int>{};
   String _streamingText = '';
   bool _streaming = false;
   bool _loading = true;
@@ -50,14 +53,52 @@ class _WorkChatPageState extends ConsumerState<WorkChatPage> {
 
   Future<void> _load() async {
     final turns = await ref.read(chatRepositoryProvider).load(widget.workId);
+    // 只取章节元数据：长篇作品不必为了引用标题读入全书正文。
+    final chapters = await ref
+        .read(chapterRepositoryProvider)
+        .watchChapterMetas(widget.workId)
+        .first;
     if (!mounted) return;
     setState(() {
       _turns
         ..clear()
         ..addAll(turns);
+      _chapterTitles
+        ..clear()
+        ..addEntries(
+          chapters.map(
+            (chapter) => MapEntry(
+              chapter.id,
+              chapter.title.trim().isEmpty ? '未命名章节' : chapter.title.trim(),
+            ),
+          ),
+        );
       _loading = false;
     });
     _scrollToBottom(animated: false);
+  }
+
+  /// ENH-43：引用 chip 跳转到对应章节；章节已删除时 chip 不可点。
+  void _openChapter(int chapterId) {
+    if (!_chapterTitles.containsKey(chapterId)) return;
+    context.push('/work/${widget.workId}/chapter/$chapterId');
+  }
+
+  /// ENH-43：把回答去掉引用标记后存入灵感箱，避免把内部标记带进正文素材。
+  Future<void> _saveAnswer(int index) async {
+    if (index < 0 || index >= _turns.length) return;
+    final turn = _turns[index];
+    if (turn.role != 'assistant' || _savedTurns.contains(index)) return;
+    final text = ChatCitations.strip(turn.content);
+    if (text.isEmpty) return;
+    await ref
+        .read(inspirationRepositoryProvider)
+        .createInspiration(widget.workId, text);
+    if (!mounted) return;
+    setState(() => _savedTurns.add(index));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(context.l10n.chatSavedToInspiration)),
+    );
   }
 
   void _scrollToBottom({bool animated = true}) {
@@ -222,6 +263,7 @@ class _WorkChatPageState extends ConsumerState<WorkChatPage> {
     if (!mounted) return;
     setState(() {
       _turns.clear();
+      _savedTurns.clear();
       _streaming = false;
       _streamingText = '';
       _error = null;
@@ -338,14 +380,22 @@ class _WorkChatPageState extends ConsumerState<WorkChatPage> {
                           role: 'assistant',
                           content: _streamingText.isEmpty
                               ? l10n.chatThinking
-                              : _streamingText,
+                              : ChatCitations.strip(_streamingText),
                           streaming: true,
                         );
                       }
                       final turn = _turns[index];
+                      final isAssistant = turn.role == 'assistant';
                       return _ChatBubble(
                         role: turn.role,
                         content: turn.content,
+                        citations: isAssistant
+                            ? ChatCitations.parse(turn.content)
+                            : const <int>[],
+                        chapterTitles: _chapterTitles,
+                        onCitationTap: isAssistant ? _openChapter : null,
+                        onSave: isAssistant ? () => _saveAnswer(index) : null,
+                        saved: _savedTurns.contains(index),
                       );
                     },
                   ),
@@ -464,42 +514,134 @@ class _ChatBubble extends StatelessWidget {
     required this.role,
     required this.content,
     this.streaming = false,
+    this.citations = const <int>[],
+    this.chapterTitles = const <int, String>{},
+    this.onCitationTap,
+    this.onSave,
+    this.saved = false,
   });
 
   final String role;
   final String content;
   final bool streaming;
+  final List<int> citations;
+  final Map<int, String> chapterTitles;
+  final ValueChanged<int>? onCitationTap;
+  final VoidCallback? onSave;
+  final bool saved;
 
   @override
   Widget build(BuildContext context) {
     final isUser = role == 'user';
     final palette = context.paper;
+    final text = ChatCitations.strip(content);
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.sizeOf(context).width * 0.82,
-        ),
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: isUser ? palette.accent : palette.surface,
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(14),
-            topRight: const Radius.circular(14),
-            bottomLeft: Radius.circular(isUser ? 14 : 4),
-            bottomRight: Radius.circular(isUser ? 4 : 14),
-          ),
-          border: isUser ? null : Border.all(color: palette.divider),
-        ),
-        child: Text(
-          streaming ? '$content▍' : content,
-          style: TextStyle(
-            color: isUser ? Colors.white : palette.ink,
-            height: 1.5,
-          ),
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Column(
+          crossAxisAlignment: isUser
+              ? CrossAxisAlignment.end
+              : CrossAxisAlignment.start,
+          children: <Widget>[
+            Container(
+              constraints: BoxConstraints(
+                maxWidth: MediaQuery.sizeOf(context).width * 0.82,
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: isUser ? palette.accent : palette.surface,
+                borderRadius: BorderRadius.only(
+                  topLeft: const Radius.circular(14),
+                  topRight: const Radius.circular(14),
+                  bottomLeft: Radius.circular(isUser ? 14 : 4),
+                  bottomRight: Radius.circular(isUser ? 4 : 14),
+                ),
+                border: isUser ? null : Border.all(color: palette.divider),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    streaming ? '$text▍' : text,
+                    style: TextStyle(
+                      color: isUser ? Colors.white : palette.ink,
+                      height: 1.5,
+                    ),
+                  ),
+                  if (!isUser && citations.isNotEmpty) ...<Widget>[
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: <Widget>[
+                        for (final chapterId in citations)
+                          _CitationChip(
+                            label:
+                                chapterTitles[chapterId] ??
+                                context.l10n.chatCitationUnknown(chapterId),
+                            onTap:
+                                onCitationTap != null &&
+                                    chapterTitles.containsKey(chapterId)
+                                ? () => onCitationTap!(chapterId)
+                                : null,
+                          ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            if (!isUser && onSave != null)
+              TextButton.icon(
+                onPressed: saved ? null : onSave,
+                icon: Icon(
+                  saved
+                      ? Icons.bookmark_added_outlined
+                      : Icons.bookmark_add_outlined,
+                  size: 15,
+                ),
+                label: Text(
+                  saved
+                      ? context.l10n.chatSavedToInspiration
+                      : context.l10n.chatSaveToInspiration,
+                ),
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  textStyle: const TextStyle(fontSize: 12),
+                ),
+              ),
+          ],
         ),
       ),
+    );
+  }
+}
+
+class _CitationChip extends StatelessWidget {
+  const _CitationChip({required this.label, this.onTap});
+
+  final String label;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onTap != null;
+    return ActionChip(
+      label: Text(label),
+      avatar: Icon(
+        enabled ? Icons.article_outlined : Icons.link_off_rounded,
+        size: 14,
+      ),
+      onPressed: onTap,
+      visualDensity: VisualDensity.compact,
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      labelStyle: const TextStyle(fontSize: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 6),
     );
   }
 }

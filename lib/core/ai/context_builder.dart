@@ -12,6 +12,7 @@ import '../../models/setting_type.dart';
 import '../../models/story_state_kind.dart';
 import '../../models/work_style_guide.dart';
 import 'ai_client.dart';
+import 'continuity_suppression.dart';
 import 'retrieval.dart';
 
 /// 组装后的一段上下文，供待确认面板"上下文详情"展开查看
@@ -675,6 +676,7 @@ class ContextBuilder {
     required int workId,
     required int chapterId,
     int contextWindow = 32000,
+    List<ContinuitySuppression> suppressions = const <ContinuitySuppression>[],
   }) async {
     final budget = (contextWindow * 0.5).round();
     final work = await works.getWork(workId);
@@ -709,6 +711,8 @@ class ContextBuilder {
     var charactersText = allCharacters.map(formatCharacter).join('\n');
     var outlineText = chapterOutline;
     var body = content;
+    // ENH-41：作者确认保留的差异随上下文注入，模型不再重复报告。
+    final suppressionText = ContinuitySuppressions.promptBlock(suppressions);
 
     int total() =>
         estimateTokens(system) +
@@ -718,7 +722,8 @@ class ContextBuilder {
         estimateTokens(settingsText) +
         estimateTokens(storyStateText) +
         estimateTokens(previousSummary) +
-        estimateTokens(outlineText);
+        estimateTokens(outlineText) +
+        estimateTokens(suppressionText);
 
     var truncated = false;
     if (total() > budget && previousSummary.isNotEmpty) {
@@ -753,7 +758,8 @@ class ContextBuilder {
           estimateTokens(settingsText) -
           estimateTokens(storyStateText) -
           estimateTokens(previousSummary) -
-          estimateTokens(outlineText);
+          estimateTokens(outlineText) -
+          estimateTokens(suppressionText);
       if (room <= 0) {
         body = '';
       } else if (body.length > room) {
@@ -765,6 +771,8 @@ class ContextBuilder {
     }
 
     final sections = <ContextSection>[
+      if (suppressionText.isNotEmpty)
+        ContextSection(label: '已确认无需报告的差异', content: suppressionText),
       if (charactersText.isNotEmpty)
         ContextSection(label: '角色卡', content: charactersText),
       if (settingsText.isNotEmpty)
@@ -813,7 +821,9 @@ class ContextBuilder {
       '「故事状态·卡片名」或「章纲」，同一处冲突涉及多张卡片时分别列出；\n'
       '4. suggestion 给出可直接落笔的改法；severity 取 high / medium / low；\n'
       '5. 没有发现冲突时只输出 {"summary":"未发现设定冲突","issues":[]}；\n'
-      '6. 使用简体中文，只输出 JSON，不要使用 Markdown 代码块。';
+      '6. 如果【已确认无需报告的差异】列出了与本章相同的差异，说明作者已确认保留，'
+      '直接跳过，不要再次报告；\n'
+      '7. 使用简体中文，只输出 JSON，不要使用 Markdown 代码块。';
 
   // ---------- ENH-35：本章状态变化提取 ----------
 
@@ -1173,15 +1183,16 @@ class ContextBuilder {
         aliasGroups: characterAliasGroups(allCharacters),
       ),
       header: '相关正文片段',
+      includeId: true,
     );
     final outlineText = outlineEntries
         .where((e) => e.summary.trim().isNotEmpty)
         .take(30)
         .map((e) {
-          final title = e.chapterId == null
-              ? '未关联章节'
-              : (titleById[e.chapterId] ?? '章节 ${e.chapterId}');
-          return '- $title：${e.summary.trim()}';
+          final id = e.chapterId;
+          final title = id == null ? '未关联章节' : (titleById[id] ?? '章节 $id');
+          final idSuffix = id == null ? '' : '（id=$id）';
+          return '- $title$idSuffix：${e.summary.trim()}';
         })
         .join('\n');
     final styleText = _styleText(work);
@@ -1323,7 +1334,9 @@ class ContextBuilder {
       '1. 回答必须基于【作品资料】与工具查询结果，不得编造未出现的事实；\n'
       '2. 资料不足时先调用工具：list_chapters 看目录，search_chapters 检索正文，'
       'get_chapter 读具体章节，get_characters / get_settings / get_outline 查设定；\n'
-      '3. 引用剧情时标注章节名，必要时给出原文短引；\n'
+      '3. 引用剧情时在相关句子后用 [[ch:章节id]] 标注来源，id 只能取自'
+      '【章节目录】或工具结果，例如 [[ch:12]]；同一章节只标注一次，'
+      '不要编造 id；必要时给出原文短引；\n'
       '4. 使用简体中文，回答简洁直接，不写与问题无关的客套话。';
 
   /// 取最近 [maxChapters] 章正文节选，供一次性分析任务使用。

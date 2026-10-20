@@ -3,9 +3,11 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 
 import '../../core/ai/ai_client_factory.dart';
+import '../../core/ai/continuity_suppression.dart';
 import '../../core/ai/mcp/mcp_bridge.dart';
 import '../../core/ai/mcp/mcp_oauth.dart';
 import '../../core/ai/skills/skill.dart';
+import '../../core/ai/structured_response.dart';
 import '../../core/ai/writing_preferences.dart';
 import '../../core/writing_stats.dart';
 import '../../models/cloud_backup_config.dart';
@@ -346,12 +348,18 @@ class SettingsRepository {
     int workId, {
     required String text,
     required String task,
+    String source = '',
   }) async {
     if (text.trim().isEmpty) return;
     final samples = await readAdoptedSamples(workId);
     final next = WritingPreferences.addSample(
       samples,
-      AdoptedSample(text: text, task: task, createdAt: DateTime.now()),
+      AdoptedSample(
+        text: text,
+        source: source,
+        task: task,
+        createdAt: DateTime.now(),
+      ),
     );
     await setSetting(
       aiAdoptedSamplesKey(workId),
@@ -374,6 +382,49 @@ class SettingsRepository {
     await _settings.remove(WritingPreferences.adoptedSamplesKey(workId));
     await _settings.remove(WritingPreferences.paragraphFeedbackKey(workId));
   }
+
+  // ---------- 一致性冲突忽略记忆（ENH-41）----------
+
+  static String continuityIgnoredKey(int workId) =>
+      ContinuitySuppressions.storageKey(workId);
+
+  Future<List<ContinuitySuppression>> readContinuitySuppressions(
+    int workId,
+  ) async => ContinuitySuppressions.parse(
+    await getSetting(continuityIgnoredKey(workId)),
+  );
+
+  /// 记住一条作者确认有意保留的差异；返回落库的条目（无故忽略项时为 null）。
+  Future<ContinuitySuppression?> ignoreContinuityIssue(
+    int workId,
+    ContinuityIssue issue, {
+    String reason = '',
+  }) async {
+    if (issue.quote.trim().isEmpty && issue.detail.trim().isEmpty) return null;
+    final entries = await readContinuitySuppressions(workId);
+    final entry = ContinuitySuppression.fromIssue(issue, reason: reason);
+    await setSetting(
+      continuityIgnoredKey(workId),
+      ContinuitySuppressions.encode(ContinuitySuppressions.add(entries, entry)),
+    );
+    return entry;
+  }
+
+  Future<void> restoreContinuitySuppression(
+    int workId,
+    String fingerprint,
+  ) async {
+    final entries = await readContinuitySuppressions(workId);
+    await setSetting(
+      continuityIgnoredKey(workId),
+      ContinuitySuppressions.encode(
+        ContinuitySuppressions.remove(entries, fingerprint),
+      ),
+    );
+  }
+
+  Future<void> clearContinuitySuppressions(int workId) =>
+      _settings.remove(continuityIgnoredKey(workId));
 
   // ---------- MCP server（B-02）----------
 

@@ -1196,6 +1196,36 @@ abstract class AppLocalizations {
   /// **'暂无采纳片段'**
   String get aiPreferencesNoSamples;
 
+  /// No description provided for @aiPreferencesPairSource.
+  ///
+  /// In zh, this message translates to:
+  /// **'模型原稿：{text}'**
+  String aiPreferencesPairSource(String text);
+
+  /// No description provided for @aiPreferencesIgnoredConflicts.
+  ///
+  /// In zh, this message translates to:
+  /// **'已忽略的一致性冲突'**
+  String get aiPreferencesIgnoredConflicts;
+
+  /// No description provided for @aiPreferencesNoIgnored.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂无忽略项'**
+  String get aiPreferencesNoIgnored;
+
+  /// No description provided for @aiPreferencesRestoreConflict.
+  ///
+  /// In zh, this message translates to:
+  /// **'恢复'**
+  String get aiPreferencesRestoreConflict;
+
+  /// No description provided for @aiPreferencesConflictRestored.
+  ///
+  /// In zh, this message translates to:
+  /// **'已恢复，下次检查会重新报告'**
+  String get aiPreferencesConflictRestored;
+
   /// No description provided for @aiPreferencesCount.
   ///
   /// In zh, this message translates to:
@@ -1217,7 +1247,7 @@ abstract class AppLocalizations {
   /// No description provided for @aiPreferencesClearBody.
   ///
   /// In zh, this message translates to:
-  /// **'原因计数与最近采纳片段将被删除，且无法恢复。'**
+  /// **'原因计数、最近采纳片段与已忽略的一致性冲突将被删除，且无法恢复。'**
   String get aiPreferencesClearBody;
 
   /// No description provided for @aiPreferencesCleared.
@@ -5635,6 +5665,24 @@ abstract class AppLocalizations {
   /// **'梳理主要人物关系'**
   String get chatSuggestionRelationship;
 
+  /// No description provided for @chatCitationUnknown.
+  ///
+  /// In zh, this message translates to:
+  /// **'章节 {id}（已删除）'**
+  String chatCitationUnknown(int id);
+
+  /// No description provided for @chatSaveToInspiration.
+  ///
+  /// In zh, this message translates to:
+  /// **'存入灵感箱'**
+  String get chatSaveToInspiration;
+
+  /// No description provided for @chatSavedToInspiration.
+  ///
+  /// In zh, this message translates to:
+  /// **'已存入灵感箱'**
+  String get chatSavedToInspiration;
+
   /// No description provided for @editorContinuityStop.
   ///
   /// In zh, this message translates to:
@@ -5821,11 +5869,77 @@ abstract class AppLocalizations {
   /// **'生成修订'**
   String get continuityIssueRevise;
 
+  /// No description provided for @continuityIssueIgnore.
+  ///
+  /// In zh, this message translates to:
+  /// **'忽略此条'**
+  String get continuityIssueIgnore;
+
   /// No description provided for @continuityIssueRecheck.
   ///
   /// In zh, this message translates to:
   /// **'重新检查'**
   String get continuityIssueRecheck;
+
+  /// No description provided for @continuityIgnoreTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'忽略这条冲突'**
+  String get continuityIgnoreTitle;
+
+  /// No description provided for @continuityIgnoreBody.
+  ///
+  /// In zh, this message translates to:
+  /// **'后续一致性检查不会再报告相同差异，并在检查上下文里注明。可随时在作者协作偏好中恢复。'**
+  String get continuityIgnoreBody;
+
+  /// No description provided for @continuityIgnoreReasonLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'原因（可选）'**
+  String get continuityIgnoreReasonLabel;
+
+  /// No description provided for @continuityIgnoreReasonHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'例如：有意保留 / 后续情节会解释 / 模型误报'**
+  String get continuityIgnoreReasonHint;
+
+  /// No description provided for @continuityIgnoreReasonIntentional.
+  ///
+  /// In zh, this message translates to:
+  /// **'有意保留'**
+  String get continuityIgnoreReasonIntentional;
+
+  /// No description provided for @continuityIgnoreReasonLater.
+  ///
+  /// In zh, this message translates to:
+  /// **'后续会解释'**
+  String get continuityIgnoreReasonLater;
+
+  /// No description provided for @continuityIgnoreReasonFalsePositive.
+  ///
+  /// In zh, this message translates to:
+  /// **'模型误报'**
+  String get continuityIgnoreReasonFalsePositive;
+
+  /// No description provided for @continuityIgnoreConfirm.
+  ///
+  /// In zh, this message translates to:
+  /// **'忽略并记住'**
+  String get continuityIgnoreConfirm;
+
+  /// No description provided for @continuityIgnoredCount.
+  ///
+  /// In zh, this message translates to:
+  /// **'已按你的设置忽略 {count} 条'**
+  String continuityIgnoredCount(int count);
+
+  /// No description provided for @continuityIgnoredSnack.
+  ///
+  /// In zh, this message translates to:
+  /// **'已忽略，可在作者协作偏好中恢复'**
+  String get continuityIgnoredSnack;
 
   /// No description provided for @continuityIssueParseFallback.
   ///

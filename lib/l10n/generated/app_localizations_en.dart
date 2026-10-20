@@ -678,6 +678,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aiPreferencesNoSamples => 'No adopted passages yet';
 
   @override
+  String aiPreferencesPairSource(String text) {
+    return 'Model draft: $text';
+  }
+
+  @override
+  String get aiPreferencesIgnoredConflicts => 'Ignored continuity conflicts';
+
+  @override
+  String get aiPreferencesNoIgnored => 'No ignored conflicts';
+
+  @override
+  String get aiPreferencesRestoreConflict => 'Restore';
+
+  @override
+  String get aiPreferencesConflictRestored =>
+      'Restored; the next check will report it again';
+
+  @override
   String aiPreferencesCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -696,7 +714,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aiPreferencesClearBody =>
-      'Reason counts and recently adopted passages will be deleted permanently.';
+      'Reason counts, recently adopted passages and ignored continuity conflicts will be deleted permanently.';
 
   @override
   String get aiPreferencesCleared => 'Author preferences cleared';
@@ -3496,6 +3514,17 @@ class AppLocalizationsEn extends AppLocalizations {
       'Summarize the main character relationships';
 
   @override
+  String chatCitationUnknown(int id) {
+    return 'Chapter $id (deleted)';
+  }
+
+  @override
+  String get chatSaveToInspiration => 'Save to inspirations';
+
+  @override
+  String get chatSavedToInspiration => 'Saved to inspirations';
+
+  @override
   String get editorContinuityStop => 'Stop';
 
   @override
@@ -3609,7 +3638,51 @@ class AppLocalizationsEn extends AppLocalizations {
   String get continuityIssueRevise => 'Draft fix';
 
   @override
+  String get continuityIssueIgnore => 'Ignore';
+
+  @override
   String get continuityIssueRecheck => 'Re-check';
+
+  @override
+  String get continuityIgnoreTitle => 'Ignore this conflict';
+
+  @override
+  String get continuityIgnoreBody =>
+      'Future consistency checks will skip the same difference and note it in the context. You can restore it anytime under Author preferences.';
+
+  @override
+  String get continuityIgnoreReasonLabel => 'Reason (optional)';
+
+  @override
+  String get continuityIgnoreReasonHint =>
+      'e.g. intentional / explained later / model false positive';
+
+  @override
+  String get continuityIgnoreReasonIntentional => 'Intentional';
+
+  @override
+  String get continuityIgnoreReasonLater => 'Explained later';
+
+  @override
+  String get continuityIgnoreReasonFalsePositive => 'False positive';
+
+  @override
+  String get continuityIgnoreConfirm => 'Ignore and remember';
+
+  @override
+  String continuityIgnoredCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count conflicts ignored by your settings',
+      one: '1 conflict ignored by your settings',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get continuityIgnoredSnack =>
+      'Ignored; restore it under Author preferences';
 
   @override
   String get continuityIssueParseFallback =>

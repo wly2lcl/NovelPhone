@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:novelphone/core/ai/context_builder.dart';
+import 'package:novelphone/core/ai/structured_response.dart';
 import 'package:novelphone/core/ai/writing_preferences.dart';
 import 'package:novelphone/data/db.dart';
 import 'package:novelphone/data/repositories/chapter_repository.dart';
@@ -130,6 +131,19 @@ void main() {
     expect((await config.readAdoptedSamples(workId)).single.text, '有效样本');
   });
 
+  test('配对采纳样本落库并保留原稿（ENH-42）', () async {
+    await config.recordAdoptedSample(
+      workId,
+      text: '他把刀放回鞘里，没再说话。',
+      source: '他将长刀收回鞘中，沉默不语。',
+      task: AiTask.rewrite,
+    );
+    final samples = await config.readAdoptedSamples(workId);
+    expect(samples.single.text, '他把刀放回鞘里，没再说话。');
+    expect(samples.single.source, '他将长刀收回鞘中，沉默不语。');
+    expect(samples.single.hasSource, isTrue);
+  });
+
   test('续写修订上下文：当前草稿 + 修改意见 + 协作偏好，替换原续写任务', () async {
     final built = await builder.buildContinue(
       workId: workId,
@@ -205,6 +219,11 @@ void main() {
     await config.recordAiParagraphFeedback(workId, AiFeedbackReason.slowPace);
     await config.recordAdoptedSample(workId, text: '片段', task: AiTask.rewrite);
     await config.setAiPreferencesEnabled(workId, false);
+    await config.ignoreContinuityIssue(
+      workId,
+      const ContinuityIssue(quote: '沈砚没有出声', source: '角色卡·沈砚'),
+      reason: '有意保留',
+    );
     for (final key in WritingPreferences.keysFor(workId)) {
       expect(await config.getSetting(key), isNotNull);
     }
@@ -214,6 +233,32 @@ void main() {
     for (final key in WritingPreferences.keysFor(workId)) {
       expect(await config.getSetting(key), isNull);
     }
+  });
+
+  test('一致性忽略项按作品持久化、去重并可恢复（ENH-41）', () async {
+    const issue = ContinuityIssue(quote: '沈砚没有出声', source: '角色卡·沈砚');
+    final entry = await config.ignoreContinuityIssue(
+      workId,
+      issue,
+      reason: '后续会解释',
+    );
+    expect(entry, isNotNull);
+    await config.ignoreContinuityIssue(
+      workId,
+      const ContinuityIssue(quote: '「沈砚没有出声」', source: '角色卡-沈砚'),
+      reason: '重复来源',
+    );
+
+    final entries = await config.readContinuitySuppressions(workId);
+    expect(entries, hasLength(1));
+    expect(entries.single.reason, '重复来源');
+
+    await config.restoreContinuitySuppression(workId, entry!.fingerprint);
+    expect(await config.readContinuitySuppressions(workId), isEmpty);
+
+    await config.ignoreContinuityIssue(workId, issue);
+    await config.clearContinuitySuppressions(workId);
+    expect(await config.readContinuitySuppressions(workId), isEmpty);
   });
 
   test('续写请求注入高频偏好与采纳片段，修订意见进入用户消息', () async {

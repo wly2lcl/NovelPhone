@@ -4,23 +4,28 @@ import '../../app/theme.dart';
 import '../../core/ai/structured_response.dart';
 import '../../l10n/l10n.dart';
 
-/// 报告对话框的后续动作（ENH-38）。
-enum ContinuityReportAction { locate, revise, recheck }
+/// 报告对话框的后续动作（ENH-38 / ENH-41）。
+enum ContinuityReportAction { locate, revise, ignore, recheck }
 
 class ContinuityReportSelection {
-  const ContinuityReportSelection(this.action, [this.issue]);
+  const ContinuityReportSelection(this.action, [this.issue, this.reason = '']);
 
   final ContinuityReportAction action;
   final ContinuityIssue? issue;
+
+  /// 忽略时作者填写的保留原因（可选）。
+  final String reason;
 }
 
-/// 结构化一致性检查报告（ENH-38）：每条冲突可定位原文或生成修订，并可重新检查。
+/// 结构化一致性检查报告（ENH-38）：每条冲突可定位原文或生成修订，并可重新检查；
+/// 作者确认有意保留的差异可忽略，后续检查不再报告（ENH-41）。
 Future<ContinuityReportSelection?> showContinuityReportDialog(
   BuildContext context, {
   required ContinuityCheckResult check,
   required String rawText,
   required bool truncated,
   bool stopped = false,
+  int ignoredCount = 0,
 }) {
   return showDialog<ContinuityReportSelection>(
     context: context,
@@ -29,7 +34,19 @@ Future<ContinuityReportSelection?> showContinuityReportDialog(
       rawText: rawText,
       truncated: truncated,
       stopped: stopped,
+      ignoredCount: ignoredCount,
     ),
+  );
+}
+
+/// 忽略冲突时收集保留原因（ENH-41）；取消返回 null，直接忽略返回空串。
+Future<String?> promptContinuityIgnoreReason(
+  BuildContext context,
+  ContinuityIssue issue,
+) {
+  return showDialog<String>(
+    context: context,
+    builder: (dialogContext) => _IgnoreIssueDialog(issue: issue),
   );
 }
 
@@ -39,19 +56,28 @@ class _ContinuityReportDialog extends StatelessWidget {
     required this.rawText,
     required this.truncated,
     required this.stopped,
+    required this.ignoredCount,
   });
 
   final ContinuityCheckResult check;
   final String rawText;
   final bool truncated;
   final bool stopped;
+  final int ignoredCount;
 
   void _select(
     BuildContext context,
     ContinuityReportAction action, [
     ContinuityIssue? issue,
+    String reason = '',
   ]) {
-    Navigator.of(context).pop(ContinuityReportSelection(action, issue));
+    Navigator.of(context).pop(ContinuityReportSelection(action, issue, reason));
+  }
+
+  Future<void> _ignore(BuildContext context, ContinuityIssue issue) async {
+    final reason = await promptContinuityIgnoreReason(context, issue);
+    if (reason == null || !context.mounted) return;
+    _select(context, ContinuityReportAction.ignore, issue, reason);
   }
 
   @override
@@ -75,6 +101,10 @@ class _ContinuityReportDialog extends StatelessWidget {
                 ],
                 if (truncated) ...<Widget>[
                   _Hint(text: l10n.editorContinuityTruncated),
+                  const SizedBox(height: 10),
+                ],
+                if (ignoredCount > 0) ...<Widget>[
+                  _Hint(text: l10n.continuityIgnoredCount(ignoredCount)),
                   const SizedBox(height: 10),
                 ],
                 if (check.parseFailed) ...<Widget>[
@@ -121,6 +151,7 @@ class _ContinuityReportDialog extends StatelessWidget {
                           ContinuityReportAction.revise,
                           check.issues[i],
                         ),
+                        onIgnore: () => _ignore(context, check.issues[i]),
                       ),
                   ],
                 ],
@@ -149,12 +180,14 @@ class _IssueCard extends StatelessWidget {
     required this.issue,
     required this.onLocate,
     required this.onRevise,
+    required this.onIgnore,
   });
 
   final int index;
   final ContinuityIssue issue;
   final VoidCallback onLocate;
   final VoidCallback onRevise;
+  final VoidCallback onIgnore;
 
   @override
   Widget build(BuildContext context) {
@@ -241,8 +274,9 @@ class _IssueCard extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 2),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
+          Wrap(
+            alignment: WrapAlignment.end,
+            spacing: 2,
             children: <Widget>[
               if (issue.quote.isNotEmpty)
                 TextButton.icon(
@@ -255,10 +289,109 @@ class _IssueCard extends StatelessWidget {
                 icon: const Icon(Icons.auto_fix_high_outlined, size: 16),
                 label: Text(l10n.continuityIssueRevise),
               ),
+              TextButton.icon(
+                onPressed: onIgnore,
+                icon: const Icon(Icons.visibility_off_outlined, size: 16),
+                label: Text(l10n.continuityIssueIgnore),
+              ),
             ],
           ),
         ],
       ),
+    );
+  }
+}
+
+class _IgnoreIssueDialog extends StatefulWidget {
+  const _IgnoreIssueDialog({required this.issue});
+
+  final ContinuityIssue issue;
+
+  @override
+  State<_IgnoreIssueDialog> createState() => _IgnoreIssueDialogState();
+}
+
+class _IgnoreIssueDialogState extends State<_IgnoreIssueDialog> {
+  final TextEditingController _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _fill(String value) {
+    setState(() {
+      _controller.text = value;
+      _controller.selection = TextSelection.collapsed(offset: value.length);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return AlertDialog(
+      title: Text(l10n.continuityIgnoreTitle),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              l10n.continuityIgnoreBody,
+              style: TextStyle(
+                fontSize: 12,
+                color: context.paper.inkSoft,
+                height: 1.5,
+              ),
+            ),
+            if (widget.issue.quote.isNotEmpty) ...<Widget>[
+              const SizedBox(height: 10),
+              Text(
+                '「${widget.issue.quote}」',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  height: 1.4,
+                ),
+              ),
+            ],
+            const SizedBox(height: 12),
+            TextField(
+              controller: _controller,
+              maxLength: 80,
+              maxLines: 2,
+              decoration: InputDecoration(
+                labelText: l10n.continuityIgnoreReasonLabel,
+                hintText: l10n.continuityIgnoreReasonHint,
+                border: const OutlineInputBorder(),
+              ),
+            ),
+            Wrap(
+              spacing: 6,
+              runSpacing: 2,
+              children: <Widget>[
+                for (final label in <String>[
+                  l10n.continuityIgnoreReasonIntentional,
+                  l10n.continuityIgnoreReasonLater,
+                  l10n.continuityIgnoreReasonFalsePositive,
+                ])
+                  ActionChip(label: Text(label), onPressed: () => _fill(label)),
+              ],
+            ),
+          ],
+        ),
+      ),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l10n.commonCancel),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(_controller.text.trim()),
+          child: Text(l10n.continuityIgnoreConfirm),
+        ),
+      ],
     );
   }
 }

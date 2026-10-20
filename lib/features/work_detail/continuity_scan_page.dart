@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/theme.dart';
+import '../../core/ai/continuity_suppression.dart';
 import '../../core/ai/structured_response.dart';
 import '../../data/data_providers.dart';
 import '../../data/db.dart';
@@ -13,6 +14,7 @@ import '../../l10n/l10n.dart';
 import '../ai/ai_notice.dart';
 import '../ai/ai_providers.dart';
 import '../ai/ai_service.dart';
+import '../editor/continuity_report_dialog.dart';
 
 class _ScanResult {
   const _ScanResult({
@@ -20,6 +22,7 @@ class _ScanResult {
     this.text = '',
     this.result = const ContinuityCheckResult(parseFailed: true),
     this.truncated = false,
+    this.ignoredCount = 0,
     this.error,
   });
 
@@ -29,9 +32,23 @@ class _ScanResult {
   final String text;
   final ContinuityCheckResult result;
   final bool truncated;
+
+  /// 命中忽略清单、未展示的冲突数（ENH-41）。
+  final int ignoredCount;
   final String? error;
 
   bool get failed => error != null;
+
+  _ScanResult copyWith({ContinuityCheckResult? result, int? ignoredCount}) {
+    return _ScanResult(
+      chapter: chapter,
+      text: text,
+      result: result ?? this.result,
+      truncated: truncated,
+      ignoredCount: ignoredCount ?? this.ignoredCount,
+      error: error,
+    );
+  }
 }
 
 /// 全书一致性体检（ENH-23 / ENH-38）：逐章顺序检查，避免并发触发服务商限流；
@@ -114,6 +131,7 @@ class _ContinuityScanPageState extends ConsumerState<ContinuityScanPage> {
               text: report.text.trim(),
               result: report.result,
               truncated: report.truncated,
+              ignoredCount: report.ignoredCount,
             ),
           );
         });
@@ -162,6 +180,9 @@ class _ContinuityScanPageState extends ConsumerState<ContinuityScanPage> {
       } else {
         final check = result.result;
         if (check.summary.isNotEmpty) buffer.writeln(check.summary);
+        if (result.ignoredCount > 0) {
+          buffer.writeln(l10n.continuityIgnoredCount(result.ignoredCount));
+        }
         if (check.parseFailed) buffer.writeln(result.text);
         for (var i = 0; i < check.issues.length; i++) {
           final issue = check.issues[i];
@@ -188,6 +209,42 @@ class _ContinuityScanPageState extends ConsumerState<ContinuityScanPage> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(l10n.continuityScanCopied)));
+  }
+
+  Future<void> _ignore(ContinuityIssue issue) async {
+    final l10n = context.l10n;
+    final reason = await promptContinuityIgnoreReason(context, issue);
+    if (reason == null || !mounted) return;
+    final repo = ref.read(settingsRepositoryProvider);
+    final entry = await repo.ignoreContinuityIssue(
+      widget.workId,
+      issue,
+      reason: reason,
+    );
+    if (entry == null || !mounted) return;
+    final suppressions = await repo.readContinuitySuppressions(widget.workId);
+    if (!mounted) return;
+    setState(() {
+      for (var i = 0; i < _results.length; i++) {
+        final result = _results[i];
+        if (result.failed || result.result.parseFailed) continue;
+        final filtered = ContinuitySuppressions.filterIssues(
+          result.result.issues,
+          suppressions,
+        );
+        if (filtered.ignored == 0) continue;
+        _results[i] = result.copyWith(
+          result: ContinuityCheckResult(
+            summary: result.result.summary,
+            issues: filtered.issues,
+          ),
+          ignoredCount: result.ignoredCount + filtered.ignored,
+        );
+      }
+    });
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(l10n.continuityIgnoredSnack)));
   }
 
   @override
@@ -278,6 +335,7 @@ class _ContinuityScanPageState extends ConsumerState<ContinuityScanPage> {
                         key: ValueKey(result.chapter.id),
                         workId: widget.workId,
                         result: result,
+                        onIgnore: _ignore,
                       ),
                   ],
                 ],
@@ -296,10 +354,16 @@ String _severityText(AppLocalizations l10n, String severity) {
 }
 
 class _ResultTile extends StatelessWidget {
-  const _ResultTile({super.key, required this.workId, required this.result});
+  const _ResultTile({
+    super.key,
+    required this.workId,
+    required this.result,
+    required this.onIgnore,
+  });
 
   final int workId;
   final _ScanResult result;
+  final ValueChanged<ContinuityIssue> onIgnore;
 
   @override
   Widget build(BuildContext context) {
@@ -339,6 +403,14 @@ class _ResultTile extends StatelessWidget {
                 style: TextStyle(fontSize: 12, color: context.paper.inkSoft),
               ),
             ),
+          if (result.ignoredCount > 0)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                l10n.continuityIgnoredCount(result.ignoredCount),
+                style: TextStyle(fontSize: 12, color: context.paper.inkSoft),
+              ),
+            ),
           if (result.failed)
             SelectableText(result.error!)
           else ...<Widget>[
@@ -359,7 +431,11 @@ class _ResultTile extends StatelessWidget {
               SelectableText(result.text),
             ] else
               for (var i = 0; i < check.issues.length; i++)
-                _ScanIssue(index: i + 1, issue: check.issues[i]),
+                _ScanIssue(
+                  index: i + 1,
+                  issue: check.issues[i],
+                  onIgnore: () => onIgnore(check.issues[i]),
+                ),
             if (!check.parseFailed) ...<Widget>[
               const SizedBox(height: 4),
               Align(
@@ -381,10 +457,15 @@ class _ResultTile extends StatelessWidget {
 }
 
 class _ScanIssue extends StatelessWidget {
-  const _ScanIssue({required this.index, required this.issue});
+  const _ScanIssue({
+    required this.index,
+    required this.issue,
+    required this.onIgnore,
+  });
 
   final int index;
   final ContinuityIssue issue;
+  final VoidCallback onIgnore;
 
   @override
   Widget build(BuildContext context) {
@@ -442,6 +523,14 @@ class _ScanIssue extends StatelessWidget {
               style: TextStyle(fontSize: 12, color: context.paper.ink),
             ),
           ],
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: onIgnore,
+              icon: const Icon(Icons.visibility_off_outlined, size: 16),
+              label: Text(l10n.continuityIssueIgnore),
+            ),
+          ),
         ],
       ),
     );

@@ -19,6 +19,8 @@
 //                        （验证 ENH-38 定位原文 / 生成修订 / 全书体检）
 //   /openai-strategies   按 system 中的候选侧重返回不同段落
 //                        （验证 ENH-36 多候选策略与跨候选组合）
+//   /openai-chat-citations  从请求中的章节目录取一个 id，返回带
+//                        `[[ch:<id>]]` 的问答文本（验证 ENH-43 引用 chip 与存入灵感箱）
 //   /openai-enh27        多段落续写；带修订要求的请求返回不同草稿
 //                        （验证 ENH-27 分段采纳与结果内继续修改）
 //   /openai-enh29-revise-fail  首次多段落续写正常，后续修订请求始终 500
@@ -49,7 +51,7 @@ Future<void> main(List<String> args) async {
   stdout.writeln(
     '场景基址：http://127.0.0.1:$port/openai、/openai-style、/openai-extract、'
     '/openai-plan、/openai-states、/openai-continuity、/openai-strategies、'
-    '/openai-continuity-issues、'
+    '/openai-chat-citations、/openai-continuity-issues、'
     '/openai-tool、/openai-empty-first、/openai-429-first、/openai-429-always、'
     '/openai-500、/openai-filter、/openai-enh27、/openai-enh29-revise-fail、'
     '/anthropic、/anthropic-429',
@@ -146,6 +148,8 @@ class FakeLlmServer {
         );
       case 'openai-strategies':
         return _openaiStrategies(request);
+      case 'openai-chat-citations':
+        return _openaiChatCitations(request);
       case 'openai-enh27':
         return _openaiEnh27(request);
       case 'openai-enh29-revise-fail':
@@ -250,6 +254,22 @@ class FakeLlmServer {
       pieces = <String>['“谁在里面？”沈砚低声问。\n\n', '里间沉默片刻，才有人答：“故人。”'];
     }
     return _openaiStream(request.response, pieces: pieces);
+  }
+
+  /// ENH-43 验收：从章节目录（`id=<章节id>`）取第一个 id 生成引用标记，
+  /// 同一回答再带一个不存在的 id，便于验证「已删除章节」不可跳转的状态。
+  Future<void> _openaiChatCitations(HttpRequest request) async {
+    final raw = await utf8.decoder.bind(request).join();
+    final match = RegExp(r'id=(\d+)').firstMatch(raw);
+    final chapterId = int.tryParse(match?.group(1) ?? '') ?? 1;
+    stdout.writeln('[fake-llm] openai-chat-citations：引用章节 $chapterId');
+    return _openaiStream(
+      request.response,
+      pieces: <String>[
+        '根据已检索到的前文，沈砚在雨夜离乡，苏晚随后追问（[[ch:$chapterId]]）。',
+        '另一条线索只在已删除的章节里出现过（[[ch:999999]]）。',
+      ],
+    );
   }
 
   /// ENH-27 验收：多段落续写；带修订要求的请求返回不同草稿，便于验证分段采纳与继续修改。

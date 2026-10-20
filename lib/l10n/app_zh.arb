@@ -392,6 +392,18 @@
   "aiPreferencesParagraphReasons": "分段未采纳原因",
   "aiPreferencesSamples": "最近采纳片段",
   "aiPreferencesNoSamples": "暂无采纳片段",
+  "aiPreferencesPairSource": "模型原稿：{text}",
+  "@aiPreferencesPairSource": {
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "aiPreferencesIgnoredConflicts": "已忽略的一致性冲突",
+  "aiPreferencesNoIgnored": "暂无忽略项",
+  "aiPreferencesRestoreConflict": "恢复",
+  "aiPreferencesConflictRestored": "已恢复，下次检查会重新报告",
   "aiPreferencesCount": "{count} 次",
   "@aiPreferencesCount": {
     "placeholders": {
@@ -402,7 +414,7 @@
   },
   "aiPreferencesClear": "清空偏好与样本",
   "aiPreferencesClearTitle": "清空作者协作偏好？",
-  "aiPreferencesClearBody": "原因计数与最近采纳片段将被删除，且无法恢复。",
+  "aiPreferencesClearBody": "原因计数、最近采纳片段与已忽略的一致性冲突将被删除，且无法恢复。",
   "aiPreferencesCleared": "已清空作者协作偏好",
   "aiRevisionOriginal": "原稿",
   "aiRevisionNumber": "修订 {number}",
@@ -2055,6 +2067,16 @@
   "chatSuggestionGoal": "主角目前的目标是什么？",
   "chatSuggestionForeshadow": "哪些伏笔还没回收？",
   "chatSuggestionRelationship": "梳理主要人物关系",
+  "chatCitationUnknown": "章节 {id}（已删除）",
+  "@chatCitationUnknown": {
+    "placeholders": {
+      "id": {
+        "type": "int"
+      }
+    }
+  },
+  "chatSaveToInspiration": "存入灵感箱",
+  "chatSavedToInspiration": "已存入灵感箱",
   "editorContinuityStop": "停止",
   "editorContinuityStopped": "已停止生成，以下是已生成的内容。",
   "editorContinuityStoppedEmpty": "已停止，尚未收到内容。",
@@ -2141,7 +2163,25 @@
   },
   "continuityIssueLocate": "定位原文",
   "continuityIssueRevise": "生成修订",
+  "continuityIssueIgnore": "忽略此条",
   "continuityIssueRecheck": "重新检查",
+  "continuityIgnoreTitle": "忽略这条冲突",
+  "continuityIgnoreBody": "后续一致性检查不会再报告相同差异，并在检查上下文里注明。可随时在作者协作偏好中恢复。",
+  "continuityIgnoreReasonLabel": "原因（可选）",
+  "continuityIgnoreReasonHint": "例如：有意保留 / 后续情节会解释 / 模型误报",
+  "continuityIgnoreReasonIntentional": "有意保留",
+  "continuityIgnoreReasonLater": "后续会解释",
+  "continuityIgnoreReasonFalsePositive": "模型误报",
+  "continuityIgnoreConfirm": "忽略并记住",
+  "continuityIgnoredCount": "已按你的设置忽略 {count} 条",
+  "@continuityIgnoredCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "continuityIgnoredSnack": "已忽略，可在作者协作偏好中恢复",
   "continuityIssueParseFallback": "模型没有返回结构化结果，以下为原始输出；可重新检查或换用更稳定的模型。",
   "continuityQuoteNotFound": "正文中找不到这条冲突原文，可能已被修改。",
   "continuityReviseInstruction": "请修正选中片段与设定的冲突，保持上下文衔接。冲突原文：{quote}。{facts}",

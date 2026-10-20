@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/theme.dart';
+import '../../core/ai/continuity_suppression.dart';
 import '../../core/ai/writing_preferences.dart';
 import '../../data/data_providers.dart';
 import '../../l10n/l10n.dart';
@@ -30,9 +31,13 @@ class _AiPreferencesDialogState extends ConsumerState<_AiPreferencesDialog> {
   Map<String, int> _counts = const <String, int>{};
   Map<String, int> _paragraphCounts = const <String, int>{};
   List<AdoptedSample> _samples = const <AdoptedSample>[];
+  List<ContinuitySuppression> _ignored = const <ContinuitySuppression>[];
 
   bool get _hasData =>
-      _counts.isNotEmpty || _paragraphCounts.isNotEmpty || _samples.isNotEmpty;
+      _counts.isNotEmpty ||
+      _paragraphCounts.isNotEmpty ||
+      _samples.isNotEmpty ||
+      _ignored.isNotEmpty;
 
   @override
   void initState() {
@@ -46,12 +51,14 @@ class _AiPreferencesDialogState extends ConsumerState<_AiPreferencesDialog> {
     final counts = await repo.readAiFeedback(widget.workId);
     final paragraphCounts = await repo.readAiParagraphFeedback(widget.workId);
     final samples = await repo.readAdoptedSamples(widget.workId);
+    final ignored = await repo.readContinuitySuppressions(widget.workId);
     if (!mounted) return;
     setState(() {
       _enabled = enabled;
       _counts = counts;
       _paragraphCounts = paragraphCounts;
       _samples = samples;
+      _ignored = ignored;
       _loading = false;
     });
   }
@@ -86,15 +93,30 @@ class _AiPreferencesDialogState extends ConsumerState<_AiPreferencesDialog> {
     await ref
         .read(settingsRepositoryProvider)
         .clearAiPreferences(widget.workId);
+    await ref
+        .read(settingsRepositoryProvider)
+        .clearContinuitySuppressions(widget.workId);
     if (!mounted) return;
     setState(() {
       _counts = const <String, int>{};
       _paragraphCounts = const <String, int>{};
       _samples = const <AdoptedSample>[];
+      _ignored = const <ContinuitySuppression>[];
     });
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(l10n.aiPreferencesCleared)));
+  }
+
+  Future<void> _restore(ContinuitySuppression entry) async {
+    final repo = ref.read(settingsRepositoryProvider);
+    await repo.restoreContinuitySuppression(widget.workId, entry.fingerprint);
+    final ignored = await repo.readContinuitySuppressions(widget.workId);
+    if (!mounted) return;
+    setState(() => _ignored = ignored);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(context.l10n.aiPreferencesConflictRestored)),
+    );
   }
 
   String _reasonLabel(AppLocalizations l10n, String reason) {
@@ -219,9 +241,94 @@ class _AiPreferencesDialogState extends ConsumerState<_AiPreferencesDialog> {
                               color: context.paper.background,
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: Text(
-                              '${i + 1}. ${_samples[i].text}',
-                              style: const TextStyle(fontSize: 13, height: 1.5),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Text(
+                                  '${i + 1}. ${_samples[i].text}',
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    height: 1.5,
+                                  ),
+                                ),
+                                if (_samples[i].hasSource)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 4),
+                                    child: Text(
+                                      l10n.aiPreferencesPairSource(
+                                        _samples[i].source,
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        height: 1.4,
+                                        color: context.paper.inkSoft,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                      const SizedBox(height: 12),
+                      _sectionTitle(l10n.aiPreferencesIgnoredConflicts),
+                      if (_ignored.isEmpty)
+                        Text(
+                          l10n.aiPreferencesNoIgnored,
+                          style: TextStyle(color: context.paper.inkSoft),
+                        )
+                      else
+                        for (final entry in _ignored)
+                          Container(
+                            width: double.infinity,
+                            margin: const EdgeInsets.only(bottom: 6),
+                            padding: const EdgeInsets.fromLTRB(10, 6, 4, 6),
+                            decoration: BoxDecoration(
+                              color: context.paper.background,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              children: <Widget>[
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: <Widget>[
+                                      Text(
+                                        '「${entry.quote}」',
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          height: 1.4,
+                                        ),
+                                      ),
+                                      if (entry.source.isNotEmpty ||
+                                          entry.reason.isNotEmpty)
+                                        Text(
+                                          <String>[
+                                            if (entry.source.isNotEmpty)
+                                              entry.source,
+                                            if (entry.reason.isNotEmpty)
+                                              entry.reason,
+                                          ].join(' · '),
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: context.paper.inkSoft,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                                TextButton(
+                                  onPressed: () => _restore(entry),
+                                  child: Text(
+                                    l10n.aiPreferencesRestoreConflict,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                     ],

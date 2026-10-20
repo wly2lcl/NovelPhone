@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:novelphone/core/ai/ai_client.dart';
+import 'package:novelphone/core/ai/structured_response.dart';
 import 'package:novelphone/core/ai_flavor_rules.dart';
 import 'package:novelphone/data/db.dart';
 import 'package:novelphone/data/repositories/chapter_repository.dart';
@@ -620,6 +621,48 @@ void main() {
       expect(issue.source, '角色卡·苏晚');
       expect(issue.suggestion, '改为二十四岁');
       expect(issue.severity, 'high');
+    });
+
+    test('命中忽略清单的冲突被过滤，忽略项进入检查上下文（ENH-41）', () async {
+      await configureCheckModel();
+      await settings.ignoreContinuityIssue(
+        workId,
+        const ContinuityIssue(quote: '她不禁笑了', source: '角色卡·苏晚'),
+        reason: '有意保留',
+      );
+      String? requestBody;
+      final service = serviceWith(
+        MockClient((req) async {
+          requestBody = req.body;
+          return sseResponse(
+            '{"summary":"发现 2 处冲突","issues":[{'
+            '"quote":"她不禁笑了",'
+            '"detail":"角色卡中苏晚不苟言笑",'
+            '"source":"角色卡·苏晚",'
+            '"severity":"medium"},'
+            '{"quote":"她今年十六岁",'
+            '"detail":"角色卡中苏晚二十四岁",'
+            '"source":"角色卡·苏晚",'
+            '"severity":"high"}]}',
+          );
+        }),
+      );
+
+      final report = await service.checkContinuity(
+        workId: workId,
+        chapterId: chapterId,
+      );
+
+      expect(report.result.issues.single.quote, '她今年十六岁');
+      expect(report.ignoredCount, 1);
+
+      final body = jsonDecode(requestBody!) as Map<String, dynamic>;
+      final messages = body['messages'] as List<dynamic>;
+      final userText =
+          (messages.last as Map<String, dynamic>)['content'] as String;
+      expect(userText, contains('【已确认无需报告的差异】'));
+      expect(userText, contains('她不禁笑了'));
+      expect(userText, contains('原因：有意保留'));
     });
 
     test('服务端错误映射为 ContinuityException（保留状态码，不落统计）', () async {

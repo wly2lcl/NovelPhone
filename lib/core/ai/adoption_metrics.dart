@@ -11,6 +11,13 @@ const int adoptionVerbatimPercent = 10;
 /// 偏好样本上限（百分比）：编辑超过该值的采纳不作为作者语气参考。
 const int adoptionSampleMaxEditPercent = 30;
 
+/// 是否保留「模型原稿 → 作者定稿」配对（ENH-42）：
+/// 原样采纳无需对照，大改又不代表模型语气，只保留轻度～中度修改。
+bool adoptionKeepsSource(int? editPercent) =>
+    editPercent != null &&
+    editPercent > adoptionVerbatimPercent &&
+    editPercent <= adoptionSampleMaxEditPercent;
+
 int adoptionEditPercent(String original, String edited) {
   final a = original.replaceAll(RegExp(r'\s+'), '');
   final b = edited.replaceAll(RegExp(r'\s+'), '');

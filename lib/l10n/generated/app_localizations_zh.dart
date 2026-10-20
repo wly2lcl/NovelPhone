@@ -616,6 +616,23 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aiPreferencesNoSamples => '暂无采纳片段';
 
   @override
+  String aiPreferencesPairSource(String text) {
+    return '模型原稿：$text';
+  }
+
+  @override
+  String get aiPreferencesIgnoredConflicts => '已忽略的一致性冲突';
+
+  @override
+  String get aiPreferencesNoIgnored => '暂无忽略项';
+
+  @override
+  String get aiPreferencesRestoreConflict => '恢复';
+
+  @override
+  String get aiPreferencesConflictRestored => '已恢复，下次检查会重新报告';
+
+  @override
   String aiPreferencesCount(int count) {
     return '$count 次';
   }
@@ -627,7 +644,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aiPreferencesClearTitle => '清空作者协作偏好？';
 
   @override
-  String get aiPreferencesClearBody => '原因计数与最近采纳片段将被删除，且无法恢复。';
+  String get aiPreferencesClearBody => '原因计数、最近采纳片段与已忽略的一致性冲突将被删除，且无法恢复。';
 
   @override
   String get aiPreferencesCleared => '已清空作者协作偏好';
@@ -3092,6 +3109,17 @@ class AppLocalizationsZh extends AppLocalizations {
   String get chatSuggestionRelationship => '梳理主要人物关系';
 
   @override
+  String chatCitationUnknown(int id) {
+    return '章节 $id（已删除）';
+  }
+
+  @override
+  String get chatSaveToInspiration => '存入灵感箱';
+
+  @override
+  String get chatSavedToInspiration => '已存入灵感箱';
+
+  @override
   String get editorContinuityStop => '停止';
 
   @override
@@ -3200,7 +3228,43 @@ class AppLocalizationsZh extends AppLocalizations {
   String get continuityIssueRevise => '生成修订';
 
   @override
+  String get continuityIssueIgnore => '忽略此条';
+
+  @override
   String get continuityIssueRecheck => '重新检查';
+
+  @override
+  String get continuityIgnoreTitle => '忽略这条冲突';
+
+  @override
+  String get continuityIgnoreBody =>
+      '后续一致性检查不会再报告相同差异，并在检查上下文里注明。可随时在作者协作偏好中恢复。';
+
+  @override
+  String get continuityIgnoreReasonLabel => '原因（可选）';
+
+  @override
+  String get continuityIgnoreReasonHint => '例如：有意保留 / 后续情节会解释 / 模型误报';
+
+  @override
+  String get continuityIgnoreReasonIntentional => '有意保留';
+
+  @override
+  String get continuityIgnoreReasonLater => '后续会解释';
+
+  @override
+  String get continuityIgnoreReasonFalsePositive => '模型误报';
+
+  @override
+  String get continuityIgnoreConfirm => '忽略并记住';
+
+  @override
+  String continuityIgnoredCount(int count) {
+    return '已按你的设置忽略 $count 条';
+  }
+
+  @override
+  String get continuityIgnoredSnack => '已忽略，可在作者协作偏好中恢复';
 
   @override
   String get continuityIssueParseFallback =>

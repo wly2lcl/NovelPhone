@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/reading_appearance.dart';
 import '../../app/summary_editor.dart';
 import '../../app/theme.dart';
+import '../../core/ai/continuity_suppression.dart';
 import '../../core/ai/sanitize_ai_text.dart';
 import '../../core/ai/structured_response.dart';
 import '../../core/formatting.dart';
@@ -645,25 +646,51 @@ class _EditorPageState extends ConsumerState<EditorPage> {
         return;
       }
 
-      final check = parseContinuityResponse(result.text);
-      final selection = await showContinuityReportDialog(
-        context,
-        check: check,
-        rawText: result.text,
-        truncated: result.truncated,
-        stopped: result.stopped,
-      );
-      if (selection == null || !mounted) return;
-      final issue = selection.issue;
-      switch (selection.action) {
-        case ContinuityReportAction.recheck:
-          continue;
-        case ContinuityReportAction.locate:
-          if (issue != null) _locateContinuityIssue(issue);
-          return;
-        case ContinuityReportAction.revise:
-          if (issue != null) _startContinuityRevision(issue);
-          return;
+      final rawCheck = parseContinuityResponse(result.text);
+      final repo = ref.read(settingsRepositoryProvider);
+      var suppressions = await repo.readContinuitySuppressions(widget.workId);
+      if (!mounted) return;
+      var check = ContinuitySuppressions.filterResult(rawCheck, suppressions);
+      var ignoredCount = rawCheck.issues.length - check.issues.length;
+
+      checkLoop:
+      while (mounted) {
+        final selection = await showContinuityReportDialog(
+          context,
+          check: check,
+          rawText: result.text,
+          truncated: result.truncated,
+          stopped: result.stopped,
+          ignoredCount: ignoredCount,
+        );
+        if (selection == null || !mounted) return;
+        final issue = selection.issue;
+        switch (selection.action) {
+          case ContinuityReportAction.recheck:
+            break checkLoop;
+          case ContinuityReportAction.locate:
+            if (issue != null) _locateContinuityIssue(issue);
+            return;
+          case ContinuityReportAction.revise:
+            if (issue != null) _startContinuityRevision(issue);
+            return;
+          case ContinuityReportAction.ignore:
+            if (issue == null) return;
+            await repo.ignoreContinuityIssue(
+              widget.workId,
+              issue,
+              reason: selection.reason,
+            );
+            if (!mounted) return;
+            suppressions = await repo.readContinuitySuppressions(widget.workId);
+            if (!mounted) return;
+            check = ContinuitySuppressions.filterResult(rawCheck, suppressions);
+            ignoredCount = rawCheck.issues.length - check.issues.length;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(context.l10n.continuityIgnoredSnack)),
+            );
+            continue;
+        }
       }
     }
   }

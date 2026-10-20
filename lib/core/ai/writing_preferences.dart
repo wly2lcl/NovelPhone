@@ -5,6 +5,8 @@ library;
 
 import 'dart:convert';
 
+import 'continuity_suppression.dart';
+
 /// 作者放弃 AI 结果时选择的原因。
 class AiFeedbackReason {
   const AiFeedbackReason._();
@@ -45,15 +47,28 @@ class AiFeedbackReason {
 
 /// 最近被作者采纳的 AI 片段（本地样本，用于参考语气与节奏）。
 class AdoptedSample {
-  const AdoptedSample({required this.text, required this.task, this.createdAt});
+  const AdoptedSample({
+    required this.text,
+    required this.task,
+    this.source = '',
+    this.createdAt,
+  });
 
+  /// 作者最终采用的文本。
   final String text;
+
+  /// 模型原稿（ENH-42）：仅在作者做过轻度～中度修改时保存，用于学习取舍。
+  final String source;
   final String task;
   final DateTime? createdAt;
+
+  bool get hasSource =>
+      source.trim().isNotEmpty && source.trim() != text.trim();
 
   Map<String, dynamic> toJson() => <String, dynamic>{
     'text': text,
     'task': task,
+    if (source.isNotEmpty) 'source': source,
     if (createdAt != null) 'at': createdAt!.toIso8601String(),
   };
 
@@ -63,6 +78,7 @@ class AdoptedSample {
     if (text.isEmpty) return null;
     return AdoptedSample(
       text: text,
+      source: (raw['source'] as String?)?.trim() ?? '',
       task: (raw['task'] as String?)?.trim() ?? '',
       createdAt: DateTime.tryParse((raw['at'] as String?) ?? ''),
     );
@@ -81,12 +97,13 @@ class WritingPreferences {
   static String paragraphFeedbackKey(int workId) =>
       'ai_paragraph_feedback_$workId';
 
-  /// 作品永久删除时一并清理的偏好键。
+  /// 作品永久删除时一并清理的偏好键（含 ENH-41 一致性忽略项）。
   static List<String> keysFor(int workId) => <String>[
     feedbackKey(workId),
     adoptedSamplesKey(workId),
     enabledKey(workId),
     paragraphFeedbackKey(workId),
+    ContinuitySuppressions.storageKey(workId),
   ];
 
   /// 本地最多保留的采纳片段数。
@@ -148,8 +165,14 @@ class WritingPreferences {
   ) {
     final text = _clip(sample.text.trim(), maxSampleChars);
     if (text.isEmpty) return existing;
+    final source = _clip(sample.source.trim(), maxSampleChars);
     final next = <AdoptedSample>[
-      AdoptedSample(text: text, task: sample.task, createdAt: sample.createdAt),
+      AdoptedSample(
+        text: text,
+        source: source == text ? '' : source,
+        task: sample.task,
+        createdAt: sample.createdAt,
+      ),
       ...existing.where((s) => s.text != text),
     ];
     return next.take(maxSamples).toList(growable: false);
@@ -188,9 +211,18 @@ class WritingPreferences {
       }
     }
     if (usable.isNotEmpty) {
-      buffer.writeln('以下是作者最近采纳的写法片段，请参考其语气、节奏与细节密度（不要照抄内容）：');
+      buffer.writeln(
+        '以下是作者最近采纳的写法片段，请参考其语气、节奏与细节密度（不要照抄内容）；'
+        '带「模型原稿 → 作者定稿」的样本，重点学习作者的取舍与改写方式：',
+      );
       for (var i = 0; i < usable.length; i++) {
-        buffer.writeln('${i + 1}. ${_oneLine(usable[i].text)}');
+        final sample = usable[i];
+        if (sample.hasSource) {
+          buffer.writeln('${i + 1}. 模型原稿：${_oneLine(sample.source)}');
+          buffer.writeln('   作者定稿：${_oneLine(sample.text)}');
+        } else {
+          buffer.writeln('${i + 1}. ${_oneLine(sample.text)}');
+        }
       }
     }
     return buffer.toString().trim();
