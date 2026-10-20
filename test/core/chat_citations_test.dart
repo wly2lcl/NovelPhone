@@ -24,4 +24,31 @@ void main() {
   test('无标记文本只去除首尾空白，不改动内部排版', () {
     expect(ChatCitations.strip('保留  双空格'), '保留  双空格');
   });
+
+  test('ENH-47：去掉包裹标记的空括号与重复标点', () {
+    expect(ChatCitations.strip('苏晚随后追问（[[ch:12]]）。'), '苏晚随后追问。');
+    expect(ChatCitations.strip('沈砚离乡[[ch:12]]，[[ch:13]]，苏晚目送。'), '沈砚离乡，苏晚目送。');
+    expect(ChatCitations.strip('（[[ch:12]]）'), '');
+  });
+
+  test('ENH-47：按标记位置拆分为文本段与引用段', () {
+    final segments = ChatCitations.segments('沈砚离乡（[[ch:12]]），苏晚追问 [[ch:13]]。');
+    expect(
+      segments
+          .map(
+            (segment) =>
+                segment.isCitation ? 'ch:${segment.chapterId}' : segment.text,
+          )
+          .toList(),
+      <String>['沈砚离乡', 'ch:12', '，苏晚追问 ', 'ch:13', '。'],
+    );
+    expect(ChatCitations.segments('无引用'), hasLength(1));
+    expect(ChatCitations.segments(''), isEmpty);
+  });
+
+  test('ENH-47：同一章节重复标记只内联一次，非法标记不产生引用段', () {
+    final segments = ChatCitations.segments('甲 [[ch:1]] 乙 [[ch:1]] [[ch:0]]');
+    expect(segments.where((segment) => segment.isCitation), hasLength(1));
+    expect(segments.where((segment) => segment.isCitation).single.chapterId, 1);
+  });
 }

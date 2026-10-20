@@ -9,6 +9,7 @@ import '../../core/ai/adoption_metrics.dart';
 import '../../core/ai/ai_client.dart';
 import '../../core/ai/context_builder.dart';
 import '../../core/ai/sanitize_ai_text.dart';
+import '../../core/ai/writing_preferences.dart' show AiFeedbackReason;
 import '../../data/data_providers.dart';
 import '../../data/repositories/settings_repository.dart' show AiTask;
 import '../../l10n/error_text.dart';
@@ -689,6 +690,16 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
       await ref
           .read(settingsRepositoryProvider)
           .recordAiFeedback(widget.workId, reason);
+      // ENH-44：整篇因「太 AI」被放弃时留存摘要，用于发现高频套话。
+      if (reason == AiFeedbackReason.tooAi) {
+        for (final controller in _results) {
+          final text = sanitizeAiText(controller.text).trim();
+          if (text.isEmpty) continue;
+          await ref
+              .read(settingsRepositoryProvider)
+              .recordRejectedAiText(widget.workId, text);
+        }
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(context.l10n.aiFeedbackRecorded)),

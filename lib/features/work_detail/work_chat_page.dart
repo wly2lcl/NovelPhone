@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -120,11 +121,29 @@ class _WorkChatPageState extends ConsumerState<WorkChatPage> {
   Future<void> _send([String? preset]) async {
     final text = (preset ?? _input.text).trim();
     if (text.isEmpty || _streaming) return;
+    final history = _turns
+        .map((turn) => ChatContextTurn(role: turn.role, content: turn.content))
+        .toList();
+    await _dispatch(
+      message: text,
+      history: history,
+      removeFrom: _turns.length,
+      clearInput: true,
+    );
+  }
+
+  /// 统一发送入口（新消息 / 重答 / 编辑上一问）。
+  Future<void> _dispatch({
+    required String message,
+    required List<ChatContextTurn> history,
+    required int removeFrom,
+    bool clearInput = false,
+  }) async {
     final l10n = context.l10n;
     final service = ref.read(aiServiceProvider);
     final ready = await service.isReady('chat');
+    if (!mounted) return;
     if (!ready) {
-      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(l10n.aiPanelNeedsConfig),
@@ -136,12 +155,13 @@ class _WorkChatPageState extends ConsumerState<WorkChatPage> {
       );
       return;
     }
-    final history = _turns
-        .map((turn) => ChatContextTurn(role: turn.role, content: turn.content))
-        .toList();
     setState(() {
-      _turns.add(WorkChatTurn(role: 'user', content: text));
-      _input.clear();
+      if (removeFrom < _turns.length) {
+        _turns.removeRange(removeFrom, _turns.length);
+        _savedTurns.removeWhere((index) => index >= removeFrom);
+      }
+      _turns.add(WorkChatTurn(role: 'user', content: message));
+      if (clearInput) _input.clear();
       _streaming = true;
       _streamingText = '';
       _error = null;
@@ -150,8 +170,90 @@ class _WorkChatPageState extends ConsumerState<WorkChatPage> {
     _scrollToBottom();
     await ref.read(chatRepositoryProvider).save(widget.workId, _turns);
     _subscription = service
-        .chat(workId: widget.workId, history: history, message: text)
+        .chat(workId: widget.workId, history: history, message: message)
         .listen(_onEvent, onError: _onError);
+  }
+
+  /// ENH-47：重答最后一条回答：丢弃该回答，用同一条提问重新请求。
+  Future<void> _regenerateLast() async {
+    if (_streaming) return;
+    final assistantIndex = _turns.lastIndexWhere(
+      (turn) => turn.role == 'assistant',
+    );
+    if (assistantIndex < 0) return;
+    final userIndex = _turns
+        .sublist(0, assistantIndex)
+        .lastIndexWhere((turn) => turn.role == 'user');
+    if (userIndex < 0) return;
+    final history = _turns
+        .take(userIndex)
+        .map((turn) => ChatContextTurn(role: turn.role, content: turn.content))
+        .toList();
+    await _dispatch(
+      message: _turns[userIndex].content,
+      history: history,
+      removeFrom: userIndex,
+    );
+  }
+
+  /// ENH-47：编辑上一问并重新提问，后续回答一并丢弃。
+  Future<void> _editLastQuestion() async {
+    if (_streaming) return;
+    final userIndex = _turns.lastIndexWhere((turn) => turn.role == 'user');
+    if (userIndex < 0) return;
+    final controller = TextEditingController(text: _turns[userIndex].content);
+    final edited = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(context.l10n.chatEditQuestion),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          minLines: 1,
+          maxLines: 5,
+          decoration: InputDecoration(hintText: context.l10n.chatInputHint),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text(context.l10n.commonCancel),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.of(dialogContext).pop(controller.text.trim()),
+            child: Text(context.l10n.chatEditQuestionSend),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (!mounted) return;
+    final text = edited?.trim() ?? '';
+    if (text.isEmpty) {
+      if (edited != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.l10n.chatEditQuestionEmpty)),
+        );
+      }
+      return;
+    }
+    final history = _turns
+        .take(userIndex)
+        .map((turn) => ChatContextTurn(role: turn.role, content: turn.content))
+        .toList();
+    await _dispatch(message: text, history: history, removeFrom: userIndex);
+  }
+
+  /// ENH-47：复制去掉引用标记的回答正文。
+  Future<void> _copyAnswer(int index) async {
+    if (index < 0 || index >= _turns.length) return;
+    final text = ChatCitations.strip(_turns[index].content);
+    if (text.isEmpty) return;
+    await Clipboard.setData(ClipboardData(text: text));
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(context.l10n.chatCopied)));
   }
 
   void _onEvent(AiEvent event) {
@@ -346,6 +448,10 @@ class _WorkChatPageState extends ConsumerState<WorkChatPage> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final lastUserIndex = _turns.lastIndexWhere((turn) => turn.role == 'user');
+    final lastAssistantIndex = _turns.lastIndexWhere(
+      (turn) => turn.role == 'assistant',
+    );
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.chatTitle),
@@ -389,13 +495,25 @@ class _WorkChatPageState extends ConsumerState<WorkChatPage> {
                       return _ChatBubble(
                         role: turn.role,
                         content: turn.content,
-                        citations: isAssistant
-                            ? ChatCitations.parse(turn.content)
-                            : const <int>[],
                         chapterTitles: _chapterTitles,
                         onCitationTap: isAssistant ? _openChapter : null,
                         onSave: isAssistant ? () => _saveAnswer(index) : null,
                         saved: _savedTurns.contains(index),
+                        onCopy: isAssistant && !_streaming
+                            ? () => _copyAnswer(index)
+                            : null,
+                        onRegenerate:
+                            isAssistant &&
+                                index == lastAssistantIndex &&
+                                !_streaming
+                            ? _regenerateLast
+                            : null,
+                        onEdit:
+                            !isAssistant &&
+                                index == lastUserIndex &&
+                                !_streaming
+                            ? _editLastQuestion
+                            : null,
                       );
                     },
                   ),
@@ -514,27 +632,33 @@ class _ChatBubble extends StatelessWidget {
     required this.role,
     required this.content,
     this.streaming = false,
-    this.citations = const <int>[],
     this.chapterTitles = const <int, String>{},
     this.onCitationTap,
     this.onSave,
     this.saved = false,
+    this.onCopy,
+    this.onRegenerate,
+    this.onEdit,
   });
 
   final String role;
   final String content;
   final bool streaming;
-  final List<int> citations;
   final Map<int, String> chapterTitles;
   final ValueChanged<int>? onCitationTap;
   final VoidCallback? onSave;
   final bool saved;
+  final VoidCallback? onCopy;
+  final VoidCallback? onRegenerate;
+  final VoidCallback? onEdit;
 
   @override
   Widget build(BuildContext context) {
     final isUser = role == 'user';
     final palette = context.paper;
+    final l10n = context.l10n;
     final text = ChatCitations.strip(content);
+    final segments = ChatCitations.segments(content);
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Padding(
@@ -563,85 +687,170 @@ class _ChatBubble extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Text(
-                    streaming ? '$text▍' : text,
-                    style: TextStyle(
-                      color: isUser ? Colors.white : palette.ink,
-                      height: 1.5,
+                  if (!isUser && !streaming)
+                    Text.rich(
+                      TextSpan(
+                        children: <InlineSpan>[
+                          for (final segment in segments)
+                            if (segment.isCitation)
+                              WidgetSpan(
+                                alignment: PlaceholderAlignment.middle,
+                                child: _InlineCitationChip(
+                                  label:
+                                      chapterTitles[segment.chapterId!] ??
+                                      l10n.chatCitationUnknown(
+                                        segment.chapterId!,
+                                      ),
+                                  onTap:
+                                      onCitationTap != null &&
+                                          chapterTitles.containsKey(
+                                            segment.chapterId,
+                                          )
+                                      ? () => onCitationTap!(segment.chapterId!)
+                                      : null,
+                                ),
+                              )
+                            else
+                              TextSpan(text: segment.text),
+                        ],
+                      ),
+                      style: TextStyle(color: palette.ink, height: 1.5),
+                    )
+                  else
+                    Text(
+                      streaming ? '$text▍' : text,
+                      style: TextStyle(
+                        color: isUser ? Colors.white : palette.ink,
+                        height: 1.5,
+                      ),
                     ),
-                  ),
-                  if (!isUser && citations.isNotEmpty) ...<Widget>[
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 4,
-                      children: <Widget>[
-                        for (final chapterId in citations)
-                          _CitationChip(
-                            label:
-                                chapterTitles[chapterId] ??
-                                context.l10n.chatCitationUnknown(chapterId),
-                            onTap:
-                                onCitationTap != null &&
-                                    chapterTitles.containsKey(chapterId)
-                                ? () => onCitationTap!(chapterId)
-                                : null,
-                          ),
-                      ],
-                    ),
-                  ],
                 ],
               ),
             ),
-            if (!isUser && onSave != null)
-              TextButton.icon(
-                onPressed: saved ? null : onSave,
-                icon: Icon(
-                  saved
-                      ? Icons.bookmark_added_outlined
-                      : Icons.bookmark_add_outlined,
-                  size: 15,
-                ),
-                label: Text(
-                  saved
-                      ? context.l10n.chatSavedToInspiration
-                      : context.l10n.chatSaveToInspiration,
-                ),
-                style: TextButton.styleFrom(
-                  visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.symmetric(horizontal: 6),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  textStyle: const TextStyle(fontSize: 12),
-                ),
+            if (!isUser && !streaming)
+              Wrap(
+                spacing: 2,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: <Widget>[
+                  if (onCopy != null)
+                    _bubbleAction(
+                      context,
+                      l10n.chatCopyAnswer,
+                      Icons.copy_all_outlined,
+                      onCopy,
+                    ),
+                  if (onSave != null)
+                    _bubbleAction(
+                      context,
+                      saved
+                          ? l10n.chatSavedToInspiration
+                          : l10n.chatSaveToInspiration,
+                      saved
+                          ? Icons.bookmark_added_outlined
+                          : Icons.bookmark_add_outlined,
+                      saved ? null : onSave,
+                    ),
+                  if (onRegenerate != null)
+                    _bubbleAction(
+                      context,
+                      l10n.chatRegenerate,
+                      Icons.refresh_rounded,
+                      onRegenerate,
+                    ),
+                ],
+              ),
+            if (isUser && onEdit != null)
+              _bubbleAction(
+                context,
+                l10n.chatEditQuestion,
+                Icons.edit_outlined,
+                onEdit,
               ),
           ],
         ),
       ),
     );
   }
+
+  Widget _bubbleAction(
+    BuildContext context,
+    String label,
+    IconData icon,
+    VoidCallback? onPressed,
+  ) {
+    return TextButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 15),
+      label: Text(label),
+      style: TextButton.styleFrom(
+        visualDensity: VisualDensity.compact,
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        minimumSize: Size.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        textStyle: const TextStyle(fontSize: 12),
+      ),
+    );
+  }
 }
 
-class _CitationChip extends StatelessWidget {
-  const _CitationChip({required this.label, this.onTap});
+class _InlineCitationChip extends StatelessWidget {
+  const _InlineCitationChip({required this.label, this.onTap});
 
   final String label;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.paper;
     final enabled = onTap != null;
-    return ActionChip(
-      label: Text(label),
-      avatar: Icon(
-        enabled ? Icons.article_outlined : Icons.link_off_rounded,
-        size: 14,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+      child: Semantics(
+        button: enabled,
+        label: label,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(6),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+            decoration: BoxDecoration(
+              color: enabled
+                  ? palette.accent.withValues(alpha: 0.12)
+                  : palette.background,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                color: enabled
+                    ? palette.accent.withValues(alpha: 0.35)
+                    : palette.divider,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Icon(
+                  enabled ? Icons.article_outlined : Icons.link_off_rounded,
+                  size: 11,
+                  color: enabled ? palette.accent : palette.inkSoft,
+                ),
+                const SizedBox(width: 3),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 140),
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11,
+                      height: 1.2,
+                      color: enabled ? palette.accent : palette.inkSoft,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
-      onPressed: onTap,
-      visualDensity: VisualDensity.compact,
-      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      labelStyle: const TextStyle(fontSize: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 6),
     );
   }
 }

@@ -219,6 +219,9 @@ void main() {
     await config.recordAiParagraphFeedback(workId, AiFeedbackReason.slowPace);
     await config.recordAdoptedSample(workId, text: '片段', task: AiTask.rewrite);
     await config.setAiPreferencesEnabled(workId, false);
+    await config.addCollaborationRule(workId, '保持短句');
+    await config.addBannedPhrase(workId, '不由自主');
+    await config.recordRejectedAiText(workId, '他不由自主地怔住了。');
     await config.ignoreContinuityIssue(
       workId,
       const ContinuityIssue(quote: '沈砚没有出声', source: '角色卡·沈砚'),
@@ -345,5 +348,92 @@ void main() {
     final rewriteIndex = system.indexOf('新改写片段乙');
     expect(continueIndex, greaterThanOrEqualTo(0));
     expect(rewriteIndex, greaterThan(continueIndex));
+  });
+
+  test('协作守则与套话黑名单持久化、去重并注入续写 system（ENH-44）', () async {
+    await config.addCollaborationRule(workId, '保持短句');
+    await config.addCollaborationRule(workId, '保持短句');
+    await config.addCollaborationRule(workId, '不写心理独白');
+    await config.addBannedPhrase(workId, '不由自主');
+    await config.recordRejectedAiText(workId, '他\n不由自主地怔住。');
+    await config.recordRejectedAiText(workId, '他\n不由自主地怔住。');
+
+    final saved = await config.readCollaborationRules(workId);
+    expect(saved.rules, <String>['不写心理独白', '保持短句']);
+    expect(saved.banned, <String>['不由自主']);
+    expect(await config.readRejectedAiTexts(workId), <String>['他 不由自主地怔住。']);
+
+    await configure(AiTask.continueWriting);
+    String? requestBody;
+    final client = MockClient((request) async {
+      requestBody = request.body;
+      return sseResponse('他停了半步。');
+    });
+    await serviceWith(client)
+        .continueWriting(workId: workId, chapterId: chapterId, length: 300)
+        .toList();
+
+    final decoded = jsonDecode(requestBody!) as Map<String, dynamic>;
+    final messages = decoded['messages'] as List<dynamic>;
+    final system =
+        (messages.first as Map<String, dynamic>)['content'] as String;
+    expect(system, contains('【协作守则】'));
+    expect(system, contains('- 保持短句'));
+    expect(system, contains('「不由自主」'));
+
+    await config.removeCollaborationRule(workId, '保持短句');
+    await config.removeBannedPhrase(workId, '不由自主');
+    final remaining = await config.readCollaborationRules(workId);
+    expect(remaining.rules, <String>['不写心理独白']);
+    expect(remaining.banned, isEmpty);
+  });
+
+  test('开篇助手注入协作守则与偏好（ENH-46）', () async {
+    await config.addCollaborationRule(workId, '开篇先写动作');
+    await configure(AiTask.inspire);
+    String? requestBody;
+    final client = MockClient((request) async {
+      requestBody = request.body;
+      return sseResponse('风从北边来。');
+    });
+
+    final events = await serviceWith(
+      client,
+    ).inspire(workId: workId, mode: InspireMode.opening).toList();
+    expect(events.whereType<AiContextBuilt>(), hasLength(1));
+    final built = events.whereType<AiContextBuilt>().single.context;
+    expect(built.sections.any((section) => section.label == '作者协作偏好'), isTrue);
+
+    final decoded = jsonDecode(requestBody!) as Map<String, dynamic>;
+    final messages = decoded['messages'] as List<dynamic>;
+    final system =
+        (messages.first as Map<String, dynamic>)['content'] as String;
+    expect(system, contains('开篇先写动作'));
+  });
+
+  test('桥段点子请求 system 注入协作守则与套话（ENH-46）', () async {
+    await config.addCollaborationRule(workId, '点子只给三个');
+    await config.addBannedPhrase(workId, '不由自主');
+    await configure(AiTask.inspire);
+    String? requestBody;
+    final client = MockClient((request) async {
+      requestBody = request.body;
+      return sseResponse('三个点子。');
+    });
+
+    final events = await serviceWith(
+      client,
+    ).inspire(workId: workId, mode: InspireMode.ideas).toList();
+    expect(events.whereType<AiContextBuilt>(), hasLength(1));
+    final built = events.whereType<AiContextBuilt>().single.context;
+    expect(built.sections.any((section) => section.label == '作者协作偏好'), isTrue);
+
+    final decoded = jsonDecode(requestBody!) as Map<String, dynamic>;
+    final messages = decoded['messages'] as List<dynamic>;
+    final system =
+        (messages.first as Map<String, dynamic>)['content'] as String;
+    expect(system, contains('【协作守则】'));
+    expect(system, contains('点子只给三个'));
+    expect(system, contains('「不由自主」'));
   });
 }

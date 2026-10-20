@@ -621,6 +621,94 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get aiPreferencesRules => '协作守则';
+
+  @override
+  String get aiPreferencesRulesHint =>
+      '手写约束，生成续写 / 改写 / 开篇 / 灵感时优先遵守（最多 10 条）。';
+
+  @override
+  String get aiPreferencesNoRules => '暂无协作守则';
+
+  @override
+  String get aiPreferencesAddRule => '添加守则';
+
+  @override
+  String get aiPreferencesAddRuleTitle => '添加协作守则';
+
+  @override
+  String get aiPreferencesRuleHint => '例如：不写超过三行的心理独白';
+
+  @override
+  String get aiPreferencesRuleAdded => '已加入协作守则';
+
+  @override
+  String get aiPreferencesBanned => '套话黑名单';
+
+  @override
+  String get aiPreferencesBannedHint => '生成时避免直接使用的词句（最多 20 条）。';
+
+  @override
+  String get aiPreferencesNoBanned => '暂无黑名单词句';
+
+  @override
+  String get aiPreferencesAddBanned => '添加词句';
+
+  @override
+  String get aiPreferencesAddBannedTitle => '添加套话词句';
+
+  @override
+  String get aiPreferencesBannedHintInput => '例如：不由自主';
+
+  @override
+  String get aiPreferencesBannedAdded => '已加入套话黑名单';
+
+  @override
+  String aiPreferencesRejectedHint(int count) {
+    return '已留档 $count 条「太 AI」产出，用于发现高频套话。';
+  }
+
+  @override
+  String get aiPreferencesSuggestions => '发现疑似套话';
+
+  @override
+  String get aiPreferencesSuggestionHint => '点选加入黑名单，后续生成会主动避开。';
+
+  @override
+  String get aiPreferencesDistill => '改写偏好蒸馏';
+
+  @override
+  String get aiPreferencesDistillHint => '根据「模型原稿 → 作者定稿」的配对样本，本地统计作者的改写倾向。';
+
+  @override
+  String get aiPreferencesDistillEmpty =>
+      '配对样本不足。对 AI 结果做轻度修改（10%～30%）后采纳，即可积累对照样本。';
+
+  @override
+  String get aiPreferencesDistillAction => '提炼偏好';
+
+  @override
+  String aiPreferencesDistillEvidence(int count) {
+    return '依据 $count 组原稿对照';
+  }
+
+  @override
+  String get aiPreferencesAddToRules => '加入守则';
+
+  @override
+  String get aiPreferencesAddAllRules => '全部加入守则';
+
+  @override
+  String get aiPreferencesPreview => '注入预览';
+
+  @override
+  String get aiPreferencesPreviewHint =>
+      '以下文本会附加到续写 / 改写 / 开篇 / 灵感的 system prompt（关闭开关后不注入）。';
+
+  @override
+  String get aiPreferencesPreviewEmpty => '暂无内容可注入';
+
+  @override
   String get aiPreferencesIgnoredConflicts => '已忽略的一致性冲突';
 
   @override
@@ -3118,6 +3206,24 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get chatSavedToInspiration => '已存入灵感箱';
+
+  @override
+  String get chatCopyAnswer => '复制回答';
+
+  @override
+  String get chatCopied => '已复制到剪贴板';
+
+  @override
+  String get chatRegenerate => '重新回答';
+
+  @override
+  String get chatEditQuestion => '编辑上一问';
+
+  @override
+  String get chatEditQuestionSend => '重新提问';
+
+  @override
+  String get chatEditQuestionEmpty => '问题不能为空';
 
   @override
   String get editorContinuityStop => '停止';

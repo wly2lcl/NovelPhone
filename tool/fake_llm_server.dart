@@ -21,6 +21,10 @@
 //                        （验证 ENH-36 多候选策略与跨候选组合）
 //   /openai-chat-citations  从请求中的章节目录取一个 id，返回带
 //                        `[[ch:<id>]]` 的问答文本（验证 ENH-43 引用 chip 与存入灵感箱）
+//   /openai-collab-cliche  返回含常见 AI 套话的续写文本
+//                        （验证 ENH-44 「太像 AI」放弃后套话发现）
+//   /openai-pref-echo     回显请求 system 中是否带有协作守则 / 套话黑名单
+//                        （验证 ENH-44 / ENH-46 偏好注入）
 //   /openai-enh27        多段落续写；带修订要求的请求返回不同草稿
 //                        （验证 ENH-27 分段采纳与结果内继续修改）
 //   /openai-enh29-revise-fail  首次多段落续写正常，后续修订请求始终 500
@@ -52,6 +56,7 @@ Future<void> main(List<String> args) async {
     '场景基址：http://127.0.0.1:$port/openai、/openai-style、/openai-extract、'
     '/openai-plan、/openai-states、/openai-continuity、/openai-strategies、'
     '/openai-chat-citations、/openai-continuity-issues、'
+    '/openai-collab-cliche、/openai-pref-echo、'
     '/openai-tool、/openai-empty-first、/openai-429-first、/openai-429-always、'
     '/openai-500、/openai-filter、/openai-enh27、/openai-enh29-revise-fail、'
     '/anthropic、/anthropic-429',
@@ -150,6 +155,13 @@ class FakeLlmServer {
         return _openaiStrategies(request);
       case 'openai-chat-citations':
         return _openaiChatCitations(request);
+      case 'openai-collab-cliche':
+        return _openaiStream(
+          request.response,
+          pieces: <String>['他不由自主地怔住，心中一颤。\n\n', '空气仿佛凝固，他再也无法抑制地想起那个雨夜。'],
+        );
+      case 'openai-pref-echo':
+        return _openaiPrefEcho(request);
       case 'openai-enh27':
         return _openaiEnh27(request);
       case 'openai-enh29-revise-fail':
@@ -268,6 +280,24 @@ class FakeLlmServer {
       pieces: <String>[
         '根据已检索到的前文，沈砚在雨夜离乡，苏晚随后追问（[[ch:$chapterId]]）。',
         '另一条线索只在已删除的章节里出现过（[[ch:999999]]）。',
+      ],
+    );
+  }
+
+  /// ENH-44 / ENH-46 验收：回显 system 中是否带协作守则与套话黑名单。
+  Future<void> _openaiPrefEcho(HttpRequest request) async {
+    final raw = await utf8.decoder.bind(request).join();
+    final hasRules = raw.contains('【协作守则】');
+    final hasBanned = raw.contains('AI 套话');
+    stdout.writeln(
+      '[fake-llm] openai-pref-echo：守则=${hasRules ? '有' : '无'} '
+      '黑名单=${hasBanned ? '有' : '无'}',
+    );
+    return _openaiStream(
+      request.response,
+      pieces: <String>[
+        '协作守则：${hasRules ? '已注入' : '未注入'}；',
+        '套话黑名单：${hasBanned ? '已注入' : '未注入'}。',
       ],
     );
   }

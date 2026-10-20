@@ -400,6 +400,47 @@
       }
     }
   },
+  "aiPreferencesRules": "协作守则",
+  "aiPreferencesRulesHint": "手写约束，生成续写 / 改写 / 开篇 / 灵感时优先遵守（最多 10 条）。",
+  "aiPreferencesNoRules": "暂无协作守则",
+  "aiPreferencesAddRule": "添加守则",
+  "aiPreferencesAddRuleTitle": "添加协作守则",
+  "aiPreferencesRuleHint": "例如：不写超过三行的心理独白",
+  "aiPreferencesRuleAdded": "已加入协作守则",
+  "aiPreferencesBanned": "套话黑名单",
+  "aiPreferencesBannedHint": "生成时避免直接使用的词句（最多 20 条）。",
+  "aiPreferencesNoBanned": "暂无黑名单词句",
+  "aiPreferencesAddBanned": "添加词句",
+  "aiPreferencesAddBannedTitle": "添加套话词句",
+  "aiPreferencesBannedHintInput": "例如：不由自主",
+  "aiPreferencesBannedAdded": "已加入套话黑名单",
+  "aiPreferencesRejectedHint": "已留档 {count} 条「太 AI」产出，用于发现高频套话。",
+  "@aiPreferencesRejectedHint": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "aiPreferencesSuggestions": "发现疑似套话",
+  "aiPreferencesSuggestionHint": "点选加入黑名单，后续生成会主动避开。",
+  "aiPreferencesDistill": "改写偏好蒸馏",
+  "aiPreferencesDistillHint": "根据「模型原稿 → 作者定稿」的配对样本，本地统计作者的改写倾向。",
+  "aiPreferencesDistillEmpty": "配对样本不足。对 AI 结果做轻度修改（10%～30%）后采纳，即可积累对照样本。",
+  "aiPreferencesDistillAction": "提炼偏好",
+  "aiPreferencesDistillEvidence": "依据 {count} 组原稿对照",
+  "@aiPreferencesDistillEvidence": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "aiPreferencesAddToRules": "加入守则",
+  "aiPreferencesAddAllRules": "全部加入守则",
+  "aiPreferencesPreview": "注入预览",
+  "aiPreferencesPreviewHint": "以下文本会附加到续写 / 改写 / 开篇 / 灵感的 system prompt（关闭开关后不注入）。",
+  "aiPreferencesPreviewEmpty": "暂无内容可注入",
   "aiPreferencesIgnoredConflicts": "已忽略的一致性冲突",
   "aiPreferencesNoIgnored": "暂无忽略项",
   "aiPreferencesRestoreConflict": "恢复",
@@ -2077,6 +2118,12 @@
   },
   "chatSaveToInspiration": "存入灵感箱",
   "chatSavedToInspiration": "已存入灵感箱",
+  "chatCopyAnswer": "复制回答",
+  "chatCopied": "已复制到剪贴板",
+  "chatRegenerate": "重新回答",
+  "chatEditQuestion": "编辑上一问",
+  "chatEditQuestionSend": "重新提问",
+  "chatEditQuestionEmpty": "问题不能为空",
   "editorContinuityStop": "停止",
   "editorContinuityStopped": "已停止生成，以下是已生成的内容。",
   "editorContinuityStoppedEmpty": "已停止，尚未收到内容。",

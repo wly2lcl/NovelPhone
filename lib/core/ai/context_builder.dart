@@ -294,6 +294,8 @@ class ContextBuilder {
     required int workId,
     String? direction,
     int contextWindow = 32000,
+    // ENH-46：开篇助手同样注入本地协作偏好与套话黑名单。
+    String preferenceText = '',
   }) async {
     final budget = (contextWindow * 0.5).round();
     final work = await works.getWork(workId);
@@ -327,6 +329,7 @@ class ContextBuilder {
       settingsText: await _settingsText(workId),
       volumeOutline: buffer.toString().trim(),
       task: _openingTask(direction),
+      preferenceText: preferenceText,
       styleText: _styleText(work),
     );
   }

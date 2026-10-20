@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import '../../core/ai/agent_core.dart';
 import '../../core/ai/ai_client.dart';
 import '../../core/ai/ai_client_factory.dart';
+import '../../core/ai/collaboration_rules.dart';
 import '../../core/ai/context_builder.dart';
 import '../../core/ai/continuity_suppression.dart';
 import '../../core/ai/empty_output_retry.dart';
@@ -628,6 +629,7 @@ class AiService {
         workId: workId,
         direction: direction,
         contextWindow: group.contextWindow,
+        preferenceText: await _preferenceText(workId, task: AiTask.inspire),
       );
       final injected = _withSkills(built, skills);
       yield AiContextBuilt(injected);
@@ -662,12 +664,17 @@ class AiService {
       chapterOutline: extra.chapterOutline,
     );
     final system = composeSkillSystem(_ideasSystem, skills);
+    // ENH-46：桥段点子同样参考作者协作偏好（守则、套话与采纳片段）。
+    final preference = await _preferenceText(workId, task: AiTask.inspire);
+    final ideasSystem = preference.isEmpty ? system : '$system\n\n$preference';
     yield AiContextBuilt(
       BuiltContext(
-        system: system,
+        system: ideasSystem,
         messages: <ChatMessage>[ChatMessage.user(prompt)],
         sections: <ContextSection>[
           ContextSection(label: '任务模式', content: '桥段点子（AI 可按需调用工具取数）'),
+          if (preference.isNotEmpty)
+            ContextSection(label: '作者协作偏好', content: preference),
           if (extra.previousSummary.isNotEmpty)
             ContextSection(label: '前文摘要', content: extra.previousSummary),
           if (extra.chapterOutline.isNotEmpty)
@@ -680,14 +687,14 @@ class AiService {
             ),
         ],
         truncated: false,
-        estimatedTokens: estimateTokens(system) + estimateTokens(prompt),
+        estimatedTokens: estimateTokens(ideasSystem) + estimateTokens(prompt),
         budgetTokens: (group.contextWindow * 0.5).round(),
       ),
     );
     final agent = AgentCore(client: client);
     final request = ChatRequest(
       model: model,
-      system: system,
+      system: ideasSystem,
       messages: <ChatMessage>[ChatMessage.user(prompt)],
       temperature: group.temperature,
       maxTokens: group.maxTokens,
@@ -1881,8 +1888,8 @@ class AiService {
     );
   }
 
-  /// 本地协作偏好（ENH-27 / ENH-29）：整篇放弃与分段未采纳的原因合并计数，
-  /// 采纳片段优先取与本次任务同类的，注入续写/改写 system。
+  /// 本地协作偏好（ENH-27 / ENH-29 / ENH-44）：整篇放弃与分段未采纳的原因合并计数，
+  /// 采纳片段优先取与本次任务同类的，并叠加作者手写的守则与套话黑名单。
   Future<String> _preferenceText(int workId, {required String task}) async {
     if (!await settings.readAiPreferencesEnabled(workId)) return '';
     final counts = await settings.readAiFeedback(workId);
@@ -1891,11 +1898,18 @@ class AiService {
       counts[entry.key] = (counts[entry.key] ?? 0) + entry.value;
     }
     final samples = await settings.readAdoptedSamples(workId);
-    return WritingPreferences.promptBlock(
-      reasonCounts: counts,
-      samples: samples,
-      preferredTask: task,
-    );
+    final collaboration = await settings.readCollaborationRules(workId);
+    return <String>[
+      WritingPreferences.promptBlock(
+        reasonCounts: counts,
+        samples: samples,
+        preferredTask: task,
+      ),
+      CollaborationRules.promptBlock(
+        rules: collaboration.rules,
+        banned: collaboration.banned,
+      ),
+    ].where((block) => block.isNotEmpty).join('\n\n');
   }
 
   /// 包装远程工具（ENH-22）：记录每次调用的参数 / 结果摘要与耗时。

@@ -99,7 +99,7 @@ void main() {
     ).saveChapter(chapterId: chapterId, title: '第一章', content: '沈砚在灯下等人。');
     await ChatRepository(AppSettingDao(db)).save(workId, <WorkChatTurn>[
       const WorkChatTurn(role: 'user', content: '第一章讲了什么？'),
-      WorkChatTurn(role: 'assistant', content: '沈砚在灯下等人 [[ch:$chapterId]]。'),
+      WorkChatTurn(role: 'assistant', content: '沈砚在灯下等人（[[ch:$chapterId]]）。'),
     ]);
 
     final router = GoRouter(
@@ -134,10 +134,11 @@ void main() {
       ),
     );
     await tester.pump();
-    await pumpUntil(tester, find.text('沈砚在灯下等人。'));
+    await pumpUntil(tester, find.textContaining('沈砚在灯下等人', findRichText: true));
 
     expect(find.text('第一章'), findsOneWidget);
     expect(find.text('存入灵感箱'), findsOneWidget);
+    expect(find.text('复制回答'), findsOneWidget);
 
     await tester.tap(find.text('存入灵感箱'));
     await tester.pumpAndSettle();
@@ -146,7 +147,7 @@ void main() {
     );
     expect(saved!.single.content, '沈砚在灯下等人。');
 
-    await tester.tap(find.widgetWithText(ActionChip, '第一章'));
+    await tester.tap(find.text('第一章'));
     await tester.pumpAndSettle();
     expect(find.text('编辑器 $chapterId'), findsOneWidget);
 

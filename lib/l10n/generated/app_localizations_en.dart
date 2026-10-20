@@ -683,6 +683,112 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get aiPreferencesRules => 'Collaboration rules';
+
+  @override
+  String get aiPreferencesRulesHint =>
+      'Hard constraints applied to continuation, rewrite, opening and ideas prompts (up to 10).';
+
+  @override
+  String get aiPreferencesNoRules => 'No collaboration rules yet';
+
+  @override
+  String get aiPreferencesAddRule => 'Add rule';
+
+  @override
+  String get aiPreferencesAddRuleTitle => 'Add collaboration rule';
+
+  @override
+  String get aiPreferencesRuleHint =>
+      'e.g. Never write inner monologue longer than three lines';
+
+  @override
+  String get aiPreferencesRuleAdded => 'Added to collaboration rules';
+
+  @override
+  String get aiPreferencesBanned => 'AI cliché blacklist';
+
+  @override
+  String get aiPreferencesBannedHint =>
+      'Phrases the model should avoid in generated text (up to 20).';
+
+  @override
+  String get aiPreferencesNoBanned => 'No banned phrases yet';
+
+  @override
+  String get aiPreferencesAddBanned => 'Add phrase';
+
+  @override
+  String get aiPreferencesAddBannedTitle => 'Add cliché phrase';
+
+  @override
+  String get aiPreferencesBannedHintInput => 'e.g. could not help but';
+
+  @override
+  String get aiPreferencesBannedAdded => 'Added to the cliché blacklist';
+
+  @override
+  String aiPreferencesRejectedHint(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count outputs rejected as “too AI” are kept locally to find repeated clichés.',
+      one:
+          '1 output rejected as “too AI” is kept locally to find repeated clichés.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get aiPreferencesSuggestions => 'Suspected clichés';
+
+  @override
+  String get aiPreferencesSuggestionHint =>
+      'Tap to blacklist; future generations will avoid them.';
+
+  @override
+  String get aiPreferencesDistill => 'Rewrite preference distillation';
+
+  @override
+  String get aiPreferencesDistillHint =>
+      'Local analysis of paired model drafts and author final versions reveals your rewriting tendencies.';
+
+  @override
+  String get aiPreferencesDistillEmpty =>
+      'Not enough paired samples. Lightly edit (10%–30%) an AI result and adopt it to build comparison pairs.';
+
+  @override
+  String get aiPreferencesDistillAction => 'Distill preferences';
+
+  @override
+  String aiPreferencesDistillEvidence(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count draft comparisons',
+      one: '1 draft comparison',
+    );
+    return 'Based on $_temp0';
+  }
+
+  @override
+  String get aiPreferencesAddToRules => 'Add to rules';
+
+  @override
+  String get aiPreferencesAddAllRules => 'Add all to rules';
+
+  @override
+  String get aiPreferencesPreview => 'Injection preview';
+
+  @override
+  String get aiPreferencesPreviewHint =>
+      'This text is appended to the system prompt for continuation, rewrite, opening and ideas (skipped when the toggle is off).';
+
+  @override
+  String get aiPreferencesPreviewEmpty => 'Nothing to inject yet';
+
+  @override
   String get aiPreferencesIgnoredConflicts => 'Ignored continuity conflicts';
 
   @override
@@ -3523,6 +3629,24 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatSavedToInspiration => 'Saved to inspirations';
+
+  @override
+  String get chatCopyAnswer => 'Copy answer';
+
+  @override
+  String get chatCopied => 'Copied to clipboard';
+
+  @override
+  String get chatRegenerate => 'Regenerate';
+
+  @override
+  String get chatEditQuestion => 'Edit previous question';
+
+  @override
+  String get chatEditQuestionSend => 'Ask again';
+
+  @override
+  String get chatEditQuestionEmpty => 'Question cannot be empty';
 
   @override
   String get editorContinuityStop => 'Stop';

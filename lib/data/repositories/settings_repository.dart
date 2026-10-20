@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 
 import '../../core/ai/ai_client_factory.dart';
+import '../../core/ai/collaboration_rules.dart';
 import '../../core/ai/continuity_suppression.dart';
 import '../../core/ai/mcp/mcp_bridge.dart';
 import '../../core/ai/mcp/mcp_oauth.dart';
@@ -381,6 +382,117 @@ class SettingsRepository {
     await _settings.remove(WritingPreferences.feedbackKey(workId));
     await _settings.remove(WritingPreferences.adoptedSamplesKey(workId));
     await _settings.remove(WritingPreferences.paragraphFeedbackKey(workId));
+    await _settings.remove(WritingPreferences.collaborationRulesKey(workId));
+    await _settings.remove(WritingPreferences.bannedPhrasesKey(workId));
+    await _settings.remove(WritingPreferences.rejectedAiKey(workId));
+  }
+
+  // ---------- 协作守则与套话黑名单（ENH-44）----------
+
+  Future<CollaborationRules> readCollaborationRules(int workId) async {
+    final rules = CollaborationRules.parseList(
+      await getSetting(WritingPreferences.collaborationRulesKey(workId)),
+      maxItems: CollaborationRules.maxRules,
+      maxChars: CollaborationRules.maxRuleChars,
+    );
+    final banned = CollaborationRules.parseList(
+      await getSetting(WritingPreferences.bannedPhrasesKey(workId)),
+      maxItems: CollaborationRules.maxBanned,
+      maxChars: CollaborationRules.maxBannedChars,
+    );
+    return CollaborationRules(rules: rules, banned: banned);
+  }
+
+  Future<void> saveCollaborationRules(
+    int workId,
+    CollaborationRules rules,
+  ) async {
+    final clean = CollaborationRules.sanitize(
+      rules: rules.rules,
+      banned: rules.banned,
+    );
+    await setSetting(
+      WritingPreferences.collaborationRulesKey(workId),
+      CollaborationRules.encodeList(clean.rules),
+    );
+    await setSetting(
+      WritingPreferences.bannedPhrasesKey(workId),
+      CollaborationRules.encodeList(clean.banned),
+    );
+  }
+
+  Future<void> addCollaborationRule(int workId, String rule) async {
+    final current = await readCollaborationRules(workId);
+    final next = CollaborationRules.add(
+      current.rules,
+      rule,
+      maxItems: CollaborationRules.maxRules,
+      maxChars: CollaborationRules.maxRuleChars,
+    );
+    await setSetting(
+      WritingPreferences.collaborationRulesKey(workId),
+      CollaborationRules.encodeList(next),
+    );
+  }
+
+  Future<void> removeCollaborationRule(int workId, String rule) async {
+    final current = await readCollaborationRules(workId);
+    await setSetting(
+      WritingPreferences.collaborationRulesKey(workId),
+      CollaborationRules.encodeList(
+        current.rules.where((e) => e != rule).toList(growable: false),
+      ),
+    );
+  }
+
+  Future<void> addBannedPhrase(int workId, String phrase) async {
+    final current = await readCollaborationRules(workId);
+    final next = CollaborationRules.add(
+      current.banned,
+      phrase,
+      maxItems: CollaborationRules.maxBanned,
+      maxChars: CollaborationRules.maxBannedChars,
+    );
+    await setSetting(
+      WritingPreferences.bannedPhrasesKey(workId),
+      CollaborationRules.encodeList(next),
+    );
+  }
+
+  Future<void> removeBannedPhrase(int workId, String phrase) async {
+    final current = await readCollaborationRules(workId);
+    await setSetting(
+      WritingPreferences.bannedPhrasesKey(workId),
+      CollaborationRules.encodeList(
+        current.banned.where((e) => e != phrase).toList(growable: false),
+      ),
+    );
+  }
+
+  /// 被作者整篇放弃并标记为「太 AI」的产出摘要（本地，最多 5 条）。
+  Future<List<String>> readRejectedAiTexts(int workId) async {
+    return CollaborationRules.parseList(
+      await getSetting(WritingPreferences.rejectedAiKey(workId)),
+      maxItems: CollaborationRules.maxRejected,
+      maxChars: CollaborationRules.maxRejectedChars,
+    );
+  }
+
+  Future<void> recordRejectedAiText(int workId, String text) async {
+    final clipped = CollaborationRules.clip(
+      text.replaceAll(RegExp(r'\s+'), ' ').trim(),
+      CollaborationRules.maxRejectedChars,
+    );
+    if (clipped.isEmpty) return;
+    final existing = await readRejectedAiTexts(workId);
+    final next = <String>[
+      clipped,
+      ...existing.where((e) => e != clipped),
+    ].take(CollaborationRules.maxRejected).toList(growable: false);
+    await setSetting(
+      WritingPreferences.rejectedAiKey(workId),
+      CollaborationRules.encodeList(next),
+    );
   }
 
   // ---------- 一致性冲突忽略记忆（ENH-41）----------

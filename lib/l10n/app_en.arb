@@ -215,6 +215,47 @@
       }
     }
   },
+  "aiPreferencesRules": "Collaboration rules",
+  "aiPreferencesRulesHint": "Hard constraints applied to continuation, rewrite, opening and ideas prompts (up to 10).",
+  "aiPreferencesNoRules": "No collaboration rules yet",
+  "aiPreferencesAddRule": "Add rule",
+  "aiPreferencesAddRuleTitle": "Add collaboration rule",
+  "aiPreferencesRuleHint": "e.g. Never write inner monologue longer than three lines",
+  "aiPreferencesRuleAdded": "Added to collaboration rules",
+  "aiPreferencesBanned": "AI cliché blacklist",
+  "aiPreferencesBannedHint": "Phrases the model should avoid in generated text (up to 20).",
+  "aiPreferencesNoBanned": "No banned phrases yet",
+  "aiPreferencesAddBanned": "Add phrase",
+  "aiPreferencesAddBannedTitle": "Add cliché phrase",
+  "aiPreferencesBannedHintInput": "e.g. could not help but",
+  "aiPreferencesBannedAdded": "Added to the cliché blacklist",
+  "aiPreferencesRejectedHint": "{count, plural, =1{1 output rejected as “too AI” is kept locally to find repeated clichés.} other{{count} outputs rejected as “too AI” are kept locally to find repeated clichés.}}",
+  "@aiPreferencesRejectedHint": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "aiPreferencesSuggestions": "Suspected clichés",
+  "aiPreferencesSuggestionHint": "Tap to blacklist; future generations will avoid them.",
+  "aiPreferencesDistill": "Rewrite preference distillation",
+  "aiPreferencesDistillHint": "Local analysis of paired model drafts and author final versions reveals your rewriting tendencies.",
+  "aiPreferencesDistillEmpty": "Not enough paired samples. Lightly edit (10%–30%) an AI result and adopt it to build comparison pairs.",
+  "aiPreferencesDistillAction": "Distill preferences",
+  "aiPreferencesDistillEvidence": "Based on {count, plural, =1{1 draft comparison} other{{count} draft comparisons}}",
+  "@aiPreferencesDistillEvidence": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "aiPreferencesAddToRules": "Add to rules",
+  "aiPreferencesAddAllRules": "Add all to rules",
+  "aiPreferencesPreview": "Injection preview",
+  "aiPreferencesPreviewHint": "This text is appended to the system prompt for continuation, rewrite, opening and ideas (skipped when the toggle is off).",
+  "aiPreferencesPreviewEmpty": "Nothing to inject yet",
   "aiPreferencesIgnoredConflicts": "Ignored continuity conflicts",
   "aiPreferencesNoIgnored": "No ignored conflicts",
   "aiPreferencesRestoreConflict": "Restore",
@@ -1112,6 +1153,12 @@
   },
   "chatSaveToInspiration": "Save to inspirations",
   "chatSavedToInspiration": "Saved to inspirations",
+  "chatCopyAnswer": "Copy answer",
+  "chatCopied": "Copied to clipboard",
+  "chatRegenerate": "Regenerate",
+  "chatEditQuestion": "Edit previous question",
+  "chatEditQuestionSend": "Ask again",
+  "chatEditQuestionEmpty": "Question cannot be empty",
   "editorContinuityStop": "Stop",
   "editorContinuityStopped": "Generation stopped; here is what was produced so far.",
   "editorContinuityStoppedEmpty": "Stopped before any content arrived.",

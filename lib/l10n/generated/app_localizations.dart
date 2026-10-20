@@ -1202,6 +1202,168 @@ abstract class AppLocalizations {
   /// **'模型原稿：{text}'**
   String aiPreferencesPairSource(String text);
 
+  /// No description provided for @aiPreferencesRules.
+  ///
+  /// In zh, this message translates to:
+  /// **'协作守则'**
+  String get aiPreferencesRules;
+
+  /// No description provided for @aiPreferencesRulesHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'手写约束，生成续写 / 改写 / 开篇 / 灵感时优先遵守（最多 10 条）。'**
+  String get aiPreferencesRulesHint;
+
+  /// No description provided for @aiPreferencesNoRules.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂无协作守则'**
+  String get aiPreferencesNoRules;
+
+  /// No description provided for @aiPreferencesAddRule.
+  ///
+  /// In zh, this message translates to:
+  /// **'添加守则'**
+  String get aiPreferencesAddRule;
+
+  /// No description provided for @aiPreferencesAddRuleTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'添加协作守则'**
+  String get aiPreferencesAddRuleTitle;
+
+  /// No description provided for @aiPreferencesRuleHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'例如：不写超过三行的心理独白'**
+  String get aiPreferencesRuleHint;
+
+  /// No description provided for @aiPreferencesRuleAdded.
+  ///
+  /// In zh, this message translates to:
+  /// **'已加入协作守则'**
+  String get aiPreferencesRuleAdded;
+
+  /// No description provided for @aiPreferencesBanned.
+  ///
+  /// In zh, this message translates to:
+  /// **'套话黑名单'**
+  String get aiPreferencesBanned;
+
+  /// No description provided for @aiPreferencesBannedHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'生成时避免直接使用的词句（最多 20 条）。'**
+  String get aiPreferencesBannedHint;
+
+  /// No description provided for @aiPreferencesNoBanned.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂无黑名单词句'**
+  String get aiPreferencesNoBanned;
+
+  /// No description provided for @aiPreferencesAddBanned.
+  ///
+  /// In zh, this message translates to:
+  /// **'添加词句'**
+  String get aiPreferencesAddBanned;
+
+  /// No description provided for @aiPreferencesAddBannedTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'添加套话词句'**
+  String get aiPreferencesAddBannedTitle;
+
+  /// No description provided for @aiPreferencesBannedHintInput.
+  ///
+  /// In zh, this message translates to:
+  /// **'例如：不由自主'**
+  String get aiPreferencesBannedHintInput;
+
+  /// No description provided for @aiPreferencesBannedAdded.
+  ///
+  /// In zh, this message translates to:
+  /// **'已加入套话黑名单'**
+  String get aiPreferencesBannedAdded;
+
+  /// No description provided for @aiPreferencesRejectedHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'已留档 {count} 条「太 AI」产出，用于发现高频套话。'**
+  String aiPreferencesRejectedHint(int count);
+
+  /// No description provided for @aiPreferencesSuggestions.
+  ///
+  /// In zh, this message translates to:
+  /// **'发现疑似套话'**
+  String get aiPreferencesSuggestions;
+
+  /// No description provided for @aiPreferencesSuggestionHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'点选加入黑名单，后续生成会主动避开。'**
+  String get aiPreferencesSuggestionHint;
+
+  /// No description provided for @aiPreferencesDistill.
+  ///
+  /// In zh, this message translates to:
+  /// **'改写偏好蒸馏'**
+  String get aiPreferencesDistill;
+
+  /// No description provided for @aiPreferencesDistillHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'根据「模型原稿 → 作者定稿」的配对样本，本地统计作者的改写倾向。'**
+  String get aiPreferencesDistillHint;
+
+  /// No description provided for @aiPreferencesDistillEmpty.
+  ///
+  /// In zh, this message translates to:
+  /// **'配对样本不足。对 AI 结果做轻度修改（10%～30%）后采纳，即可积累对照样本。'**
+  String get aiPreferencesDistillEmpty;
+
+  /// No description provided for @aiPreferencesDistillAction.
+  ///
+  /// In zh, this message translates to:
+  /// **'提炼偏好'**
+  String get aiPreferencesDistillAction;
+
+  /// No description provided for @aiPreferencesDistillEvidence.
+  ///
+  /// In zh, this message translates to:
+  /// **'依据 {count} 组原稿对照'**
+  String aiPreferencesDistillEvidence(int count);
+
+  /// No description provided for @aiPreferencesAddToRules.
+  ///
+  /// In zh, this message translates to:
+  /// **'加入守则'**
+  String get aiPreferencesAddToRules;
+
+  /// No description provided for @aiPreferencesAddAllRules.
+  ///
+  /// In zh, this message translates to:
+  /// **'全部加入守则'**
+  String get aiPreferencesAddAllRules;
+
+  /// No description provided for @aiPreferencesPreview.
+  ///
+  /// In zh, this message translates to:
+  /// **'注入预览'**
+  String get aiPreferencesPreview;
+
+  /// No description provided for @aiPreferencesPreviewHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'以下文本会附加到续写 / 改写 / 开篇 / 灵感的 system prompt（关闭开关后不注入）。'**
+  String get aiPreferencesPreviewHint;
+
+  /// No description provided for @aiPreferencesPreviewEmpty.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂无内容可注入'**
+  String get aiPreferencesPreviewEmpty;
+
   /// No description provided for @aiPreferencesIgnoredConflicts.
   ///
   /// In zh, this message translates to:
@@ -5682,6 +5844,42 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'已存入灵感箱'**
   String get chatSavedToInspiration;
+
+  /// No description provided for @chatCopyAnswer.
+  ///
+  /// In zh, this message translates to:
+  /// **'复制回答'**
+  String get chatCopyAnswer;
+
+  /// No description provided for @chatCopied.
+  ///
+  /// In zh, this message translates to:
+  /// **'已复制到剪贴板'**
+  String get chatCopied;
+
+  /// No description provided for @chatRegenerate.
+  ///
+  /// In zh, this message translates to:
+  /// **'重新回答'**
+  String get chatRegenerate;
+
+  /// No description provided for @chatEditQuestion.
+  ///
+  /// In zh, this message translates to:
+  /// **'编辑上一问'**
+  String get chatEditQuestion;
+
+  /// No description provided for @chatEditQuestionSend.
+  ///
+  /// In zh, this message translates to:
+  /// **'重新提问'**
+  String get chatEditQuestionSend;
+
+  /// No description provided for @chatEditQuestionEmpty.
+  ///
+  /// In zh, this message translates to:
+  /// **'问题不能为空'**
+  String get chatEditQuestionEmpty;
 
   /// No description provided for @editorContinuityStop.
   ///

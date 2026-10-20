@@ -97,12 +97,20 @@ class WritingPreferences {
   static String paragraphFeedbackKey(int workId) =>
       'ai_paragraph_feedback_$workId';
 
+  /// 协作守则 / 套话黑名单 / 被放弃的「太 AI」片段（ENH-44）。
+  static String collaborationRulesKey(int workId) => 'ai_collab_rules_$workId';
+  static String bannedPhrasesKey(int workId) => 'ai_banned_phrases_$workId';
+  static String rejectedAiKey(int workId) => 'ai_rejected_ai_$workId';
+
   /// 作品永久删除时一并清理的偏好键（含 ENH-41 一致性忽略项）。
   static List<String> keysFor(int workId) => <String>[
     feedbackKey(workId),
     adoptedSamplesKey(workId),
     enabledKey(workId),
     paragraphFeedbackKey(workId),
+    collaborationRulesKey(workId),
+    bannedPhrasesKey(workId),
+    rejectedAiKey(workId),
     ContinuitySuppressions.storageKey(workId),
   ];
 
