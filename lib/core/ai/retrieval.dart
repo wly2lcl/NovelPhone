@@ -30,6 +30,11 @@ class RetrievedPassage {
 /// [maxScanChars] 是**全书总量**的软上限（ENH-33）：预算按章均分并在章内均匀
 /// 抽样，保证长篇后期章节也能被检索到；旧实现从第一章顺序累加、到达上限即
 /// 停止，导致 40 万字以上的作品问答永远看不到后半部分。
+///
+/// ENH-40 在召回打分上做了三件事：
+/// - bigram 覆盖按 IDF 加权，常见字词（“集市”“他说”）不再压过稀有名词；
+/// - [aliasGroups] 中任一别名出现在查询里时，命中同组其他别名（含本名）加分；
+/// - [nearbyChapterId] 前后几章的片段小幅提权，续写 / 改写优先用近处上下文。
 List<RetrievedPassage> retrievePassages({
   required List<Chapter> chapters,
   required String query,
@@ -38,6 +43,9 @@ List<RetrievedPassage> retrievePassages({
   int maxPerChapter = 2,
   int? excludeChapterId,
   int maxScanChars = 400000,
+  int? nearbyChapterId,
+  List<List<String>> aliasGroups = const <List<String>>[],
+  int chapterIndexOffset = 0,
 }) {
   final normalizedQuery = _normalize(query);
   if (normalizedQuery.length < 2 || topK <= 0) {
@@ -61,14 +69,22 @@ List<RetrievedPassage> retrievePassages({
   );
   final chunksPerChapter = max(1, perChapterBudget ~/ chunkChars);
 
-  final hits = <RetrievedPassage>[];
+  final nearbyIndex = nearbyChapterId == null
+      ? -1
+      : chapters.indexWhere((c) => c.id == nearbyChapterId);
+  final expandedTerms = _expandedAliasTerms(normalizedQuery, aliasGroups);
+
+  final candidates = <_ChunkCandidate>[];
   for (var index = 0; index < chapters.length; index++) {
     final chapter = chapters[index];
     if (chapter.id == excludeChapterId) continue;
     final content = chapter.content.trim();
     if (content.isEmpty) continue;
     final title = chapter.title.trim().isEmpty ? '未命名章节' : chapter.title.trim();
-    final titleMatch = _normalize(title).contains(normalizedQuery);
+    final normalizedTitle = _normalize(title);
+    final titleMatch =
+        normalizedTitle.contains(normalizedQuery) ||
+        expandedTerms.any(normalizedTitle.contains);
 
     var perChapter = 0;
     final chunks = _chunks(content, chunkChars).toList(growable: false);
@@ -76,33 +92,125 @@ List<RetrievedPassage> retrievePassages({
       if (perChapter >= maxPerChapter) break;
       final normalizedChunk = _normalize(chunk);
       if (normalizedChunk.isEmpty) continue;
-      final chunkGrams = _bigrams(normalizedChunk);
-      var overlap = 0;
-      for (final entry in queryGrams.entries) {
-        final count = chunkGrams[entry.key];
-        if (count == null) continue;
-        overlap += entry.value < count ? entry.value : count;
-      }
-      final total = _gramCount(queryGrams) + _gramCount(chunkGrams);
-      var score = total == 0 ? 0.0 : 2 * overlap / total;
-      if (normalizedChunk.contains(normalizedQuery)) score += 0.5;
-      if (titleMatch) score += 0.05;
-      if (score <= 0) continue;
-      hits.add(
-        RetrievedPassage(
-          chapterId: chapter.id,
-          chapterTitle: title,
-          chapterIndex: index + 1,
+      candidates.add(
+        _ChunkCandidate(
+          chapter: chapter,
+          chapterIndex: index,
+          title: title,
           text: chunk,
-          score: score,
+          normalized: normalizedChunk,
+          grams: _bigrams(normalizedChunk),
+          titleMatch: titleMatch,
         ),
       );
       perChapter++;
     }
   }
+  if (candidates.isEmpty) return const <RetrievedPassage>[];
+
+  // IDF 需要先知道每个 bigram 出现在多少块候选里，再回头逐块打分。
+  final documentFrequency = <String, int>{};
+  for (final candidate in candidates) {
+    for (final gram in candidate.grams.keys) {
+      documentFrequency[gram] = (documentFrequency[gram] ?? 0) + 1;
+    }
+  }
+  final idfCache = <String, double>{};
+  double idf(String gram) => idfCache.putIfAbsent(gram, () {
+    final df = documentFrequency[gram] ?? 0;
+    return log(1 + candidates.length / (1 + df));
+  });
+
+  var queryWeight = 0.0;
+  for (final entry in queryGrams.entries) {
+    queryWeight += entry.value * idf(entry.key);
+  }
+  if (queryWeight <= 0) return const <RetrievedPassage>[];
+
+  final hits = <RetrievedPassage>[];
+  for (final candidate in candidates) {
+    var overlapWeight = 0.0;
+    for (final entry in queryGrams.entries) {
+      final count = candidate.grams[entry.key];
+      if (count == null) continue;
+      final matched = entry.value < count ? entry.value : count;
+      overlapWeight += matched * idf(entry.key);
+    }
+    var score = overlapWeight / queryWeight;
+    if (candidate.normalized.contains(normalizedQuery)) score += 0.5;
+    if (expandedTerms.isNotEmpty) {
+      final aliasHits = expandedTerms
+          .where(candidate.normalized.contains)
+          .length;
+      if (aliasHits > 0) score += min(0.3, 0.15 * aliasHits);
+    }
+    if (candidate.titleMatch) score += 0.05;
+    if (nearbyIndex >= 0) {
+      score *= _proximityFactor(candidate.chapterIndex, nearbyIndex);
+    }
+    if (score <= 0) continue;
+    hits.add(
+      RetrievedPassage(
+        chapterId: candidate.chapter.id,
+        chapterTitle: candidate.title,
+        chapterIndex: candidate.chapterIndex + 1 + chapterIndexOffset,
+        text: candidate.text,
+        score: score,
+      ),
+    );
+  }
 
   hits.sort((a, b) => b.score.compareTo(a.score));
   return hits.take(topK).toList(growable: false);
+}
+
+class _ChunkCandidate {
+  _ChunkCandidate({
+    required this.chapter,
+    required this.chapterIndex,
+    required this.title,
+    required this.text,
+    required this.normalized,
+    required this.grams,
+    required this.titleMatch,
+  });
+
+  final Chapter chapter;
+  final int chapterIndex;
+  final String title;
+  final String text;
+  final String normalized;
+  final Map<String, int> grams;
+  final bool titleMatch;
+}
+
+/// 查询提到某角色的任一别名时，把同组别名都视为扩展检索词（ENH-40）。
+List<String> _expandedAliasTerms(
+  String normalizedQuery,
+  List<List<String>> aliasGroups,
+) {
+  final terms = <String>[];
+  for (final group in aliasGroups) {
+    final normalized = group
+        .map(_normalize)
+        .where((term) => term.length >= 2)
+        .toList(growable: false);
+    if (normalized.isEmpty) continue;
+    if (!normalized.any(normalizedQuery.contains)) continue;
+    for (final term in normalized) {
+      if (!terms.contains(term)) terms.add(term);
+    }
+  }
+  return terms;
+}
+
+/// 离目标章越近权重越高：相邻章 ×1.25，隔一章 ×1.1，两到四章内 ×1.04。
+double _proximityFactor(int chapterIndex, int nearbyIndex) {
+  final distance = (chapterIndex - nearbyIndex).abs();
+  if (distance == 1) return 1.25;
+  if (distance == 2) return 1.1;
+  if (distance <= 4) return 1.04;
+  return 1;
 }
 
 /// 把命中片段格式化为上下文段落（ENH-32）。
@@ -189,6 +297,3 @@ Map<String, int> _bigrams(String text) {
   }
   return map;
 }
-
-int _gramCount(Map<String, int> grams) =>
-    grams.values.fold(0, (sum, count) => sum + count);

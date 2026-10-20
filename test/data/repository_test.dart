@@ -601,7 +601,7 @@ void main() {
       expect(names, containsAll(_hotspotIndexNames));
     });
 
-    test('v8 → v14 升级时为既有库补建索引、追加新列与新表', () async {
+    test('v8 → v15 升级时为既有库补建索引、追加新列与新表', () async {
       final dir = await Directory.systemTemp.createTemp('novelphone_mig');
       final file = File(p.join(dir.path, 'migrate.sqlite'));
       // 同一插槽先后开关两个 AppDatabase 实例是刻意为之，关掉 drift 的重复实例告警。
@@ -609,9 +609,9 @@ void main() {
       driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
       try {
         // v9 / v10 只新增索引、v11 新增回收站列、v12 新增文风与费用列、
-        // v13 新增快照来源标记与采纳编辑比例、v14 新增故事状态卡表：
-        // 先按当前 schema 建库，删掉这些增量并回写 user_version = 8，
-        // 即得到与线上旧库等价的 v8 底座。
+        // v13 新增快照来源标记与采纳编辑比例、v14 新增故事状态卡表、
+        // v15 新增角色别名列：先按当前 schema 建库，删掉这些增量并回写
+        // user_version = 8，即得到与线上旧库等价的 v8 底座。
         final seeded = AppDatabase(NativeDatabase(file));
         for (final name in _allIndexNames) {
           await seeded.customStatement('DROP INDEX IF EXISTS $name');
@@ -638,10 +638,13 @@ void main() {
         await seeded.customStatement(
           'ALTER TABLE ai_usages DROP COLUMN adopted_edit_percent',
         );
+        await seeded.customStatement(
+          'ALTER TABLE characters DROP COLUMN aliases',
+        );
         await seeded.customStatement('PRAGMA user_version = 8');
         await seeded.close();
 
-        // 以 v8 身份重新打开：应触发 onUpgrade(8 → 14) 补建索引、加列并建新表。
+        // 以 v8 身份重新打开：应触发 onUpgrade(8 → 15) 补建索引、加列并建新表。
         final upgraded = AppDatabase(NativeDatabase(file));
         final names =
             (await upgraded
@@ -677,6 +680,10 @@ void main() {
                     .get())
                 .map((r) => r.read<String>('name'))
                 .toSet();
+        final characterColumns =
+            (await upgraded.customSelect('PRAGMA table_info(characters)').get())
+                .map((r) => r.read<String>('name'))
+                .toSet();
         await upgraded.close();
 
         expect(names, containsAll(_allIndexNames));
@@ -690,6 +697,7 @@ void main() {
         );
         expect(snapshotColumns, contains('note'));
         expect(usageColumns, contains('adopted_edit_percent'));
+        expect(characterColumns, contains('aliases'));
         expect(
           storyStateColumns,
           containsAll(<String>[

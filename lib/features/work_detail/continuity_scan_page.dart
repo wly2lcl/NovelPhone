@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/theme.dart';
+import '../../core/ai/structured_response.dart';
 import '../../data/data_providers.dart';
 import '../../data/db.dart';
 import '../../data/repositories/settings_repository.dart';
@@ -17,21 +18,24 @@ class _ScanResult {
   const _ScanResult({
     required this.chapter,
     this.text = '',
+    this.result = const ContinuityCheckResult(parseFailed: true),
     this.truncated = false,
     this.error,
   });
 
   final Chapter chapter;
+
+  /// 模型原始输出（结构化结果不可用时回退展示）。
   final String text;
+  final ContinuityCheckResult result;
   final bool truncated;
   final String? error;
 
   bool get failed => error != null;
-
-  bool get clean => !failed && !text.contains('冲突');
 }
 
-/// 全书一致性体检（ENH-23）：逐章顺序检查，避免并发触发服务商限流。
+/// 全书一致性体检（ENH-23 / ENH-38）：逐章顺序检查，避免并发触发服务商限流；
+/// 结果按结构化冲突展示，可直接跳到对应章节。
 class ContinuityScanPage extends ConsumerStatefulWidget {
   const ContinuityScanPage({super.key, required this.workId});
 
@@ -108,6 +112,7 @@ class _ContinuityScanPageState extends ConsumerState<ContinuityScanPage> {
             _ScanResult(
               chapter: chapter,
               text: report.text.trim(),
+              result: report.result,
               truncated: report.truncated,
             ),
           );
@@ -152,11 +157,30 @@ class _ContinuityScanPageState extends ConsumerState<ContinuityScanPage> {
     final buffer = StringBuffer();
     for (final result in _results) {
       buffer.writeln('【${result.chapter.title}】');
-      buffer.writeln(
-        result.failed
-            ? l10n.continuityScanFailedLine(result.error!)
-            : result.text,
-      );
+      if (result.failed) {
+        buffer.writeln(l10n.continuityScanFailedLine(result.error!));
+      } else {
+        final check = result.result;
+        if (check.summary.isNotEmpty) buffer.writeln(check.summary);
+        if (check.parseFailed) buffer.writeln(result.text);
+        for (var i = 0; i < check.issues.length; i++) {
+          final issue = check.issues[i];
+          buffer.writeln(
+            '${i + 1}. [${_severityText(l10n, issue.severity)}] ${issue.quote}',
+          );
+          if (issue.detail.isNotEmpty) {
+            buffer.writeln('   ${l10n.continuityIssueDetail(issue.detail)}');
+          }
+          if (issue.source.isNotEmpty) {
+            buffer.writeln('   ${l10n.continuityIssueSource(issue.source)}');
+          }
+          if (issue.suggestion.isNotEmpty) {
+            buffer.writeln(
+              '   ${l10n.continuityIssueSuggestion(issue.suggestion)}',
+            );
+          }
+        }
+      }
       buffer.writeln();
     }
     await Clipboard.setData(ClipboardData(text: buffer.toString().trim()));
@@ -252,6 +276,7 @@ class _ContinuityScanPageState extends ConsumerState<ContinuityScanPage> {
                     for (final result in _results)
                       _ResultTile(
                         key: ValueKey(result.chapter.id),
+                        workId: widget.workId,
                         result: result,
                       ),
                   ],
@@ -262,33 +287,46 @@ class _ContinuityScanPageState extends ConsumerState<ContinuityScanPage> {
   }
 }
 
-class _ResultTile extends StatelessWidget {
-  const _ResultTile({super.key, required this.result});
+String _severityText(AppLocalizations l10n, String severity) {
+  return switch (severity) {
+    'high' => l10n.continuitySeverityHigh,
+    'low' => l10n.continuitySeverityLow,
+    _ => l10n.continuitySeverityMedium,
+  };
+}
 
+class _ResultTile extends StatelessWidget {
+  const _ResultTile({super.key, required this.workId, required this.result});
+
+  final int workId;
   final _ScanResult result;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final subtitle = result.failed
-        ? l10n.continuityScanChapterFailed
-        : result.clean
-        ? l10n.continuityScanNoIssues
-        : l10n.continuityScanHasIssues;
+    final check = result.result;
+    final String subtitle;
+    final Color subtitleColor;
+    if (result.failed) {
+      subtitle = l10n.continuityScanChapterFailed;
+      subtitleColor = const Color(0xFFB3261E);
+    } else if (check.parseFailed) {
+      subtitle = l10n.continuityScanParseFailed;
+      subtitleColor = const Color(0xFFA15C00);
+    } else if (check.issues.isEmpty) {
+      subtitle = l10n.continuityScanNoIssues;
+      subtitleColor = context.paper.inkSoft;
+    } else {
+      subtitle = l10n.continuityIssueCount(check.issues.length);
+      subtitleColor = context.paper.accent;
+    }
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ExpansionTile(
         title: Text(result.chapter.title),
         subtitle: Text(
           subtitle,
-          style: TextStyle(
-            fontSize: 12,
-            color: result.failed
-                ? const Color(0xFFB3261E)
-                : result.clean
-                ? context.paper.inkSoft
-                : context.paper.accent,
-          ),
+          style: TextStyle(fontSize: 12, color: subtitleColor),
         ),
         childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
         expandedCrossAxisAlignment: CrossAxisAlignment.start,
@@ -301,7 +339,109 @@ class _ResultTile extends StatelessWidget {
                 style: TextStyle(fontSize: 12, color: context.paper.inkSoft),
               ),
             ),
-          SelectableText(result.failed ? result.error! : result.text),
+          if (result.failed)
+            SelectableText(result.error!)
+          else ...<Widget>[
+            if (check.summary.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  check.summary,
+                  style: TextStyle(color: context.paper.ink, height: 1.4),
+                ),
+              ),
+            if (check.parseFailed) ...<Widget>[
+              Text(
+                l10n.continuityIssueParseFallback,
+                style: TextStyle(fontSize: 12, color: context.paper.inkSoft),
+              ),
+              const SizedBox(height: 8),
+              SelectableText(result.text),
+            ] else
+              for (var i = 0; i < check.issues.length; i++)
+                _ScanIssue(index: i + 1, issue: check.issues[i]),
+            if (!check.parseFailed) ...<Widget>[
+              const SizedBox(height: 4),
+              Align(
+                alignment: Alignment.centerRight,
+                child: OutlinedButton.icon(
+                  onPressed: () => context.push(
+                    '/work/$workId/chapter/${result.chapter.id}',
+                  ),
+                  icon: const Icon(Icons.open_in_new, size: 16),
+                  label: Text(l10n.continuityScanOpenChapter),
+                ),
+              ),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ScanIssue extends StatelessWidget {
+  const _ScanIssue({required this.index, required this.issue});
+
+  final int index;
+  final ContinuityIssue issue;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final severityColor = switch (issue.severity) {
+      'high' => const Color(0xFFB3261E),
+      'low' => context.paper.inkSoft,
+      _ => const Color(0xFFA15C00),
+    };
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: context.paper.background,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: context.paper.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            '#$index · ${_severityText(l10n, issue.severity)}',
+            style: TextStyle(
+              fontSize: 11,
+              color: severityColor,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          if (issue.quote.isNotEmpty) ...<Widget>[
+            const SizedBox(height: 4),
+            SelectableText(
+              '「${issue.quote}」',
+              style: const TextStyle(fontWeight: FontWeight.w600, height: 1.4),
+            ),
+          ],
+          if (issue.detail.isNotEmpty) ...<Widget>[
+            const SizedBox(height: 4),
+            Text(
+              l10n.continuityIssueDetail(issue.detail),
+              style: TextStyle(fontSize: 12, color: context.paper.inkSoft),
+            ),
+          ],
+          if (issue.source.isNotEmpty) ...<Widget>[
+            const SizedBox(height: 2),
+            Text(
+              l10n.continuityIssueSource(issue.source),
+              style: TextStyle(fontSize: 12, color: context.paper.inkSoft),
+            ),
+          ],
+          if (issue.suggestion.isNotEmpty) ...<Widget>[
+            const SizedBox(height: 2),
+            Text(
+              l10n.continuityIssueSuggestion(issue.suggestion),
+              style: TextStyle(fontSize: 12, color: context.paper.ink),
+            ),
+          ],
         ],
       ),
     );

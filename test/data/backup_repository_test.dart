@@ -59,6 +59,7 @@ void main() {
       name: '沈砚',
       identity: '捕快',
       personalityTags: '["寡言","执拗"]',
+      aliases: '["沈公子"]',
     );
     await inspirations.createInspiration(workId, '开篇用雨夜作引子');
     await outlines.saveChapterSummary(
@@ -117,10 +118,26 @@ void main() {
     expect(restoredChapters.single.content, '雨下了一整夜，街道上没有人。');
     final restoredCharacters = await characters.listCharacters(workId);
     expect(restoredCharacters.single.name, '沈砚');
+    expect(restoredCharacters.single.aliases, '["沈公子"]');
     final restoredInspirations = await inspirations.listInspirations(workId);
     expect(restoredInspirations.single.content, '开篇用雨夜作引子');
     final entry = await outlines.findByChapter(restoredChapters.single.id);
     expect(entry!.summary, '主角在雨夜遇到线索。');
+  });
+
+  test('旧备份缺少角色别名列时按空串恢复（ENH-40）', () async {
+    final workId = await seedWork();
+    final data = await backup.exportData();
+    final tables = data['tables'] as Map<String, dynamic>;
+    tables['characters'] = (tables['characters'] as List)
+        .map((row) => Map<String, dynamic>.from(row as Map)..remove('aliases'))
+        .toList();
+
+    await works.deleteWork(workId);
+    await backup.restore(data, overwrite: true);
+
+    final restored = await characters.listCharacters(workId);
+    expect(restored.single.aliases, '');
   });
 
   test('合并恢复把备份作品作为新作品导入，不动现有数据', () async {

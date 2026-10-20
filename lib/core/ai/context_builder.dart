@@ -7,6 +7,7 @@ import '../../data/repositories/outline_repository.dart';
 import '../../data/repositories/setting_repository.dart';
 import '../../data/repositories/story_state_repository.dart';
 import '../../data/repositories/work_repository.dart';
+import '../../models/character_tags.dart';
 import '../../models/setting_type.dart';
 import '../../models/story_state_kind.dart';
 import '../../models/work_style_guide.dart';
@@ -112,8 +113,8 @@ String _firstSentence(String text) {
   return text.length > 40 ? text.substring(0, 40) : text;
 }
 
-/// 角色卡相关性匹配（M3-12）：按本章正文出现的姓名匹配，出现次数多者优先，
-/// 最多 [max] 张（默认 8）。
+/// 角色卡相关性匹配（M3-12）：按本章正文出现的姓名与别名匹配，
+/// 姓名权重 2、别名权重 1，出现次数多者优先，最多 [max] 张（默认 8）。
 List<Character> matchCharacters(
   List<Character> all,
   String chapterText, {
@@ -123,16 +124,44 @@ List<Character> matchCharacters(
   for (final character in all) {
     final name = character.name;
     if (name.isEmpty) continue;
-    var count = 0;
-    var index = chapterText.indexOf(name);
-    while (index != -1) {
-      count++;
-      index = chapterText.indexOf(name, index + name.length);
+    final aliases = decodeTags(character.aliases)
+        .where((alias) => alias != name && alias.length >= 2)
+        .toList(growable: false);
+    var count = _termOccurrences(chapterText, name) * 2;
+    for (final alias in aliases) {
+      count += _termOccurrences(chapterText, alias);
     }
     if (count > 0) scored.add((character: character, count: count));
   }
   scored.sort((a, b) => b.count.compareTo(a.count));
   return scored.take(max).map((e) => e.character).toList(growable: false);
+}
+
+int _termOccurrences(String text, String term) {
+  if (term.isEmpty) return 0;
+  var count = 0;
+  var index = text.indexOf(term);
+  while (index != -1) {
+    count++;
+    index = text.indexOf(term, index + term.length);
+  }
+  return count;
+}
+
+/// 角色名 + 别名的分组（ENH-40），供本地检索在查询提到任一称谓时扩展召回。
+List<List<String>> characterAliasGroups(List<Character> characters) {
+  final groups = <List<String>>[];
+  for (final character in characters) {
+    final name = character.name.trim();
+    if (name.isEmpty) continue;
+    final aliases = decodeTags(
+      character.aliases,
+    ).where((alias) => alias != name).toList(growable: false);
+    // 只有本名的角色没有扩展空间，不进入分组。
+    if (aliases.isEmpty) continue;
+    groups.add(<String>[name, ...aliases]);
+  }
+  return groups;
 }
 
 /// 上下文组装（M3-09 / M3-10）：按 PRD 6.2 优先级装配并受 token 预算约束。
@@ -154,6 +183,11 @@ class ContextBuilder {
 
   /// 超预算时角色卡保留张数。
   static const int minCharacters = 3;
+
+  /// 状态卡注入上限（ENH-39）：按更新时间从新到旧取，避免新变化被旧条目挤掉。
+  static const int maxCharacterStates = 12;
+  static const int maxOpenForeshadows = 12;
+  static const int maxTimelineStates = 8;
 
   final WorkRepository works;
   final ChapterRepository chapters;
@@ -225,6 +259,7 @@ class ContextBuilder {
       chapterId,
       '${_tailOf(chapterText, maxChars: 600)}\n$chapterOutline',
       recap.ordered,
+      aliasGroups: characterAliasGroups(allCharacters),
     );
 
     final draft = revisionDraft?.trim() ?? '';
@@ -355,6 +390,7 @@ class ContextBuilder {
         chapterId,
         '$selectedText\n${instruction ?? ''}',
         recap.ordered,
+        aliasGroups: characterAliasGroups(allCharacters),
       ),
       volumeOutline: _volumeOutline(outlineEntries, volume?.id, chapterId),
       task: revising
@@ -404,7 +440,8 @@ class ContextBuilder {
     );
   }
 
-  /// 章纲扩写上下文（ENH-05）：以本章一句话梗概为种子，产出分场大纲。
+  /// 章纲扩写上下文（ENH-05 / ENH-39）：一句话梗概 + 前情、角色、设定与状态卡。
+  /// 旧实现只带梗概，长篇里容易扩出与既有事实冲突的分场。
   Future<BuiltContext> buildOutlineExpand({
     required int workId,
     required int chapterId,
@@ -415,20 +452,92 @@ class ContextBuilder {
     final work = await works.getWork(workId);
     final chapter = await chapters.getChapter(chapterId);
     final title = (chapter?.title ?? '').trim();
+    final recap = await _recapSource(workId, chapterId);
+    final volume = chapter == null
+        ? null
+        : await _volumeOf(workId, chapter.volumeId);
+    final allCharacters = await characters.listCharacters(workId);
+    var matched = matchCharacters(allCharacters, seed);
+    if (matched.isEmpty) {
+      matched = allCharacters.take(6).toList(growable: false);
+    }
+
+    final previousSummary = _previousSummary(
+      recap.ordered,
+      chapterId,
+      volume?.summary.trim() ?? '',
+      previousVolumeSummary: _isVolumeHead(recap.ordered, chapterId)
+          ? await _previousVolumeSummary(workId, volume)
+          : '',
+      fallbackContents: recap.fallbackContents,
+    );
+    var summaryBlock = previousSummary;
+    var characterBlock = matched.map(formatCharacter).join('\n');
+    var settingsBlock = await _settingsText(workId);
+    var storyStateBlock = await _storyStateText(workId, recap.ordered);
+
     final system = _outlineSystem();
-    final payload =
+    final header =
         '作品：《${work?.title ?? ''}》\n'
-        '本章：${title.isEmpty ? '未命名章节' : title}\n\n'
-        '【本章一句话梗概】\n${seed.trim()}';
+        '本章：${title.isEmpty ? '未命名章节' : title}';
+    final seedBlock = seed.trim();
+    final task = _outlineTask;
+    var truncated = false;
+    int total() =>
+        estimateTokens(system) +
+        estimateTokens(header) +
+        estimateTokens(seedBlock) +
+        estimateTokens(task) +
+        estimateTokens(summaryBlock) +
+        estimateTokens(characterBlock) +
+        estimateTokens(settingsBlock) +
+        estimateTokens(storyStateBlock);
+    if (total() > budget && settingsBlock.isNotEmpty) {
+      settingsBlock = '';
+      truncated = true;
+    }
+    if (total() > budget && storyStateBlock.isNotEmpty) {
+      storyStateBlock = '';
+      truncated = true;
+    }
+    if (total() > budget && matched.length > minCharacters) {
+      characterBlock = matched
+          .take(minCharacters)
+          .map(formatCharacter)
+          .join('\n');
+      truncated = true;
+    }
+    if (total() > budget && summaryBlock.length > 120) {
+      summaryBlock = _compressPreviousSummary(summaryBlock);
+      truncated = true;
+    }
+
+    final userContent = <String>[
+      header,
+      '【本章一句话梗概】\n$seedBlock',
+      if (summaryBlock.isNotEmpty) '【前文摘要】\n$summaryBlock',
+      if (characterBlock.isNotEmpty) '【相关角色卡】\n$characterBlock',
+      if (settingsBlock.isNotEmpty) '【设定集】\n$settingsBlock',
+      if (storyStateBlock.isNotEmpty) '【故事状态卡】\n$storyStateBlock',
+      task,
+    ].join('\n\n');
     return BuiltContext(
       system: system,
-      messages: <ChatMessage>[ChatMessage.user(payload)],
+      messages: <ChatMessage>[ChatMessage.user(userContent)],
       sections: <ContextSection>[
-        ContextSection(label: '本章梗概', content: seed.trim()),
+        ContextSection(label: '本章梗概', content: seedBlock),
+        if (summaryBlock.isNotEmpty)
+          ContextSection(label: '前文摘要', content: summaryBlock),
+        if (characterBlock.isNotEmpty)
+          ContextSection(label: '相关角色卡', content: characterBlock),
+        if (settingsBlock.isNotEmpty)
+          ContextSection(label: '设定集', content: settingsBlock),
+        if (storyStateBlock.isNotEmpty)
+          ContextSection(label: '故事状态卡', content: storyStateBlock),
         const ContextSection(label: '任务模式', content: '章纲扩写（一句话梗概 → 分场大纲）'),
       ],
-      truncated: false,
-      estimatedTokens: estimateTokens(system) + estimateTokens(payload),
+      truncated: truncated,
+      estimatedTokens: estimateTokens(system) + estimateTokens(userContent),
       budgetTokens: budget,
     );
   }
@@ -686,18 +795,25 @@ class ContextBuilder {
 
   static const String _continuityTask =
       '请检查【本章正文】是否存在与角色卡、设定集、故事状态卡、前情摘要或本章章纲'
-      '明确冲突的地方。只列冲突，不评价文笔；最多 8 条，按严重程度排序。';
+      '明确冲突的地方。只列冲突，不评价文笔；最多 8 条，按严重程度排序。\n'
+      '只输出一个 JSON 对象，不要 Markdown 代码块或额外解释，格式：\n'
+      '{"summary":"一句话结论；没有冲突时写「未发现设定冲突」",'
+      '"issues":[{"quote":"冲突原文（从本章正文逐字摘录，尽量短，便于定位）",'
+      '"detail":"与哪条设定冲突",'
+      '"source":"角色卡·角色名 / 设定集·条目名 / 故事状态·卡片名 / 章纲",'
+      '"suggestion":"建议改法","severity":"high|medium|low"}]}';
 
   String _continuitySystem() =>
       '你是一位严谨的中文小说责任编辑，负责设定一致性校对。\n'
       '规则：\n'
       '1. 只报告与给定设定资料明确冲突的内容，不推测、不评价文笔或剧情好坏；\n'
-      '2. 每条按「冲突原文 → 冲突的设定（注明来源卡片） → 建议改法」三段式说明，'
-      '来源写成「角色卡·角色名」「设定集·条目名」「故事状态·卡片名」或「章纲」，'
-      '引用原文保持简短；\n'
-      '3. 同一处冲突涉及多张卡片时都要列出，便于作者回查；\n'
-      '4. 没有发现冲突时，只回复「未发现设定冲突」；\n'
-      '5. 使用简体中文输出纯文本，不要使用 Markdown 代码块。';
+      '2. quote 必须是本章正文中逐字出现的片段，保持简短（建议 30 字以内），'
+      '不要改写、不要补省略号，确保作者能直接检索到；\n'
+      '3. detail 说明冲突点，source 注明来源卡片，写成「角色卡·角色名」「设定集·条目名」'
+      '「故事状态·卡片名」或「章纲」，同一处冲突涉及多张卡片时分别列出；\n'
+      '4. suggestion 给出可直接落笔的改法；severity 取 high / medium / low；\n'
+      '5. 没有发现冲突时只输出 {"summary":"未发现设定冲突","issues":[]}；\n'
+      '6. 使用简体中文，只输出 JSON，不要使用 Markdown 代码块。';
 
   // ---------- ENH-35：本章状态变化提取 ----------
 
@@ -941,6 +1057,9 @@ class ContextBuilder {
         .map((c) => '- ${c.name}${c.identity.isEmpty ? '' : '（${c.identity}）'}')
         .join('\n');
     final settingsText = await _settingsText(workId);
+    // ENH-39：推演必须知道角色当下状态与未回收伏笔，否则容易写出
+    // 已解决线索或已死亡角色继续行动的方案。
+    final storyStateText = await _storyStateText(workId, chapterList);
     final styleText = _styleText(work);
     final system = _plotPlanSystem();
     final header = '作品：《${work?.title ?? ''}》';
@@ -957,6 +1076,7 @@ class ContextBuilder {
     var outlineBlock = outlineText;
     var characterBlock = charactersText;
     var settingsBlock = settingsText;
+    var storyStateBlock = storyStateText;
     var truncated = false;
     int total() =>
         estimateTokens(system) +
@@ -966,6 +1086,7 @@ class ContextBuilder {
         estimateTokens(outlineBlock) +
         estimateTokens(characterBlock) +
         estimateTokens(settingsBlock) +
+        estimateTokens(storyStateBlock) +
         estimateTokens(samples);
     if (total() > budget && samples.isNotEmpty) {
       samples = '';
@@ -983,12 +1104,17 @@ class ContextBuilder {
       outlineBlock = '${outlineBlock.substring(0, 1200)}…';
       truncated = true;
     }
+    if (total() > budget && storyStateBlock.isNotEmpty) {
+      storyStateBlock = '';
+      truncated = true;
+    }
     final userContent = <String>[
       header,
       if (styleText.isNotEmpty) styleText,
       if (outlineBlock.isNotEmpty) '【已有章纲】\n$outlineBlock',
       if (characterBlock.isNotEmpty) '【主要角色】\n$characterBlock',
       if (settingsBlock.isNotEmpty) '【设定集】\n$settingsBlock',
+      if (storyStateBlock.isNotEmpty) '【故事状态卡】\n$storyStateBlock',
       if (samples.isNotEmpty) '【最近正文节选】\n$samples',
       task,
     ].join('\n\n');
@@ -1004,6 +1130,8 @@ class ContextBuilder {
           ContextSection(label: '主要角色', content: characterBlock),
         if (settingsBlock.isNotEmpty)
           ContextSection(label: '设定集', content: settingsBlock),
+        if (storyStateBlock.isNotEmpty)
+          ContextSection(label: '故事状态卡', content: storyStateBlock),
         if (samples.isNotEmpty)
           ContextSection(label: '最近正文节选', content: samples),
       ],
@@ -1042,6 +1170,7 @@ class ContextBuilder {
         query: message,
         topK: 4,
         maxPerChapter: 2,
+        aliasGroups: characterAliasGroups(allCharacters),
       ),
       header: '相关正文片段',
     );
@@ -1181,7 +1310,7 @@ class ContextBuilder {
       '规则：\n'
       '1. 给出 3 个差异明显的后续走向，每个包含一句话概括、2~4 个推进步骤、看点或风险；\n'
       '2. 再给出 3~5 章的连续性分章建议，每章有标题与梗概；\n'
-      '3. 不得与既有设定、章纲和已发生事实冲突，不强行复活已死亡角色；\n'
+      '3. 不得与既有设定、章纲、故事状态卡和已发生事实冲突，不强行复活已死亡角色；\n'
       '4. 严格输出 JSON，不要 markdown 代码块或解释：\n'
       '{"directions":[{"title":"","summary":"","beats":["",""],"hook":""}],'
       '"chapters":[{"title":"","summary":""}]}';
@@ -1446,10 +1575,13 @@ class ContextBuilder {
       ..writeln('你是一位中文小说编剧。作者给出本章的一句话梗概，请扩写为可直接指导写作的「分场大纲」。')
       ..writeln('要求：')
       ..writeln('1. 按场景分 3~6 条，每条 1~2 句，写清：地点、出场人物、发生的事件与冲突、情绪转折、结尾留的钩子。')
-      ..writeln('2. 严格贴合原梗概与已有设定，不新增与原梗概矛盾的主线内容。')
-      ..writeln('3. 只输出分场大纲本身，不写额外解释、不加标题。');
+      ..writeln('2. 严格贴合原梗概、前文摘要、相关角色卡与设定集，不新增与原梗概矛盾的主线内容。')
+      ..writeln('3. 参考故事状态卡中的角色当下状态与未回收伏笔，不写与既有事实冲突的情节。')
+      ..writeln('4. 只输出分场大纲本身，不写额外解释、不加标题。');
     return buffer.toString().trim();
   }
+
+  static const String _outlineTask = '请基于以上【本章一句话梗概】与作品资料，把梗概扩写为分场大纲。';
 
   /// 本卷前情回顾 system（ENH-06）：把各章摘要归并为本卷主线回顾。
   String _volumeSummarySystem() {
@@ -1525,24 +1657,38 @@ class ContextBuilder {
   Future<String> _relatedText(
     int chapterId,
     String query,
-    List<Chapter> ordered,
-  ) async {
+    List<Chapter> ordered, {
+    List<List<String>> aliasGroups = const <List<String>>[],
+  }) async {
     final index = ordered.indexWhere((c) => c.id == chapterId);
     if (index <= 0) return '';
     final start = index > 60 ? index - 60 : 0;
+    // 保留空章占位以维持窗口内章节序号；当前章只放元数据（随后被 exclude 掉），
+    // 近邻加权据此知道「现在」是哪一章。
     final contents = <Chapter>[];
-    for (final meta in ordered.sublist(start, index)) {
-      if (meta.wordCount == 0) continue;
+    for (final meta in ordered.sublist(start, index + 1)) {
+      if (meta.id == chapterId) {
+        contents.add(meta);
+        continue;
+      }
+      if (meta.wordCount == 0) {
+        contents.add(meta);
+        continue;
+      }
       final full = await chapters.getChapter(meta.id);
-      if (full != null && full.content.trim().isNotEmpty) contents.add(full);
+      if (full != null) contents.add(full);
     }
-    if (contents.isEmpty) return '';
+    if (contents.length <= 1) return '';
     final hits = retrievePassages(
       chapters: contents,
       query: query,
       topK: 3,
       chunkChars: 280,
       maxPerChapter: 1,
+      excludeChapterId: chapterId,
+      nearbyChapterId: chapterId,
+      aliasGroups: aliasGroups,
+      chapterIndexOffset: start,
     );
     return formatRetrievedPassages(hits, header: '');
   }
@@ -1692,31 +1838,47 @@ class ContextBuilder {
           '${source(entry)}';
     }
 
-    final characters = entries
-        .where(
-          (e) =>
-              e.kind == StoryStateKind.character.value &&
-              e.title.trim().isNotEmpty,
-        )
-        .take(12);
-    final foreshadows = entries
-        .where(
-          (e) =>
-              e.kind == StoryStateKind.foreshadow.value &&
-              e.status == 'open' &&
-              e.title.trim().isNotEmpty,
-        )
-        .take(12);
-    final timelineAll = entries
-        .where(
-          (e) =>
-              e.kind == StoryStateKind.timeline.value &&
-              e.title.trim().isNotEmpty,
-        )
-        .toList();
-    final timeline = timelineAll.length > 8
-        ? timelineAll.sublist(timelineAll.length - 8)
-        : timelineAll;
+    int chapterRank(StoryState entry) {
+      final id = entry.chapterId;
+      if (id == null) return -1;
+      return ordered.indexWhere((c) => c.id == id);
+    }
+
+    // ENH-39：同标题只保留最新一条，并按更新时间从新到旧取。
+    // 旧实现按 sortOrder 升序取前 N 条，新提取的条目 sortOrder 更大，
+    // 状态卡一多，最新变化和刚埋下的伏笔反而被挤出上下文。
+    List<StoryState> latest(StoryStateKind kind) {
+      final seen = <String>{};
+      final pool =
+          entries
+              .where(
+                (e) =>
+                    e.kind == kind.value &&
+                    e.title.trim().isNotEmpty &&
+                    (kind != StoryStateKind.foreshadow || e.status == 'open'),
+              )
+              .toList()
+            ..sort((a, b) {
+              final byUpdated = b.updatedAt.compareTo(a.updatedAt);
+              if (byUpdated != 0) return byUpdated;
+              final byChapter = chapterRank(b).compareTo(chapterRank(a));
+              if (byChapter != 0) return byChapter;
+              return b.id.compareTo(a.id);
+            });
+      final result = <StoryState>[];
+      for (final entry in pool) {
+        if (seen.add(entry.title.trim().toLowerCase())) result.add(entry);
+      }
+      return result;
+    }
+
+    final characters = latest(
+      StoryStateKind.character,
+    ).take(maxCharacterStates);
+    final foreshadows = latest(
+      StoryStateKind.foreshadow,
+    ).take(maxOpenForeshadows);
+    final timeline = latest(StoryStateKind.timeline).take(maxTimelineStates);
 
     final buffer = StringBuffer();
     if (characters.isNotEmpty) {
@@ -1800,9 +1962,12 @@ String _catalogLine(Chapter c) =>
 
 /// 角色卡格式化（同时用于上下文与工具结果）。
 String formatCharacter(Character c) {
+  final aliases = decodeTags(c.aliases);
+  final tags = decodeTags(c.personalityTags);
   final parts = <String>[
     if (c.identity.isNotEmpty) '身份：${c.identity}',
-    if (c.personalityTags.isNotEmpty) '性格：${c.personalityTags}',
+    if (aliases.isNotEmpty) '别名：${aliases.join('、')}',
+    if (tags.isNotEmpty) '性格：${tags.join('、')}',
     if (c.appearance.isNotEmpty) '外貌：${c.appearance}',
     if (c.relations.isNotEmpty) '人际关系：${c.relations}',
     if (c.arc.isNotEmpty) '弧光：${c.arc}',

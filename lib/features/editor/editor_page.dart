@@ -9,6 +9,7 @@ import '../../app/reading_appearance.dart';
 import '../../app/summary_editor.dart';
 import '../../app/theme.dart';
 import '../../core/ai/sanitize_ai_text.dart';
+import '../../core/ai/structured_response.dart';
 import '../../core/formatting.dart';
 import '../../core/word_count.dart';
 import '../../data/data_providers.dart';
@@ -20,6 +21,7 @@ import '../ai/ai_notice.dart';
 import '../ai/ai_providers.dart';
 import '../work_detail/work_detail_providers.dart';
 import 'ai_confirm_panel.dart';
+import 'continuity_report_dialog.dart';
 import 'continuity_stream_dialog.dart';
 import 'editor_controller.dart';
 import 'find_replace_panel.dart';
@@ -73,6 +75,9 @@ class _EditorPageState extends ConsumerState<EditorPage> {
   int? _rewriteStart;
   int? _rewriteEnd;
   String _rewriteText = '';
+
+  /// 冲突生成的改写指令（ENH-38）：打开改写面板时预填。
+  String? _rewriteInstruction;
 
   /// 章纲扩写种子（ENH-05）：本章一句话梗概，作为 AI 扩写分场大纲的输入。
   String? _outlineSeed;
@@ -288,6 +293,7 @@ class _EditorPageState extends ConsumerState<EditorPage> {
               onInsert: _controller.insertAtCursor,
               onBeforeApply: _snapshotBeforeAiApply,
               rewriteText: _rewriteText,
+              rewriteInstruction: _rewriteInstruction,
               onReplace: _applyRewrite,
               outlineSeed: _outlineSeed,
               onSaveSummary: _saveSummary,
@@ -298,6 +304,7 @@ class _EditorPageState extends ConsumerState<EditorPage> {
                 _rewriteStart = null;
                 _rewriteEnd = null;
                 _rewriteText = '';
+                _rewriteInstruction = null;
                 _outlineSeed = null;
               }),
             ),
@@ -436,6 +443,7 @@ class _EditorPageState extends ConsumerState<EditorPage> {
 
   /// 打开 AI 待确认面板（PRD 5.5）：未配置可用模型组时先引导至设置页。
   Future<void> _openAi(AiPanelMode mode) async {
+    _rewriteInstruction = null;
     // 改写需在点击那一刻同步快照选区（任何 await 之前，否则 selection 会被改写）。
     if (mode == AiPanelMode.rewrite && !_snapshotRewriteSelection()) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -556,7 +564,8 @@ class _EditorPageState extends ConsumerState<EditorPage> {
     );
   }
 
-  /// 设定一致性检查（ENH-22 / ENH-23）：流式返回，对话框内可停止并保留部分结果。
+  /// 设定一致性检查（ENH-22 / ENH-23 / ENH-38）：流式返回，结束后按结构化冲突
+  /// 逐条展示；可定位原文、带着冲突信息生成修订，或重新检查。
   Future<void> _checkContinuity() async {
     if (_controller.textController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -574,121 +583,133 @@ class _EditorPageState extends ConsumerState<EditorPage> {
     if (!await ensureAiNotice(context, ref)) return;
     if (!mounted) return;
 
-    final result = await showDialog<ContinuityStreamResult>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => ContinuityStreamDialog(
-        stream: service.streamContinuity(
-          workId: widget.workId,
-          chapterId: widget.chapterId,
-        ),
-      ),
-    );
-    if (result == null || !mounted) return;
-
-    if (result.needsConfig) {
-      await _promptModelSetup();
-      return;
-    }
-    final failure = result.failure;
-    if (failure != null) {
-      await showDialog<void>(
+    while (mounted) {
+      final result = await showDialog<ContinuityStreamResult>(
         context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: Text(context.l10n.editorContinuityTitle),
-          content: SelectableText(
-            aiFailureText(
-              context.l10n,
-              kind: failure.kind,
-              message: failure.message,
-              statusCode: failure.statusCode,
-              code: failure.code,
-              detail: failure.detail,
-            ),
+        barrierDismissible: false,
+        builder: (dialogContext) => ContinuityStreamDialog(
+          stream: service.streamContinuity(
+            workId: widget.workId,
+            chapterId: widget.chapterId,
           ),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: Text(context.l10n.commonClose),
-            ),
-          ],
         ),
       );
-      return;
-    }
-    if (result.rawError != null) {
-      ScaffoldMessenger.of(
+      if (result == null || !mounted) return;
+
+      if (result.needsConfig) {
+        await _promptModelSetup();
+        return;
+      }
+      final failure = result.failure;
+      if (failure != null) {
+        await showDialog<void>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: Text(context.l10n.editorContinuityTitle),
+            content: SelectableText(
+              aiFailureText(
+                context.l10n,
+                kind: failure.kind,
+                message: failure.message,
+                statusCode: failure.statusCode,
+                code: failure.code,
+                detail: failure.detail,
+              ),
+            ),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: Text(context.l10n.commonClose),
+              ),
+            ],
+          ),
+        );
+        return;
+      }
+      if (result.rawError != null) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(result.rawError!)));
+        return;
+      }
+      if (result.text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              result.stopped
+                  ? context.l10n.editorContinuityStoppedEmpty
+                  : context.l10n.editorContinuityEmptyResult,
+            ),
+          ),
+        );
+        return;
+      }
+
+      final check = parseContinuityResponse(result.text);
+      final selection = await showContinuityReportDialog(
         context,
-      ).showSnackBar(SnackBar(content: Text(result.rawError!)));
-      return;
-    }
-    if (result.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            result.stopped
-                ? context.l10n.editorContinuityStoppedEmpty
-                : context.l10n.editorContinuityEmptyResult,
-          ),
-        ),
+        check: check,
+        rawText: result.text,
+        truncated: result.truncated,
+        stopped: result.stopped,
       );
-      return;
+      if (selection == null || !mounted) return;
+      final issue = selection.issue;
+      switch (selection.action) {
+        case ContinuityReportAction.recheck:
+          continue;
+        case ContinuityReportAction.locate:
+          if (issue != null) _locateContinuityIssue(issue);
+          return;
+        case ContinuityReportAction.revise:
+          if (issue != null) _startContinuityRevision(issue);
+          return;
+      }
     }
-    await _showContinuityReport(
-      text: result.text,
-      truncated: result.truncated,
-      stopped: result.stopped,
-    );
   }
 
-  Future<void> _showContinuityReport({
-    required String text,
-    required bool truncated,
-    bool stopped = false,
-  }) {
-    return showDialog<void>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(context.l10n.editorContinuityTitle),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                if (stopped) ...<Widget>[
-                  Text(
-                    context.l10n.editorContinuityStopped,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: context.paper.inkSoft,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                ],
-                if (truncated) ...<Widget>[
-                  Text(
-                    context.l10n.editorContinuityTruncated,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: context.paper.inkSoft,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                ],
-                SelectableText(text),
-              ],
-            ),
-          ),
-        ),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text(context.l10n.commonClose),
-          ),
-        ],
-      ),
+  /// 在正文中选中冲突原文（ENH-38）；找不到时提示作者可能已修改。
+  void _locateContinuityIssue(ContinuityIssue issue) {
+    final range = findContinuityQuote(
+      _controller.textController.text,
+      issue.quote,
     );
+    if (range == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.continuityQuoteNotFound)),
+      );
+      return;
+    }
+    _controller.revealRange(range.start, range.end);
+  }
+
+  /// 带着冲突信息打开改写面板（ENH-38）：只改冲突片段，指令预填。
+  void _startContinuityRevision(ContinuityIssue issue) {
+    final text = _controller.textController.text;
+    final range = findContinuityQuote(text, issue.quote);
+    if (range == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.continuityQuoteNotFound)),
+      );
+      return;
+    }
+    final l10n = context.l10n;
+    final facts = <String>[
+      if (issue.detail.isNotEmpty) l10n.continuityIssueDetail(issue.detail),
+      if (issue.source.isNotEmpty) l10n.continuityIssueSource(issue.source),
+      if (issue.suggestion.isNotEmpty)
+        l10n.continuityIssueSuggestion(issue.suggestion),
+    ].join('；');
+    _rewriteStart = range.start;
+    _rewriteEnd = range.end;
+    _rewriteText = text.substring(range.start, range.end);
+    _rewriteInstruction = l10n.continuityReviseInstruction(issue.quote, facts);
+    setState(() {
+      _findVisible = false;
+      _checkVisible = false;
+      _snapshotsVisible = false;
+      _aiMode = AiPanelMode.rewrite;
+    });
   }
 
   /// 同步快照当前选区（ENH-04）：返回是否选中了非空白文本。

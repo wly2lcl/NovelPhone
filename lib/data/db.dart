@@ -84,7 +84,7 @@ class ChapterSnapshots extends Table {
   DateTimeColumn get createdAt => dateTime()();
 }
 
-/// 角色卡。personalityTags 存 JSON 数组字符串。
+/// 角色卡。personalityTags / aliases 存 JSON 数组字符串。
 @TableIndex(name: 'characters_work_id', columns: {#workId})
 class Characters extends Table {
   IntColumn get id => integer().autoIncrement()();
@@ -93,6 +93,10 @@ class Characters extends Table {
   TextColumn get name => text().withLength(min: 1, max: 20)();
   TextColumn get identity => text().withDefault(const Constant(''))();
   TextColumn get personalityTags => text().withDefault(const Constant(''))();
+
+  /// 别名 / 称谓（ENH-40）：JSON 数组字符串，如 `["沈公子","小砚"]`。
+  /// 用于上下文角色匹配与本地检索的别名扩展。
+  TextColumn get aliases => text().withDefault(const Constant(''))();
   TextColumn get appearance => text().withDefault(const Constant(''))();
   TextColumn get relations => text().withDefault(const Constant(''))();
   TextColumn get arc => text().withDefault(const Constant(''))();
@@ -273,7 +277,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 14;
+  int get schemaVersion => 15;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -345,6 +349,10 @@ class AppDatabase extends _$AppDatabase {
       if (from < 14) {
         await m.createTable(storyStates);
         await m.createIndex(storyStatesWorkId);
+      }
+      // v15（ENH-40）：角色卡追加别名 / 称谓列。
+      if (from < 15) {
+        await m.addColumn(characters, characters.aliases);
       }
     },
     beforeOpen: (details) async {

@@ -165,9 +165,13 @@ class ContinuityReport {
     required this.completionTokens,
     required this.usageId,
     required this.truncated,
+    required this.result,
   });
 
   final String text;
+
+  /// 结构化冲突列表（ENH-38）；解析失败时 [ContinuityCheckResult.parseFailed]。
+  final ContinuityCheckResult result;
   final int promptTokens;
   final int completionTokens;
   final int usageId;
@@ -960,6 +964,7 @@ class AiService {
     }
     return ContinuityReport(
       text: collected.text,
+      result: parseContinuityResponse(collected.text),
       promptTokens: collected.promptTokens,
       completionTokens: collected.completionTokens,
       usageId: usageId,

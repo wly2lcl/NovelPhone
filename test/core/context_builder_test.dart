@@ -322,6 +322,7 @@ void main() {
         name: '沈砚',
         identity: '',
         personalityTags: '',
+        aliases: '',
         appearance: '',
         relations: '',
         arc: '',
@@ -332,12 +333,39 @@ void main() {
         name: '苏晚',
         identity: '',
         personalityTags: '',
+        aliases: '',
         appearance: '',
         relations: '',
         arc: '',
       ),
     ], '沈砚说。沈砚走了。苏晚点头。');
     expect(matched.map((c) => c.name).toList(), <String>['沈砚', '苏晚']);
+  });
+
+  test('角色卡按别名匹配，并向上下文注入别名（ENH-40）', () {
+    final character = Character(
+      id: 1,
+      workId: 1,
+      name: '沈砚',
+      identity: '游侠',
+      personalityTags: '["寡言","执拗"]',
+      aliases: '["沈公子","小砚"]',
+      appearance: '',
+      relations: '',
+      arc: '',
+    );
+
+    expect(matchCharacters(<Character>[character], '沈公子推门而入。'), hasLength(1));
+    expect(matchCharacters(<Character>[character], '无人出现。'), isEmpty);
+
+    final text = formatCharacter(character);
+    expect(text, contains('别名：沈公子、小砚'));
+    expect(text, contains('性格：寡言、执拗'));
+    expect(characterAliasGroups(<Character>[character]).single, <String>[
+      '沈砚',
+      '沈公子',
+      '小砚',
+    ]);
   });
 
   test('前文摘要优先使用 AI 缓存摘要（ENH-05）', () async {
@@ -1187,6 +1215,128 @@ void main() {
     );
     expect(chat.system, contains('【故事状态卡】'));
     expect(chat.system, contains('沈砚：左臂受伤'));
+  });
+
+  test('故事状态卡按更新时间保留最新条目并去重（ENH-39）', () async {
+    final workId = await seedWork();
+    final states = StoryStateRepository(db);
+    for (var i = 0; i < 14; i++) {
+      await states.createEntry(
+        workId: workId,
+        kind: StoryStateKind.character,
+        title: '角色$i',
+        detail: '状态$i',
+      );
+    }
+    // 同标题的较新条目应覆盖旧条目，而不是并列注入。
+    await states.createEntry(
+      workId: workId,
+      kind: StoryStateKind.character,
+      title: '角色0',
+      detail: '新状态',
+    );
+    final localBuilder = ContextBuilder(
+      works: works,
+      chapters: chapters,
+      characters: characters,
+      outline: outline,
+      settings: settings,
+      storyStates: states,
+    );
+    final third = await chapters.createChapter(workId: workId, title: '第三章');
+    await chapters.saveChapter(
+      chapterId: third,
+      title: '第三章',
+      content: '沈砚握紧了刀。',
+      cursorOffset: 0,
+      scrollOffset: 0,
+    );
+
+    final context = await localBuilder.buildContinue(
+      workId: workId,
+      chapterId: third,
+      contextWindow: 32000,
+    );
+    final section = context.sections.firstWhere((s) => s.label == '故事状态卡');
+    expect(section.content, contains('角色0：新状态'));
+    expect(section.content, isNot(contains('状态0')));
+    expect(section.content, contains('角色13'));
+    expect(section.content, isNot(contains('角色1：')));
+    expect(section.content, isNot(contains('角色2：')));
+  });
+
+  test('剧情推演与章纲扩写注入故事状态卡与前文资料（ENH-39）', () async {
+    final workId = await seedWork();
+    final states = StoryStateRepository(db);
+    await states.createEntry(
+      workId: workId,
+      kind: StoryStateKind.character,
+      title: '沈砚',
+      detail: '左臂受伤',
+    );
+    await states.createEntry(
+      workId: workId,
+      kind: StoryStateKind.foreshadow,
+      title: '铜印来历',
+    );
+    final closedId = await states.createEntry(
+      workId: workId,
+      kind: StoryStateKind.foreshadow,
+      title: '密信去向',
+    );
+    await states.setStatus(closedId, 'closed');
+    await characters.createCharacter(
+      workId: workId,
+      name: '沈砚',
+      identity: '游侠',
+    );
+    await settings.createEntry(
+      workId: workId,
+      type: SettingType.location,
+      name: '长夜城',
+      content: '北境边城。',
+    );
+    final localBuilder = ContextBuilder(
+      works: works,
+      chapters: chapters,
+      characters: characters,
+      outline: outline,
+      settings: settings,
+      storyStates: states,
+    );
+    final third = await chapters.createChapter(workId: workId, title: '第三章');
+    final chapterList = await chapters.listChapters(workId);
+
+    final plan = await localBuilder.buildPlotPlan(
+      workId: workId,
+      chapterList: chapterList,
+      contextWindow: 32000,
+    );
+    final planPrompt = plan.messages.single.content;
+    expect(planPrompt, contains('【故事状态卡】'));
+    expect(planPrompt, contains('铜印来历'));
+    expect(planPrompt, isNot(contains('密信去向')));
+    expect(plan.sections.map((s) => s.label), contains('故事状态卡'));
+
+    final expansion = await localBuilder.buildOutlineExpand(
+      workId: workId,
+      chapterId: third,
+      seed: '沈砚追查铜印',
+      contextWindow: 32000,
+    );
+    final expandPrompt = expansion.messages.single.content;
+    expect(expandPrompt, contains('【本章一句话梗概】'));
+    expect(expandPrompt, contains('【前文摘要】'));
+    expect(expandPrompt, contains('【相关角色卡】'));
+    expect(expandPrompt, contains('【设定集】'));
+    expect(expandPrompt, contains('【故事状态卡】'));
+    expect(expandPrompt, contains('铜印来历'));
+    expect(expandPrompt, contains('长夜城'));
+    expect(expandPrompt, isNot(contains('密信去向')));
+    expect(
+      expansion.sections.map((s) => s.label),
+      containsAll(<String>['本章梗概', '前文摘要', '相关角色卡', '设定集', '故事状态卡']),
+    );
   });
 
   test('续写与作品问答注入检索到的相关前文（ENH-32）', () async {

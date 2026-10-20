@@ -303,7 +303,10 @@ class BackupRepository {
       var characterCount = 0;
       final characterIdMap = <int, int>{};
       for (final raw in _asList(tables['characters'])) {
-        final character = Character.fromJson(raw);
+        // ENH-40：v15 之前导出的备份不含 aliases 键，补默认空串。
+        final json = Map<String, dynamic>.from(raw as Map);
+        json.putIfAbsent('aliases', () => '');
+        final character = Character.fromJson(json);
         final workId = workIdMap[character.workId];
         if (workId == null) continue;
         final newId = await _db
@@ -315,6 +318,7 @@ class BackupRepository {
                 id: overwrite ? Value(character.id) : const Value.absent(),
                 identity: Value(character.identity),
                 personalityTags: Value(character.personalityTags),
+                aliases: Value(character.aliases),
                 appearance: Value(character.appearance),
                 relations: Value(character.relations),
                 arc: Value(character.arc),

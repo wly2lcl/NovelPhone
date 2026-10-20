@@ -555,10 +555,11 @@ void main() {
         db,
       ).createCharacter(workId: workId, name: '苏晚', identity: '医女');
       String? requestBody;
+      const reportJson = '{"summary":"未发现设定冲突","issues":[]}';
       final service = serviceWith(
         MockClient((req) async {
           requestBody = req.body;
-          return sseResponse('未发现设定冲突');
+          return sseResponse(reportJson);
         }),
       );
 
@@ -568,7 +569,10 @@ void main() {
         chapterId: chapterId,
       );
 
-      expect(report.text, '未发现设定冲突');
+      expect(report.text, reportJson);
+      expect(report.result.summary, '未发现设定冲突');
+      expect(report.result.parseFailed, isFalse);
+      expect(report.result.issues, isEmpty);
       expect(report.promptTokens, 20);
       expect(report.completionTokens, 8);
       expect(report.usageId, greaterThan(0));
@@ -587,6 +591,35 @@ void main() {
       expect(recorded.rows.single.task, AiTask.continuity);
       expect(recorded.promptTokens, 20);
       expect(recorded.completionTokens, 8);
+    });
+
+    test('结构化冲突随报告返回（ENH-38）', () async {
+      await configureCheckModel();
+      final service = serviceWith(
+        MockClient(
+          (req) async => sseResponse(
+            '{"summary":"发现 1 处冲突","issues":[{'
+            '"quote":"苏晚今年十六岁",'
+            '"detail":"角色卡中苏晚二十四岁",'
+            '"source":"角色卡·苏晚",'
+            '"suggestion":"改为二十四岁",'
+            '"severity":"high"}]}',
+          ),
+        ),
+      );
+
+      final report = await service.checkContinuity(
+        workId: workId,
+        chapterId: chapterId,
+      );
+
+      expect(report.result.parseFailed, isFalse);
+      final issue = report.result.issues.single;
+      expect(issue.quote, '苏晚今年十六岁');
+      expect(issue.detail, '角色卡中苏晚二十四岁');
+      expect(issue.source, '角色卡·苏晚');
+      expect(issue.suggestion, '改为二十四岁');
+      expect(issue.severity, 'high');
     });
 
     test('服务端错误映射为 ContinuityException（保留状态码，不落统计）', () async {

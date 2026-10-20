@@ -2290,6 +2290,18 @@ class $CharactersTable extends Characters
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
+  static const VerificationMeta _aliasesMeta = const VerificationMeta(
+    'aliases',
+  );
+  @override
+  late final GeneratedColumn<String> aliases = GeneratedColumn<String>(
+    'aliases',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   static const VerificationMeta _appearanceMeta = const VerificationMeta(
     'appearance',
   );
@@ -2331,6 +2343,7 @@ class $CharactersTable extends Characters
     name,
     identity,
     personalityTags,
+    aliases,
     appearance,
     relations,
     arc,
@@ -2381,6 +2394,12 @@ class $CharactersTable extends Characters
         ),
       );
     }
+    if (data.containsKey('aliases')) {
+      context.handle(
+        _aliasesMeta,
+        aliases.isAcceptableOrUnknown(data['aliases']!, _aliasesMeta),
+      );
+    }
     if (data.containsKey('appearance')) {
       context.handle(
         _appearanceMeta,
@@ -2428,6 +2447,10 @@ class $CharactersTable extends Characters
         DriftSqlType.string,
         data['${effectivePrefix}personality_tags'],
       )!,
+      aliases: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}aliases'],
+      )!,
       appearance: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}appearance'],
@@ -2455,6 +2478,10 @@ class Character extends DataClass implements Insertable<Character> {
   final String name;
   final String identity;
   final String personalityTags;
+
+  /// 别名 / 称谓（ENH-40）：JSON 数组字符串，如 `["沈公子","小砚"]`。
+  /// 用于上下文角色匹配与本地检索的别名扩展。
+  final String aliases;
   final String appearance;
   final String relations;
   final String arc;
@@ -2464,6 +2491,7 @@ class Character extends DataClass implements Insertable<Character> {
     required this.name,
     required this.identity,
     required this.personalityTags,
+    required this.aliases,
     required this.appearance,
     required this.relations,
     required this.arc,
@@ -2476,6 +2504,7 @@ class Character extends DataClass implements Insertable<Character> {
     map['name'] = Variable<String>(name);
     map['identity'] = Variable<String>(identity);
     map['personality_tags'] = Variable<String>(personalityTags);
+    map['aliases'] = Variable<String>(aliases);
     map['appearance'] = Variable<String>(appearance);
     map['relations'] = Variable<String>(relations);
     map['arc'] = Variable<String>(arc);
@@ -2489,6 +2518,7 @@ class Character extends DataClass implements Insertable<Character> {
       name: Value(name),
       identity: Value(identity),
       personalityTags: Value(personalityTags),
+      aliases: Value(aliases),
       appearance: Value(appearance),
       relations: Value(relations),
       arc: Value(arc),
@@ -2506,6 +2536,7 @@ class Character extends DataClass implements Insertable<Character> {
       name: serializer.fromJson<String>(json['name']),
       identity: serializer.fromJson<String>(json['identity']),
       personalityTags: serializer.fromJson<String>(json['personalityTags']),
+      aliases: serializer.fromJson<String>(json['aliases']),
       appearance: serializer.fromJson<String>(json['appearance']),
       relations: serializer.fromJson<String>(json['relations']),
       arc: serializer.fromJson<String>(json['arc']),
@@ -2520,6 +2551,7 @@ class Character extends DataClass implements Insertable<Character> {
       'name': serializer.toJson<String>(name),
       'identity': serializer.toJson<String>(identity),
       'personalityTags': serializer.toJson<String>(personalityTags),
+      'aliases': serializer.toJson<String>(aliases),
       'appearance': serializer.toJson<String>(appearance),
       'relations': serializer.toJson<String>(relations),
       'arc': serializer.toJson<String>(arc),
@@ -2532,6 +2564,7 @@ class Character extends DataClass implements Insertable<Character> {
     String? name,
     String? identity,
     String? personalityTags,
+    String? aliases,
     String? appearance,
     String? relations,
     String? arc,
@@ -2541,6 +2574,7 @@ class Character extends DataClass implements Insertable<Character> {
     name: name ?? this.name,
     identity: identity ?? this.identity,
     personalityTags: personalityTags ?? this.personalityTags,
+    aliases: aliases ?? this.aliases,
     appearance: appearance ?? this.appearance,
     relations: relations ?? this.relations,
     arc: arc ?? this.arc,
@@ -2554,6 +2588,7 @@ class Character extends DataClass implements Insertable<Character> {
       personalityTags: data.personalityTags.present
           ? data.personalityTags.value
           : this.personalityTags,
+      aliases: data.aliases.present ? data.aliases.value : this.aliases,
       appearance: data.appearance.present
           ? data.appearance.value
           : this.appearance,
@@ -2570,6 +2605,7 @@ class Character extends DataClass implements Insertable<Character> {
           ..write('name: $name, ')
           ..write('identity: $identity, ')
           ..write('personalityTags: $personalityTags, ')
+          ..write('aliases: $aliases, ')
           ..write('appearance: $appearance, ')
           ..write('relations: $relations, ')
           ..write('arc: $arc')
@@ -2584,6 +2620,7 @@ class Character extends DataClass implements Insertable<Character> {
     name,
     identity,
     personalityTags,
+    aliases,
     appearance,
     relations,
     arc,
@@ -2597,6 +2634,7 @@ class Character extends DataClass implements Insertable<Character> {
           other.name == this.name &&
           other.identity == this.identity &&
           other.personalityTags == this.personalityTags &&
+          other.aliases == this.aliases &&
           other.appearance == this.appearance &&
           other.relations == this.relations &&
           other.arc == this.arc);
@@ -2608,6 +2646,7 @@ class CharactersCompanion extends UpdateCompanion<Character> {
   final Value<String> name;
   final Value<String> identity;
   final Value<String> personalityTags;
+  final Value<String> aliases;
   final Value<String> appearance;
   final Value<String> relations;
   final Value<String> arc;
@@ -2617,6 +2656,7 @@ class CharactersCompanion extends UpdateCompanion<Character> {
     this.name = const Value.absent(),
     this.identity = const Value.absent(),
     this.personalityTags = const Value.absent(),
+    this.aliases = const Value.absent(),
     this.appearance = const Value.absent(),
     this.relations = const Value.absent(),
     this.arc = const Value.absent(),
@@ -2627,6 +2667,7 @@ class CharactersCompanion extends UpdateCompanion<Character> {
     required String name,
     this.identity = const Value.absent(),
     this.personalityTags = const Value.absent(),
+    this.aliases = const Value.absent(),
     this.appearance = const Value.absent(),
     this.relations = const Value.absent(),
     this.arc = const Value.absent(),
@@ -2638,6 +2679,7 @@ class CharactersCompanion extends UpdateCompanion<Character> {
     Expression<String>? name,
     Expression<String>? identity,
     Expression<String>? personalityTags,
+    Expression<String>? aliases,
     Expression<String>? appearance,
     Expression<String>? relations,
     Expression<String>? arc,
@@ -2648,6 +2690,7 @@ class CharactersCompanion extends UpdateCompanion<Character> {
       if (name != null) 'name': name,
       if (identity != null) 'identity': identity,
       if (personalityTags != null) 'personality_tags': personalityTags,
+      if (aliases != null) 'aliases': aliases,
       if (appearance != null) 'appearance': appearance,
       if (relations != null) 'relations': relations,
       if (arc != null) 'arc': arc,
@@ -2660,6 +2703,7 @@ class CharactersCompanion extends UpdateCompanion<Character> {
     Value<String>? name,
     Value<String>? identity,
     Value<String>? personalityTags,
+    Value<String>? aliases,
     Value<String>? appearance,
     Value<String>? relations,
     Value<String>? arc,
@@ -2670,6 +2714,7 @@ class CharactersCompanion extends UpdateCompanion<Character> {
       name: name ?? this.name,
       identity: identity ?? this.identity,
       personalityTags: personalityTags ?? this.personalityTags,
+      aliases: aliases ?? this.aliases,
       appearance: appearance ?? this.appearance,
       relations: relations ?? this.relations,
       arc: arc ?? this.arc,
@@ -2694,6 +2739,9 @@ class CharactersCompanion extends UpdateCompanion<Character> {
     if (personalityTags.present) {
       map['personality_tags'] = Variable<String>(personalityTags.value);
     }
+    if (aliases.present) {
+      map['aliases'] = Variable<String>(aliases.value);
+    }
     if (appearance.present) {
       map['appearance'] = Variable<String>(appearance.value);
     }
@@ -2714,6 +2762,7 @@ class CharactersCompanion extends UpdateCompanion<Character> {
           ..write('name: $name, ')
           ..write('identity: $identity, ')
           ..write('personalityTags: $personalityTags, ')
+          ..write('aliases: $aliases, ')
           ..write('appearance: $appearance, ')
           ..write('relations: $relations, ')
           ..write('arc: $arc')
@@ -9537,6 +9586,7 @@ typedef $$CharactersTableCreateCompanionBuilder =
       required String name,
       Value<String> identity,
       Value<String> personalityTags,
+      Value<String> aliases,
       Value<String> appearance,
       Value<String> relations,
       Value<String> arc,
@@ -9548,6 +9598,7 @@ typedef $$CharactersTableUpdateCompanionBuilder =
       Value<String> name,
       Value<String> identity,
       Value<String> personalityTags,
+      Value<String> aliases,
       Value<String> appearance,
       Value<String> relations,
       Value<String> arc,
@@ -9637,6 +9688,11 @@ class $$CharactersTableFilterComposer
 
   ColumnFilters<String> get personalityTags => $composableBuilder(
     column: $table.personalityTags,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get aliases => $composableBuilder(
+    column: $table.aliases,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -9758,6 +9814,11 @@ class $$CharactersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get aliases => $composableBuilder(
+    column: $table.aliases,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get appearance => $composableBuilder(
     column: $table.appearance,
     builder: (column) => ColumnOrderings(column),
@@ -9819,6 +9880,9 @@ class $$CharactersTableAnnotationComposer
     column: $table.personalityTags,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get aliases =>
+      $composableBuilder(column: $table.aliases, builder: (column) => column);
 
   GeneratedColumn<String> get appearance => $composableBuilder(
     column: $table.appearance,
@@ -9944,6 +10008,7 @@ class $$CharactersTableTableManager
                 Value<String> name = const Value.absent(),
                 Value<String> identity = const Value.absent(),
                 Value<String> personalityTags = const Value.absent(),
+                Value<String> aliases = const Value.absent(),
                 Value<String> appearance = const Value.absent(),
                 Value<String> relations = const Value.absent(),
                 Value<String> arc = const Value.absent(),
@@ -9953,6 +10018,7 @@ class $$CharactersTableTableManager
                 name: name,
                 identity: identity,
                 personalityTags: personalityTags,
+                aliases: aliases,
                 appearance: appearance,
                 relations: relations,
                 arc: arc,
@@ -9964,6 +10030,7 @@ class $$CharactersTableTableManager
                 required String name,
                 Value<String> identity = const Value.absent(),
                 Value<String> personalityTags = const Value.absent(),
+                Value<String> aliases = const Value.absent(),
                 Value<String> appearance = const Value.absent(),
                 Value<String> relations = const Value.absent(),
                 Value<String> arc = const Value.absent(),
@@ -9973,6 +10040,7 @@ class $$CharactersTableTableManager
                 name: name,
                 identity: identity,
                 personalityTags: personalityTags,
+                aliases: aliases,
                 appearance: appearance,
                 relations: relations,
                 arc: arc,

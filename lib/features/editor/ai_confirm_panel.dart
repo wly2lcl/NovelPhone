@@ -50,6 +50,7 @@ class AiConfirmPanel extends ConsumerStatefulWidget {
     required this.onClose,
     this.onBeforeApply,
     this.rewriteText,
+    this.rewriteInstruction,
     this.onReplace,
     this.outlineSeed,
     this.onSaveSummary,
@@ -69,6 +70,10 @@ class AiConfirmPanel extends ConsumerStatefulWidget {
 
   /// 改写模式（ENH-04）：待改写原文与「替换原文」回调（走编辑器撤销栈）。
   final String? rewriteText;
+
+  /// 改写指令预填（ENH-38）：由一致性冲突生成。
+  final String? rewriteInstruction;
+
   final void Function(String text)? onReplace;
 
   /// 章纲扩写（ENH-05）：作者的一句话梗概种子。
@@ -173,6 +178,7 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
   @override
   void initState() {
     super.initState();
+    _instruction = widget.rewriteInstruction ?? '';
     _aiService = ref.read(aiServiceProvider);
     WidgetsBinding.instance.addPostFrameCallback((_) => _start());
   }

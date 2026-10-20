@@ -339,6 +339,96 @@ void main() {
 
   // ---------- ENH-06：AI 章节工具菜单 / 查看编辑本章摘要 ----------
 
+  testWidgets('一致性检查：结构化冲突可定位原文并进入改写（ENH-38）', (tester) async {
+    const quote = '苏晚今年十六岁';
+    await seed('$quote，站在门口。', confirmAiNotice: true);
+    final settings = SettingsRepository(db, InMemoryKeyStore());
+    final groupId = await settings.createModelGroup(
+      name: '检查模型',
+      provider: 'openai_compat',
+      baseUrl: 'https://api.example.com/v1',
+      models: <String>['m1'],
+      apiKey: 'sk-test',
+    );
+    await settings.setTaskModel(AiTask.continuity, groupId);
+
+    final service = AiService(
+      settings: settings,
+      works: works,
+      chapters: chapters,
+      characters: CharacterRepository(db),
+      outline: OutlineRepository(db),
+      stats: TokenStatsRepository(db),
+      httpClient: MockClient((request) async {
+        final payload = jsonEncode(<String, dynamic>{
+          'choices': <dynamic>[
+            <String, dynamic>{
+              'delta': <String, dynamic>{
+                'content':
+                    '{"summary":"发现 1 处冲突","issues":[{'
+                    '"quote":"$quote","detail":"角色卡中苏晚二十四岁",'
+                    '"source":"角色卡·苏晚","suggestion":"改为二十四岁",'
+                    '"severity":"high"}]}',
+              },
+              'finish_reason': 'stop',
+            },
+          ],
+          'usage': <String, dynamic>{
+            'prompt_tokens': 30,
+            'completion_tokens': 12,
+          },
+        });
+        return http.Response.bytes(
+          utf8.encode('data: $payload\n\ndata: [DONE]\n\n'),
+          200,
+          headers: <String, String>{'content-type': 'text/event-stream'},
+        );
+      }),
+    );
+
+    await tester.pumpWidget(wrap(service: service));
+    await settle(tester, find.byType(TextField));
+
+    Future<void> openReport() async {
+      await tester.tap(find.byTooltip('AI 章节工具'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.tap(find.text('设定一致性检查'));
+      await pumpReal(
+        tester,
+        until: () => find.text('定位原文').evaluate().isNotEmpty,
+      );
+    }
+
+    await openReport();
+    expect(find.text('共 1 处冲突'), findsOneWidget);
+    expect(find.text('「$quote」'), findsOneWidget);
+    expect(find.textContaining('角色卡·苏晚'), findsWidgets);
+
+    await tester.tap(find.text('定位原文'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+    final field = tester.widget<TextField>(find.byType(TextField).first);
+    final controller = field.controller!;
+    final selection = controller.selection;
+    expect(
+      controller.text.substring(selection.start, selection.end),
+      quote,
+      reason: '定位后应选中冲突原文',
+    );
+
+    await openReport();
+    await tester.tap(find.text('生成修订'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+
+    expect(find.text('AI 改写'), findsWidgets);
+    expect(find.textContaining('请修正选中片段'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await closePage(tester);
+  });
+
   testWidgets('AI 章节工具菜单五项可见，可查看/编辑本章摘要', (tester) async {
     await seed('她不禁笑了。');
     await tester.pumpWidget(wrap());

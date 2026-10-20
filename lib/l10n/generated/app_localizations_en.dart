@@ -3011,6 +3011,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get charactersIdentityLabel => 'Identity';
 
   @override
+  String get charactersAliasesLabel =>
+      'Aliases / titles (up to 8, separated by spaces or commas)';
+
+  @override
   String get charactersTagsLabel =>
       'Personality tags (up to 10, separated by spaces or commas)';
 
@@ -3558,6 +3562,67 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get continuityScanCopied => 'Copied to clipboard';
+
+  @override
+  String get continuityScanParseFailed =>
+      'Could not parse the result - tap to view raw output';
+
+  @override
+  String get continuityScanOpenChapter => 'Open chapter';
+
+  @override
+  String get continuityNoIssues => 'No setting conflicts found';
+
+  @override
+  String continuityIssueCount(int count) {
+    return '$count conflict(s) found';
+  }
+
+  @override
+  String get continuitySeverityHigh => 'High';
+
+  @override
+  String get continuitySeverityMedium => 'Medium';
+
+  @override
+  String get continuitySeverityLow => 'Low';
+
+  @override
+  String continuityIssueDetail(String detail) {
+    return 'Conflict: $detail';
+  }
+
+  @override
+  String continuityIssueSource(String source) {
+    return 'Source: $source';
+  }
+
+  @override
+  String continuityIssueSuggestion(String suggestion) {
+    return 'Suggested fix: $suggestion';
+  }
+
+  @override
+  String get continuityIssueLocate => 'Locate quote';
+
+  @override
+  String get continuityIssueRevise => 'Draft fix';
+
+  @override
+  String get continuityIssueRecheck => 'Re-check';
+
+  @override
+  String get continuityIssueParseFallback =>
+      'The model did not return a structured result. Raw output is shown below; re-check or switch to a more reliable model.';
+
+  @override
+  String get continuityQuoteNotFound =>
+      'This quote is no longer in the chapter text; it may have been edited.';
+
+  @override
+  String continuityReviseInstruction(String quote, String facts) {
+    return 'Fix the setting conflict in the selected passage and keep it seamless with the context. Quoted conflict: $quote. $facts';
+  }
 
   @override
   String get aiTaskStyle => 'AI style extraction';

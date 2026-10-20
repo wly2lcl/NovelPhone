@@ -15,7 +15,7 @@
 | M3 AI 核心能力 | AI 客户端、Agent Core、上下文组装、续写灵感、设置 | 已完成（含真机验收 M3-21/22） | 22 / 22 |
 | M4 AI 感检查与打磨 | 规则引擎、LLM 深检、检查面板、异常流、主题细节、合规资料 | 已完成（含真机全流程回归 M4-14 与验收 M4-15） | 16 / 16 |
 
-当前迭代：M1-M4 全部完成，MVP 范围收口（78 / 78）；MVP 后增强 ENH-01~37 全部完成（最近一轮 ENH-33~37，2026-10-20）。阻塞项：无。
+当前迭代：M1-M4 全部完成，MVP 范围收口（78 / 78）；MVP 后增强 ENH-01~40 全部完成（最近一轮 ENH-38~40，2026-10-20）。阻塞项：无。
 
 M1 自动化验证记录（2026-09-30）：`flutter analyze` 无问题；`flutter test` 39 个用例全部通过（数据层 15 + 字数统计 7 + 编辑器控制器 14 + 作品列表页 3）。M1-22 的冷启动耗时、10 万字输入流畅度、杀进程恢复三项需在真机上人工验收。
 
@@ -554,6 +554,29 @@ AI 上下文与协作增强（2026-10-20）——ENH-33 **长篇检索覆盖** +
   - ④ adb 验收：近 30 天 `Rec-B` 9 次调用 / 采纳率 33% / 原样采纳率 100%，当前 `Rec-A` 采纳率 0%，任务映射页出现推荐卡片；点击「切换到「Rec-B」」提示成功、映射更新且推荐卡片消失；whole-run `logcat` 无 Flutter 异常 / FATAL。
 
 - 环境处理：本轮 adb 验收全部使用假模型组与占位 Key `test-key`，仅指向本机假服务（`adb reverse tcp:8899 tcp:8899`）；真实 API Key 始终只存在于设备安全存储，未写入仓库、提交、文档或日志。无 schema 变更（仍为 v14）；`dart format` / `flutter analyze` 无问题，`flutter test` 531 用例全绿（较 ENH-31/32 的 517 增加 14）。
+
+AI 上下文与协作增强（2026-10-20）——ENH-38 **一致性检查结构化与修订闭环** + ENH-39 **状态卡注入修正与计划类任务接入** + ENH-40 **检索质量与角色别名**：
+
+- [x] ENH-38（P1）一致性检查结构化、定位与修订闭环：
+  - ① 结构化解析：`lib/core/ai/structured_response.dart` 新增 `ContinuityIssue`（quote / detail / source / suggestion / severity）与 `ContinuityCheckResult`（summary / issues / rawText / parseFailed）；`parseContinuityResponse` 兼容 `{"summary":…,"issues":[…]}`、裸数组、单条问题对象与中英文键名，去重后最多 20 条，无法识别时保留原文并标记 `parseFailed`；`findContinuityQuote` 先精确匹配，失败时忽略空白差异并容忍模型给原文加引号，返回正文中的起止偏移。
+  - ② 编辑器交互：新增 `lib/features/editor/continuity_report_dialog.dart`，冲突按严重度（严重 / 中等 / 轻微）卡片展示引用原文、冲突说明、来源卡片与修改建议；「定位原文」关闭弹窗并在编辑器中选中高亮命中片段；「生成修订」把选中片段与冲突说明填入 AI 改写指令走既有修订流程；「重新检查」重新调用一致性任务并刷新报告；模型未返回结构化结果时回退展示原文并提示「模型没有返回结构化结果」。
+  - ③ 全书体检：`continuity_scan_page` 逐章结果改为结构化冲突卡（#序号 · 严重度、引用、冲突、来源、建议），并保留「打开本章」入口。
+  - ④ 假服务与测试：`tool/fake_llm_server.dart` 新增 `/openai-continuity-issues`（两条带原文 / 来源 / 建议 / 严重度的冲突）；ARB 新增 16 键（zh / en 各 1006）；新增 9 个用例（解析：标准结构、裸数组与单条对象、中英文键名与去重、非 JSON 回退、原文定位含空白与引号；界面：卡片渲染与定位 / 修订 / 重新检查动作）。
+  - ⑤ adb 验收（2026-10-20，API 36.1 arm64 模拟器 1080×1920，release APK + `adb reverse`，ENH34-Continuity 模型组指向 `/openai-continuity-issues`，占位 Key `test-key`）：第一章一致性检查弹出「发现 2 处与角色卡、故事状态冲突的地方」，两张卡片分别显示「严重 / #1」与「中等 / #2」及完整来源与建议；「定位原文」回到正文并选中高亮「沈砚没有出声」；「生成修订」打开 AI 改写面板，指令已带入冲突原文、说明与来源；「重新检查」重新请求假服务并刷新报告（`/stats` 显示 `openai-continuity-issues: 3`、`openai-enh27: 1`）；全书体检完成 2 / 2 章，逐章展开结构化卡片并可打开本章；先用 `/openai-continuity` 验证了非结构化输出的原文回退提示。whole-run `logcat` 无 Flutter 异常 / FATAL（仅模拟器 EGL 警告）。
+
+- [x] ENH-39（P2）故事状态卡注入顺序 / 去重与计划类任务接入：
+  - ① 注入修正：`_storyStateText` 不再按 `sortOrder` 升序截断，而是同标题（忽略大小写）只保留最新一条，并按 `updatedAt` → 章节位置 → id 从新到旧排序后取角色状态 / 未回收伏笔 / 时间线上限；已回收伏笔仍不注入；新增状态或刚埋下的伏笔不再因卡片增多被挤出上下文。
+  - ② 计划类任务：`buildOutlineExpand` 与剧情推演的上下文同样注入「故事状态卡」段落，章节计划需参考角色当下状态与未回收伏笔；保持一致的空值跳过与超预算丢弃顺序。
+  - ③ 测试：`context_builder_test` 新增「状态卡同标题去重并优先注入最新条目（ENH-39）」与「章纲扩写 / 剧情推演注入状态卡」用例。
+
+- [x] ENH-40（P1）本地检索质量与角色别名：
+  - ① 数据与备份：`CHARACTER` 新增 `aliases` 列（JSON 数组字符串，最多 8 个），Drift schema v14 → v15（`if (from < 15) m.addColumn`）；角色卡表单新增「别名 / 称谓」输入，保存时 `parseTagInput` / `encodeTags` 归一化；备份导入导出携带别名，v15 之前的旧备份缺少该键时补空串，避免恢复失败。
+  - ② 检索算法：`retrievePassages` 改为两阶段候选收集 —— 先按字符 bigram 计算文档频率与 IDF（`log(1 + N / (1 + df))`）加权重合度，常见词不再压过专名；查询命中角色别名组（名字 + 别名 / 称谓，忽略少于 2 字的别名）时扩展查询词并加分；新增 `nearbyChapterId` 邻章加权（距离 1 章 ×1.25、2 章 ×1.1、4 章内 ×1.04）与 `chapterIndexOffset` 保持窗口检索的绝对章节号。
+  - ③ 上下文接入：续写 / 改写 / 作品问答把 `characterAliasGroups` 传入检索，`formatCharacter` 输出「别名：…」并参与角色匹配（名字权重 2、别名权重 1）；别名同样进入 AI 上下文，模型可用称谓识别角色。
+  - ④ 测试与本地化：ARB 新增 1 键（zh / en 各 1007）；`retrieval_test` 新增 4 个用例（IDF 压低常见词、别名扩展命中、邻章优先、章节号偏移）；`context_builder_test` 新增别名匹配与输出用例；备份恢复新增「旧备份缺少别名列按空串恢复」；迁移测试升级为 v8 → v15 并校验别名列补建。`dart format` / `flutter analyze` 无问题，`flutter test` 548 用例全绿（较 ENH-33~37 的 531 增加 17）。
+  - ⑤ adb 验收（同一 release APK 由 v14 数据库直接升级）：既有作品与章节完整保留；角色卡编辑页出现「别名 / 称谓」输入，填入 `Shen` 与 `ShenGongzi XiaoYan` 保存后退出重进仍为 `ShenGongzi XiaoYan`；续写 / 改写上下文与检索路径由上述单元用例覆盖（别名命中「沈公子 / 小砚」）；whole-run `logcat` 无 Flutter 异常 / FATAL。
+
+- 环境处理：ENH-38~40 的 adb 验收全部使用假模型组与占位 Key `test-key`，仅指向本机假服务（`adb reverse tcp:8899 tcp:8899`）；真实 API Key 始终只存在于设备安全存储，未写入仓库、提交、文档或日志。schema 由 v14 升至 v15（`CHARACTER.aliases`）。
 
 ---
 

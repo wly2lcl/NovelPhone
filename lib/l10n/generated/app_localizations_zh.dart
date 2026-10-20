@@ -2662,6 +2662,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get charactersIdentityLabel => '身份';
 
   @override
+  String get charactersAliasesLabel => '别名 / 称谓（最多 8 个，空格或逗号分隔）';
+
+  @override
   String get charactersTagsLabel => '性格标签（最多 10 个，空格或逗号分隔）';
 
   @override
@@ -3151,6 +3154,65 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get continuityScanCopied => '已复制到剪贴板';
+
+  @override
+  String get continuityScanParseFailed => '结果无法结构化解析，点击查看原文';
+
+  @override
+  String get continuityScanOpenChapter => '打开本章';
+
+  @override
+  String get continuityNoIssues => '未发现设定冲突';
+
+  @override
+  String continuityIssueCount(int count) {
+    return '共 $count 处冲突';
+  }
+
+  @override
+  String get continuitySeverityHigh => '严重';
+
+  @override
+  String get continuitySeverityMedium => '中等';
+
+  @override
+  String get continuitySeverityLow => '轻微';
+
+  @override
+  String continuityIssueDetail(String detail) {
+    return '冲突：$detail';
+  }
+
+  @override
+  String continuityIssueSource(String source) {
+    return '来源：$source';
+  }
+
+  @override
+  String continuityIssueSuggestion(String suggestion) {
+    return '建议：$suggestion';
+  }
+
+  @override
+  String get continuityIssueLocate => '定位原文';
+
+  @override
+  String get continuityIssueRevise => '生成修订';
+
+  @override
+  String get continuityIssueRecheck => '重新检查';
+
+  @override
+  String get continuityIssueParseFallback =>
+      '模型没有返回结构化结果，以下为原始输出；可重新检查或换用更稳定的模型。';
+
+  @override
+  String get continuityQuoteNotFound => '正文中找不到这条冲突原文，可能已被修改。';
+
+  @override
+  String continuityReviseInstruction(String quote, String facts) {
+    return '请修正选中片段与设定的冲突，保持上下文衔接。冲突原文：$quote。$facts';
+  }
 
   @override
   String get aiTaskStyle => 'AI 文风提取';

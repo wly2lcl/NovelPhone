@@ -1793,6 +1793,7 @@
   "charactersIdentityEmpty": "身份未填写",
   "charactersNameLabel": "姓名（必填，1-20 字）",
   "charactersIdentityLabel": "身份",
+  "charactersAliasesLabel": "别名 / 称谓（最多 8 个，空格或逗号分隔）",
   "charactersTagsLabel": "性格标签（最多 10 个，空格或逗号分隔）",
   "charactersAppearanceLabel": "外貌特征",
   "charactersRelationsLabel": "人际关系",
@@ -2100,6 +2101,60 @@
   },
   "continuityScanCopyAll": "复制全部结果",
   "continuityScanCopied": "已复制到剪贴板",
+  "continuityScanParseFailed": "结果无法结构化解析，点击查看原文",
+  "continuityScanOpenChapter": "打开本章",
+  "continuityNoIssues": "未发现设定冲突",
+  "continuityIssueCount": "共 {count} 处冲突",
+  "@continuityIssueCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "continuitySeverityHigh": "严重",
+  "continuitySeverityMedium": "中等",
+  "continuitySeverityLow": "轻微",
+  "continuityIssueDetail": "冲突：{detail}",
+  "@continuityIssueDetail": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "continuityIssueSource": "来源：{source}",
+  "@continuityIssueSource": {
+    "placeholders": {
+      "source": {
+        "type": "String"
+      }
+    }
+  },
+  "continuityIssueSuggestion": "建议：{suggestion}",
+  "@continuityIssueSuggestion": {
+    "placeholders": {
+      "suggestion": {
+        "type": "String"
+      }
+    }
+  },
+  "continuityIssueLocate": "定位原文",
+  "continuityIssueRevise": "生成修订",
+  "continuityIssueRecheck": "重新检查",
+  "continuityIssueParseFallback": "模型没有返回结构化结果，以下为原始输出；可重新检查或换用更稳定的模型。",
+  "continuityQuoteNotFound": "正文中找不到这条冲突原文，可能已被修改。",
+  "continuityReviseInstruction": "请修正选中片段与设定的冲突，保持上下文衔接。冲突原文：{quote}。{facts}",
+  "@continuityReviseInstruction": {
+    "placeholders": {
+      "quote": {
+        "type": "String"
+      },
+      "facts": {
+        "type": "String"
+      }
+    }
+  },
   "aiTaskStyle": "AI 文风提取",
   "aiTaskExtract": "AI 设定补全",
   "aiTaskPlan": "AI 剧情推演",

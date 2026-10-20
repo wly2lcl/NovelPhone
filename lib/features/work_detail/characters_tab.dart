@@ -197,6 +197,7 @@ class _CharacterFormSheet extends ConsumerStatefulWidget {
 class _CharacterFormSheetState extends ConsumerState<_CharacterFormSheet> {
   late final TextEditingController _name;
   late final TextEditingController _identity;
+  late final TextEditingController _aliases;
   late final TextEditingController _tags;
   late final TextEditingController _appearance;
   late final TextEditingController _relations;
@@ -213,6 +214,9 @@ class _CharacterFormSheetState extends ConsumerState<_CharacterFormSheet> {
     final c = widget.character;
     _name = TextEditingController(text: c?.name ?? '');
     _identity = TextEditingController(text: c?.identity ?? '');
+    _aliases = TextEditingController(
+      text: c == null ? '' : decodeTags(c.aliases).join(' '),
+    );
     _tags = TextEditingController(
       text: c == null ? '' : decodeTags(c.personalityTags).join(' '),
     );
@@ -225,6 +229,7 @@ class _CharacterFormSheetState extends ConsumerState<_CharacterFormSheet> {
   void dispose() {
     _name.dispose();
     _identity.dispose();
+    _aliases.dispose();
     _tags.dispose();
     _appearance.dispose();
     _relations.dispose();
@@ -262,6 +267,13 @@ class _CharacterFormSheetState extends ConsumerState<_CharacterFormSheet> {
                 controller: _identity,
                 decoration: InputDecoration(
                   labelText: context.l10n.charactersIdentityLabel,
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _aliases,
+                decoration: InputDecoration(
+                  labelText: context.l10n.charactersAliasesLabel,
                 ),
               ),
               const SizedBox(height: 12),
@@ -346,6 +358,7 @@ class _CharacterFormSheetState extends ConsumerState<_CharacterFormSheet> {
     setState(() => _saving = true);
     final repository = ref.read(characterRepositoryProvider);
     final encodedTags = encodeTags(tags);
+    final encodedAliases = encodeTags(parseTagInput(_aliases.text, max: 8));
     final identity = _identity.text.trim();
     final appearance = _appearance.text.trim();
     final relations = _relations.text.trim();
@@ -357,6 +370,7 @@ class _CharacterFormSheetState extends ConsumerState<_CharacterFormSheet> {
           name: name,
           identity: identity,
           personalityTags: encodedTags,
+          aliases: encodedAliases,
           appearance: appearance,
           relations: relations,
           arc: arc,
@@ -367,6 +381,7 @@ class _CharacterFormSheetState extends ConsumerState<_CharacterFormSheet> {
           name: name,
           identity: identity,
           personalityTags: encodedTags,
+          aliases: encodedAliases,
           appearance: appearance,
           relations: relations,
           arc: arc,

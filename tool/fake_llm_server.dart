@@ -13,7 +13,10 @@
 //   /openai-extract      返回角色 / 设定抽取 JSON（验证 ENH-23 设定补全）
 //   /openai-plan         返回剧情走向与分章建议 JSON（验证 ENH-23 剧情推演）
 //   /openai-states       返回本章状态变化 JSON（验证 ENH-35 状态卡提取）
-//   /openai-continuity   检查请求是否携带故事状态卡并回显（验证 ENH-34）
+//   /openai-continuity   检查请求是否携带故事状态卡并回显（验证 ENH-34）；
+//                        返回结构化「未发现冲突」（验证 ENH-38）
+//   /openai-continuity-issues  返回两条带原文、来源与建议的结构化冲突
+//                        （验证 ENH-38 定位原文 / 生成修订 / 全书体检）
 //   /openai-strategies   按 system 中的候选侧重返回不同段落
 //                        （验证 ENH-36 多候选策略与跨候选组合）
 //   /openai-enh27        多段落续写；带修订要求的请求返回不同草稿
@@ -46,6 +49,7 @@ Future<void> main(List<String> args) async {
   stdout.writeln(
     '场景基址：http://127.0.0.1:$port/openai、/openai-style、/openai-extract、'
     '/openai-plan、/openai-states、/openai-continuity、/openai-strategies、'
+    '/openai-continuity-issues、'
     '/openai-tool、/openai-empty-first、/openai-429-first、/openai-429-always、'
     '/openai-500、/openai-filter、/openai-enh27、/openai-enh29-revise-fail、'
     '/anthropic、/anthropic-429',
@@ -135,6 +139,11 @@ class FakeLlmServer {
         );
       case 'openai-continuity':
         return _openaiContinuity(request);
+      case 'openai-continuity-issues':
+        return _openaiStream(
+          request.response,
+          pieces: <String>[_continuityIssuesJson],
+        );
       case 'openai-strategies':
         return _openaiStrategies(request);
       case 'openai-enh27':
@@ -212,14 +221,14 @@ class FakeLlmServer {
     await response.close();
   }
 
-  /// ENH-34 验收：检查请求是否携带故事状态卡，并把结果回显到检查报告。
+  /// ENH-34 / ENH-38 验收：检查请求是否携带故事状态卡，并返回结构化结论。
   Future<void> _openaiContinuity(HttpRequest request) async {
     final raw = await utf8.decoder.bind(request).join();
     final hasStates = raw.contains('故事状态卡') && raw.contains('故事状态·');
-    return _openaiStream(
-      request.response,
-      pieces: <String>[hasStates ? '未发现设定冲突（已读取故事状态卡）。' : '未发现设定冲突（缺少故事状态卡）。'],
-    );
+    final reply = hasStates
+        ? '{"summary":"未发现设定冲突（已读取故事状态卡）","issues":[]}'
+        : '{"summary":"未发现设定冲突（缺少故事状态卡）","issues":[]}';
+    return _openaiStream(request.response, pieces: <String>[reply]);
   }
 
   /// ENH-36 验收：按 system 中的「本候选侧重」返回不同段落，便于跨候选组合。
@@ -539,6 +548,17 @@ class FakeLlmServer {
       '{"kind":"foreshadow","title":"铜印来历","detail":"铜印上的纹样与灭门案有关","status":"open"},'
       '{"kind":"foreshadow","title":"密信去向","status":"closed"},'
       '{"kind":"timeline","title":"雨夜入城","detail":"子时从西门进城，遇见守夜人"}]}';
+
+  static const String _continuityIssuesJson =
+      '{"summary":"发现 2 处与角色卡、故事状态冲突的地方",'
+      '"issues":['
+      '{"quote":"沈砚没有出声","detail":"故事状态卡记录沈砚左臂中箭，'
+      '此处动作未体现伤势",'
+      '"source":"故事状态·沈砚","suggestion":"改为「沈砚没有出声，受伤的左臂垂在身侧」",'
+      '"severity":"high"},'
+      '{"quote":"屋里没有点灯","detail":"故事状态卡记录铜印仍在沈砚怀中，本章尚未呼应",'
+      '"source":"故事状态·铜印","suggestion":"补写铜印仍在怀中，或补写丢失经过",'
+      '"severity":"medium"}]}';
 
   static const Map<String, dynamic> _rateLimitBody = <String, dynamic>{
     'error': <String, dynamic>{

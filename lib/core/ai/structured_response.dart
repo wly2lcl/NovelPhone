@@ -371,6 +371,259 @@ String _storyStateStatus(String raw) {
   return 'open';
 }
 
+/// 一条设定一致性冲突（ENH-38）。
+class ContinuityIssue {
+  const ContinuityIssue({
+    required this.quote,
+    this.detail = '',
+    this.source = '',
+    this.suggestion = '',
+    this.severity = 'medium',
+  });
+
+  /// 本章正文中的冲突原文，用于在编辑器里定位。
+  final String quote;
+
+  /// 与哪条设定冲突。
+  final String detail;
+
+  /// 来源卡片：角色卡 / 设定集 / 故事状态 / 章纲。
+  final String source;
+
+  /// 建议改法。
+  final String suggestion;
+
+  /// high / medium / low。
+  final String severity;
+
+  String get key =>
+      '${quote.trim().toLowerCase()}|${source.trim().toLowerCase()}';
+}
+
+/// 一致性检查结构化结果（ENH-38）。
+class ContinuityCheckResult {
+  const ContinuityCheckResult({
+    this.summary = '',
+    this.issues = const <ContinuityIssue>[],
+    this.rawText = '',
+    this.parseFailed = false,
+  });
+
+  final String summary;
+  final List<ContinuityIssue> issues;
+
+  /// 模型输出不是可解析 JSON 时的原文，供界面回退展示。
+  final String rawText;
+
+  /// 无法从输出中识别出 summary / issues。
+  final bool parseFailed;
+
+  bool get clean => !parseFailed && issues.isEmpty;
+}
+
+/// 解析一致性检查 JSON（ENH-38）。
+/// 兼容 `{"summary":...,"issues":[...]}`、裸数组、单条问题对象与中英文键名；
+/// 无法识别时保留原文并标记 [ContinuityCheckResult.parseFailed]。
+ContinuityCheckResult parseContinuityResponse(String raw) {
+  final text = raw.trim();
+  final decoded = extractJson(text);
+  if (decoded is! Map && decoded is! List) {
+    return ContinuityCheckResult(rawText: text, parseFailed: true);
+  }
+  if (decoded is List && decoded.isEmpty) {
+    return const ContinuityCheckResult();
+  }
+  var recognized = false;
+  var summary = '';
+  final issues = <ContinuityIssue>[];
+  final seen = <String>{};
+
+  for (final root in _rootMaps(decoded)) {
+    final rootSummary = readJsonString(root, const [
+      'summary',
+      '结论',
+      '总结',
+      '说明',
+      'overview',
+      'result',
+    ]);
+    if (rootSummary.isNotEmpty) {
+      if (summary.isEmpty) summary = rootSummary;
+      recognized = true;
+    }
+
+    List<dynamic> items = const <dynamic>[];
+    for (final key in const <String>[
+      'issues',
+      'conflicts',
+      'problems',
+      '问题',
+      '冲突',
+      '冲突列表',
+      '一致性冲突',
+      'continuityIssues',
+    ]) {
+      final value = root[key];
+      if (value is List) {
+        items = value;
+        recognized = true;
+        break;
+      }
+    }
+    if (items.isEmpty && _looksLikeIssue(root)) {
+      items = <dynamic>[root];
+    }
+
+    for (final item in items) {
+      if (item is! Map) continue;
+      final issue = _continuityIssue(item);
+      if (issue == null || !seen.add(issue.key)) continue;
+      issues.add(issue);
+      if (issues.length >= 20) break;
+    }
+    if (issues.length >= 20) break;
+  }
+
+  if (!recognized && issues.isEmpty) {
+    return ContinuityCheckResult(rawText: text, parseFailed: true);
+  }
+  return ContinuityCheckResult(summary: summary, issues: issues);
+}
+
+bool _looksLikeIssue(Map<dynamic, dynamic> map) {
+  const keys = <String>[
+    'quote',
+    'original',
+    '原文',
+    '冲突原文',
+    '引用',
+    'suggestion',
+    '建议',
+  ];
+  return keys.any(map.containsKey);
+}
+
+ContinuityIssue? _continuityIssue(Map<dynamic, dynamic> item) {
+  final quote = readJsonString(item, const [
+    'quote',
+    'original',
+    'text',
+    '原文',
+    '冲突原文',
+    '引用',
+    '选段',
+    '句子',
+  ]);
+  final detail = readJsonText(item, const [
+    'detail',
+    'conflict',
+    'setting',
+    'reason',
+    'description',
+    '说明',
+    '冲突',
+    '冲突的设定',
+    '设定',
+    '原因',
+  ]);
+  final source = readJsonString(item, const [
+    'source',
+    'card',
+    'origin',
+    '来源',
+    '卡片',
+    '来源卡片',
+    '设定来源',
+  ]);
+  final suggestion = readJsonText(item, const [
+    'suggestion',
+    'fix',
+    'advice',
+    '建议',
+    '建议改法',
+    '改法',
+    '修改建议',
+  ]);
+  if (quote.isEmpty && detail.isEmpty && suggestion.isEmpty) return null;
+  return ContinuityIssue(
+    quote: quote,
+    detail: detail,
+    source: source,
+    suggestion: suggestion,
+    severity: _continuitySeverity(
+      readJsonString(item, const ['severity', 'level', '严重程度', '级别']),
+    ),
+  );
+}
+
+String _continuitySeverity(String raw) {
+  final value = raw.toLowerCase();
+  if (value.contains('high') ||
+      value.contains('crit') ||
+      value.contains('error') ||
+      value.contains('严重') ||
+      value.contains('高')) {
+    return 'high';
+  }
+  if (value.contains('low') ||
+      value.contains('minor') ||
+      value.contains('info') ||
+      value.contains('轻微') ||
+      value.contains('低') ||
+      value.contains('提示')) {
+    return 'low';
+  }
+  return 'medium';
+}
+
+/// 在正文中定位冲突原文（ENH-38）。
+/// 先精确匹配；找不到时忽略空白差异，并容忍模型给原文加的引号。
+({int start, int end})? findContinuityQuote(String content, String quote) {
+  final cleaned = _trimQuoteMarks(quote.trim());
+  if (cleaned.isEmpty || content.isEmpty) return null;
+  final direct = content.indexOf(cleaned);
+  if (direct >= 0) {
+    return (start: direct, end: direct + cleaned.length);
+  }
+
+  final compactQuote = cleaned.replaceAll(RegExp(r'\s+'), '');
+  if (compactQuote.isEmpty) return null;
+  final positions = <int>[];
+  final compact = StringBuffer();
+  for (var i = 0; i < content.length; i++) {
+    final char = content[i];
+    if (RegExp(r'\s').hasMatch(char)) continue;
+    compact.write(char);
+    positions.add(i);
+  }
+  final index = compact.toString().indexOf(compactQuote);
+  if (index < 0) return null;
+  return (
+    start: positions[index],
+    end: positions[index + compactQuote.length - 1] + 1,
+  );
+}
+
+String _trimQuoteMarks(String value) {
+  const marks = <String>['「', '」', '『', '』', '“', '”', '"', "'", '‘', '’'];
+  var result = value;
+  var changed = true;
+  while (changed && result.isNotEmpty) {
+    changed = false;
+    for (final mark in marks) {
+      if (result.startsWith(mark)) {
+        result = result.substring(mark.length);
+        changed = true;
+      }
+      if (result.endsWith(mark)) {
+        result = result.substring(0, result.length - mark.length);
+        changed = true;
+      }
+    }
+  }
+  return result.trim();
+}
+
 /// 一条剧情走向（ENH-23 剧情推演）。
 class PlotDirection {
   const PlotDirection({

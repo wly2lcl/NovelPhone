@@ -928,6 +928,7 @@
   "charactersIdentityEmpty": "Identity not set",
   "charactersNameLabel": "Name (required, 1-20 characters)",
   "charactersIdentityLabel": "Identity",
+  "charactersAliasesLabel": "Aliases / titles (up to 8, separated by spaces or commas)",
   "charactersTagsLabel": "Personality tags (up to 10, separated by spaces or commas)",
   "charactersAppearanceLabel": "Appearance",
   "charactersRelationsLabel": "Relationships",
@@ -1108,6 +1109,60 @@
   "continuityScanFailedLine": "Check failed: {message}",
   "continuityScanCopyAll": "Copy all results",
   "continuityScanCopied": "Copied to clipboard",
+  "continuityScanParseFailed": "Could not parse the result - tap to view raw output",
+  "continuityScanOpenChapter": "Open chapter",
+  "continuityNoIssues": "No setting conflicts found",
+  "continuityIssueCount": "{count} conflict(s) found",
+  "@continuityIssueCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "continuitySeverityHigh": "High",
+  "continuitySeverityMedium": "Medium",
+  "continuitySeverityLow": "Low",
+  "continuityIssueDetail": "Conflict: {detail}",
+  "@continuityIssueDetail": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "continuityIssueSource": "Source: {source}",
+  "@continuityIssueSource": {
+    "placeholders": {
+      "source": {
+        "type": "String"
+      }
+    }
+  },
+  "continuityIssueSuggestion": "Suggested fix: {suggestion}",
+  "@continuityIssueSuggestion": {
+    "placeholders": {
+      "suggestion": {
+        "type": "String"
+      }
+    }
+  },
+  "continuityIssueLocate": "Locate quote",
+  "continuityIssueRevise": "Draft fix",
+  "continuityIssueRecheck": "Re-check",
+  "continuityIssueParseFallback": "The model did not return a structured result. Raw output is shown below; re-check or switch to a more reliable model.",
+  "continuityQuoteNotFound": "This quote is no longer in the chapter text; it may have been edited.",
+  "continuityReviseInstruction": "Fix the setting conflict in the selected passage and keep it seamless with the context. Quoted conflict: {quote}. {facts}",
+  "@continuityReviseInstruction": {
+    "placeholders": {
+      "quote": {
+        "type": "String"
+      },
+      "facts": {
+        "type": "String"
+      }
+    }
+  },
   "aiTaskStyle": "AI style extraction",
   "aiTaskExtract": "AI setting completion",
   "aiTaskPlan": "AI plot planning",

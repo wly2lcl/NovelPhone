@@ -81,6 +81,62 @@ void main() {
     expect(hits.first.chapterId, 7);
   });
 
+  test('IDF 压低高频词，稀有名词片段优先（ENH-40）', () {
+    final common = List<Chapter>.generate(
+      20,
+      (i) => _chapter(100 + i, '集市$i', '集市'),
+    );
+    final rare = _chapter(200, '铜印', '铜印');
+    final hits = retrievePassages(
+      chapters: <Chapter>[...common, rare],
+      query: '铜印集市',
+      topK: 1,
+    );
+    expect(hits.single.chapterId, 200);
+  });
+
+  test('查询提到别名时，同组本名片段也能召回（ENH-40）', () {
+    final chapter = _chapter(10, '夜行', '沈砚推门而入，雨水湿了衣袖。');
+    expect(
+      retrievePassages(chapters: <Chapter>[chapter], query: '小砚'),
+      isEmpty,
+    );
+    final hits = retrievePassages(
+      chapters: <Chapter>[chapter],
+      query: '小砚',
+      aliasGroups: <List<String>>[
+        <String>['沈砚', '小砚'],
+      ],
+    );
+    expect(hits, isNotEmpty);
+    expect(hits.first.chapterId, 10);
+  });
+
+  test('靠近当前章的片段小幅提权（ENH-40）', () {
+    final chapters = <Chapter>[
+      _chapter(11, '一', '铜印藏在梁上。'),
+      _chapter(12, '二', '铜印藏在梁上。'),
+      _chapter(13, '三', '铜印藏在梁上。'),
+    ];
+    final hits = retrievePassages(
+      chapters: chapters,
+      query: '铜印',
+      topK: 2,
+      excludeChapterId: 13,
+      nearbyChapterId: 13,
+    );
+    expect(hits.map((hit) => hit.chapterId).toList(), <int>[12, 11]);
+  });
+
+  test('窗口检索保留绝对章节序号（ENH-40）', () {
+    final hits = retrievePassages(
+      chapters: <Chapter>[_chapter(11, '一', '铜印藏在梁上。')],
+      query: '铜印',
+      chapterIndexOffset: 60,
+    );
+    expect(hits.single.chapterIndex, 61);
+  });
+
   test('格式化输出包含章节序号、标题与片段正文', () {
     final text = formatRetrievedPassages(<RetrievedPassage>[
       const RetrievedPassage(

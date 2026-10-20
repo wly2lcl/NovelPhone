@@ -210,4 +210,100 @@ void main() {
       expect(plan.parseFailed, isFalse);
     });
   });
+
+  group('parseContinuityResponse', () {
+    test('解析结构化冲突并按原文与来源去重', () {
+      final check = parseContinuityResponse('''
+```json
+{
+  "summary": "发现 2 处冲突",
+  "issues": [
+    {
+      "quote": "苏晚今年十六岁",
+      "detail": "角色卡中苏晚二十四岁",
+      "source": "角色卡·苏晚",
+      "suggestion": "改为二十四岁",
+      "severity": "严重"
+    },
+    {
+      "quote": "苏晚今年十六岁",
+      "detail": "重复条目",
+      "source": "角色卡·苏晚"
+    },
+    {
+      "quote": "铜印不见了",
+      "detail": "状态卡记录铜印在怀中",
+      "source": "故事状态·沈砚",
+      "suggestion": "补写丢失经过",
+      "severity": "low"
+    }
+  ]
+}
+```
+''');
+
+      expect(check.parseFailed, isFalse);
+      expect(check.clean, isFalse);
+      expect(check.summary, '发现 2 处冲突');
+      expect(check.issues, hasLength(2));
+      expect(check.issues.first.severity, 'high');
+      expect(check.issues.first.source, '角色卡·苏晚');
+      expect(check.issues.last.severity, 'low');
+    });
+
+    test('模型输出裸数组与中文键名也能解析', () {
+      final check = parseContinuityResponse(
+        '[{"原文":"她把伞收起来","说明":"设定集记录当夜无雨",'
+        '"来源":"设定集·天气","建议":"删去雨伞","严重程度":"中等"}]',
+      );
+
+      expect(check.parseFailed, isFalse);
+      expect(check.issues.single.quote, '她把伞收起来');
+      expect(check.issues.single.detail, contains('无雨'));
+      expect(check.issues.single.severity, 'medium');
+    });
+
+    test('没有冲突时结构化为 clean', () {
+      final check = parseContinuityResponse(
+        '{"summary":"未发现设定冲突","issues":[]}',
+      );
+
+      expect(check.parseFailed, isFalse);
+      expect(check.clean, isTrue);
+      expect(check.issues, isEmpty);
+    });
+
+    test('非 JSON 或无法识别字段时回退原文', () {
+      final plain = parseContinuityResponse('未发现设定冲突');
+      expect(plain.parseFailed, isTrue);
+      expect(plain.rawText, '未发现设定冲突');
+
+      final unknown = parseContinuityResponse('{"foo":"bar"}');
+      expect(unknown.parseFailed, isTrue);
+      expect(unknown.rawText, contains('foo'));
+    });
+  });
+
+  group('findContinuityQuote', () {
+    test('精确定位冲突原文', () {
+      const content = '雪夜里，沈砚推门而入。\n他把铜印揣进怀里。';
+      final range = findContinuityQuote(content, '他把铜印揣进怀里');
+
+      expect(range, isNotNull);
+      expect(content.substring(range!.start, range.end), '他把铜印揣进怀里');
+    });
+
+    test('忽略空白差异与多余引号', () {
+      const content = '苏晚今年\n二十四岁，仍住在城南。';
+      final range = findContinuityQuote(content, '「苏晚今年二十四岁」');
+
+      expect(range, isNotNull);
+      expect(content.substring(range!.start, range.end), '苏晚今年\n二十四岁');
+    });
+
+    test('找不到时返回 null', () {
+      expect(findContinuityQuote('沈砚推门而入。', '苏晚笑了'), isNull);
+      expect(findContinuityQuote('沈砚推门而入。', '   '), isNull);
+    });
+  });
 }

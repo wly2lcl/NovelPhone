@@ -4849,6 +4849,12 @@ abstract class AppLocalizations {
   /// **'身份'**
   String get charactersIdentityLabel;
 
+  /// No description provided for @charactersAliasesLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'别名 / 称谓（最多 8 个，空格或逗号分隔）'**
+  String get charactersAliasesLabel;
+
   /// No description provided for @charactersTagsLabel.
   ///
   /// In zh, this message translates to:
@@ -5742,6 +5748,102 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'已复制到剪贴板'**
   String get continuityScanCopied;
+
+  /// No description provided for @continuityScanParseFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'结果无法结构化解析，点击查看原文'**
+  String get continuityScanParseFailed;
+
+  /// No description provided for @continuityScanOpenChapter.
+  ///
+  /// In zh, this message translates to:
+  /// **'打开本章'**
+  String get continuityScanOpenChapter;
+
+  /// No description provided for @continuityNoIssues.
+  ///
+  /// In zh, this message translates to:
+  /// **'未发现设定冲突'**
+  String get continuityNoIssues;
+
+  /// No description provided for @continuityIssueCount.
+  ///
+  /// In zh, this message translates to:
+  /// **'共 {count} 处冲突'**
+  String continuityIssueCount(int count);
+
+  /// No description provided for @continuitySeverityHigh.
+  ///
+  /// In zh, this message translates to:
+  /// **'严重'**
+  String get continuitySeverityHigh;
+
+  /// No description provided for @continuitySeverityMedium.
+  ///
+  /// In zh, this message translates to:
+  /// **'中等'**
+  String get continuitySeverityMedium;
+
+  /// No description provided for @continuitySeverityLow.
+  ///
+  /// In zh, this message translates to:
+  /// **'轻微'**
+  String get continuitySeverityLow;
+
+  /// No description provided for @continuityIssueDetail.
+  ///
+  /// In zh, this message translates to:
+  /// **'冲突：{detail}'**
+  String continuityIssueDetail(String detail);
+
+  /// No description provided for @continuityIssueSource.
+  ///
+  /// In zh, this message translates to:
+  /// **'来源：{source}'**
+  String continuityIssueSource(String source);
+
+  /// No description provided for @continuityIssueSuggestion.
+  ///
+  /// In zh, this message translates to:
+  /// **'建议：{suggestion}'**
+  String continuityIssueSuggestion(String suggestion);
+
+  /// No description provided for @continuityIssueLocate.
+  ///
+  /// In zh, this message translates to:
+  /// **'定位原文'**
+  String get continuityIssueLocate;
+
+  /// No description provided for @continuityIssueRevise.
+  ///
+  /// In zh, this message translates to:
+  /// **'生成修订'**
+  String get continuityIssueRevise;
+
+  /// No description provided for @continuityIssueRecheck.
+  ///
+  /// In zh, this message translates to:
+  /// **'重新检查'**
+  String get continuityIssueRecheck;
+
+  /// No description provided for @continuityIssueParseFallback.
+  ///
+  /// In zh, this message translates to:
+  /// **'模型没有返回结构化结果，以下为原始输出；可重新检查或换用更稳定的模型。'**
+  String get continuityIssueParseFallback;
+
+  /// No description provided for @continuityQuoteNotFound.
+  ///
+  /// In zh, this message translates to:
+  /// **'正文中找不到这条冲突原文，可能已被修改。'**
+  String get continuityQuoteNotFound;
+
+  /// No description provided for @continuityReviseInstruction.
+  ///
+  /// In zh, this message translates to:
+  /// **'请修正选中片段与设定的冲突，保持上下文衔接。冲突原文：{quote}。{facts}'**
+  String continuityReviseInstruction(String quote, String facts);
 
   /// No description provided for @aiTaskStyle.
   ///
