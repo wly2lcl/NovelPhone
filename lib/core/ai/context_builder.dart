@@ -16,6 +16,17 @@ import 'chapter_intent.dart';
 import 'continuity_suppression.dart';
 import 'retrieval.dart';
 
+/// 必发主材料（如改写选区、续写草稿）已超出模型预算：继续发送只会得到
+/// 被服务端拒绝或截断的请求，因此提前给出可操作的错误。
+class ContextBudgetException implements Exception {
+  const ContextBudgetException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
 /// 组装后的一段上下文，供待确认面板"上下文详情"展开查看
 /// （ARCHITECTURE 5.3：作者能看见 AI 看到了什么，是产品信任的一部分）。
 class ContextSection {
@@ -338,10 +349,7 @@ class ContextBuilder {
         .join('\n');
     if (summaries.isNotEmpty) buffer.writeln('已有章纲：\n$summaries');
 
-    final characterList = allCharacters
-        .take(8)
-        .map((c) => '- ${c.name}${c.identity.isEmpty ? '' : '（${c.identity}）'}')
-        .join('\n');
+    final characterList = allCharacters.take(8).map(formatCharacter).join('\n');
     if (characterList.isNotEmpty) buffer.writeln('主要角色：\n$characterList');
 
     return _assemble(
@@ -1197,7 +1205,7 @@ class ContextBuilder {
         .join('\n');
     final charactersText = allCharacters
         .take(24)
-        .map((c) => '- ${c.name}${c.identity.isEmpty ? '' : '（${c.identity}）'}')
+        .map(formatCharacter)
         .join('\n');
     // ENH-53：推演面向整部作品，注入全部已建档关系边（去重后限 12 条），
     // 让新走向沿用既有阵营与亲疏，而不是临时编造人物关系。
@@ -1647,7 +1655,9 @@ class ContextBuilder {
           estimateTokens(relatedBlock) +
           estimateTokens(intentBlock) +
           estimateTokens(charactersText) +
-          estimateTokens(relationBlock);
+          estimateTokens(relationBlock) +
+          // 主材料是必发内容，先占预算，尾部只能使用剩余空间。
+          estimateTokens(payload);
       final room = budget - others;
       if (room <= 0) {
         // 其余内容已占满预算，尾部完全放不下：整段丢弃并提示截断。
@@ -1657,6 +1667,15 @@ class ContextBuilder {
         tailText = '（前文略）${tailText.substring(tailText.length - room)}';
         truncated = true;
       }
+    }
+    // 主材料不可裁剪；连它都放不进预算时明确失败，而不是静默发出超限请求。
+    final mandatory =
+        estimateTokens(system) + estimateTokens(task) + estimateTokens(payload);
+    if (payload.isNotEmpty && mandatory > budget) {
+      throw ContextBudgetException(
+        '所选内容约 $mandatory tokens，超出当前模型可用的 $budget tokens，'
+        '请缩短选区或改用上下文更大的模型组',
+      );
     }
 
     final sections = <ContextSection>[

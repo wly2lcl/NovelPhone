@@ -75,6 +75,52 @@ void main() {
     return workId;
   }
 
+  test('核心表缺失或类型错误时拒绝恢复且保留本地数据', () async {
+    final workId = await seedWork();
+    final data = await backup.exportData();
+    final tables = data['tables'] as Map<String, dynamic>;
+
+    tables.remove('chapters');
+    expect(
+      () => backup.restore(data, overwrite: true),
+      throwsA(
+        isA<BackupException>().having(
+          (e) => e.kind,
+          'kind',
+          BackupErrorKind.incomplete,
+        ),
+      ),
+    );
+    expect(await works.getWork(workId), isNotNull);
+    expect(await chapters.watchChapters(workId).first, hasLength(1));
+
+    tables['chapters'] = '不是数组';
+    expect(
+      () => backup.restore(data, overwrite: true),
+      throwsA(isA<BackupException>()),
+    );
+    expect(await works.getWork(workId), isNotNull);
+    expect(await chapters.watchChapters(workId).first, hasLength(1));
+  });
+
+  test('恢复保留作品与章节的回收站状态（ENH-22）', () async {
+    final workId = await seedWork();
+    final chapter = (await chapters.watchChapters(workId).first).single;
+    await chapters.moveChapterToTrash(chapter.id);
+    final data = await backup.exportData();
+
+    await backup.restore(data, overwrite: true);
+
+    final restoredChapter = await (db.select(
+      db.chapters,
+    )..where((t) => t.id.equals(chapter.id))).getSingle();
+    expect(restoredChapter.deletedAt, isNotNull);
+    expect(await chapters.watchChapters(workId).first, isEmpty);
+    final restoredWork = await works.getWork(workId);
+    expect(restoredWork!.wordCount, 0);
+    expect(restoredWork.chapterCount, 0);
+  });
+
   test('导出包含全部业务表且带格式标识', () async {
     await seedWork();
 

@@ -38,6 +38,29 @@ Tool _echoTool({
 }
 
 void main() {
+  test('多来源重名工具追加序号，且各自路由到原实现', () async {
+    Tool named(String name, String result) => Tool(
+      name: name,
+      description: name,
+      inputSchema: const <String, dynamic>{'type': 'object'},
+      execute: (_) async => result,
+    );
+
+    final tools = dedupeToolNames(<Tool>[
+      named('mcp_search', 'A'),
+      named('mcp_search', 'B'),
+      named('mcp_search', 'C'),
+    ]);
+
+    expect(tools.map((tool) => tool.name), <String>[
+      'mcp_search',
+      'mcp_search_2',
+      'mcp_search_3',
+    ]);
+    expect(await tools[1].execute(<String, dynamic>{}), 'B');
+    expect(await tools[2].execute(<String, dynamic>{}), 'C');
+  });
+
   const request = ChatRequest(
     model: 'test-model',
     messages: <ChatMessage>[ChatMessage('user', '给点灵感')],

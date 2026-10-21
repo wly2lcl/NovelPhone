@@ -8,6 +8,7 @@ import '../../data/data_providers.dart';
 import '../../l10n/l10n.dart';
 import '../../models/character_tags.dart';
 import '../../models/setting_type.dart';
+import '../ai/ai_notice.dart';
 import '../ai/ai_providers.dart';
 import '../ai/ai_service.dart';
 
@@ -122,6 +123,9 @@ class _EntityExtractionPageState extends ConsumerState<EntityExtractionPage> {
       );
       return;
     }
+    if (!mounted) return;
+    if (!await ensureAiNotice(context, ref)) return;
+    if (!mounted) return;
     setState(() {
       _running = true;
       _error = null;

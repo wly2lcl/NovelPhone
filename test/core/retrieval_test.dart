@@ -62,6 +62,19 @@ void main() {
     expect(hits.length, lessThanOrEqualTo(2));
   });
 
+  test('每章上限只限制最终命中，不会提前截掉靠后的相关块', () {
+    final lateHit = _chapter(7, '长章', '${'甲' * 640}\n\n铜印藏在梁上。');
+
+    final hits = retrievePassages(
+      chapters: <Chapter>[lateHit],
+      query: '铜印',
+      maxPerChapter: 2,
+    );
+
+    expect(hits, isNotEmpty);
+    expect(hits.first.text, contains('铜印'));
+  });
+
   test('扫描预算按章均分，长篇靠后章节仍可命中（ENH-33）', () {
     final filler = _chapter(
       6,

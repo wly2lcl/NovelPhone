@@ -76,7 +76,8 @@ class AiConfirmPanel extends ConsumerStatefulWidget {
   /// 改写指令预填（ENH-38）：由一致性冲突生成。
   final String? rewriteInstruction;
 
-  final void Function(String text)? onReplace;
+  /// 返回是否真正替换成功；失败时面板保持打开且不记录采纳。
+  final bool Function(String text)? onReplace;
 
   /// 章纲扩写（ENH-05）：作者的一句话梗概种子。
   final String? outlineSeed;
@@ -489,9 +490,22 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
     if (_pending > 0) _pending--;
     if (_pending == 0 && mounted) {
       _stopElapsed();
-      // 修订失败且尚未产出新文本：旧候选仍有效，清除待替换标记。
+      _restoreRevisionUsage();
       _revisionPreviousUsage = null;
       setState(() => _streaming = false);
+    }
+  }
+
+  /// 修订在首个新文本前结束（失败 / 停止）：旧结果仍在，恢复其用量关联，
+  /// 否则旧结果之后采纳或忽略都无法记到正确的 usageId 上。
+  void _restoreRevisionUsage() {
+    final index = _revisionIndex;
+    final previous = _revisionPreviousUsage;
+    if (index != null &&
+        previous != null &&
+        !_revisionTextStarted &&
+        _usageIds[index] == null) {
+      _usageIds[index] = previous;
     }
   }
 
@@ -502,6 +516,7 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
     }
     _subs = const <StreamSubscription<AiEvent>>[];
     _stopElapsed();
+    _restoreRevisionUsage();
     _revisionPreviousUsage = null;
     if (!mounted) return;
     setState(() {
@@ -767,7 +782,7 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
     }
     await _snapshotBeforeApply();
     if (_mode == AiPanelMode.rewrite) {
-      widget.onReplace?.call(text);
+      if (!(widget.onReplace?.call(text) ?? false)) return;
     } else {
       widget.onInsert(text);
     }
@@ -823,7 +838,7 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
     final replace = widget.onReplace;
     if (replace == null) return;
     await _snapshotBeforeApply();
-    replace(text);
+    if (!replace(text)) return;
     await _markAdoption(
       text.length,
       adoptedText: text,

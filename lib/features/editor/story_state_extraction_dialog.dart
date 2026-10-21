@@ -168,18 +168,20 @@ class _StoryStateExtractionDialogState
     final resolved = <String, Character>{};
     for (final change in changes) {
       for (final name in <String>[change.from, change.to]) {
-        final match = byName[name.trim().toLowerCase()];
-        if (match != null) resolved[name] = match;
+        final key = name.trim().toLowerCase();
+        final match = byName[key];
+        if (match != null) resolved[key] = match;
       }
     }
     return resolved;
   }
 
+  Character? _resolve(String name) => _resolvedNames[name.trim().toLowerCase()];
+
   /// 判定一条关系变化落到关系图上的动作。
   _RelationMode _relationModeOf(RelationChangeSuggestion change) {
-    final resolved = _resolvedNames;
-    final from = resolved[change.from];
-    final to = resolved[change.to];
+    final from = _resolve(change.from);
+    final to = _resolve(change.to);
     if (from == null || to == null || from.id == to.id) {
       return _RelationMode.unresolvable;
     }
@@ -201,24 +203,32 @@ class _StoryStateExtractionDialogState
     };
   }
 
-  /// 找已有人边（关系为有向，但对照时双向都算同一条）。
-  CharacterRelation? _findEdge(int a, int b) {
+  /// 找已有有向边：关系图是有向的，反向边不能当作同一条。
+  CharacterRelation? _findEdge(int from, int to) {
     for (final relation in _existingRelations) {
-      final from = relation.fromCharacterId;
-      final to = relation.toCharacterId;
-      if ((from == a && to == b) || (from == b && to == a)) return relation;
+      if (relation.fromCharacterId == from && relation.toCharacterId == to) {
+        return relation;
+      }
     }
     return null;
   }
 
-  Future<void> _applyRelations() async {
+  /// 应用关系变化，返回实际新增 / 更新 / 删除的条数。
+  /// 名称与别名解析后可能落到同一对角色，按有向 pair 去重，避免重复写库。
+  Future<(int, int, int)> _applyRelations() async {
     final repository = ref.read(characterRepositoryProvider);
+    final applied = <String>{};
+    var added = 0;
+    var updated = 0;
+    var removed = 0;
     for (final index in _selectedRelations.toList()..sort()) {
       if (index >= _relationChanges.length) continue;
       final change = _relationChanges[index];
-      final from = _resolvedNames[change.from];
-      final to = _resolvedNames[change.to];
+      final from = _resolve(change.from);
+      final to = _resolve(change.to);
       if (from == null || to == null) continue;
+      final pair = '${from.id}>${to.id}';
+      if (!applied.add(pair)) continue;
       final edge = _findEdge(from.id, to.id);
       switch (_relationModeOf(change)) {
         case _RelationMode.create:
@@ -228,6 +238,7 @@ class _StoryStateExtractionDialogState
             toCharacterId: to.id,
             label: change.label.trim(),
           );
+          added++;
         case _RelationMode.update:
           if (edge == null) break;
           // 保持原方向，仅更新称谓。
@@ -237,13 +248,16 @@ class _StoryStateExtractionDialogState
             toCharacterId: edge.toCharacterId,
             label: change.label.trim(),
           );
+          updated++;
         case _RelationMode.remove:
           if (edge == null) break;
           await repository.deleteRelation(edge.id);
+          removed++;
         case _RelationMode.unchanged || _RelationMode.unresolvable:
           break;
       }
     }
+    return (added, updated, removed);
   }
 
   Future<void> _apply() async {
@@ -292,20 +306,10 @@ class _StoryStateExtractionDialogState
     var relationsUpdated = 0;
     var relationsRemoved = 0;
     if (_selectedRelations.isNotEmpty) {
-      for (final index in _selectedRelations) {
-        if (index >= _relationChanges.length) continue;
-        switch (_relationModeOf(_relationChanges[index])) {
-          case _RelationMode.create:
-            relationsAdded++;
-          case _RelationMode.update:
-            relationsUpdated++;
-          case _RelationMode.remove:
-            relationsRemoved++;
-          case _RelationMode.unchanged || _RelationMode.unresolvable:
-            break;
-        }
-      }
-      await _applyRelations();
+      final counts = await _applyRelations();
+      relationsAdded = counts.$1;
+      relationsUpdated = counts.$2;
+      relationsRemoved = counts.$3;
     }
     if (!mounted) return;
     final messenger = ScaffoldMessenger.of(context);

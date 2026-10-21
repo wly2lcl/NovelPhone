@@ -268,12 +268,8 @@ class RelationChangeSuggestion {
   /// 归一化后的动作：add（新增）/ update（修改称谓）/ remove（解除）。
   final String action;
 
-  /// 与既有关系对照的键：无向配对 + 称谓（关系图为有向边，但变化识别按两端人物判断）。
-  String get key {
-    final a = from.trim().toLowerCase();
-    final b = to.trim().toLowerCase();
-    return a.compareTo(b) <= 0 ? '$a|$b' : '$b|$a';
-  }
+  /// 去重键按有向配对：A→B 与 B→A 是两条不同的关系变化，不能互相覆盖。
+  String get key => '${from.trim().toLowerCase()}|${to.trim().toLowerCase()}';
 }
 
 /// 归一化关系变化动作词。

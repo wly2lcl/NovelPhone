@@ -12,6 +12,7 @@ import '../../data/data_providers.dart';
 import '../../l10n/error_text.dart';
 import '../../l10n/l10n.dart';
 import '../../models/work_chat_turn.dart';
+import '../ai/ai_notice.dart';
 import '../ai/ai_providers.dart';
 import '../ai/ai_service.dart';
 
@@ -155,6 +156,8 @@ class _WorkChatPageState extends ConsumerState<WorkChatPage> {
       );
       return;
     }
+    if (!await ensureAiNotice(context, ref)) return;
+    if (!mounted) return;
     setState(() {
       if (removeFrom < _turns.length) {
         _turns.removeRange(removeFrom, _turns.length);

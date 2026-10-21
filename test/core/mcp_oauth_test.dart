@@ -30,6 +30,9 @@ class _FakeOAuthMcpServer {
   bool tamperState = false;
 
   int refreshCount = 0;
+
+  /// 模拟不轮换 refresh_token 的服务器：刷新响应省略该字段。
+  bool omitRefreshOnRefresh = false;
   String accessToken = 'access-1';
   final String refreshTokenValue = 'refresh-1';
 
@@ -258,7 +261,7 @@ class _FakeOAuthMcpServer {
         accessToken = 'access-refreshed';
         await _json(request, 200, <String, dynamic>{
           'access_token': accessToken,
-          'refresh_token': refreshTokenValue,
+          if (!omitRefreshOnRefresh) 'refresh_token': refreshTokenValue,
           'token_type': 'Bearer',
           'expires_in': 3600,
         });
@@ -453,6 +456,31 @@ void main() {
       expect(fake.refreshCount, 1);
       final stored = await repo.readMcpOAuthTokens(id);
       expect(stored!.accessToken, 'access-refreshed');
+    });
+
+    test('刷新响应省略 refresh_token 时沿用旧值', () async {
+      fake.omitRefreshOnRefresh = true;
+      final id = await repo.createMcpServer(
+        name: 'OAuth 服务',
+        url: fake.mcpUri.toString(),
+        authMode: McpAuthMode.oauth,
+        oauthClientId: 'dyn-client-1',
+      );
+      await repo.saveMcpOAuthTokens(
+        id,
+        McpOAuthTokens(
+          accessToken: 'stale',
+          refreshToken: fake.refreshTokenValue,
+          expiresAt: DateTime.now().subtract(const Duration(minutes: 5)),
+        ),
+      );
+      final config = (await repo.listMcpServers()).single;
+
+      await resolveMcpCredentials(repo, config);
+
+      final stored = await repo.readMcpOAuthTokens(id);
+      expect(stored!.accessToken, 'access-refreshed');
+      expect(stored.refreshToken, fake.refreshTokenValue);
     });
 
     test('刷新失败时清除令牌并提示重新授权', () async {

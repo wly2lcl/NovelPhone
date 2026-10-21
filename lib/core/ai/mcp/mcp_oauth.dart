@@ -202,7 +202,8 @@ class McpOAuthClient {
       'client_id': clientId,
       'resource': resourceUri.toString(),
     });
-    return _tokensFromResponse(response);
+    // 非轮换刷新会省略 refresh_token：沿用旧值，避免下次刷新被强制重新授权。
+    return _tokensFromResponse(response, fallbackRefreshToken: refresh);
   }
 
   // ---------- 发现 ----------
@@ -485,17 +486,20 @@ class McpOAuthClient {
     return _tokensFromResponse(response);
   }
 
-  McpOAuthTokens _tokensFromResponse(Map<String, dynamic> json) {
+  McpOAuthTokens _tokensFromResponse(
+    Map<String, dynamic> json, {
+    String? fallbackRefreshToken,
+  }) {
     final access = json['access_token'] as String? ?? '';
     if (access.isEmpty) {
       throw const McpOAuthException('令牌响应缺少 access_token');
     }
+    final rawRefresh = json['refresh_token'];
+    final refresh = rawRefresh is String ? rawRefresh.trim() : '';
     final expiresIn = (json['expires_in'] as num?)?.toInt();
     return McpOAuthTokens(
       accessToken: access,
-      refreshToken: (json['refresh_token'] as String?)?.trim().isEmpty ?? true
-          ? null
-          : json['refresh_token'] as String,
+      refreshToken: refresh.isEmpty ? fallbackRefreshToken : refresh,
       expiresAt: expiresIn == null
           ? null
           : DateTime.now().add(Duration(seconds: expiresIn)),

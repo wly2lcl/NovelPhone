@@ -21,6 +21,32 @@ class Tool {
       ToolSpec(name: name, description: description, inputSchema: inputSchema);
 }
 
+/// 合并多来源工具时消除重名（如两个 MCP server 都提供 `mcp_search`）：
+/// 后续重名工具追加序号，保证模型调用能路由到唯一实现。
+List<Tool> dedupeToolNames(Iterable<Tool> tools) {
+  final used = <String>{};
+  final result = <Tool>[];
+  for (final tool in tools) {
+    var name = tool.name;
+    var suffix = 2;
+    while (!used.add(name)) {
+      name = '${tool.name}_$suffix';
+      suffix++;
+    }
+    result.add(
+      name == tool.name
+          ? tool
+          : Tool(
+              name: name,
+              description: tool.description,
+              inputSchema: tool.inputSchema,
+              execute: tool.execute,
+            ),
+    );
+  }
+  return result;
+}
+
 /// 轻量 ReAct 循环：调用模型 → 有 tool_calls 则执行工具、结果回传 → 直到无 tool_calls。
 /// 只消费统一的 ChatChunk，不感知具体端点（ARCHITECTURE 5.4）。
 class AgentCore {

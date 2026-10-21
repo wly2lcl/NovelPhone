@@ -337,6 +337,273 @@ void main() {
     await closePage(tester);
   });
 
+  testWidgets('换选区重新打开改写面板会丢弃旧结果', (tester) async {
+    await seed('她不禁笑了。他转身离开。', confirmAiNotice: true);
+    final settings = SettingsRepository(db, InMemoryKeyStore());
+    final groupId = await settings.createModelGroup(
+      name: '续写模型',
+      provider: 'openai_compat',
+      baseUrl: 'https://api.example.com/v1',
+      models: <String>['m1'],
+      apiKey: 'sk-test',
+    );
+    await settings.setTaskModel(AiTask.continueWriting, groupId);
+
+    var requests = 0;
+    final service = AiService(
+      settings: settings,
+      works: works,
+      chapters: chapters,
+      characters: CharacterRepository(db),
+      outline: OutlineRepository(db),
+      stats: TokenStatsRepository(db),
+      httpClient: MockClient((request) async {
+        requests++;
+        final text = requests == 1 ? '她轻轻笑了。' : '他转身离去。';
+        final payload = jsonEncode(<String, dynamic>{
+          'choices': <dynamic>[
+            <String, dynamic>{
+              'delta': <String, dynamic>{'content': text},
+              'finish_reason': 'stop',
+            },
+          ],
+        });
+        return http.Response.bytes(
+          utf8.encode('data: $payload\n\ndata: [DONE]\n\n'),
+          200,
+          headers: <String, String>{'content-type': 'text/event-stream'},
+        );
+      }),
+    );
+
+    await tester.pumpWidget(wrap(service: service));
+    await settle(tester, find.byType(TextField));
+    try {
+      final editable = tester.widget<EditableText>(
+        find.byType(EditableText).first,
+      );
+      editable.controller.selection = const TextSelection(
+        baseOffset: 0,
+        extentOffset: 6,
+      );
+      await tester.pump();
+
+      await tester.tap(find.text('AI 改写'));
+      await settle(tester, find.text('她轻轻笑了。'));
+      expect(requests, 1);
+
+      // 面板未关闭时换到第二句再次打开：旧面板状态必须被丢弃。
+      editable.controller.selection = const TextSelection(
+        baseOffset: 6,
+        extentOffset: 12,
+      );
+      await tester.pump();
+      // 面板标题也叫「AI 改写」，工具栏按钮位于其后。
+      await tester.tap(find.text('AI 改写').last);
+      await pumpReal(
+        tester,
+        until: () => find.text('他转身离去。').evaluate().isNotEmpty,
+      );
+
+      expect(requests, 2);
+      expect(find.text('她轻轻笑了。'), findsNothing);
+      expect(editable.controller.text, '她不禁笑了。他转身离开。');
+    } finally {
+      await closePage(tester);
+    }
+  });
+
+  testWidgets('改写：原文漂移时拒绝替换且不记采纳', (tester) async {
+    await seed('她不禁笑了。', confirmAiNotice: true);
+    final settings = SettingsRepository(db, InMemoryKeyStore());
+    final groupId = await settings.createModelGroup(
+      name: '续写模型',
+      provider: 'openai_compat',
+      baseUrl: 'https://api.example.com/v1',
+      models: <String>['m1'],
+      apiKey: 'sk-test',
+    );
+    await settings.setTaskModel(AiTask.continueWriting, groupId);
+
+    final service = AiService(
+      settings: settings,
+      works: works,
+      chapters: chapters,
+      characters: CharacterRepository(db),
+      outline: OutlineRepository(db),
+      stats: TokenStatsRepository(db),
+      httpClient: MockClient((request) async {
+        final payload = jsonEncode(<String, dynamic>{
+          'choices': <dynamic>[
+            <String, dynamic>{
+              'delta': <String, dynamic>{'content': '她轻轻笑了。'},
+              'finish_reason': 'stop',
+            },
+          ],
+        });
+        return http.Response.bytes(
+          utf8.encode('data: $payload\n\ndata: [DONE]\n\n'),
+          200,
+          headers: <String, String>{'content-type': 'text/event-stream'},
+        );
+      }),
+    );
+
+    await tester.pumpWidget(wrap(service: service));
+    await settle(tester, find.byType(TextField));
+
+    final editable = tester.widget<EditableText>(
+      find.byType(EditableText).first,
+    );
+    editable.controller.selection = const TextSelection(
+      baseOffset: 0,
+      extentOffset: 6,
+    );
+    await tester.pump();
+
+    await tester.tap(find.text('AI 改写'));
+    await settle(tester, find.text('替换原文'));
+
+    final replaceButton = find.widgetWithText(FilledButton, '替换原文');
+    await pumpReal(
+      tester,
+      until: () {
+        return replaceButton.evaluate().isNotEmpty &&
+            tester.widget<FilledButton>(replaceButton).onPressed != null;
+      },
+    );
+
+    // 面板生成期间作者改动了选区文本：区间内容与 AI 所见不一致。
+    editable.controller.text = '她不禁哭了。';
+    await tester.pump();
+
+    await tester.ensureVisible(replaceButton);
+    await tester.pump();
+    await tester.tap(replaceButton);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+
+    expect(find.text('原文已变化，请重新选中后再改写'), findsOneWidget);
+    // 面板保持打开，正文未被 AI 结果覆盖。
+    expect(find.text('替换原文'), findsOneWidget);
+    expect(editable.controller.text, '她不禁哭了。');
+
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 50)),
+    );
+    final rows = await tester.runAsync(() => db.select(db.aiUsages).get());
+    expect(rows, hasLength(1));
+    expect(rows!.single.outcome, 'pending');
+
+    await closePage(tester);
+  });
+
+  testWidgets('修订失败后旧结果仍可采纳并回写原用量', (tester) async {
+    await seed('她不禁笑了。', confirmAiNotice: true);
+    final settings = SettingsRepository(db, InMemoryKeyStore());
+    final groupId = await settings.createModelGroup(
+      name: '续写模型',
+      provider: 'openai_compat',
+      baseUrl: 'https://api.example.com/v1',
+      models: <String>['m1'],
+      apiKey: 'sk-test',
+    );
+    await settings.setTaskModel(AiTask.continueWriting, groupId);
+
+    var requests = 0;
+    final service = AiService(
+      settings: settings,
+      works: works,
+      chapters: chapters,
+      characters: CharacterRepository(db),
+      outline: OutlineRepository(db),
+      stats: TokenStatsRepository(db),
+      httpClient: MockClient((request) async {
+        requests++;
+        if (requests > 1) {
+          return http.Response('{"error":"boom"}', 400);
+        }
+        final payload = jsonEncode(<String, dynamic>{
+          'choices': <dynamic>[
+            <String, dynamic>{
+              'delta': <String, dynamic>{'content': '她轻轻笑了。'},
+              'finish_reason': 'stop',
+            },
+          ],
+        });
+        return http.Response.bytes(
+          utf8.encode('data: $payload\n\ndata: [DONE]\n\n'),
+          200,
+          headers: <String, String>{'content-type': 'text/event-stream'},
+        );
+      }),
+    );
+
+    await tester.pumpWidget(wrap(service: service));
+    await settle(tester, find.byType(TextField));
+    try {
+      final editable = tester.widget<EditableText>(
+        find.byType(EditableText).first,
+      );
+      editable.controller.selection = const TextSelection(
+        baseOffset: 0,
+        extentOffset: 6,
+      );
+      await tester.pump();
+
+      await tester.tap(find.text('AI 改写'));
+      await settle(tester, find.text('替换原文'));
+
+      final replaceButton = find.widgetWithText(FilledButton, '替换原文');
+      await pumpReal(
+        tester,
+        until: () {
+          return replaceButton.evaluate().isNotEmpty &&
+              tester.widget<FilledButton>(replaceButton).onPressed != null;
+        },
+      );
+      // 等首轮用量落库，记下旧结果的 usageId。
+      await pumpReal(tester, rounds: 40);
+      final before = await tester.runAsync(() => db.select(db.aiUsages).get());
+      expect(before, hasLength(1));
+      final usageId = before!.single.id;
+
+      await tester.enterText(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is TextField &&
+              widget.decoration?.hintText == '告诉 AI 怎么改，例如：对白更克制，删掉最后一句',
+        ),
+        '改得更克制',
+      );
+      await tester.ensureVisible(find.text('继续修改'));
+      await tester.pump();
+      await tester.tap(find.text('继续修改'));
+      await pumpReal(
+        tester,
+        until: () => find.textContaining('请求失败（400）').evaluate().isNotEmpty,
+      );
+      expect(requests, 2);
+      expect(find.textContaining('请求失败（400）'), findsOneWidget);
+
+      // 修订在首个新文本前失败：旧结果保留，仍可替换回正文。
+      await tester.ensureVisible(replaceButton);
+      await tester.pump();
+      await tester.tap(replaceButton);
+      await pumpReal(tester, until: () => find.text('替换原文').evaluate().isEmpty);
+      expect(editable.controller.text, '她轻轻笑了。');
+
+      await pumpReal(tester, rounds: 40);
+      final rows = await tester.runAsync(() => db.select(db.aiUsages).get());
+      expect(rows, hasLength(1));
+      expect(rows!.single.id, usageId);
+      expect(rows.single.outcome, 'adopted');
+      expect(rows.single.adoptedChars, greaterThan(0));
+    } finally {
+      await closePage(tester);
+    }
+  });
+
   // ---------- ENH-06：AI 章节工具菜单 / 查看编辑本章摘要 ----------
 
   testWidgets('一致性检查：结构化冲突可定位原文并进入改写（ENH-38）', (tester) async {

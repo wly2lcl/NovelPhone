@@ -79,6 +79,7 @@ class EditorController extends ChangeNotifier {
   Timer? _wordTimer;
   bool _dirty = false;
   bool _applyingHistory = false;
+  Future<void>? _saveInFlight;
 
   /// dispose 后不再向监听者发通知：离开编辑器时 `flush()` 的保存会晚于 dispose 完成。
   bool _disposed = false;
@@ -138,12 +139,30 @@ class EditorController extends ChangeNotifier {
   Future<void> _save() async {
     _saveTimer?.cancel();
     if (!_dirty) return;
+    // 保存串行化：上一次落库完成前不启动新的写入，避免旧快照后落库覆盖新正文。
+    final previous = _saveInFlight;
+    if (previous != null) await previous;
+    if (!_dirty) return;
+    final text = textController.text;
+    final title = _title;
     _saveStatus = SaveStatus.saving;
     notifyListeners();
-    final text = textController.text;
+    final current = _performSave(text: text, title: title);
+    _saveInFlight = current;
+    try {
+      await current;
+    } finally {
+      if (identical(_saveInFlight, current)) _saveInFlight = null;
+    }
+  }
+
+  Future<void> _performSave({
+    required String text,
+    required String title,
+  }) async {
     try {
       // 正文与标题都没变（多为移动光标 / 改选区）：只落库位置，不重写整章。
-      if (text == _lastSavedText && _title == _lastSavedTitle) {
+      if (text == _lastSavedText && title == _lastSavedTitle) {
         await repository.saveCursorPosition(
           chapterId: chapterId,
           cursorOffset: _currentCursor,
@@ -152,17 +171,25 @@ class EditorController extends ChangeNotifier {
       } else {
         await repository.saveChapter(
           chapterId: chapterId,
-          title: _title,
+          title: title,
           content: text,
           cursorOffset: _currentCursor,
           scrollOffset: _currentScroll,
         );
         _lastSavedText = text;
-        _lastSavedTitle = _title;
+        _lastSavedTitle = title;
       }
-      _dirty = false;
-      _lastSavedAt = DateTime.now();
-      _saveStatus = SaveStatus.saved;
+      // 保存期间又有输入：本次结果已过期，保持 dirty 并再排一次保存。
+      if (textController.text == text && _title == title) {
+        _dirty = false;
+        _lastSavedAt = DateTime.now();
+        _saveStatus = SaveStatus.saved;
+      } else {
+        _dirty = true;
+        _saveStatus = SaveStatus.saving;
+        _saveTimer?.cancel();
+        _saveTimer = Timer(autosaveDelay, _save);
+      }
     } catch (_) {
       _saveStatus = SaveStatus.failed;
     }
@@ -175,8 +202,17 @@ class EditorController extends ChangeNotifier {
   /// 离开编辑器前落库：正文（如有改动）+ 光标与滚动位置。
   Future<void> flush() async {
     _historyTimer?.cancel();
-    if (_dirty) {
+    // 等待进行中的保存后再按最新正文补存；保存期间若又有输入，继续补存直到追平。
+    while (true) {
+      final previous = _saveInFlight;
+      if (previous != null) {
+        await previous;
+        continue;
+      }
+      if (!_dirty) break;
       await _save();
+      // 保存失败时保留 dirty 供用户手动重试，避免离开页面时无限重试。
+      if (_saveStatus == SaveStatus.failed) break;
     }
     await repository.saveCursorPosition(
       chapterId: chapterId,

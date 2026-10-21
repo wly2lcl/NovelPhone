@@ -1,9 +1,39 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:novelphone/data/db.dart';
 import 'package:novelphone/data/repositories/chapter_repository.dart';
 import 'package:novelphone/data/repositories/work_repository.dart';
 import 'package:novelphone/features/editor/editor_controller.dart';
+
+/// 可卡住 saveChapter 的仓储替身：模拟保存进行中继续输入。
+class _GatedChapters extends ChapterRepository {
+  _GatedChapters(super._db);
+
+  Completer<void>? gate;
+  final List<String> savedContents = <String>[];
+
+  @override
+  Future<void> saveChapter({
+    required int chapterId,
+    required String title,
+    required String content,
+    int? cursorOffset,
+    int? scrollOffset,
+  }) async {
+    final pending = gate;
+    if (pending != null) await pending.future;
+    savedContents.add(content);
+    return super.saveChapter(
+      chapterId: chapterId,
+      title: title,
+      content: content,
+      cursorOffset: cursorOffset,
+      scrollOffset: scrollOffset,
+    );
+  }
+}
 
 void main() {
   late AppDatabase db;
@@ -351,6 +381,34 @@ void main() {
     // 未走 saveChapter：正文与 updatedAt 都没变。
     expect(after!.updatedAt, before.updatedAt);
     expect(after.content, before.content);
+  });
+
+  test('保存期间继续输入：旧保存不清除 dirty，flush 落库最新正文', () async {
+    final gated = _GatedChapters(db);
+    final editing = EditorController(
+      repository: gated,
+      workId: workId,
+      chapterId: chapterId,
+    );
+    addTearDown(editing.dispose);
+    await editing.load();
+
+    final gate = Completer<void>();
+    gated.gate = gate;
+    editing.textController.text = '第一版';
+    final flushing = editing.flush(); // 卡在第一版保存上
+    await Future<void>.delayed(Duration.zero);
+    editing.textController.text = '第二版';
+    expect(editing.saveStatus, SaveStatus.saving);
+
+    gate.complete();
+    gated.gate = null;
+    await flushing;
+
+    final saved = await chapters.getChapter(chapterId);
+    expect(saved!.content, '第二版');
+    expect(gated.savedContents, <String>['第一版', '第二版']);
+    expect(editing.saveStatus, SaveStatus.saved);
   });
 
   test('撤销栈超出累计字符上限时裁剪最旧快照（ENH-10）', () async {

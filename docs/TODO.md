@@ -15,7 +15,7 @@
 | M3 AI 核心能力 | AI 客户端、Agent Core、上下文组装、续写灵感、设置 | 已完成（含真机验收 M3-21/22） | 22 / 22 |
 | M4 AI 感检查与打磨 | 规则引擎、LLM 深检、检查面板、异常流、主题细节、合规资料 | 已完成（含真机全流程回归 M4-14 与验收 M4-15） | 16 / 16 |
 
-当前迭代：M1-M4 全部完成，MVP 范围收口（78 / 78）；MVP 后增强 ENH-01~50 全部完成（最近一轮 ENH-48~50，2026-10-21）。阻塞项：无。
+当前迭代：M1-M4 全部完成，MVP 范围收口（78 / 78）；MVP 后增强 ENH-01~56 全部完成（最近一轮 ENH-51~56，2026-10-21）。2026-10-21 完成一轮全量缺陷审计与修复（15 项逻辑缺陷，含自动保存竞态、备份恢复校验、v1/v2 迁移、AI 结果竞态、首次联网告知门控、回收站状态、关系方向、检索截断、采纳 / 用量一致性、上下文预算、MCP 工具重名、OAuth 刷新与数字目标容错），自动化用例 621 个全绿。阻塞项：无。
 
 M1 自动化验证记录（2026-09-30）：`flutter analyze` 无问题；`flutter test` 39 个用例全部通过（数据层 15 + 字数统计 7 + 编辑器控制器 14 + 作品列表页 3）。M1-22 的冷启动耗时、10 万字输入流畅度、杀进程恢复三项需在真机上人工验收。
 
@@ -35,6 +35,7 @@ M4 自动化验证记录（2026-09-30）：`flutter analyze` 无问题；`flutte
 - 错误处置（M3-21）：401 实机复现并给出「鉴权失败（401）：请到设置页检查 API Key」+「去设置」入口、插入按钮置灰；429 与内容过滤无法用现有真实渠道稳定复现，由适配器单测 `mapHttpError` 覆盖（后续 ENH-16 已用本机假 LLM 服务在真机复现并验证这三类错误与 Anthropic 渠道路径）。
 - 弱网中断（M3-22 / M4-14）：以宿主本地假 SSE 服务（`POST /v1/chat/completions` 先发 3 个 chunk 后 RST 断开、不发 `[DONE]`）复现。面板保留已生成的 3 段文本、给出「流式读取中断：ClientException: Connection closed while receiving data」提示，「重新生成」「换个方向」「插入光标处」均可用；点「重新生成」确认发出第二次请求（服务端日志可见新连接）。
 - 本轮修复的阻断缺陷（真机发现）：7 处「`showDialog` 返回后立即 `controller.dispose()`」写法在弹窗退场动画期间因 builder 重跑而抛出「A TextEditingController was used after being disposed」，连带 `_dependents.isEmpty` 断言导致整页红屏崩溃（本章梗概、重命名章节/卷/作品、灵感编辑、AI「换个方向」）。已统一改为 `TextFormField(initialValue:)` + `onChanged` 局部变量，并新增 2 个回归用例（编辑器编辑本章梗概、重命名章节）守护。
+- 稳定性修复验收（2026-10-21，Android 13 / API 33 arm64 模拟器 `emulator-5554`，release APK 80.1MB + `adb reverse tcp:8899` + `tool/fake_llm_server.dart` 本机假服务，占位 key `test-key`）：① 全量自动化 621 个用例通过（较修复前 606 新增 15 个回归用例，覆盖自动保存竞态与 flush 追平、备份校验失败保留本地数据、v1/v2 → v16 迁移、上下文主材料超预算抛错、口吻注入开篇 / 推演、关系方向与别名去重、换选区丢弃旧改写结果、原文漂移拒绝替换、修订失败保留原用量），`dart format` 与 `flutter analyze` 均无问题。② AI 续写（`/openai`）3 次请求返回 3 个候选，上下文详情「估算 1965 / 预算 16000 token」，守则自检正常。③ 剧情推演映射 `ENH46-PrefEcho` 后 `/openai-pref-echo` 回显「角色口吻：已注入；人物关系：已注入；故事状态卡：已注入」，ENH-52 口吻注入真机贯通。④ 状态提取映射 `ENH35-States` 后 `/openai-states` 正常返回 4 条状态与 2 条关系变化；已有 Shen → Su、Ling → Shen 显示「与现有卡片一致」，关系图页同时列出 Shen → Su / Shen → MoLao / Ling → Shen 三条独立有向边（ENH-56 方向语义）。⑤ 改写映射 `ENH27-Fake` 后 `/openai-enh27` 正常返回改写结果与分段采纳面板。备份恢复校验、回收站 `deletedAt` 保留、MCP 工具重名、OAuth 刷新令牌回退与数字目标容错由新增用例覆盖；验收全程仅使用本机假服务与占位 key，未使用或写入任何真实 API Key，结束后已退出 AI 面板、未改动作品正文。
 
 ---
 
@@ -700,7 +701,7 @@ AI 协作深化（六）（2026-10-21）——ENH-55 **关系邻接角色卡注�
 AI 协作深化（七）（2026-10-21）——ENH-56 **关系变化提取（状态提取顺带识别人物关系变化）**：
 
 - [x] ENH-56（P1）关系变化提取：
-  - ① 解析：`RelationChangeSuggestion`（from / to / label / action，action 归一化为 add / update / remove，兼容「新增 / 决裂 / 修改 / 解除」等中英文写法）；`StoryStateExtraction` 新增 `relationChanges`，`parseStoryStateExtractionResponse` 从 `relationChanges` / `relations` / `关系变化` / `关系` 键收集，两端缺失或相同跳过，无向配对去重（同对人物以最后一条为准），最多 10 条。
+  - ① 解析：`RelationChangeSuggestion`（from / to / label / action，action 归一化为 add / update / remove，兼容「新增 / 决裂 / 修改 / 解除」等中英文写法）；`StoryStateExtraction` 新增 `relationChanges`，`parseStoryStateExtractionResponse` 从 `relationChanges` / `relations` / `关系变化` / `关系` 键收集，两端缺失或相同跳过，按「起点|终点」有向键去重（同一方向以最后一条为准，反向关系独立保留），最多 10 条。
   - ② 上下文：`buildStoryStateExtraction` 新增「已有关系」section（`formatRelations` 不做角色过滤，最多 20 条），置于已有状态卡之后、本章正文之前，token 计入 fixed 与估算；system 规则第 7 条要求本章写明的关系变化输出到 `relationChanges`（from / to 与角色卡或正文一致，称谓与【已有关系】延续），任务提示与输出格式样例同步更新。
   - ③ 交互：状态提取对话框新增「人物关系变化」区块——按名称或别名（忽略大小写）把 from / to 解析为角色，结合已有关联（双向对照）判定新增 / 更新 / 解除 / 与现有关系一致 / 未找到对应角色（不可勾选）；add 但已存在同对边时按更新处理、update 无边时回退新增；默认勾选可应用项。应用时经 `CharacterRepository.createRelation` / `updateRelation`（保留原方向仅改称谓）/ `deleteRelation` 写关系图，SnackBar 在状态卡计数后追加「关系图：新增 X 条、更新 Y 条、解除 Z 条」。无 schema 变更。
   - ④ 测试：`structured_response_test.dart` 新增 2 个用例（relationChanges 归一化与无向去重、无该键时为空）；`context_builder_test.dart` 新增 1 个用例（「已有关系」注入、任务提示与 system 断言）；`story_state_extraction_dialog_test.dart` 扩展为别名解析（沈公子 → 沈砚）、更新保留原方向、未知名不可勾选与应用后关系图落库。

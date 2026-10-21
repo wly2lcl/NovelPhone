@@ -7,6 +7,7 @@ import '../../core/ai/structured_response.dart';
 import '../../data/data_providers.dart';
 import '../../data/db.dart';
 import '../../l10n/l10n.dart';
+import '../ai/ai_notice.dart';
 import '../ai/ai_providers.dart';
 import '../ai/ai_service.dart';
 
@@ -48,6 +49,9 @@ class _PlotPlanPageState extends ConsumerState<PlotPlanPage> {
       );
       return;
     }
+    if (!mounted) return;
+    if (!await ensureAiNotice(context, ref)) return;
+    if (!mounted) return;
     setState(() {
       _running = true;
       _error = null;

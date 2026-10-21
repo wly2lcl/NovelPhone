@@ -153,6 +153,7 @@ class BackupRepository {
     if (tables is! Map) {
       throw const BackupException(BackupErrorKind.incomplete, '备份内容不完整');
     }
+    _validateTables(tables);
 
     return _db.transaction(() async {
       if (overwrite) {
@@ -190,6 +191,7 @@ class BackupRepository {
                 chapterCount: Value(work.chapterCount),
                 pinned: Value(work.pinned),
                 styleGuide: Value(work.styleGuide),
+                deletedAt: Value(work.deletedAt),
               ),
             );
         workIdMap[work.id] = newId;
@@ -252,6 +254,7 @@ class BackupRepository {
                 summary: Value(chapter.summary),
                 summaryUpdatedAt: Value(chapter.summaryUpdatedAt),
                 intent: Value(chapter.intent),
+                deletedAt: Value(chapter.deletedAt),
               ),
             );
         chapterIdMap[chapter.id] = newId;
@@ -448,6 +451,48 @@ class BackupRepository {
         characters: characterCount,
       );
     });
+  }
+
+  /// 恢复前校验表结构：核心表必须存在且为对象数组；旧备份缺少的叶表可省略，
+  /// 但存在时同样必须是对象数组。校验在覆盖删除之前完成，避免坏备份清空本地数据。
+  static const Set<String> _requiredTables = <String>{
+    'works',
+    'volumes',
+    'chapters',
+    'characters',
+  };
+
+  static const Set<String> _optionalTables = <String>{
+    'outlineEntries',
+    'inspirations',
+    'chapterSnapshots',
+    'dailyWritingStats',
+    'settingEntries',
+    'characterRelations',
+    'storyStates',
+  };
+
+  static void _validateTables(Map<dynamic, dynamic> tables) {
+    for (final name in <String>[..._requiredTables, ..._optionalTables]) {
+      final value = tables[name];
+      if (value == null) {
+        if (_requiredTables.contains(name)) {
+          throw BackupException(
+            BackupErrorKind.incomplete,
+            '备份内容不完整',
+            detail: name,
+          );
+        }
+        continue;
+      }
+      if (value is! List || value.any((row) => row is! Map)) {
+        throw BackupException(
+          BackupErrorKind.incomplete,
+          '备份内容不完整',
+          detail: name,
+        );
+      }
+    }
   }
 
   static List<Map<String, dynamic>> _asList(Object? value) {

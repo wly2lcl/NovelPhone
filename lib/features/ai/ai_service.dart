@@ -513,24 +513,30 @@ class AiService {
 
     // ENH-09：多候选续写共用预组装上下文，避免每个候选重复取数与组装。
     // ENH-36：各候选在此之上只追加自己的叙事侧重，资料部分仍完全一致。
-    final base =
-        prebuilt ??
-        _withSkills(
-          await contexts.buildContinue(
-            workId: workId,
-            chapterId: chapterId,
-            contextWindow: group.contextWindow,
-            direction: direction,
-            length: length,
-            preferenceText: await _preferenceText(
-              workId,
-              task: AiTask.continueWriting,
+    final BuiltContext base;
+    try {
+      base =
+          prebuilt ??
+          _withSkills(
+            await contexts.buildContinue(
+              workId: workId,
+              chapterId: chapterId,
+              contextWindow: group.contextWindow,
+              direction: direction,
+              length: length,
+              preferenceText: await _preferenceText(
+                workId,
+                task: AiTask.continueWriting,
+              ),
+              revisionDraft: revisionDraft,
+              revisionInstruction: revisionInstruction,
             ),
-            revisionDraft: revisionDraft,
-            revisionInstruction: revisionInstruction,
-          ),
-          await settings.listEnabledSkills(),
-        );
+            await settings.listEnabledSkills(),
+          );
+    } on ContextBudgetException catch (error) {
+      yield AiFailed(kind: AiErrorKind.badRequest, message: error.message);
+      return;
+    }
     final injected = strategy == null || strategy.isEmpty
         ? base
         : _withContinueStrategy(base, strategy);
@@ -744,6 +750,8 @@ class AiService {
           // 单个 MCP server 连接失败不阻断生成（可在设置页单独「测试连接」）。
         }
       }
+      // 不同 server 可能暴露同名工具：重命名后再交给模型，避免路由到错误会话。
+      tools = dedupeToolNames(tools);
       yield* _run(
         chunks: agent.run(
           request: request,
@@ -787,17 +795,23 @@ class AiService {
       return;
     }
 
-    final built = await contexts.buildRewrite(
-      workId: workId,
-      chapterId: chapterId,
-      selectedText: selectedText,
-      intent: intent,
-      instruction: instruction,
-      contextWindow: group.contextWindow,
-      preferenceText: await _preferenceText(workId, task: AiTask.rewrite),
-      revisionDraft: revisionDraft,
-      revisionInstruction: revisionInstruction,
-    );
+    final BuiltContext built;
+    try {
+      built = await contexts.buildRewrite(
+        workId: workId,
+        chapterId: chapterId,
+        selectedText: selectedText,
+        intent: intent,
+        instruction: instruction,
+        contextWindow: group.contextWindow,
+        preferenceText: await _preferenceText(workId, task: AiTask.rewrite),
+        revisionDraft: revisionDraft,
+        revisionInstruction: revisionInstruction,
+      );
+    } on ContextBudgetException catch (error) {
+      yield AiFailed(kind: AiErrorKind.badRequest, message: error.message);
+      return;
+    }
     // B-03：把启用技能作为附加 system 指令注入。
     final injected = _withSkills(built, await settings.listEnabledSkills());
     yield AiContextBuilt(injected);

@@ -32,6 +32,9 @@ void main() {
   late AiService service;
   late int shenId;
   late int suId;
+  late int guId;
+  late String statesJson;
+  late String relationChangesJson;
 
   setUp(() async {
     db = AppDatabase.memory();
@@ -66,7 +69,7 @@ void main() {
       aliases: '["沈公子"]',
     );
     suId = await characters.createCharacter(workId: workId, name: '苏晚');
-    await characters.createCharacter(workId: workId, name: '顾寒');
+    guId = await characters.createCharacter(workId: workId, name: '顾寒');
     await characters.createRelation(
       workId: workId,
       fromCharacterId: shenId,
@@ -83,20 +86,22 @@ void main() {
       apiKey: 'sk-test',
     );
     await config.setTaskModel(AiTask.storyState, groupId);
+    statesJson =
+        '{"kind":"character","title":"沈砚","detail":"左臂中箭，仍握紧铜印"},'
+        '{"kind":"foreshadow","title":"铜印来历","status":"closed"},'
+        '{"kind":"timeline","title":"雨夜入城","detail":"子时从西门进城"}';
+    relationChangesJson =
+        '{"from":"沈公子","to":"顾寒","label":"宿敌","action":"add"},'
+        '{"from":"沈砚","to":"苏晚","label":"师姐","action":"update"},'
+        '{"from":"无名氏","to":"沈砚","label":"同门","action":"add"}';
     final client = MockClient((request) async {
       final payload = jsonEncode(<String, dynamic>{
         'choices': <dynamic>[
           <String, dynamic>{
             'delta': <String, dynamic>{
               'content':
-                  '{"states":['
-                  '{"kind":"character","title":"沈砚","detail":"左臂中箭，仍握紧铜印"},'
-                  '{"kind":"foreshadow","title":"铜印来历","status":"closed"},'
-                  '{"kind":"timeline","title":"雨夜入城","detail":"子时从西门进城"}],'
-                  '"relationChanges":['
-                  '{"from":"沈公子","to":"顾寒","label":"宿敌","action":"add"},'
-                  '{"from":"沈砚","to":"苏晚","label":"师姐","action":"update"},'
-                  '{"from":"无名氏","to":"沈砚","label":"同门","action":"add"}]}',
+                  '{"states":[$statesJson],'
+                  '"relationChanges":[$relationChangesJson]}',
             },
             'finish_reason': 'stop',
           },
@@ -214,5 +219,48 @@ void main() {
     final senior = relations.firstWhere((r) => r.label == '师姐');
     expect(senior.fromCharacterId, shenId);
     expect(senior.toCharacterId, suId);
+  });
+
+  testWidgets('关系方向独立，别名重复项只落库一次（ENH-56）', (tester) async {
+    statesJson = '';
+    relationChangesJson =
+        '{"from":"沈公子","to":"顾寒","label":"宿敌","action":"add"},'
+        '{"from":"沈砚","to":"顾寒","label":"盟友","action":"add"},'
+        '{"from":"苏晚","to":"沈砚","label":"师妹","action":"add"},'
+        '{"from":"沈砚","to":"苏晚","label":"师姐","action":"add"}';
+    await pumpHost(tester);
+    await pumpUntil(tester, find.textContaining('[人物关系变化] 沈公子 → 顾寒'));
+
+    // 后两条方向相反：苏晚 → 沈砚 是新增，沈砚 → 苏晚 是更新。
+    expect(find.text('新增'), findsNWidgets(3));
+    expect(find.text('更新'), findsOneWidget);
+    expect(find.text('应用选中项（4）'), findsOneWidget);
+
+    await tester.tap(find.text('应用选中项（4）'));
+    await pumpUntil(tester, find.textContaining('关系图：新增 2 条、更新 1 条、解除 0 条'));
+
+    final relations = await CharacterRepository(db).listRelations(workId);
+    expect(relations, hasLength(3));
+    final forward = relations.where(
+      (r) => r.fromCharacterId == shenId && r.toCharacterId == guId,
+    );
+    expect(forward, hasLength(1));
+    expect(forward.single.label, '宿敌');
+    expect(
+      relations
+          .singleWhere(
+            (r) => r.fromCharacterId == suId && r.toCharacterId == shenId,
+          )
+          .label,
+      '师妹',
+    );
+    expect(
+      relations
+          .singleWhere(
+            (r) => r.fromCharacterId == shenId && r.toCharacterId == suId,
+          )
+          .label,
+      '师姐',
+    );
   });
 }

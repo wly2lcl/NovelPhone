@@ -26,6 +26,13 @@ void main() {
     expect(restored.avoid, <String>['不要写回忆', '不要出现新角色']);
   });
 
+  test('goal 不是字符串时忽略该字段而不是抛异常', () {
+    final parsed = ChapterIntent.parse('{"goal":123,"beats":["一拍"]}');
+
+    expect(parsed.goal, isEmpty);
+    expect(parsed.beats, <String>['一拍']);
+  });
+
   test('非 JSON 旧数据按纯文本核心目标兼容', () {
     final parsed = ChapterIntent.parse('本章要收掉船票这条线');
 

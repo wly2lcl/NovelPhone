@@ -48,8 +48,9 @@ class ChapterIntent {
     try {
       final decoded = jsonDecode(text);
       if (decoded is Map) {
+        final rawGoal = decoded['goal'];
         return ChapterIntent(
-          goal: _clip((decoded['goal'] as String?) ?? '', maxGoalChars),
+          goal: _clip(rawGoal is String ? rawGoal : '', maxGoalChars),
           beats: _cleanList(
             decoded['beats'],
             maxCount: maxBeats,

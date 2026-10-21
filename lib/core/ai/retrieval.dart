@@ -86,10 +86,8 @@ List<RetrievedPassage> retrievePassages({
         normalizedTitle.contains(normalizedQuery) ||
         expandedTerms.any(normalizedTitle.contains);
 
-    var perChapter = 0;
     final chunks = _chunks(content, chunkChars).toList(growable: false);
     for (final chunk in _sampleEven(chunks, chunksPerChapter)) {
-      if (perChapter >= maxPerChapter) break;
       final normalizedChunk = _normalize(chunk);
       if (normalizedChunk.isEmpty) continue;
       candidates.add(
@@ -103,7 +101,6 @@ List<RetrievedPassage> retrievePassages({
           titleMatch: titleMatch,
         ),
       );
-      perChapter++;
     }
   }
   if (candidates.isEmpty) return const <RetrievedPassage>[];
@@ -161,7 +158,17 @@ List<RetrievedPassage> retrievePassages({
   }
 
   hits.sort((a, b) => b.score.compareTo(a.score));
-  return hits.take(topK).toList(growable: false);
+  // 先给全部候选打分，再按每章上限挑选，避免每章上限把靠后的相关块提前截掉。
+  final perChapterCount = <int, int>{};
+  final selected = <RetrievedPassage>[];
+  for (final hit in hits) {
+    final count = perChapterCount[hit.chapterId] ?? 0;
+    if (count >= maxPerChapter) continue;
+    perChapterCount[hit.chapterId] = count + 1;
+    selected.add(hit);
+    if (selected.length >= topK) break;
+  }
+  return selected;
 }
 
 class _ChunkCandidate {

@@ -69,6 +69,9 @@ class _EditorPageState extends ConsumerState<EditorPage> {
   late final EditorController _controller;
   bool _findVisible = false;
   AiPanelMode? _aiMode;
+
+  /// 面板会话序号：同一模式重新打开时强制重建，丢弃上一轮生成结果。
+  int _aiPanelSession = 0;
   bool _checkVisible = false;
   bool _snapshotsVisible = false;
 
@@ -295,7 +298,8 @@ class _EditorPageState extends ConsumerState<EditorPage> {
             ),
           if (_aiMode != null)
             AiConfirmPanel(
-              key: ValueKey<AiPanelMode>(_aiMode!),
+              // 每轮打开都新建面板：同一模式换选区重开时丢弃旧生成结果。
+              key: ValueKey<(AiPanelMode, int)>((_aiMode!, _aiPanelSession)),
               workId: widget.workId,
               chapterId: widget.chapterId,
               initialMode: _aiMode!,
@@ -564,6 +568,7 @@ class _EditorPageState extends ConsumerState<EditorPage> {
       _findVisible = false;
       _checkVisible = false;
       _snapshotsVisible = false;
+      _aiPanelSession++;
       _aiMode = mode;
     });
   }
@@ -783,6 +788,7 @@ class _EditorPageState extends ConsumerState<EditorPage> {
       _findVisible = false;
       _checkVisible = false;
       _snapshotsVisible = false;
+      _aiPanelSession++;
       _aiMode = AiPanelMode.rewrite;
     });
   }
@@ -818,10 +824,10 @@ class _EditorPageState extends ConsumerState<EditorPage> {
   }
 
   /// 把改写结果替换回原文区间（ENH-04）：原文漂移则拒绝；仅成功才抢回焦点。
-  void _applyRewrite(String text) {
+  bool _applyRewrite(String text) {
     final start = _rewriteStart;
     final end = _rewriteEnd;
-    if (start == null || end == null) return;
+    if (start == null || end == null) return false;
     final ok = _controller.replaceSelection(
       start: start,
       end: end,
@@ -832,11 +838,12 @@ class _EditorPageState extends ConsumerState<EditorPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(context.l10n.editorOriginalChanged)),
       );
-      return;
+      return false;
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _controller.focusNode.requestFocus();
     });
+    return true;
   }
 
   /// 逐章摘要（ENH-05）：把 AI 摘要写回 CHAPTER.summary，供后续章节续写时注入前情。

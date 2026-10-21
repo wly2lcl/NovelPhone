@@ -752,6 +752,108 @@ void main() {
     });
   });
 
+  group('v1 / v2 旧库升级（回归）', () {
+    for (final version in <int>[1, 2]) {
+      test('v$version → v16 升级不因重复列失败且补齐结构', () async {
+        final dir = await Directory.systemTemp.createTemp(
+          'novelphone_mig_v$version',
+        );
+        final file = File(p.join(dir.path, 'migrate.sqlite'));
+        final previousWarn = driftRuntimeOptions.dontWarnAboutMultipleDatabases;
+        driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+        try {
+          await _seedLegacyDatabase(file, version);
+          final upgraded = AppDatabase(NativeDatabase(file));
+          try {
+            final tables =
+                (await upgraded
+                        .customSelect(
+                          "SELECT name FROM sqlite_master WHERE type = 'table'",
+                        )
+                        .get())
+                    .map((r) => r.read<String>('name'))
+                    .toSet();
+            final names =
+                (await upgraded
+                        .customSelect(
+                          "SELECT name FROM sqlite_master WHERE type = 'index'",
+                        )
+                        .get())
+                    .map((r) => r.read<String>('name'))
+                    .toSet();
+            final versionRow = await upgraded
+                .customSelect('SELECT user_version FROM pragma_user_version')
+                .getSingle();
+            final workColumns = await _columns(upgraded, 'works');
+            final volumeColumns = await _columns(upgraded, 'volumes');
+            final chapterColumns = await _columns(upgraded, 'chapters');
+            final characterColumns = await _columns(upgraded, 'characters');
+            final modelGroupColumns = await _columns(upgraded, 'model_groups');
+            final usageColumns = await _columns(upgraded, 'ai_usages');
+            final snapshotColumns = await _columns(
+              upgraded,
+              'chapter_snapshots',
+            );
+
+            expect(versionRow.read<int>('user_version'), 16);
+            expect(
+              tables,
+              containsAll(<String>[
+                'works',
+                'volumes',
+                'chapters',
+                'chapter_snapshots',
+                'characters',
+                'outline_entries',
+                'inspirations',
+                'ai_usages',
+                'model_groups',
+                'app_settings',
+                'daily_writing_stats',
+                'setting_entries',
+                'character_relations',
+                'story_states',
+              ]),
+            );
+            expect(names, containsAll(_allIndexNames));
+            expect(
+              workColumns,
+              containsAll(<String>['deleted_at', 'style_guide']),
+            );
+            expect(
+              volumeColumns,
+              containsAll(<String>['summary', 'summary_chapter_id']),
+            );
+            expect(
+              chapterColumns,
+              containsAll(<String>[
+                'summary',
+                'summary_updated_at',
+                'deleted_at',
+                'intent',
+              ]),
+            );
+            expect(characterColumns, containsAll(<String>['aliases', 'voice']));
+            expect(
+              modelGroupColumns,
+              containsAll(<String>[
+                'input_price_per_million',
+                'output_price_per_million',
+              ]),
+            );
+            expect(usageColumns, contains('adopted_edit_percent'));
+            expect(snapshotColumns, contains('note'));
+          } finally {
+            await upgraded.close();
+          }
+        } finally {
+          driftRuntimeOptions.dontWarnAboutMultipleDatabases = previousWarn;
+          if (dir.existsSync()) dir.deleteSync(recursive: true);
+        }
+      });
+    }
+  });
+
   group('全书查找替换（ENH-19）', () {
     late int workId;
     late int firstId;
@@ -1020,6 +1122,67 @@ const List<String> _allIndexNames = <String>[
   'character_relations_work_id',
   'story_states_work_id',
 ];
+
+/// 按目标旧版本裁剪当前 schema，得到等价的 v1 / v2 底座。
+Future<void> _seedLegacyDatabase(File file, int version) async {
+  final seeded = AppDatabase(NativeDatabase(file));
+  try {
+    for (final name in _allIndexNames) {
+      await seeded.customStatement('DROP INDEX IF EXISTS $name');
+    }
+    Future<void> dropTable(String name) =>
+        seeded.customStatement('DROP TABLE IF EXISTS $name');
+    Future<void> dropColumn(String table, String column) =>
+        seeded.customStatement('ALTER TABLE $table DROP COLUMN $column');
+
+    if (version < 2) {
+      await dropTable('ai_usages');
+      await dropTable('model_groups');
+      await dropTable('app_settings');
+    }
+    if (version < 3) await dropTable('chapter_snapshots');
+    if (version < 4) await dropTable('daily_writing_stats');
+    if (version < 5) {
+      await dropTable('setting_entries');
+      await dropTable('character_relations');
+    }
+    if (version < 6) await dropColumn('chapters', 'summary');
+    if (version < 7) await dropColumn('volumes', 'summary');
+    if (version < 8) {
+      await dropColumn('chapters', 'summary_updated_at');
+      await dropColumn('volumes', 'summary_chapter_id');
+    }
+    if (version < 11) {
+      await dropColumn('works', 'deleted_at');
+      await dropColumn('chapters', 'deleted_at');
+    }
+    if (version < 12) {
+      await dropColumn('works', 'style_guide');
+      if (version >= 2) {
+        await dropColumn('model_groups', 'input_price_per_million');
+        await dropColumn('model_groups', 'output_price_per_million');
+      }
+    }
+    if (version < 13) {
+      if (version >= 3) await dropColumn('chapter_snapshots', 'note');
+      if (version >= 2) await dropColumn('ai_usages', 'adopted_edit_percent');
+    }
+    if (version < 14) await dropTable('story_states');
+    if (version < 15) await dropColumn('characters', 'aliases');
+    if (version < 16) {
+      await dropColumn('chapters', 'intent');
+      await dropColumn('characters', 'voice');
+    }
+    await seeded.customStatement('PRAGMA user_version = $version');
+  } finally {
+    await seeded.close();
+  }
+}
+
+Future<Set<String>> _columns(AppDatabase db, String table) async {
+  final rows = await db.customSelect('PRAGMA table_info($table)').get();
+  return rows.map((r) => r.read<String>('name')).toSet();
+}
 
 /// 等待响应式流推送（drift 流更新在当前 isolate 异步派发）。
 Future<void> _waitFor(bool Function() condition) async {

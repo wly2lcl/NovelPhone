@@ -565,7 +565,7 @@ void main() {
     expect(rewrite.messages.single.content, contains('因人物关系纳入'));
   });
 
-  test('改写超预算时选中原文不被截断（ENH-04）', () async {
+  test('改写超预算时先丢弃可选资料，选中原文完整保留（ENH-04）', () async {
     final workId = await seedWork();
     final third = await chapters.createChapter(workId: workId, title: '第三章');
     final selected = '沈砚' * 300;
@@ -576,11 +576,12 @@ void main() {
       cursorOffset: 0,
       scrollOffset: 0,
     );
+    // 设定集本身很长：主材料放得下，但叠加后必然超预算。
     await settings.createEntry(
       workId: workId,
       type: SettingType.worldview,
       name: '玄洲',
-      content: '灵气复苏的东方大陆。',
+      content: '灵' * 1500,
     );
 
     final context = await builder.buildRewrite(
@@ -588,7 +589,8 @@ void main() {
       chapterId: third,
       selectedText: selected,
       intent: 'polish',
-      contextWindow: 400, // 预算 200 token，必然超限
+      // 主材料可容纳，但叠加全部可选资料会超预算。
+      contextWindow: 4000,
     );
 
     expect(context.truncated, isTrue);
@@ -596,6 +598,30 @@ void main() {
     expect(context.sections.map((s) => s.label), isNot(contains('设定集')));
     // 选中原文完整保留（不参与丢弃/截断）。
     expect(context.messages.single.content, contains('【待改写原文】\n$selected'));
+  });
+
+  test('主材料本身超出预算时明确失败，不发出超限请求（ENH-04）', () async {
+    final workId = await seedWork();
+    final third = await chapters.createChapter(workId: workId, title: '第三章');
+    final selected = '沈砚' * 300;
+    await chapters.saveChapter(
+      chapterId: third,
+      title: '第三章',
+      content: selected,
+      cursorOffset: 0,
+      scrollOffset: 0,
+    );
+
+    await expectLater(
+      builder.buildRewrite(
+        workId: workId,
+        chapterId: third,
+        selectedText: selected,
+        intent: 'polish',
+        contextWindow: 400,
+      ),
+      throwsA(isA<ContextBudgetException>()),
+    );
   });
 
   test('角色卡匹配按出现次数排序', () {
@@ -1523,6 +1549,27 @@ void main() {
     expect(prompt, contains('沈砚'));
     expect(prompt, contains('作者希望的方向：让苏晚主动摊牌'));
     expect(context.messages, hasLength(1));
+  });
+
+  test('开篇助手与剧情推演携带角色口吻（ENH-52）', () async {
+    final workId = await seedWork();
+    const voice = '句子短，尾音下沉，常说「罢了」。';
+    await characters.createCharacter(
+      workId: workId,
+      name: '沈砚',
+      identity: '游侠',
+      voice: voice,
+    );
+
+    final opening = await builder.buildOpening(workId: workId);
+    expect(opening.messages.single.content, contains('口吻：$voice'));
+
+    final chapterList = await chapters.listChapters(workId);
+    final plot = await builder.buildPlotPlan(
+      workId: workId,
+      chapterList: chapterList,
+    );
+    expect(plot.messages.single.content, contains('口吻：$voice'));
   });
 
   test('作品问答按顺序注入历史并在超预算时丢弃最早一轮（ENH-23）', () async {

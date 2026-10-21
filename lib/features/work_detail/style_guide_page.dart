@@ -6,6 +6,7 @@ import '../../app/theme.dart';
 import '../../data/data_providers.dart';
 import '../../l10n/l10n.dart';
 import '../../models/work_style_guide.dart';
+import '../ai/ai_notice.dart';
 import '../ai/ai_providers.dart';
 import '../ai/ai_service.dart';
 
@@ -87,6 +88,9 @@ class _StyleGuidePageState extends ConsumerState<StyleGuidePage> {
       );
       return;
     }
+    if (!mounted) return;
+    if (!await ensureAiNotice(context, ref)) return;
+    if (!mounted) return;
     setState(() => _extracting = true);
     try {
       final result = await ref

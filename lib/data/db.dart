@@ -290,8 +290,11 @@ class AppDatabase extends _$AppDatabase {
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onUpgrade: (m, from, to) async {
+      // 旧版本升级时新建的表会直接采用当前 schema；后续 addColumn 分支须跳过
+      // 这些表已含的列，否则 v1/v2 升级会因 duplicate column name 失败。
+      final freshAiTables = from < 2;
       // v2（M3）：追加 AI_USAGE / MODEL_GROUP / APP_SETTING 三表。
-      if (from < 2) {
+      if (freshAiTables) {
         await m.createTable(aiUsages);
         await m.createTable(modelGroups);
         await m.createTable(appSettings);
@@ -345,13 +348,19 @@ class AppDatabase extends _$AppDatabase {
       // v12（ENH-23）：作品追加文风档案；模型组追加费用估算单价。
       if (from < 12) {
         await m.addColumn(works, works.styleGuide);
-        await m.addColumn(modelGroups, modelGroups.inputPricePerMillion);
-        await m.addColumn(modelGroups, modelGroups.outputPricePerMillion);
+        if (!freshAiTables) {
+          await m.addColumn(modelGroups, modelGroups.inputPricePerMillion);
+          await m.addColumn(modelGroups, modelGroups.outputPricePerMillion);
+        }
       }
       // v13（ENH-30）：快照来源标记；AI 用量追加采纳编辑比例。
       if (from < 13) {
-        await m.addColumn(chapterSnapshots, chapterSnapshots.note);
-        await m.addColumn(aiUsages, aiUsages.adoptedEditPercent);
+        if (from >= 3) {
+          await m.addColumn(chapterSnapshots, chapterSnapshots.note);
+        }
+        if (!freshAiTables) {
+          await m.addColumn(aiUsages, aiUsages.adoptedEditPercent);
+        }
       }
       // v14（ENH-31）：追加 STORY_STATE 表（角色状态 / 伏笔 / 时间线）。
       if (from < 14) {

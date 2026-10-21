@@ -157,7 +157,7 @@ void main() {
       expect(parseStoryStateExtractionResponse('[]').parseFailed, isFalse);
     });
 
-    test('解析 relationChanges 并归一化动作、按两端去重（ENH-56）', () {
+    test('解析 relationChanges 并归一化动作、按有向两端去重（ENH-56）', () {
       final extraction = parseStoryStateExtractionResponse(
         '{"states":[],"relationChanges":['
         '{"from":"沈砚","to":"顾寒","label":"宿敌","action":"新增"},'
@@ -169,16 +169,18 @@ void main() {
       );
       expect(extraction.parseFailed, isFalse);
       expect(extraction.suggestions, isEmpty);
-      expect(extraction.relationChanges, hasLength(4));
-      // 无向配对去重：同一对人物以最后一条为准。
-      expect(extraction.relationChanges[0].from, '顾寒');
-      expect(extraction.relationChanges[0].to, '沈砚');
+      // A→B 与 B→A 是两条有向关系，不能互相去重。
+      expect(extraction.relationChanges, hasLength(5));
+      expect(extraction.relationChanges[0].from, '沈砚');
+      expect(extraction.relationChanges[0].to, '顾寒');
       expect(extraction.relationChanges[0].action, 'add');
-      expect(extraction.relationChanges[1].action, 'update');
-      expect(extraction.relationChanges[2].action, 'remove');
-      expect(extraction.relationChanges[2].label, isEmpty);
+      expect(extraction.relationChanges[1].from, '顾寒');
+      expect(extraction.relationChanges[1].to, '沈砚');
+      expect(extraction.relationChanges[2].action, 'update');
+      expect(extraction.relationChanges[3].action, 'remove');
+      expect(extraction.relationChanges[3].label, isEmpty);
       // 名字缺失的一端保留原样，由 UI 判定是否可解析。
-      expect(extraction.relationChanges[3].from, '无名氏');
+      expect(extraction.relationChanges[4].from, '无名氏');
     });
 
     test('无 relationChanges 键时关系列表为空且不算失败（ENH-56）', () {
