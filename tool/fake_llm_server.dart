@@ -138,7 +138,7 @@ class FakeLlmServer {
           pieces: <String>[_entityExtractionJson],
         );
       case 'openai-plan':
-        return _openaiStream(request.response, pieces: <String>[_plotPlanJson]);
+        return _openaiPlan(request);
       case 'openai-states':
         return _openaiStream(
           request.response,
@@ -282,6 +282,15 @@ class FakeLlmServer {
         '另一条线索只在已删除的章节里出现过（[[ch:999999]]）。',
       ],
     );
+  }
+
+  /// ENH-49 验收：剧情推演的 system 也带协作守则；响应保持可解析的推演 JSON。
+  Future<void> _openaiPlan(HttpRequest request) async {
+    final raw = await utf8.decoder.bind(request).join();
+    stdout.writeln(
+      '[fake-llm] openai-plan：守则=${raw.contains('【协作守则】') ? '有' : '无'}',
+    );
+    return _openaiStream(request.response, pieces: <String>[_plotPlanJson]);
   }
 
   /// ENH-44 / ENH-46 验收：回显 system 中是否带协作守则与套话黑名单。

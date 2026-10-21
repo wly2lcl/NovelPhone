@@ -345,6 +345,40 @@ class SettingsRepository {
         await getSetting(aiAdoptedSamplesKey(workId)),
       );
 
+  /// ENH-50：编辑幅度超过 30% 的采纳样本，仅用于本地蒸馏，不进入提示。
+  Future<List<AdoptedSample>> readAnalysisSamples(int workId) async =>
+      WritingPreferences.parseSamples(
+        await getSetting(WritingPreferences.analysisSamplesKey(workId)),
+        limit: CollaborationRules.maxAnalysisSamples,
+      );
+
+  Future<void> recordAnalysisSample(
+    int workId, {
+    required String text,
+    required String task,
+    String source = '',
+  }) async {
+    if (text.trim().isEmpty) return;
+    final samples = await readAnalysisSamples(workId);
+    final next = WritingPreferences.addSample(
+      samples,
+      AdoptedSample(
+        text: text,
+        source: source,
+        task: task,
+        createdAt: DateTime.now(),
+      ),
+      limit: CollaborationRules.maxAnalysisSamples,
+    );
+    await setSetting(
+      WritingPreferences.analysisSamplesKey(workId),
+      WritingPreferences.encodeSamples(
+        next,
+        limit: CollaborationRules.maxAnalysisSamples,
+      ),
+    );
+  }
+
   Future<void> recordAdoptedSample(
     int workId, {
     required String text,
@@ -383,8 +417,10 @@ class SettingsRepository {
     await _settings.remove(WritingPreferences.adoptedSamplesKey(workId));
     await _settings.remove(WritingPreferences.paragraphFeedbackKey(workId));
     await _settings.remove(WritingPreferences.collaborationRulesKey(workId));
+    await _settings.remove(WritingPreferences.collabRuleScopesKey(workId));
     await _settings.remove(WritingPreferences.bannedPhrasesKey(workId));
     await _settings.remove(WritingPreferences.rejectedAiKey(workId));
+    await _settings.remove(WritingPreferences.analysisSamplesKey(workId));
   }
 
   // ---------- 协作守则与套话黑名单（ENH-44）----------
@@ -400,7 +436,10 @@ class SettingsRepository {
       maxItems: CollaborationRules.maxBanned,
       maxChars: CollaborationRules.maxBannedChars,
     );
-    return CollaborationRules(rules: rules, banned: banned);
+    final scopes = CollaborationRules.parseScopes(
+      await getSetting(WritingPreferences.collabRuleScopesKey(workId)),
+    );
+    return CollaborationRules(rules: rules, banned: banned, scopes: scopes);
   }
 
   Future<void> saveCollaborationRules(
@@ -410,6 +449,7 @@ class SettingsRepository {
     final clean = CollaborationRules.sanitize(
       rules: rules.rules,
       banned: rules.banned,
+      scopes: rules.scopes,
     );
     await setSetting(
       WritingPreferences.collaborationRulesKey(workId),
@@ -418,6 +458,10 @@ class SettingsRepository {
     await setSetting(
       WritingPreferences.bannedPhrasesKey(workId),
       CollaborationRules.encodeList(clean.banned),
+    );
+    await setSetting(
+      WritingPreferences.collabRuleScopesKey(workId),
+      CollaborationRules.encodeScopes(clean.scopes),
     );
   }
 

@@ -99,8 +99,13 @@ class WritingPreferences {
 
   /// 协作守则 / 套话黑名单 / 被放弃的「太 AI」片段（ENH-44）。
   static String collaborationRulesKey(int workId) => 'ai_collab_rules_$workId';
+  static String collabRuleScopesKey(int workId) =>
+      'ai_collab_rule_scopes_$workId';
   static String bannedPhrasesKey(int workId) => 'ai_banned_phrases_$workId';
   static String rejectedAiKey(int workId) => 'ai_rejected_ai_$workId';
+
+  /// ENH-50：大改样本只做本地分析，与提示样本分开存放。
+  static String analysisSamplesKey(int workId) => 'ai_analysis_samples_$workId';
 
   /// 作品永久删除时一并清理的偏好键（含 ENH-41 一致性忽略项）。
   static List<String> keysFor(int workId) => <String>[
@@ -109,8 +114,10 @@ class WritingPreferences {
     enabledKey(workId),
     paragraphFeedbackKey(workId),
     collaborationRulesKey(workId),
+    collabRuleScopesKey(workId),
     bannedPhrasesKey(workId),
     rejectedAiKey(workId),
+    analysisSamplesKey(workId),
     ContinuitySuppressions.storageKey(workId),
   ];
 
@@ -148,7 +155,10 @@ class WritingPreferences {
   static String encodeReasonCounts(Map<String, int> counts) =>
       jsonEncode(counts);
 
-  static List<AdoptedSample> parseSamples(String? raw) {
+  static List<AdoptedSample> parseSamples(
+    String? raw, {
+    int limit = maxSamples,
+  }) {
     if (raw == null || raw.trim().isEmpty) return <AdoptedSample>[];
     try {
       final decoded = jsonDecode(raw);
@@ -156,21 +166,24 @@ class WritingPreferences {
       return decoded
           .map(AdoptedSample.tryParse)
           .whereType<AdoptedSample>()
-          .take(maxSamples)
+          .take(limit)
           .toList(growable: false);
     } catch (_) {
       return <AdoptedSample>[];
     }
   }
 
-  static String encodeSamples(List<AdoptedSample> samples) =>
-      jsonEncode(samples.take(maxSamples).map((s) => s.toJson()).toList());
+  static String encodeSamples(
+    List<AdoptedSample> samples, {
+    int limit = maxSamples,
+  }) => jsonEncode(samples.take(limit).map((s) => s.toJson()).toList());
 
   /// 新样本置顶、去重并限制条数与长度；无有效内容时原样返回。
   static List<AdoptedSample> addSample(
     List<AdoptedSample> existing,
-    AdoptedSample sample,
-  ) {
+    AdoptedSample sample, {
+    int limit = maxSamples,
+  }) {
     final text = _clip(sample.text.trim(), maxSampleChars);
     if (text.isEmpty) return existing;
     final source = _clip(sample.source.trim(), maxSampleChars);
@@ -183,7 +196,7 @@ class WritingPreferences {
       ),
       ...existing.where((s) => s.text != text),
     ];
-    return next.take(maxSamples).toList(growable: false);
+    return next.take(limit).toList(growable: false);
   }
 
   /// 生成注入 system 的「作者协作偏好」文本；无高频原因与样本时返回空串。

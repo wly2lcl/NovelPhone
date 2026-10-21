@@ -1211,7 +1211,7 @@ abstract class AppLocalizations {
   /// No description provided for @aiPreferencesRulesHint.
   ///
   /// In zh, this message translates to:
-  /// **'手写约束，生成续写 / 改写 / 开篇 / 灵感时优先遵守（最多 10 条）。'**
+  /// **'手写约束，可按任务限定生效范围（最多 10 条）；生成续写 / 改写 / 开篇 / 灵感 / 章纲 / 剧情推演时遵守。'**
   String get aiPreferencesRulesHint;
 
   /// No description provided for @aiPreferencesNoRules.
@@ -1319,7 +1319,7 @@ abstract class AppLocalizations {
   /// No description provided for @aiPreferencesDistillEmpty.
   ///
   /// In zh, this message translates to:
-  /// **'配对样本不足。对 AI 结果做轻度修改（10%～30%）后采纳，即可积累对照样本。'**
+  /// **'配对样本不足。对 AI 结果做轻度修改（10%～30%）后采纳会进入提示样本；超过 30% 的大改样本只用于本地分析。'**
   String get aiPreferencesDistillEmpty;
 
   /// No description provided for @aiPreferencesDistillAction.
@@ -1355,7 +1355,7 @@ abstract class AppLocalizations {
   /// No description provided for @aiPreferencesPreviewHint.
   ///
   /// In zh, this message translates to:
-  /// **'以下文本会附加到续写 / 改写 / 开篇 / 灵感的 system prompt（关闭开关后不注入）。'**
+  /// **'以下文本会附加到对应任务的 system prompt（关闭开关后不注入）；切换预览任务可查看作用域过滤结果。'**
   String get aiPreferencesPreviewHint;
 
   /// No description provided for @aiPreferencesPreviewEmpty.
@@ -6456,6 +6456,126 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'密码错误或备份文件已损坏，无法解密'**
   String get backupErrorDecryptionFailed;
+
+  /// No description provided for @aiRuleCheckHits.
+  ///
+  /// In zh, this message translates to:
+  /// **'守则自检 · 命中 {count} 处'**
+  String aiRuleCheckHits(int count);
+
+  /// No description provided for @aiRuleCheckClear.
+  ///
+  /// In zh, this message translates to:
+  /// **'守则自检：未发现套话或违禁词'**
+  String get aiRuleCheckClear;
+
+  /// No description provided for @aiRuleCheckRewrite.
+  ///
+  /// In zh, this message translates to:
+  /// **'按守则重写'**
+  String get aiRuleCheckRewrite;
+
+  /// No description provided for @aiRuleCheckBan.
+  ///
+  /// In zh, this message translates to:
+  /// **'加入黑名单'**
+  String get aiRuleCheckBan;
+
+  /// No description provided for @aiRuleCheckBanned.
+  ///
+  /// In zh, this message translates to:
+  /// **'已加入套话黑名单'**
+  String get aiRuleCheckBanned;
+
+  /// No description provided for @aiRuleCheckDeleteHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'建议删除'**
+  String get aiRuleCheckDeleteHint;
+
+  /// No description provided for @aiRuleCheckReplacement.
+  ///
+  /// In zh, this message translates to:
+  /// **'建议改为「{text}」'**
+  String aiRuleCheckReplacement(String text);
+
+  /// No description provided for @aiRuleCheckRewritePrompt.
+  ///
+  /// In zh, this message translates to:
+  /// **'请按协作守则改写，避免使用{words}，改用具象的动作、对话或感官细节。'**
+  String aiRuleCheckRewritePrompt(String words);
+
+  /// No description provided for @aiPreferencesRuleEdit.
+  ///
+  /// In zh, this message translates to:
+  /// **'编辑守则'**
+  String get aiPreferencesRuleEdit;
+
+  /// No description provided for @aiPreferencesRuleEditTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'编辑协作守则'**
+  String get aiPreferencesRuleEditTitle;
+
+  /// No description provided for @aiPreferencesRuleUpdated.
+  ///
+  /// In zh, this message translates to:
+  /// **'已更新协作守则'**
+  String get aiPreferencesRuleUpdated;
+
+  /// No description provided for @aiPreferencesRuleMoveUp.
+  ///
+  /// In zh, this message translates to:
+  /// **'上移'**
+  String get aiPreferencesRuleMoveUp;
+
+  /// No description provided for @aiPreferencesRuleMoveDown.
+  ///
+  /// In zh, this message translates to:
+  /// **'下移'**
+  String get aiPreferencesRuleMoveDown;
+
+  /// No description provided for @aiPreferencesRuleAllTasks.
+  ///
+  /// In zh, this message translates to:
+  /// **'全部任务'**
+  String get aiPreferencesRuleAllTasks;
+
+  /// No description provided for @aiPreferencesRuleScopeTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'守则生效任务'**
+  String get aiPreferencesRuleScopeTitle;
+
+  /// No description provided for @aiPreferencesRuleScopeHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'不勾选表示对所有任务生效；可多选。'**
+  String get aiPreferencesRuleScopeHint;
+
+  /// No description provided for @aiPreferencesRuleConflict.
+  ///
+  /// In zh, this message translates to:
+  /// **'「{first}」与「{second}」要求相反，建议只保留一条。'**
+  String aiPreferencesRuleConflict(String first, String second);
+
+  /// No description provided for @aiPreferencesDistillAnalysis.
+  ///
+  /// In zh, this message translates to:
+  /// **'含 {count} 组大改样本（仅本地分析）'**
+  String aiPreferencesDistillAnalysis(int count);
+
+  /// No description provided for @aiPreferencesPreviewTask.
+  ///
+  /// In zh, this message translates to:
+  /// **'预览任务'**
+  String get aiPreferencesPreviewTask;
+
+  /// No description provided for @aiPreferencesPreviewTokens.
+  ///
+  /// In zh, this message translates to:
+  /// **'约 {count} tokens'**
+  String aiPreferencesPreviewTokens(int count);
 }
 
 class _AppLocalizationsDelegate

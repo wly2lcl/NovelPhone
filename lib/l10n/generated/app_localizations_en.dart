@@ -687,7 +687,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aiPreferencesRulesHint =>
-      'Hard constraints applied to continuation, rewrite, opening and ideas prompts (up to 10).';
+      'Hand-written constraints; can be limited to specific tasks (up to 10). Applied to continuation, rewrite, opening, ideas, outline and plot planning.';
 
   @override
   String get aiPreferencesNoRules => 'No collaboration rules yet';
@@ -756,7 +756,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aiPreferencesDistillEmpty =>
-      'Not enough paired samples. Lightly edit (10%–30%) an AI result and adopt it to build comparison pairs.';
+      'Not enough paired samples. Light edits (10–30%) are kept as prompt samples; edits above 30% are used for local analysis only.';
 
   @override
   String get aiPreferencesDistillAction => 'Distill preferences';
@@ -783,7 +783,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aiPreferencesPreviewHint =>
-      'This text is appended to the system prompt for continuation, rewrite, opening and ideas (skipped when the toggle is off).';
+      'This text is appended to the selected task’s system prompt (nothing is injected when disabled). Switch the preview task to see scope filtering.';
 
   @override
   String get aiPreferencesPreviewEmpty => 'Nothing to inject yet';
@@ -3998,4 +3998,78 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get backupErrorDecryptionFailed =>
       'Wrong password or corrupted backup file';
+
+  @override
+  String aiRuleCheckHits(int count) {
+    return 'Rule check · $count hit(s)';
+  }
+
+  @override
+  String get aiRuleCheckClear =>
+      'Rule check: no clichés or banned phrases found';
+
+  @override
+  String get aiRuleCheckRewrite => 'Rewrite by rules';
+
+  @override
+  String get aiRuleCheckBan => 'Ban phrase';
+
+  @override
+  String get aiRuleCheckBanned => 'Added to banned phrases';
+
+  @override
+  String get aiRuleCheckDeleteHint => 'Suggest deleting';
+
+  @override
+  String aiRuleCheckReplacement(String text) {
+    return 'Try “$text”';
+  }
+
+  @override
+  String aiRuleCheckRewritePrompt(String words) {
+    return 'Rewrite following the collaboration rules. Avoid $words; use concrete actions, dialogue, or sensory detail instead.';
+  }
+
+  @override
+  String get aiPreferencesRuleEdit => 'Edit rule';
+
+  @override
+  String get aiPreferencesRuleEditTitle => 'Edit collaboration rule';
+
+  @override
+  String get aiPreferencesRuleUpdated => 'Rule updated';
+
+  @override
+  String get aiPreferencesRuleMoveUp => 'Move up';
+
+  @override
+  String get aiPreferencesRuleMoveDown => 'Move down';
+
+  @override
+  String get aiPreferencesRuleAllTasks => 'All tasks';
+
+  @override
+  String get aiPreferencesRuleScopeTitle => 'Rule applies to';
+
+  @override
+  String get aiPreferencesRuleScopeHint =>
+      'No selection means all tasks. Multiple selections allowed.';
+
+  @override
+  String aiPreferencesRuleConflict(String first, String second) {
+    return '“$first” and “$second” conflict; consider keeping only one.';
+  }
+
+  @override
+  String aiPreferencesDistillAnalysis(int count) {
+    return '$count heavily edited pair(s), local analysis only';
+  }
+
+  @override
+  String get aiPreferencesPreviewTask => 'Preview task';
+
+  @override
+  String aiPreferencesPreviewTokens(int count) {
+    return 'About $count tokens';
+  }
 }

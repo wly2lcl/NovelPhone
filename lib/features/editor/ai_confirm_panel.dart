@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/theme.dart';
 import '../../core/ai/adoption_metrics.dart';
 import '../../core/ai/ai_client.dart';
+import '../../core/ai/collaboration_rules.dart';
 import '../../core/ai/context_builder.dart';
 import '../../core/ai/sanitize_ai_text.dart';
 import '../../core/ai/writing_preferences.dart' show AiFeedbackReason;
@@ -163,6 +164,11 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
   final List<AiRevisionHistory> _revisionHistory =
       List<AiRevisionHistory>.generate(3, (_) => AiRevisionHistory());
 
+  /// ENH-48：当前作品的协作守则，用于结果内本地自检。
+  CollaborationRules _collabRules = const CollaborationRules();
+  String _ruleCheckKey = '';
+  RuleCheckResult _ruleCheck = const RuleCheckResult();
+
   /// 是否处于多候选状态（仅续写生效）。
   bool get _multiMode =>
       _mode == AiPanelMode.continueWriting && _multiCandidate;
@@ -181,6 +187,7 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
     super.initState();
     _instruction = widget.rewriteInstruction ?? '';
     _aiService = ref.read(aiServiceProvider);
+    _loadCollabRules();
     WidgetsBinding.instance.addPostFrameCallback((_) => _start());
   }
 
@@ -584,6 +591,9 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
     // ENH-30：大改后的文本不代表模型语气，超过阈值不采集样本。
     // ENH-42：轻度～中度修改（10% < 编辑比例 ≤ 30%）时保留原稿对照。
     final sample = finalText;
+    final task = _mode == AiPanelMode.rewrite
+        ? AiTask.rewrite
+        : AiTask.continueWriting;
     if (sample.isNotEmpty &&
         _isWritingMode &&
         (editPercent == null || editPercent <= adoptionSampleMaxEditPercent)) {
@@ -594,9 +604,20 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
             widget.workId,
             text: sample,
             source: paired ? source : '',
-            task: _mode == AiPanelMode.rewrite
-                ? AiTask.rewrite
-                : AiTask.continueWriting,
+            task: task,
+          );
+    } else if (sample.isNotEmpty &&
+        _isWritingMode &&
+        source.isNotEmpty &&
+        editPercent != null) {
+      // ENH-50：大改样本仅本地分析（蒸馏），不进入提示样本。
+      await ref
+          .read(settingsRepositoryProvider)
+          .recordAnalysisSample(
+            widget.workId,
+            text: sample,
+            source: source,
+            task: task,
           );
     }
   }
@@ -927,6 +948,7 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
                   const SizedBox(height: 6),
                   _buildResult(),
                   if (_isWritingMode) _buildRevisionHistoryRow(),
+                  if (_isWritingMode) _buildRuleCheckRow(),
                   if (_isWritingMode) _buildCollaborationRow(),
                   if (_activeError != null) _buildError(),
                   const SizedBox(height: 8),
@@ -1259,6 +1281,162 @@ class _AiConfirmPanelState extends ConsumerState<AiConfirmPanel> {
       oldText: previous.text,
       newText: current.text,
       title: context.l10n.aiRevisionCompareTitle,
+    );
+  }
+
+  Future<void> _loadCollabRules() async {
+    final rules = await ref
+        .read(settingsRepositoryProvider)
+        .readCollaborationRules(widget.workId);
+    if (!mounted) return;
+    setState(() {
+      _collabRules = rules;
+      _ruleCheckKey = '';
+    });
+  }
+
+  /// ENH-48：按当前文本缓存自检结果，避免每次重建都跑完整词库。
+  RuleCheckResult _ruleCheckFor(String text) {
+    final key =
+        '${text.length}:${text.hashCode}:'
+        '${_collabRules.rules.length}:${_collabRules.banned.length}';
+    if (key != _ruleCheckKey) {
+      _ruleCheckKey = key;
+      _ruleCheck = CollaborationRules.inspectText(
+        text,
+        rules: _collabRules.rules,
+        banned: _collabRules.banned,
+      );
+    }
+    return _ruleCheck;
+  }
+
+  Future<void> _banRuleIssue(RuleCheckIssue issue) async {
+    await ref
+        .read(settingsRepositoryProvider)
+        .addBannedPhrase(widget.workId, issue.phrase);
+    await _loadCollabRules();
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(context.l10n.aiRuleCheckBanned)));
+  }
+
+  void _startRuleRewrite(RuleCheckResult check) {
+    if (_streaming || check.isEmpty) return;
+    final words = check.issues
+        .take(5)
+        .map((issue) => '「${issue.phrase}」')
+        .join('、');
+    _revisionInstruction.value = TextEditingValue(
+      text: context.l10n.aiRuleCheckRewritePrompt(words),
+      selection: TextSelection.collapsed(
+        offset: context.l10n.aiRuleCheckRewritePrompt(words).length,
+      ),
+    );
+    setState(() {});
+    _startRevision();
+  }
+
+  /// ENH-48：生成结果内联守则自检，作者能直接看到规则是否生效。
+  Widget _buildRuleCheckRow() {
+    if (_streaming) return const SizedBox.shrink();
+    final text = _activeResult.text.trim();
+    if (text.isEmpty) return const SizedBox.shrink();
+    final configured =
+        _collabRules.rules.isNotEmpty || _collabRules.banned.isNotEmpty;
+    final check = _ruleCheckFor(text);
+    if (!configured && check.isEmpty) return const SizedBox.shrink();
+    final l10n = context.l10n;
+    final inkSoft = context.paper.inkSoft;
+    final hit = !check.isEmpty;
+    return Container(
+      margin: const EdgeInsets.only(top: 6),
+      padding: const EdgeInsets.fromLTRB(10, 6, 6, 6),
+      decoration: BoxDecoration(
+        color: hit
+            ? const Color(0xFFB3261E).withValues(alpha: 0.06)
+            : context.paper.background,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Icon(
+                hit ? Icons.fact_check_outlined : Icons.verified_outlined,
+                size: 16,
+                color: hit ? const Color(0xFFB3261E) : inkSoft,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  hit
+                      ? l10n.aiRuleCheckHits(check.total)
+                      : l10n.aiRuleCheckClear,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: hit ? const Color(0xFFB3261E) : inkSoft,
+                  ),
+                ),
+              ),
+              if (hit)
+                TextButton(
+                  onPressed: () => _startRuleRewrite(check),
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    minimumSize: Size.zero,
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                  ),
+                  child: Text(
+                    l10n.aiRuleCheckRewrite,
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ),
+            ],
+          ),
+          if (hit)
+            for (final issue in check.issues.take(4))
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: Text(
+                        <String>[
+                          '「${issue.phrase}」×${issue.count}',
+                          if (issue.replacement != null)
+                            issue.replacement!.isEmpty
+                                ? l10n.aiRuleCheckDeleteHint
+                                : l10n.aiRuleCheckReplacement(
+                                    issue.replacement!,
+                                  ),
+                        ].join(' · '),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 11, color: inkSoft),
+                      ),
+                    ),
+                    if (!issue.isBanned)
+                      TextButton(
+                        onPressed: () => _banRuleIssue(issue),
+                        style: TextButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          minimumSize: Size.zero,
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                        ),
+                        child: Text(
+                          l10n.aiRuleCheckBan,
+                          style: const TextStyle(fontSize: 11),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+        ],
+      ),
     );
   }
 

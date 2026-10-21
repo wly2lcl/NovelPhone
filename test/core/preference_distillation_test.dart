@@ -37,6 +37,26 @@ void main() {
     expect(text, contains('增加对话'));
   });
 
+  test('ENH-50 大改样本仅参与分析并标注来源', () {
+    final hints = PreferenceDistillation.distill(
+      const <AdoptedSample>[],
+      analysisSamples: <AdoptedSample>[
+        pair('他站在原地，不由自主地想起许多往事，心中五味杂陈。', '他走了。'),
+      ],
+    );
+    expect(hints, isNotEmpty);
+    expect(hints.first.evidence, 1);
+    expect(hints.first.analysisEvidence, 1);
+    expect(hints.map((hint) => hint.text).join(), contains('压缩'));
+
+    final mixed = PreferenceDistillation.distill(
+      <AdoptedSample>[pair('他轻轻地叹了口气。', '他叹气。')],
+      analysisSamples: <AdoptedSample>[pair('她微微一笑。', '她笑。')],
+    );
+    expect(mixed.first.evidence, 2);
+    expect(mixed.first.analysisEvidence, 1);
+  });
+
   test('识别减少对话与拆短段落倾向', () {
     final longParagraph =
         '苏晚说了很多话，「你今天必须留下。」「外面很危险。」'

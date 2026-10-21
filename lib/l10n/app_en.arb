@@ -216,7 +216,7 @@
     }
   },
   "aiPreferencesRules": "Collaboration rules",
-  "aiPreferencesRulesHint": "Hard constraints applied to continuation, rewrite, opening and ideas prompts (up to 10).",
+  "aiPreferencesRulesHint": "Hand-written constraints; can be limited to specific tasks (up to 10). Applied to continuation, rewrite, opening, ideas, outline and plot planning.",
   "aiPreferencesNoRules": "No collaboration rules yet",
   "aiPreferencesAddRule": "Add rule",
   "aiPreferencesAddRuleTitle": "Add collaboration rule",
@@ -241,7 +241,7 @@
   "aiPreferencesSuggestionHint": "Tap to blacklist; future generations will avoid them.",
   "aiPreferencesDistill": "Rewrite preference distillation",
   "aiPreferencesDistillHint": "Local analysis of paired model drafts and author final versions reveals your rewriting tendencies.",
-  "aiPreferencesDistillEmpty": "Not enough paired samples. Lightly edit (10%–30%) an AI result and adopt it to build comparison pairs.",
+  "aiPreferencesDistillEmpty": "Not enough paired samples. Light edits (10–30%) are kept as prompt samples; edits above 30% are used for local analysis only.",
   "aiPreferencesDistillAction": "Distill preferences",
   "aiPreferencesDistillEvidence": "Based on {count, plural, =1{1 draft comparison} other{{count} draft comparisons}}",
   "@aiPreferencesDistillEvidence": {
@@ -254,7 +254,7 @@
   "aiPreferencesAddToRules": "Add to rules",
   "aiPreferencesAddAllRules": "Add all to rules",
   "aiPreferencesPreview": "Injection preview",
-  "aiPreferencesPreviewHint": "This text is appended to the system prompt for continuation, rewrite, opening and ideas (skipped when the toggle is off).",
+  "aiPreferencesPreviewHint": "This text is appended to the selected task’s system prompt (nothing is injected when disabled). Switch the preview task to see scope filtering.",
   "aiPreferencesPreviewEmpty": "Nothing to inject yet",
   "aiPreferencesIgnoredConflicts": "Ignored continuity conflicts",
   "aiPreferencesNoIgnored": "No ignored conflicts",
@@ -1313,5 +1313,70 @@
   "backupPassphrasePromptTitle": "Enter backup password",
   "backupPassphrasePromptBody": "This backup is encrypted. Enter the password used when it was exported.",
   "backupPassphraseUnlock": "Decrypt and restore",
-  "backupErrorDecryptionFailed": "Wrong password or corrupted backup file"
+  "backupErrorDecryptionFailed": "Wrong password or corrupted backup file",
+  "aiRuleCheckHits": "Rule check · {count} hit(s)",
+  "@aiRuleCheckHits": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "aiRuleCheckClear": "Rule check: no clichés or banned phrases found",
+  "aiRuleCheckRewrite": "Rewrite by rules",
+  "aiRuleCheckBan": "Ban phrase",
+  "aiRuleCheckBanned": "Added to banned phrases",
+  "aiRuleCheckDeleteHint": "Suggest deleting",
+  "aiRuleCheckReplacement": "Try “{text}”",
+  "@aiRuleCheckReplacement": {
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "aiRuleCheckRewritePrompt": "Rewrite following the collaboration rules. Avoid {words}; use concrete actions, dialogue, or sensory detail instead.",
+  "@aiRuleCheckRewritePrompt": {
+    "placeholders": {
+      "words": {
+        "type": "String"
+      }
+    }
+  },
+  "aiPreferencesRuleEdit": "Edit rule",
+  "aiPreferencesRuleEditTitle": "Edit collaboration rule",
+  "aiPreferencesRuleUpdated": "Rule updated",
+  "aiPreferencesRuleMoveUp": "Move up",
+  "aiPreferencesRuleMoveDown": "Move down",
+  "aiPreferencesRuleAllTasks": "All tasks",
+  "aiPreferencesRuleScopeTitle": "Rule applies to",
+  "aiPreferencesRuleScopeHint": "No selection means all tasks. Multiple selections allowed.",
+  "aiPreferencesRuleConflict": "“{first}” and “{second}” conflict; consider keeping only one.",
+  "@aiPreferencesRuleConflict": {
+    "placeholders": {
+      "first": {
+        "type": "String"
+      },
+      "second": {
+        "type": "String"
+      }
+    }
+  },
+  "aiPreferencesDistillAnalysis": "{count} heavily edited pair(s), local analysis only",
+  "@aiPreferencesDistillAnalysis": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "aiPreferencesPreviewTask": "Preview task",
+  "aiPreferencesPreviewTokens": "About {count} tokens",
+  "@aiPreferencesPreviewTokens": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

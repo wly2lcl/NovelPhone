@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:novelphone/core/ai/collaboration_rules.dart';
 import 'package:novelphone/core/ai/context_builder.dart';
 import 'package:novelphone/core/ai/structured_response.dart';
 import 'package:novelphone/core/ai/writing_preferences.dart';
@@ -221,7 +222,23 @@ void main() {
     await config.setAiPreferencesEnabled(workId, false);
     await config.addCollaborationRule(workId, '保持短句');
     await config.addBannedPhrase(workId, '不由自主');
+    await config.saveCollaborationRules(
+      workId,
+      const CollaborationRules(
+        rules: <String>['保持短句'],
+        banned: <String>['不由自主'],
+        scopes: <String, List<String>>{
+          '保持短句': <String>[CollabRuleTask.continueWriting],
+        },
+      ),
+    );
     await config.recordRejectedAiText(workId, '他不由自主地怔住了。');
+    await config.recordAnalysisSample(
+      workId,
+      text: '他站住。',
+      source: '他不由自主地站住，心中五味杂陈。',
+      task: AiTask.rewrite,
+    );
     await config.ignoreContinuityIssue(
       workId,
       const ContinuityIssue(quote: '沈砚没有出声', source: '角色卡·沈砚'),
@@ -409,6 +426,57 @@ void main() {
     final system =
         (messages.first as Map<String, dynamic>)['content'] as String;
     expect(system, contains('开篇先写动作'));
+  });
+
+  test('守则作用域持久化，并只注入限定任务（ENH-49）', () async {
+    await config.saveCollaborationRules(
+      workId,
+      const CollaborationRules(
+        rules: <String>['续写专用', '所有任务通用'],
+        banned: <String>['不由自主'],
+        scopes: <String, List<String>>{
+          '续写专用': <String>[CollabRuleTask.continueWriting],
+        },
+      ),
+    );
+    final saved = await config.readCollaborationRules(workId);
+    expect(saved.scopes['续写专用'], <String>[CollabRuleTask.continueWriting]);
+
+    await configure(AiTask.continueWriting);
+    String? requestBody;
+    final client = MockClient((request) async {
+      requestBody = request.body;
+      return sseResponse('他停下。');
+    });
+    await serviceWith(client)
+        .continueWriting(workId: workId, chapterId: chapterId, length: 300)
+        .toList();
+    final decoded = jsonDecode(requestBody!) as Map<String, dynamic>;
+    final messages = decoded['messages'] as List<dynamic>;
+    final system =
+        (messages.first as Map<String, dynamic>)['content'] as String;
+    expect(system, contains('续写专用'));
+    expect(system, contains('所有任务通用'));
+  });
+
+  test('章纲扩写与剧情推演上下文注入协作偏好（ENH-49）', () async {
+    final outlineContext = await builder.buildOutlineExpand(
+      workId: workId,
+      chapterId: chapterId,
+      seed: '沈砚夜访旧宅',
+      preferenceText: '【协作守则】\n- 章纲只写三场',
+    );
+    expect(outlineContext.system, contains('章纲只写三场'));
+    expect(outlineContext.sections.any((s) => s.label == '作者协作偏好'), isTrue);
+
+    final chapterList = await chapters.listChapters(workId);
+    final plotContext = await builder.buildPlotPlan(
+      workId: workId,
+      chapterList: chapterList,
+      preferenceText: '【协作守则】\n- 推演避免死人复活',
+    );
+    expect(plotContext.system, contains('推演避免死人复活'));
+    expect(plotContext.sections.any((s) => s.label == '作者协作偏好'), isTrue);
   });
 
   test('桥段点子请求 system 注入协作守则与套话（ENH-46）', () async {

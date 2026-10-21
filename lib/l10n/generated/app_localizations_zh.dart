@@ -625,7 +625,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aiPreferencesRulesHint =>
-      '手写约束，生成续写 / 改写 / 开篇 / 灵感时优先遵守（最多 10 条）。';
+      '手写约束，可按任务限定生效范围（最多 10 条）；生成续写 / 改写 / 开篇 / 灵感 / 章纲 / 剧情推演时遵守。';
 
   @override
   String get aiPreferencesNoRules => '暂无协作守则';
@@ -682,7 +682,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aiPreferencesDistillEmpty =>
-      '配对样本不足。对 AI 结果做轻度修改（10%～30%）后采纳，即可积累对照样本。';
+      '配对样本不足。对 AI 结果做轻度修改（10%～30%）后采纳会进入提示样本；超过 30% 的大改样本只用于本地分析。';
 
   @override
   String get aiPreferencesDistillAction => '提炼偏好';
@@ -703,7 +703,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aiPreferencesPreviewHint =>
-      '以下文本会附加到续写 / 改写 / 开篇 / 灵感的 system prompt（关闭开关后不注入）。';
+      '以下文本会附加到对应任务的 system prompt（关闭开关后不注入）；切换预览任务可查看作用域过滤结果。';
 
   @override
   String get aiPreferencesPreviewEmpty => '暂无内容可注入';
@@ -3550,4 +3550,76 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get backupErrorDecryptionFailed => '密码错误或备份文件已损坏，无法解密';
+
+  @override
+  String aiRuleCheckHits(int count) {
+    return '守则自检 · 命中 $count 处';
+  }
+
+  @override
+  String get aiRuleCheckClear => '守则自检：未发现套话或违禁词';
+
+  @override
+  String get aiRuleCheckRewrite => '按守则重写';
+
+  @override
+  String get aiRuleCheckBan => '加入黑名单';
+
+  @override
+  String get aiRuleCheckBanned => '已加入套话黑名单';
+
+  @override
+  String get aiRuleCheckDeleteHint => '建议删除';
+
+  @override
+  String aiRuleCheckReplacement(String text) {
+    return '建议改为「$text」';
+  }
+
+  @override
+  String aiRuleCheckRewritePrompt(String words) {
+    return '请按协作守则改写，避免使用$words，改用具象的动作、对话或感官细节。';
+  }
+
+  @override
+  String get aiPreferencesRuleEdit => '编辑守则';
+
+  @override
+  String get aiPreferencesRuleEditTitle => '编辑协作守则';
+
+  @override
+  String get aiPreferencesRuleUpdated => '已更新协作守则';
+
+  @override
+  String get aiPreferencesRuleMoveUp => '上移';
+
+  @override
+  String get aiPreferencesRuleMoveDown => '下移';
+
+  @override
+  String get aiPreferencesRuleAllTasks => '全部任务';
+
+  @override
+  String get aiPreferencesRuleScopeTitle => '守则生效任务';
+
+  @override
+  String get aiPreferencesRuleScopeHint => '不勾选表示对所有任务生效；可多选。';
+
+  @override
+  String aiPreferencesRuleConflict(String first, String second) {
+    return '「$first」与「$second」要求相反，建议只保留一条。';
+  }
+
+  @override
+  String aiPreferencesDistillAnalysis(int count) {
+    return '含 $count 组大改样本（仅本地分析）';
+  }
+
+  @override
+  String get aiPreferencesPreviewTask => '预览任务';
+
+  @override
+  String aiPreferencesPreviewTokens(int count) {
+    return '约 $count tokens';
+  }
 }

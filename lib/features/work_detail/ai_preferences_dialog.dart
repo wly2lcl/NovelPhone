@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/theme.dart';
 import '../../core/ai/collaboration_rules.dart';
+import '../../core/ai/context_builder.dart' show estimateTokens;
 import '../../core/ai/continuity_suppression.dart';
 import '../../core/ai/preference_distillation.dart';
 import '../../core/ai/writing_preferences.dart';
@@ -35,8 +36,11 @@ class _AiPreferencesDialogState extends ConsumerState<_AiPreferencesDialog> {
   List<AdoptedSample> _samples = const <AdoptedSample>[];
   List<ContinuitySuppression> _ignored = const <ContinuitySuppression>[];
   List<String> _rules = const <String>[];
+  Map<String, List<String>> _scopes = const <String, List<String>>{};
   List<String> _banned = const <String>[];
   List<String> _rejected = const <String>[];
+  List<AdoptedSample> _analysisSamples = const <AdoptedSample>[];
+  String _previewTask = CollabRuleTask.all;
   bool _distillShown = false;
 
   bool get _hasData =>
@@ -63,6 +67,7 @@ class _AiPreferencesDialogState extends ConsumerState<_AiPreferencesDialog> {
     final ignored = await repo.readContinuitySuppressions(widget.workId);
     final collaboration = await repo.readCollaborationRules(widget.workId);
     final rejected = await repo.readRejectedAiTexts(widget.workId);
+    final analysisSamples = await repo.readAnalysisSamples(widget.workId);
     if (!mounted) return;
     setState(() {
       _enabled = enabled;
@@ -71,8 +76,10 @@ class _AiPreferencesDialogState extends ConsumerState<_AiPreferencesDialog> {
       _samples = samples;
       _ignored = ignored;
       _rules = collaboration.rules;
+      _scopes = collaboration.scopes;
       _banned = collaboration.banned;
       _rejected = rejected;
+      _analysisSamples = analysisSamples;
       _loading = false;
     });
   }
@@ -117,8 +124,10 @@ class _AiPreferencesDialogState extends ConsumerState<_AiPreferencesDialog> {
       _samples = const <AdoptedSample>[];
       _ignored = const <ContinuitySuppression>[];
       _rules = const <String>[];
+      _scopes = const <String, List<String>>{};
       _banned = const <String>[];
       _rejected = const <String>[];
+      _analysisSamples = const <AdoptedSample>[];
       _distillShown = false;
     });
     ScaffoldMessenger.of(
@@ -141,8 +150,10 @@ class _AiPreferencesDialogState extends ConsumerState<_AiPreferencesDialog> {
     required String title,
     required String hint,
     required int maxLength,
+    String initialValue = '',
   }) async {
-    final controller = TextEditingController();
+    final controller = TextEditingController(text: initialValue);
+    controller.selection = TextSelection.collapsed(offset: initialValue.length);
     final result = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -187,7 +198,10 @@ class _AiPreferencesDialogState extends ConsumerState<_AiPreferencesDialog> {
     await repo.addCollaborationRule(widget.workId, text);
     final collaboration = await repo.readCollaborationRules(widget.workId);
     if (!mounted) return;
-    setState(() => _rules = collaboration.rules);
+    setState(() {
+      _rules = collaboration.rules;
+      _scopes = collaboration.scopes;
+    });
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(l10n.aiPreferencesRuleAdded)));
@@ -195,10 +209,156 @@ class _AiPreferencesDialogState extends ConsumerState<_AiPreferencesDialog> {
 
   Future<void> _removeRule(String rule) async {
     final repo = ref.read(settingsRepositoryProvider);
-    await repo.removeCollaborationRule(widget.workId, rule);
+    final nextScopes = Map<String, List<String>>.of(_scopes)..remove(rule);
+    await repo.saveCollaborationRules(
+      widget.workId,
+      CollaborationRules(
+        rules: _rules.where((e) => e != rule).toList(growable: false),
+        banned: _banned,
+        scopes: nextScopes,
+      ),
+    );
     final collaboration = await repo.readCollaborationRules(widget.workId);
     if (!mounted) return;
-    setState(() => _rules = collaboration.rules);
+    setState(() {
+      _rules = collaboration.rules;
+      _scopes = collaboration.scopes;
+    });
+  }
+
+  Future<void> _saveRules(
+    List<String> rules,
+    Map<String, List<String>> scopes,
+  ) async {
+    final repo = ref.read(settingsRepositoryProvider);
+    await repo.saveCollaborationRules(
+      widget.workId,
+      CollaborationRules(rules: rules, banned: _banned, scopes: scopes),
+    );
+    final collaboration = await repo.readCollaborationRules(widget.workId);
+    if (!mounted) return;
+    setState(() {
+      _rules = collaboration.rules;
+      _scopes = collaboration.scopes;
+    });
+  }
+
+  Future<void> _editRule(int index) async {
+    final l10n = context.l10n;
+    final updated = await _promptForText(
+      title: l10n.aiPreferencesRuleEditTitle,
+      hint: l10n.aiPreferencesRuleHint,
+      maxLength: CollaborationRules.maxRuleChars,
+      initialValue: _rules[index],
+    );
+    if (updated == null || updated == _rules[index]) return;
+    final rules = List<String>.of(_rules);
+    final old = rules[index];
+    rules[index] = updated;
+    final scopes = Map<String, List<String>>.of(_scopes);
+    final scope = scopes.remove(old);
+    if (scope != null) scopes[updated] = scope;
+    await _saveRules(rules, scopes);
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(l10n.aiPreferencesRuleUpdated)));
+  }
+
+  Future<void> _moveRule(int index, int delta) async {
+    final target = index + delta;
+    if (target < 0 || target >= _rules.length) return;
+    final rules = List<String>.of(_rules);
+    final item = rules.removeAt(index);
+    rules.insert(target, item);
+    await _saveRules(rules, _scopes);
+  }
+
+  Future<void> _changeScopes(String rule) async {
+    final l10n = context.l10n;
+    var selected = List<String>.of(
+      CollaborationRules.sanitizeScopeList(_scopes[rule] ?? const <String>[]),
+    );
+    final result = await showDialog<List<String>>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: Text(l10n.aiPreferencesRuleScopeTitle),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                l10n.aiPreferencesRuleScopeHint,
+                style: TextStyle(fontSize: 12, color: context.paper.inkSoft),
+              ),
+              for (final task in CollabRuleTask.selectable)
+                CheckboxListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(_taskLabel(l10n, task)),
+                  value: selected.contains(task),
+                  onChanged: (value) => setDialogState(() {
+                    if (value == true) {
+                      selected.add(task);
+                    } else {
+                      selected.remove(task);
+                    }
+                  }),
+                ),
+            ],
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => setDialogState(() => selected.clear()),
+              child: Text(l10n.aiPreferencesRuleAllTasks),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(l10n.commonCancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(
+                dialogContext,
+              ).pop(CollaborationRules.sanitizeScopeList(selected)),
+              child: Text(l10n.commonSave),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (result == null) return;
+    final scopes = Map<String, List<String>>.of(_scopes);
+    if (result.isEmpty) {
+      scopes.remove(rule);
+    } else {
+      scopes[rule] = result;
+    }
+    await _saveRules(_rules, scopes);
+  }
+
+  String _taskLabel(AppLocalizations l10n, String task) {
+    switch (task) {
+      case CollabRuleTask.continueWriting:
+        return l10n.aiTaskContinue;
+      case CollabRuleTask.rewrite:
+        return l10n.aiTaskRewrite;
+      case CollabRuleTask.inspire:
+        return l10n.aiTaskInspire;
+      case CollabRuleTask.outline:
+        return l10n.aiTaskOutlineExpand;
+      case CollabRuleTask.plot:
+        return l10n.aiTaskPlan;
+    }
+    return task;
+  }
+
+  String _scopeSummary(AppLocalizations l10n, String rule) {
+    final list = CollaborationRules.sanitizeScopeList(
+      _scopes[rule] ?? const <String>[],
+    );
+    if (list.isEmpty) return l10n.aiPreferencesRuleAllTasks;
+    return list.map((task) => _taskLabel(l10n, task)).join(' · ');
   }
 
   Future<void> _addBanned([String? preset]) async {
@@ -249,10 +409,87 @@ class _AiPreferencesDialogState extends ConsumerState<_AiPreferencesDialog> {
     for (final entry in _paragraphCounts.entries) {
       counts[entry.key] = (counts[entry.key] ?? 0) + entry.value;
     }
+    final task = _previewTask == CollabRuleTask.all ? '' : _previewTask;
     return <String>[
-      WritingPreferences.promptBlock(reasonCounts: counts, samples: _samples),
-      CollaborationRules.promptBlock(rules: _rules, banned: _banned),
+      WritingPreferences.promptBlock(
+        reasonCounts: counts,
+        samples: _samples,
+        preferredTask: task,
+      ),
+      CollaborationRules.promptBlock(
+        rules: _rules,
+        banned: _banned,
+        task: task,
+        scopes: _scopes,
+      ),
     ].where((block) => block.isNotEmpty).join('\n\n');
+  }
+
+  Widget _buildRuleTile(AppLocalizations l10n, int index) {
+    final rule = _rules[index];
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 6),
+      padding: const EdgeInsets.fromLTRB(10, 2, 2, 4),
+      decoration: BoxDecoration(
+        color: context.paper.background,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  '• $rule',
+                  style: const TextStyle(fontSize: 13, height: 1.4),
+                ),
+              ),
+              IconButton(
+                tooltip: l10n.aiPreferencesRuleEdit,
+                onPressed: () => _editRule(index),
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.edit_outlined, size: 16),
+              ),
+              IconButton(
+                tooltip: l10n.commonDelete,
+                onPressed: () => _removeRule(rule),
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.close, size: 16),
+              ),
+            ],
+          ),
+          Row(
+            children: <Widget>[
+              ActionChip(
+                avatar: const Icon(Icons.filter_alt_outlined, size: 14),
+                label: Text(_scopeSummary(l10n, rule)),
+                onPressed: () => _changeScopes(rule),
+                visualDensity: VisualDensity.compact,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                labelStyle: const TextStyle(fontSize: 11),
+              ),
+              const Spacer(),
+              IconButton(
+                tooltip: l10n.aiPreferencesRuleMoveUp,
+                onPressed: index == 0 ? null : () => _moveRule(index, -1),
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.arrow_upward, size: 15),
+              ),
+              IconButton(
+                tooltip: l10n.aiPreferencesRuleMoveDown,
+                onPressed: index == _rules.length - 1
+                    ? null
+                    : () => _moveRule(index, 1),
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.arrow_downward, size: 15),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   String _reasonLabel(AppLocalizations l10n, String reason) {
@@ -278,8 +515,14 @@ class _AiPreferencesDialogState extends ConsumerState<_AiPreferencesDialog> {
       rejectedTexts: _rejected,
       banned: _banned,
     );
-    final hints = PreferenceDistillation.distill(_samples);
-    final hasPairs = _samples.any((sample) => sample.hasSource);
+    final hints = PreferenceDistillation.distill(
+      _samples,
+      analysisSamples: _analysisSamples,
+    );
+    final hasPairs =
+        _samples.any((sample) => sample.hasSource) ||
+        _analysisSamples.any((sample) => sample.hasSource);
+    final conflicts = CollaborationRules.conflicts(_rules, scopes: _scopes);
     final preview = _previewText();
     return AlertDialog(
       title: Text(l10n.aiPreferencesTitle),
@@ -327,35 +570,37 @@ class _AiPreferencesDialogState extends ConsumerState<_AiPreferencesDialog> {
                         style: TextStyle(color: context.paper.inkSoft),
                       )
                     else
-                      for (final rule in _rules)
-                        Container(
-                          width: double.infinity,
-                          margin: const EdgeInsets.only(top: 6),
-                          padding: const EdgeInsets.fromLTRB(10, 2, 2, 2),
-                          decoration: BoxDecoration(
-                            color: context.paper.background,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            children: <Widget>[
-                              Expanded(
-                                child: Text(
-                                  '• $rule',
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    height: 1.4,
-                                  ),
+                      for (var i = 0; i < _rules.length; i++)
+                        _buildRuleTile(l10n, i),
+                    if (conflicts.isNotEmpty)
+                      Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.only(top: 6),
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(
+                            0xFFB3261E,
+                          ).withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            for (final conflict in conflicts)
+                              Text(
+                                l10n.aiPreferencesRuleConflict(
+                                  conflict.first,
+                                  conflict.second,
+                                ),
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  height: 1.4,
+                                  color: Color(0xFFB3261E),
                                 ),
                               ),
-                              IconButton(
-                                tooltip: l10n.commonDelete,
-                                onPressed: () => _removeRule(rule),
-                                visualDensity: VisualDensity.compact,
-                                icon: const Icon(Icons.close, size: 16),
-                              ),
-                            ],
-                          ),
+                          ],
                         ),
+                      ),
                     Align(
                       alignment: Alignment.centerLeft,
                       child: TextButton.icon(
@@ -530,9 +775,15 @@ class _AiPreferencesDialogState extends ConsumerState<_AiPreferencesDialog> {
                                     children: <Widget>[
                                       Expanded(
                                         child: Text(
-                                          l10n.aiPreferencesDistillEvidence(
-                                            hint.evidence,
-                                          ),
+                                          <String>[
+                                            l10n.aiPreferencesDistillEvidence(
+                                              hint.evidence,
+                                            ),
+                                            if (hint.analysisEvidence > 0)
+                                              l10n.aiPreferencesDistillAnalysis(
+                                                hint.analysisEvidence,
+                                              ),
+                                          ].join(' · '),
                                           style: TextStyle(
                                             fontSize: 11,
                                             color: context.paper.inkSoft,
@@ -731,6 +982,48 @@ class _AiPreferencesDialogState extends ConsumerState<_AiPreferencesDialog> {
                           fontSize: 11,
                           color: context.paper.inkSoft,
                         ),
+                      ),
+                      Row(
+                        children: <Widget>[
+                          Text(
+                            l10n.aiPreferencesPreviewTask,
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                          const SizedBox(width: 8),
+                          DropdownButton<String>(
+                            value: _previewTask,
+                            underline: const SizedBox.shrink(),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: context.paper.ink,
+                            ),
+                            items: <DropdownMenuItem<String>>[
+                              DropdownMenuItem<String>(
+                                value: CollabRuleTask.all,
+                                child: Text(l10n.aiPreferencesRuleAllTasks),
+                              ),
+                              for (final task in CollabRuleTask.selectable)
+                                DropdownMenuItem<String>(
+                                  value: task,
+                                  child: Text(_taskLabel(l10n, task)),
+                                ),
+                            ],
+                            onChanged: (value) {
+                              if (value == null) return;
+                              setState(() => _previewTask = value);
+                            },
+                          ),
+                          const Spacer(),
+                          Text(
+                            l10n.aiPreferencesPreviewTokens(
+                              estimateTokens(preview),
+                            ),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: context.paper.inkSoft,
+                            ),
+                          ),
+                        ],
                       ),
                       Container(
                         width: double.infinity,

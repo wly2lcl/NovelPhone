@@ -451,6 +451,7 @@ class ContextBuilder {
     required int chapterId,
     required String seed,
     int contextWindow = 32000,
+    String preferenceText = '',
   }) async {
     final budget = (contextWindow * 0.5).round();
     final work = await works.getWork(workId);
@@ -480,7 +481,11 @@ class ContextBuilder {
     var settingsBlock = await _settingsText(workId);
     var storyStateBlock = await _storyStateText(workId, recap.ordered);
 
-    final system = _outlineSystem();
+    // ENH-49：章纲扩写也遵守作者为「章纲」任务限定的守则。
+    final preferenceBlock = preferenceText.trim();
+    final system = preferenceBlock.isEmpty
+        ? _outlineSystem()
+        : '${_outlineSystem()}\n\n$preferenceBlock';
     final header =
         '作品：《${work?.title ?? ''}》\n'
         '本章：${title.isEmpty ? '未命名章节' : title}';
@@ -538,6 +543,8 @@ class ContextBuilder {
           ContextSection(label: '设定集', content: settingsBlock),
         if (storyStateBlock.isNotEmpty)
           ContextSection(label: '故事状态卡', content: storyStateBlock),
+        if (preferenceBlock.isNotEmpty)
+          ContextSection(label: '作者协作偏好', content: preferenceBlock),
         const ContextSection(label: '任务模式', content: '章纲扩写（一句话梗概 → 分场大纲）'),
       ],
       truncated: truncated,
@@ -1046,6 +1053,7 @@ class ContextBuilder {
     required List<Chapter> chapterList,
     String? direction,
     int contextWindow = 32000,
+    String preferenceText = '',
   }) async {
     final budget = (contextWindow * 0.5).round();
     final work = await works.getWork(workId);
@@ -1074,7 +1082,11 @@ class ContextBuilder {
     // 已解决线索或已死亡角色继续行动的方案。
     final storyStateText = await _storyStateText(workId, chapterList);
     final styleText = _styleText(work);
-    final system = _plotPlanSystem();
+    // ENH-49：剧情推演注入作者为「剧情推演」任务限定的守则。
+    final preferenceBlock = preferenceText.trim();
+    final system = preferenceBlock.isEmpty
+        ? _plotPlanSystem()
+        : '${_plotPlanSystem()}\n\n$preferenceBlock';
     final header = '作品：《${work?.title ?? ''}》';
     final directionText = direction?.trim() ?? '';
     final task = directionText.isEmpty
@@ -1145,6 +1157,8 @@ class ContextBuilder {
           ContextSection(label: '设定集', content: settingsBlock),
         if (storyStateBlock.isNotEmpty)
           ContextSection(label: '故事状态卡', content: storyStateBlock),
+        if (preferenceBlock.isNotEmpty)
+          ContextSection(label: '作者协作偏好', content: preferenceBlock),
         if (samples.isNotEmpty)
           ContextSection(label: '最近正文节选', content: samples),
       ],

@@ -1112,6 +1112,7 @@ class AiService {
       chapterList: chapterList,
       direction: direction,
       contextWindow: resolved.group.contextWindow,
+      preferenceText: await _preferenceText(workId, task: AiTask.plan),
     );
     final result = await _completeOnce(
       resolved: resolved,
@@ -1384,6 +1385,7 @@ class AiService {
       chapterId: chapterId,
       seed: seed,
       contextWindow: group.contextWindow,
+      preferenceText: await _preferenceText(workId, task: AiTask.outlineExpand),
     );
     final injected = _withSkills(built, await settings.listEnabledSkills());
     yield AiContextBuilt(injected);
@@ -1908,6 +1910,8 @@ class AiService {
       CollaborationRules.promptBlock(
         rules: collaboration.rules,
         banned: collaboration.banned,
+        scopes: collaboration.scopes,
+        task: task,
       ),
     ].where((block) => block.isNotEmpty).join('\n\n');
   }

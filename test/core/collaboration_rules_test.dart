@@ -73,6 +73,109 @@ void main() {
     expect(suggestions.length, lessThanOrEqualTo(6));
   });
 
+  test('ENH-49 守则按任务作用域过滤并可往返解析', () {
+    const scopes = <String, List<String>>{
+      '保持短句': <String>[CollabRuleTask.continueWriting],
+      '多用对白': <String>[
+        CollabRuleTask.rewrite,
+        CollabRuleTask.inspire,
+        'unknown',
+      ],
+    };
+    final clean = CollaborationRules.sanitize(
+      rules: <String>['保持短句', '多用对白'],
+      scopes: scopes,
+    );
+    expect(clean.scopes['多用对白'], <String>[
+      CollabRuleTask.rewrite,
+      CollabRuleTask.inspire,
+    ]);
+    expect(
+      CollaborationRules.promptBlock(
+        rules: clean.rules,
+        banned: const <String>[],
+        scopes: clean.scopes,
+        task: CollabRuleTask.continueWriting,
+      ),
+      contains('保持短句'),
+    );
+    expect(
+      CollaborationRules.promptBlock(
+        rules: clean.rules,
+        banned: const <String>[],
+        scopes: clean.scopes,
+        task: CollabRuleTask.continueWriting,
+      ),
+      isNot(contains('多用对白')),
+    );
+    expect(
+      CollaborationRules.promptBlock(
+        rules: clean.rules,
+        banned: const <String>[],
+        scopes: clean.scopes,
+        task: CollabRuleTask.plot,
+      ),
+      isEmpty,
+    );
+    final parsed = CollaborationRules.parseScopes(
+      CollaborationRules.encodeScopes(clean.scopes),
+    );
+    expect(parsed, clean.scopes);
+  });
+
+  test('ENH-49 识别方向相反的守则', () {
+    final conflicts = CollaborationRules.conflicts(<String>[
+      '描写尽量精简，删去冗词',
+      '多补充环境细节，写得更详细',
+      '多用对白推进',
+    ]);
+    expect(conflicts, hasLength(1));
+    expect(conflicts.single.first, contains('精简'));
+    expect(
+      CollaborationRules.conflicts(
+        <String>['描写尽量精简', '少写对白'],
+        scopes: <String, List<String>>{
+          '描写尽量精简': <String>[CollabRuleTask.continueWriting],
+          '少写对白': <String>[CollabRuleTask.plot],
+        },
+      ),
+      isEmpty,
+    );
+  });
+
+  test('ENH-48 本地守则自检合并黑名单、守则引号词与词库套话', () {
+    final result = CollaborationRules.inspectText(
+      '他不由自主地后退，空气仿佛凝固，仿佛时间停住。',
+      rules: const <String>['禁止使用「时间停住」'],
+      banned: const <String>['不由自主'],
+    );
+    expect(result.total, greaterThanOrEqualTo(3));
+    expect(result.issues.any((e) => e.phrase == '不由自主' && e.isBanned), isTrue);
+    expect(
+      result.issues.any((e) => e.phrase == '空气仿佛凝固' && e.isCliche),
+      isTrue,
+    );
+    expect(result.issues.any((e) => e.phrase == '仿佛'), isTrue);
+    expect(CollaborationRules.inspectText('这段文字干净利落。').isEmpty, isTrue);
+  });
+
+  test('ENH-50 词库扩展套话候选并给出替换建议', () {
+    expect(AiCliche.candidates.length, greaterThan(100));
+    expect(AiCliche.replacementOf('嘴角勾起'), '嘴角扬了扬');
+    final suggestions = AiCliche.suggest(
+      rejectedTexts: <String>['他不禁微微一顿，嘴角勾起一抹笑，意味深长。'],
+      banned: const <String>[],
+    );
+    expect(suggestions, contains('嘴角勾起'));
+    expect(suggestions, contains('意味深长'));
+    expect(suggestions.length, lessThanOrEqualTo(6));
+    // 长词已经提示时，不再重复提示其包含的短词。
+    expect(
+      suggestions.where((e) => e == '不禁' || e == '微微').length,
+      lessThan(2),
+    );
+  });
+
   test('新增条目置顶去重', () {
     final next = CollaborationRules.add(
       <String>['旧守则'],
