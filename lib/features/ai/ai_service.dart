@@ -651,7 +651,8 @@ class AiService {
     }
 
     // 桥段点子：走工具按需取数（ARCHITECTURE 5.4）。
-    // ENH-07 O7：额外补「前文摘要」与「本章章纲」，让点子贴合剧情。
+    // ENH-07 O7 / ENH-54：补「前文摘要」「本章章纲」「本章写作目标」
+    // 「人物关系」与「故事状态卡」，让点子贴合剧情且不与既有设定冲突。
     final extra = await contexts.buildInspireContext(
       workId: workId,
       chapterId: anchorChapterId,
@@ -662,6 +663,9 @@ class AiService {
       direction,
       previousSummary: extra.previousSummary,
       chapterOutline: extra.chapterOutline,
+      chapterIntent: extra.chapterIntent,
+      relationText: extra.relationText,
+      storyStateText: extra.storyStateText,
     );
     final system = composeSkillSystem(_ideasSystem, skills);
     // ENH-46：桥段点子同样参考作者协作偏好（守则、套话与采纳片段）。
@@ -675,10 +679,16 @@ class AiService {
           ContextSection(label: '任务模式', content: '桥段点子（AI 可按需调用工具取数）'),
           if (preference.isNotEmpty)
             ContextSection(label: '作者协作偏好', content: preference),
-          if (extra.previousSummary.isNotEmpty)
-            ContextSection(label: '前文摘要', content: extra.previousSummary),
+          if (extra.chapterIntent.isNotEmpty)
+            ContextSection(label: '本章写作目标', content: extra.chapterIntent),
           if (extra.chapterOutline.isNotEmpty)
             ContextSection(label: '本章章纲', content: extra.chapterOutline),
+          if (extra.previousSummary.isNotEmpty)
+            ContextSection(label: '前文摘要', content: extra.previousSummary),
+          if (extra.relationText.isNotEmpty)
+            ContextSection(label: '人物关系', content: extra.relationText),
+          if (extra.storyStateText.isNotEmpty)
+            ContextSection(label: '故事状态卡', content: extra.storyStateText),
           ContextSection(label: '生成要求', content: prompt),
           if (skills.isNotEmpty)
             ContextSection(
@@ -1839,6 +1849,9 @@ class AiService {
     String? direction, {
     String previousSummary = '',
     String chapterOutline = '',
+    String chapterIntent = '',
+    String relationText = '',
+    String storyStateText = '',
   }) async {
     final work = await works.getWork(workId);
     final buffer = StringBuffer();
@@ -1851,10 +1864,16 @@ class AiService {
         );
       }
     }
-    // ENH-07 O7：把前文摘要与本章章纲直接写进 prompt，点子更贴合剧情。
+    // ENH-07 O7 / ENH-54：把写作目标、章纲、前文摘要、人物关系与故事状态卡
+    // 直接写进 prompt，点子更贴合剧情，也不与既有关系 / 状态矛盾。
+    if (chapterIntent.isNotEmpty) buffer.writeln(chapterIntent);
     if (chapterOutline.isNotEmpty) buffer.writeln('【本章章纲】\n$chapterOutline');
     if (previousSummary.isNotEmpty) {
       buffer.writeln('【前文摘要】\n$previousSummary');
+    }
+    if (relationText.isNotEmpty) buffer.writeln('【人物关系】\n$relationText');
+    if (storyStateText.isNotEmpty) {
+      buffer.writeln('【故事状态卡】\n$storyStateText');
     }
     final trimmed = direction?.trim() ?? '';
     if (trimmed.isNotEmpty) buffer.writeln('作者希望的方向：$trimmed');

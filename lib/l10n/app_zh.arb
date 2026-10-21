@@ -183,6 +183,23 @@
   "editorToolContinuity": "设定一致性检查",
   "editorToolStoryState": "提取本章状态变化",
   "editorToolEditSummary": "查看/编辑本章摘要",
+  "editorToolChapterIntent": "本章写作目标",
+  "chapterIntentTitle": "本章写作目标",
+  "chapterIntentHint": "告诉 AI 这一章要完成什么：核心目标、关键节拍与需要避免的内容。仅保存在本机，续写与改写时自动注入。",
+  "chapterIntentGoalLabel": "核心目标（一句话）",
+  "chapterIntentGoalHint": "如：沈砚在雨夜发现密信，并与掌柜正面交锋",
+  "chapterIntentBeatsLabel": "关键节拍（每行一条，最多 8 条）",
+  "chapterIntentBeatsHint": "按发生顺序填写，如：沈砚潜入后院 → 撞见掌柜烧信",
+  "chapterIntentAvoidLabel": "避免内容（每行一条，最多 5 条）",
+  "chapterIntentAvoidHint": "如：不要让沈砚主动暴露身份",
+  "chapterIntentFillOutline": "从章纲带入",
+  "chapterIntentFillForeshadows": "带入未回收伏笔",
+  "chapterIntentClear": "清空",
+  "chapterIntentSaved": "写作目标已保存",
+  "chapterIntentOutlineEmpty": "本章还没有章纲梗概",
+  "chapterIntentNoForeshadows": "没有未回收的伏笔",
+  "chapterIntentLimitBeats": "关键节拍最多 8 条",
+  "chapterIntentLimitAvoid": "避免内容最多 5 条",
   "editorExitFocusMode": "退出专注模式",
   "editorFocusMode": "专注模式",
   "editorBodyHint": "在这里写下正文…",
@@ -1665,6 +1682,23 @@
   "storyStateExtractNew": "新增",
   "storyStateExtractUpdate": "更新",
   "storyStateExtractUnchanged": "与现有卡片一致",
+  "storyStateExtractRelationSection": "人物关系变化",
+  "storyStateExtractRelationRemove": "解除",
+  "storyStateExtractRelationUnresolvable": "未找到对应角色",
+  "storyStateExtractRelationsApplied": "关系图：新增 {added} 条、更新 {updated} 条、解除 {removed} 条",
+  "@storyStateExtractRelationsApplied": {
+    "placeholders": {
+      "added": {
+        "type": "int"
+      },
+      "updated": {
+        "type": "int"
+      },
+      "removed": {
+        "type": "int"
+      }
+    }
+  },
   "storyStateExtractApply": "应用选中项（{count}）",
   "@storyStateExtractApply": {
     "placeholders": {
@@ -1849,6 +1883,9 @@
   "charactersAliasesLabel": "别名 / 称谓（最多 8 个，空格或逗号分隔）",
   "charactersTagsLabel": "性格标签（最多 10 个，空格或逗号分隔）",
   "charactersAppearanceLabel": "外貌特征",
+  "charactersVoiceLabel": "说话风格 / 口吻（最多 300 字）",
+  "charactersVoiceHint": "语气、句长、口头禅，或一句示例台词",
+  "charactersVoiceShort": "口吻",
   "charactersRelationsLabel": "人际关系",
   "charactersArcLabel": "角色弧光",
   "charactersNameError": "姓名需 1-20 字",

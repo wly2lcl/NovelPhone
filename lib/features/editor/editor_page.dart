@@ -9,6 +9,7 @@ import '../../app/reading_appearance.dart';
 import '../../app/summary_editor.dart';
 import '../../app/theme.dart';
 import '../../core/ai/continuity_suppression.dart';
+import '../../core/ai/chapter_intent.dart';
 import '../../core/ai/sanitize_ai_text.dart';
 import '../../core/ai/structured_response.dart';
 import '../../core/formatting.dart';
@@ -18,10 +19,12 @@ import '../../data/repositories/chapter_repository.dart';
 import '../../data/repositories/settings_repository.dart';
 import '../../l10n/error_text.dart';
 import '../../l10n/l10n.dart';
+import '../../models/story_state_kind.dart';
 import '../ai/ai_notice.dart';
 import '../ai/ai_providers.dart';
 import '../work_detail/work_detail_providers.dart';
 import 'ai_confirm_panel.dart';
+import 'chapter_intent_dialog.dart';
 import 'continuity_report_dialog.dart';
 import 'continuity_stream_dialog.dart';
 import 'editor_controller.dart';
@@ -32,6 +35,7 @@ import 'story_state_extraction_dialog.dart';
 
 /// AI 章节工具菜单项（ENH-06）：面板模式 + 非面板动作（查看/编辑摘要）。
 enum _ChapterTool {
+  chapterIntent,
   summarize,
   volumeSummary,
   outlineExpand,
@@ -233,6 +237,10 @@ class _EditorPageState extends ConsumerState<EditorPage> {
             onSelected: _onChapterTool,
             itemBuilder: (context) => <PopupMenuEntry<_ChapterTool>>[
               PopupMenuItem<_ChapterTool>(
+                value: _ChapterTool.chapterIntent,
+                child: Text(context.l10n.editorToolChapterIntent),
+              ),
+              PopupMenuItem<_ChapterTool>(
                 value: _ChapterTool.summarize,
                 child: Text(context.l10n.editorToolSummarize),
               ),
@@ -427,6 +435,8 @@ class _EditorPageState extends ConsumerState<EditorPage> {
   /// AI 章节工具菜单分发（ENH-06）：前三项开面板，末项直接编辑本章摘要。
   Future<void> _onChapterTool(_ChapterTool tool) async {
     switch (tool) {
+      case _ChapterTool.chapterIntent:
+        await _editChapterIntent();
       case _ChapterTool.summarize:
         await _openAi(AiPanelMode.summarize);
       case _ChapterTool.volumeSummary:
@@ -440,6 +450,44 @@ class _EditorPageState extends ConsumerState<EditorPage> {
       case _ChapterTool.editSummary:
         await _editAiSummary();
     }
+  }
+
+  /// 本章写作目标（ENH-51）：从章纲与未回收伏笔带入，保存后自动注入续写 / 改写。
+  Future<void> _editChapterIntent() async {
+    final chapter = await ref
+        .read(chapterRepositoryProvider)
+        .getChapter(widget.chapterId);
+    if (!mounted || chapter == null) return;
+    final outline = await ref
+        .read(outlineRepositoryProvider)
+        .findByChapter(widget.chapterId);
+    final states = await ref
+        .read(storyStateRepositoryProvider)
+        .listEntries(widget.workId);
+    if (!mounted) return;
+    final foreshadows = states
+        .where(
+          (entry) =>
+              entry.kind == StoryStateKind.foreshadow.value &&
+              entry.status == 'open',
+        )
+        .map((entry) => entry.title.trim())
+        .where((title) => title.isNotEmpty)
+        .toList(growable: false);
+    final result = await showChapterIntentDialog(
+      context,
+      initial: ChapterIntent.parse(chapter.intent),
+      outlineSummary: outline?.summary ?? '',
+      openForeshadows: foreshadows,
+    );
+    if (result == null) return;
+    await ref
+        .read(chapterRepositoryProvider)
+        .saveChapterIntent(widget.chapterId, result.encode());
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(context.l10n.chapterIntentSaved)));
   }
 
   /// 打开 AI 待确认面板（PRD 5.5）：未配置可用模型组时先引导至设置页。

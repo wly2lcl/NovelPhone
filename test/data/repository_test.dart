@@ -310,6 +310,31 @@ void main() {
     expect(work!.wordCount, 7);
   });
 
+  test('保存本章写作目标只改目标字段（ENH-51）', () async {
+    final workId = await works.createWork(title: '长夜行');
+    final chapterId = await chapters.createChapter(
+      workId: workId,
+      title: '第一章',
+    );
+    await chapters.saveChapter(
+      chapterId: chapterId,
+      title: '第一章',
+      content: '第一章正文内容。',
+    );
+
+    await chapters.saveChapterIntent(
+      chapterId,
+      '{"goal":"收掉船票线","beats":["发现船票"]}',
+    );
+
+    final chapter = await chapters.getChapter(chapterId);
+    expect(chapter!.intent, contains('收掉船票线'));
+    // 不触碰正文、字数与作品汇总。
+    expect(chapter.content, '第一章正文内容。');
+    final work = await works.getWork(workId);
+    expect(work!.wordCount, 7);
+  });
+
   test('保存本卷前情回顾只改卷摘要字段（ENH-06）', () async {
     final workId = await works.createWork(title: '长夜行');
     final volumeId = (await chapters.listVolumes(workId)).single.id;
@@ -601,7 +626,7 @@ void main() {
       expect(names, containsAll(_hotspotIndexNames));
     });
 
-    test('v8 → v15 升级时为既有库补建索引、追加新列与新表', () async {
+    test('v8 → v16 升级时为既有库补建索引、追加新列与新表', () async {
       final dir = await Directory.systemTemp.createTemp('novelphone_mig');
       final file = File(p.join(dir.path, 'migrate.sqlite'));
       // 同一插槽先后开关两个 AppDatabase 实例是刻意为之，关掉 drift 的重复实例告警。
@@ -610,8 +635,9 @@ void main() {
       try {
         // v9 / v10 只新增索引、v11 新增回收站列、v12 新增文风与费用列、
         // v13 新增快照来源标记与采纳编辑比例、v14 新增故事状态卡表、
-        // v15 新增角色别名列：先按当前 schema 建库，删掉这些增量并回写
-        // user_version = 8，即得到与线上旧库等价的 v8 底座。
+        // v15 新增角色别名列、v16 新增章节写作目标与角色口吻列：
+        // 先按当前 schema 建库，删掉这些增量并回写 user_version = 8，
+        // 即得到与线上旧库等价的 v8 底座。
         final seeded = AppDatabase(NativeDatabase(file));
         for (final name in _allIndexNames) {
           await seeded.customStatement('DROP INDEX IF EXISTS $name');
@@ -641,10 +667,14 @@ void main() {
         await seeded.customStatement(
           'ALTER TABLE characters DROP COLUMN aliases',
         );
+        await seeded.customStatement(
+          'ALTER TABLE characters DROP COLUMN voice',
+        );
+        await seeded.customStatement('ALTER TABLE chapters DROP COLUMN intent');
         await seeded.customStatement('PRAGMA user_version = 8');
         await seeded.close();
 
-        // 以 v8 身份重新打开：应触发 onUpgrade(8 → 15) 补建索引、加列并建新表。
+        // 以 v8 身份重新打开：应触发 onUpgrade(8 → 16) 补建索引、加列并建新表。
         final upgraded = AppDatabase(NativeDatabase(file));
         final names =
             (await upgraded
@@ -684,6 +714,10 @@ void main() {
             (await upgraded.customSelect('PRAGMA table_info(characters)').get())
                 .map((r) => r.read<String>('name'))
                 .toSet();
+        final chapterColumns =
+            (await upgraded.customSelect('PRAGMA table_info(chapters)').get())
+                .map((r) => r.read<String>('name'))
+                .toSet();
         await upgraded.close();
 
         expect(names, containsAll(_allIndexNames));
@@ -697,7 +731,8 @@ void main() {
         );
         expect(snapshotColumns, contains('note'));
         expect(usageColumns, contains('adopted_edit_percent'));
-        expect(characterColumns, contains('aliases'));
+        expect(characterColumns, containsAll(<String>['aliases', 'voice']));
+        expect(chapterColumns, contains('intent'));
         expect(
           storyStateColumns,
           containsAll(<String>[

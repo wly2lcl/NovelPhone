@@ -230,6 +230,8 @@ class BackupRepository {
         final json = Map<String, dynamic>.from(raw as Map);
         json.putIfAbsent('summary', () => '');
         json.putIfAbsent('summaryUpdatedAt', () => null);
+        // ENH-51：v16 之前导出的备份不含本章写作目标。
+        json.putIfAbsent('intent', () => '');
         final chapter = Chapter.fromJson(json);
         final volumeId = volumeIdMap[chapter.volumeId];
         if (volumeId == null) continue;
@@ -249,6 +251,7 @@ class BackupRepository {
                 scrollOffset: Value(chapter.scrollOffset),
                 summary: Value(chapter.summary),
                 summaryUpdatedAt: Value(chapter.summaryUpdatedAt),
+                intent: Value(chapter.intent),
               ),
             );
         chapterIdMap[chapter.id] = newId;
@@ -306,6 +309,8 @@ class BackupRepository {
         // ENH-40：v15 之前导出的备份不含 aliases 键，补默认空串。
         final json = Map<String, dynamic>.from(raw as Map);
         json.putIfAbsent('aliases', () => '');
+        // ENH-52：v16 之前导出的备份不含角色口吻。
+        json.putIfAbsent('voice', () => '');
         final character = Character.fromJson(json);
         final workId = workIdMap[character.workId];
         if (workId == null) continue;
@@ -322,6 +327,7 @@ class BackupRepository {
                 appearance: Value(character.appearance),
                 relations: Value(character.relations),
                 arc: Value(character.arc),
+                voice: Value(character.voice),
               ),
             );
         characterIdMap[character.id] = newId;

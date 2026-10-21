@@ -60,6 +60,11 @@ void main() {
       identity: '捕快',
       personalityTags: '["寡言","执拗"]',
       aliases: '["沈公子"]',
+      voice: '话少，句子短。',
+    );
+    await chapters.saveChapterIntent(
+      chapterId,
+      '{"goal":"在雨夜找到线索","beats":["发现脚印"]}',
     );
     await inspirations.createInspiration(workId, '开篇用雨夜作引子');
     await outlines.saveChapterSummary(
@@ -116,9 +121,11 @@ void main() {
     expect(restored!.title, '长夜行');
     final restoredChapters = await chapters.watchChapters(workId).first;
     expect(restoredChapters.single.content, '雨下了一整夜，街道上没有人。');
+    expect(restoredChapters.single.intent, contains('在雨夜找到线索'));
     final restoredCharacters = await characters.listCharacters(workId);
     expect(restoredCharacters.single.name, '沈砚');
     expect(restoredCharacters.single.aliases, '["沈公子"]');
+    expect(restoredCharacters.single.voice, '话少，句子短。');
     final restoredInspirations = await inspirations.listInspirations(workId);
     expect(restoredInspirations.single.content, '开篇用雨夜作引子');
     final entry = await outlines.findByChapter(restoredChapters.single.id);
@@ -138,6 +145,26 @@ void main() {
 
     final restored = await characters.listCharacters(workId);
     expect(restored.single.aliases, '');
+  });
+
+  test('旧备份缺少章节目标与角色口吻列时按空串恢复（ENH-51/52）', () async {
+    final workId = await seedWork();
+    final data = await backup.exportData();
+    final tables = data['tables'] as Map<String, dynamic>;
+    tables['chapters'] = (tables['chapters'] as List)
+        .map((row) => Map<String, dynamic>.from(row as Map)..remove('intent'))
+        .toList();
+    tables['characters'] = (tables['characters'] as List)
+        .map((row) => Map<String, dynamic>.from(row as Map)..remove('voice'))
+        .toList();
+
+    await works.deleteWork(workId);
+    await backup.restore(data, overwrite: true);
+
+    final restoredChapters = await chapters.watchChapters(workId).first;
+    expect(restoredChapters.single.intent, '');
+    final restored = await characters.listCharacters(workId);
+    expect(restored.single.voice, '');
   });
 
   test('合并恢复把备份作品作为新作品导入，不动现有数据', () async {

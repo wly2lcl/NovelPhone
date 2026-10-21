@@ -12,6 +12,7 @@ import '../../models/setting_type.dart';
 import '../../models/story_state_kind.dart';
 import '../../models/work_style_guide.dart';
 import 'ai_client.dart';
+import 'chapter_intent.dart';
 import 'continuity_suppression.dart';
 import 'retrieval.dart';
 
@@ -190,6 +191,10 @@ class ContextBuilder {
   static const int maxOpenForeshadows = 12;
   static const int maxTimelineStates = 8;
 
+  /// 关系邻接角色卡上限（ENH-55）：每章最多补 2 张一跳邻居卡，防止关系网
+  /// 稀疏的作者被整张图的邻居挤占预算。
+  static const int maxRelationNeighbors = 2;
+
   final WorkRepository works;
   final ChapterRepository chapters;
   final CharacterRepository characters;
@@ -247,6 +252,21 @@ class ContextBuilder {
 
     // 相关角色卡
     final matched = matchCharacters(allCharacters, chapterText);
+    // ENH-53：结构化人物关系只取与本章匹配角色相关的边，避免整张关系网灌入上下文。
+    final relations = await characters.listRelations(workId);
+    final matchedIds = matched.map((c) => c.id).toSet();
+    final relationText = formatRelations(
+      relations,
+      allCharacters,
+      focusIds: matchedIds,
+    );
+    // ENH-55：与匹配角色有一跳关系、但正文未点名的角色，其角色卡一并纳入
+    // （口吻 / 性格随卡携带），让「关系网里出现但本章未出场」的人物也有据可依。
+    final neighborCharacters = _relationNeighbors(
+      relations,
+      allCharacters,
+      focusIds: matchedIds,
+    );
 
     // 卷级大纲：同卷其他章节梗概
     final volumeOutline = _volumeOutline(outlineEntries, volume?.id, chapterId);
@@ -272,6 +292,8 @@ class ContextBuilder {
       chapterOutline: chapterOutline,
       previousSummary: previousSummary,
       matchedCharacters: matched,
+      neighborCharacters: neighborCharacters,
+      relationText: relationText,
       settingsText: settingsText,
       storyStateText: storyStateText,
       relatedText: relatedText,
@@ -285,6 +307,9 @@ class ContextBuilder {
           : _continueTask(direction: direction, length: length),
       payload: revising ? '【当前续写草稿】\n$draft' : '',
       preferenceText: preferenceText,
+      chapterIntentText: ChapterIntent.parse(
+        chapter?.intent ?? '',
+      ).toPromptText(),
       styleText: _styleText(work),
     );
   }
@@ -367,6 +392,20 @@ class ContextBuilder {
 
     // 角色卡按「选中原文」匹配（而非整章），更贴近改写语境。
     final matched = matchCharacters(allCharacters, selectedText);
+    // ENH-53：与匹配角色相关的人物关系一并进入改写上下文。
+    final relations = await characters.listRelations(workId);
+    final matchedIds = matched.map((c) => c.id).toSet();
+    final relationText = formatRelations(
+      relations,
+      allCharacters,
+      focusIds: matchedIds,
+    );
+    // ENH-55：一跳关系邻居的角色卡随相关角色卡注入（续写 / 改写共用）。
+    final neighborCharacters = _relationNeighbors(
+      relations,
+      allCharacters,
+      focusIds: matchedIds,
+    );
 
     // 前情摘要（含跨卷首章的上一卷回顾，ENH-07 O5）。
     final previousSummary = _previousSummary(
@@ -388,6 +427,8 @@ class ContextBuilder {
       chapterOutline: chapterOutline,
       previousSummary: previousSummary,
       matchedCharacters: matched,
+      neighborCharacters: neighborCharacters,
+      relationText: relationText,
       settingsText: await _settingsText(workId),
       storyStateText: await _storyStateText(workId, recap.ordered),
       relatedText: await _relatedText(
@@ -405,6 +446,9 @@ class ContextBuilder {
           : '【待改写原文】\n$selectedText',
       systemOverride: _rewriteSystem(),
       preferenceText: preferenceText,
+      chapterIntentText: ChapterIntent.parse(
+        chapter?.intent ?? '',
+      ).toPromptText(),
       styleText: _styleText(work),
     );
   }
@@ -478,6 +522,12 @@ class ContextBuilder {
     );
     var summaryBlock = previousSummary;
     var characterBlock = matched.map(formatCharacter).join('\n');
+    // ENH-53：章纲扩写只带与本章角色相关的关系边。
+    var relationBlock = formatRelations(
+      await characters.listRelations(workId),
+      allCharacters,
+      focusIds: matched.map((c) => c.id).toSet(),
+    );
     var settingsBlock = await _settingsText(workId);
     var storyStateBlock = await _storyStateText(workId, recap.ordered);
 
@@ -499,10 +549,15 @@ class ContextBuilder {
         estimateTokens(task) +
         estimateTokens(summaryBlock) +
         estimateTokens(characterBlock) +
+        estimateTokens(relationBlock) +
         estimateTokens(settingsBlock) +
         estimateTokens(storyStateBlock);
     if (total() > budget && settingsBlock.isNotEmpty) {
       settingsBlock = '';
+      truncated = true;
+    }
+    if (total() > budget && relationBlock.isNotEmpty) {
+      relationBlock = '';
       truncated = true;
     }
     if (total() > budget && storyStateBlock.isNotEmpty) {
@@ -526,6 +581,7 @@ class ContextBuilder {
       '【本章一句话梗概】\n$seedBlock',
       if (summaryBlock.isNotEmpty) '【前文摘要】\n$summaryBlock',
       if (characterBlock.isNotEmpty) '【相关角色卡】\n$characterBlock',
+      if (relationBlock.isNotEmpty) '【人物关系】\n$relationBlock',
       if (settingsBlock.isNotEmpty) '【设定集】\n$settingsBlock',
       if (storyStateBlock.isNotEmpty) '【故事状态卡】\n$storyStateBlock',
       task,
@@ -539,6 +595,8 @@ class ContextBuilder {
           ContextSection(label: '前文摘要', content: summaryBlock),
         if (characterBlock.isNotEmpty)
           ContextSection(label: '相关角色卡', content: characterBlock),
+        if (relationBlock.isNotEmpty)
+          ContextSection(label: '人物关系', content: relationBlock),
         if (settingsBlock.isNotEmpty)
           ContextSection(label: '设定集', content: settingsBlock),
         if (storyStateBlock.isNotEmpty)
@@ -649,16 +707,37 @@ class ContextBuilder {
     );
   }
 
-  /// 灵感上下文补丁（ENH-07 O7）：桥段点子为工具模式（不经过 _assemble），
-  /// 这里额外提供「前文摘要（含卷 / 前卷前情）」与「本章章纲」，让点子贴合剧情。
-  Future<({String previousSummary, String chapterOutline})>
+  /// 灵感上下文补丁（ENH-07 O7 / ENH-54）：桥段点子为工具模式（不经过 _assemble），
+  /// 这里额外提供「前文摘要（含卷 / 前卷前情）」「本章章纲」「本章写作目标」
+  /// 「人物关系」与「故事状态卡」，让点子既贴合剧情，也不与既有关系 / 状态矛盾。
+  Future<
+    ({
+      String previousSummary,
+      String chapterOutline,
+      String chapterIntent,
+      String relationText,
+      String storyStateText,
+    })
+  >
   buildInspireContext({required int workId, int? chapterId}) async {
     if (chapterId == null) {
-      return (previousSummary: '', chapterOutline: '');
+      return (
+        previousSummary: '',
+        chapterOutline: '',
+        chapterIntent: '',
+        relationText: '',
+        storyStateText: '',
+      );
     }
     final chapter = await chapters.getChapter(chapterId);
     if (chapter == null) {
-      return (previousSummary: '', chapterOutline: '');
+      return (
+        previousSummary: '',
+        chapterOutline: '',
+        chapterIntent: '',
+        relationText: '',
+        storyStateText: '',
+      );
     }
     final recap = await _recapSource(workId, chapterId);
     final outlineEntries = await outline.listOutline(workId);
@@ -676,7 +755,21 @@ class ContextBuilder {
         .where((e) => e.chapterId == chapterId && e.summary.trim().isNotEmpty)
         .map((e) => e.summary.trim())
         .join('\n');
-    return (previousSummary: previousSummary, chapterOutline: chapterOutline);
+    // 桥段点子可能牵动任意角色，关系网不做焦点过滤（最多 12 条）。
+    final relationText = formatRelations(
+      await characters.listRelations(workId),
+      await characters.listCharacters(workId),
+      maxLines: 12,
+    );
+    final storyStateText = await _storyStateText(workId, recap.ordered);
+    final chapterIntent = ChapterIntent.parse(chapter.intent).toPromptText();
+    return (
+      previousSummary: previousSummary,
+      chapterOutline: chapterOutline,
+      chapterIntent: chapterIntent,
+      relationText: relationText,
+      storyStateText: storyStateText,
+    );
   }
 
   /// 设定一致性检查上下文（ENH-22）：本章正文 + 角色卡 + 设定集 + 故事状态卡 +
@@ -719,6 +812,12 @@ class ContextBuilder {
     // 正文产生硬冲突的资料，必须进入一致性检查。
     var storyStateText = await _storyStateText(workId, recap.ordered);
     var charactersText = allCharacters.map(formatCharacter).join('\n');
+    // ENH-53：结构化关系边用于核对亲属 / 上下级 / 敌对等称谓是否写错。
+    var relationText = formatRelations(
+      await characters.listRelations(workId),
+      allCharacters,
+      maxLines: 20,
+    );
     var outlineText = chapterOutline;
     var body = content;
     // ENH-41：作者确认保留的差异随上下文注入，模型不再重复报告。
@@ -729,6 +828,7 @@ class ContextBuilder {
         estimateTokens(header) +
         estimateTokens(body) +
         estimateTokens(charactersText) +
+        estimateTokens(relationText) +
         estimateTokens(settingsText) +
         estimateTokens(storyStateText) +
         estimateTokens(previousSummary) +
@@ -752,6 +852,10 @@ class ContextBuilder {
       storyStateText = '';
       truncated = true;
     }
+    if (total() > budget && relationText.isNotEmpty) {
+      relationText = '';
+      truncated = true;
+    }
     if (total() > budget && allCharacters.length > minCharacters) {
       charactersText = allCharacters
           .take(minCharacters)
@@ -765,6 +869,7 @@ class ContextBuilder {
           estimateTokens(system) -
           estimateTokens(header) -
           estimateTokens(charactersText) -
+          estimateTokens(relationText) -
           estimateTokens(settingsText) -
           estimateTokens(storyStateText) -
           estimateTokens(previousSummary) -
@@ -785,6 +890,8 @@ class ContextBuilder {
         ContextSection(label: '已确认无需报告的差异', content: suppressionText),
       if (charactersText.isNotEmpty)
         ContextSection(label: '角色卡', content: charactersText),
+      if (relationText.isNotEmpty)
+        ContextSection(label: '人物关系', content: relationText),
       if (settingsText.isNotEmpty)
         ContextSection(label: '设定集', content: settingsText),
       if (storyStateText.isNotEmpty)
@@ -812,13 +919,13 @@ class ContextBuilder {
   }
 
   static const String _continuityTask =
-      '请检查【本章正文】是否存在与角色卡、设定集、故事状态卡、前情摘要或本章章纲'
+      '请检查【本章正文】是否存在与角色卡、人物关系、设定集、故事状态卡、前情摘要或本章章纲'
       '明确冲突的地方。只列冲突，不评价文笔；最多 8 条，按严重程度排序。\n'
       '只输出一个 JSON 对象，不要 Markdown 代码块或额外解释，格式：\n'
       '{"summary":"一句话结论；没有冲突时写「未发现设定冲突」",'
       '"issues":[{"quote":"冲突原文（从本章正文逐字摘录，尽量短，便于定位）",'
       '"detail":"与哪条设定冲突",'
-      '"source":"角色卡·角色名 / 设定集·条目名 / 故事状态·卡片名 / 章纲",'
+      '"source":"角色卡·角色名 / 人物关系·角色A-角色B / 设定集·条目名 / 故事状态·卡片名 / 章纲",'
       '"suggestion":"建议改法","severity":"high|medium|low"}]}';
 
   String _continuitySystem() =>
@@ -856,13 +963,20 @@ class ContextBuilder {
     final system = _storyStateSystem();
     final header = '作品：《${work?.title ?? ''}》\n本章：$titleText';
     var existingText = _storyStateExtractionText(existing);
+    // ENH-56：注入已有关系边，模型据此复用角色名与称谓、识别关系变化。
+    final relationText = formatRelations(
+      await characters.listRelations(workId),
+      await characters.listCharacters(workId),
+      maxLines: 20,
+    );
     var body = (chapter?.content ?? '').trim();
     var truncated = false;
 
     final fixed =
         estimateTokens(system) +
         estimateTokens(header) +
-        estimateTokens(_storyStateTask);
+        estimateTokens(_storyStateTask) +
+        estimateTokens(relationText);
     var room = budget - fixed;
     // 现有卡片优先保留：模型据此复用 title、判断哪些伏笔已回收。
     if (existingText.isNotEmpty && existingText.length > room * 0.4) {
@@ -886,6 +1000,8 @@ class ContextBuilder {
     final sections = <ContextSection>[
       if (existingText.isNotEmpty)
         ContextSection(label: '已有状态卡', content: existingText),
+      if (relationText.isNotEmpty)
+        ContextSection(label: '已有关系', content: relationText),
       ContextSection(label: '本章正文', content: body.isEmpty ? '（本章暂无正文）' : body),
     ];
     final userContent = <String>[
@@ -902,6 +1018,7 @@ class ContextBuilder {
           estimateTokens(system) +
           estimateTokens(header) +
           estimateTokens(existingText) +
+          estimateTokens(relationText) +
           estimateTokens(body) +
           estimateTokens(_storyStateTask),
       budgetTokens: budget,
@@ -909,20 +1026,25 @@ class ContextBuilder {
   }
 
   static const String _storyStateTask =
-      '请提取【本章正文】相对【已有状态卡】发生的变化，按 system 指定格式输出 JSON。';
+      '请提取【本章正文】相对【已有状态卡】与【已有关系】发生的变化（状态卡变化与人物关系变化），按 system 指定格式输出 JSON。';
 
   String _storyStateSystem() =>
-      '你是一位中文小说编辑助手，负责维护故事状态卡。\n'
+      '你是一位中文小说编辑助手，负责维护故事状态卡与人物关系图。\n'
       '规则：\n'
       '1. 只提取本章正文明确写出的变化，不推测后续剧情；\n'
       '2. kind 只能是 character（角色当下状态）、foreshadow（伏笔）或 timeline（时间线事件）；\n'
       '3. 状态有变化的角色沿用角色名作为 title；新伏笔、新事件用简短 title 概括；\n'
       '4. 本章回收的已有伏笔：沿用原 title，status 填 closed；其余条目 status 填 open；\n'
       '5. title 必填，detail 写清变化与依据，不要照抄大段原文；\n'
-      '6. 没有变化时输出 {"states": []}；\n'
-      '7. 只输出 JSON，不要 Markdown 代码块或解释。\n'
+      '6. 没有状态变化时 states 输出空数组；\n'
+      '7. 本章写明的人物关系变化（结怨、结盟、师徒、反目等）输出到 relationChanges 数组：'
+      'from / to 填两端角色名（须与角色卡或正文一致）、label 填关系称谓、action 只能是 add（新关系）、'
+      'update（已有关系的称谓变化）或 remove（解除关系）；关系称谓与【已有关系】保持延续，'
+      '没有关系变化时 relationChanges 输出空数组；\n'
+      '8. 只输出 JSON，不要 Markdown 代码块或解释。\n'
       '格式：{"states":[{"kind":"character","title":"沈砚",'
-      '"detail":"左臂中箭，暂不能提刀","status":"open"}]}';
+      '"detail":"左臂中箭，暂不能提刀","status":"open"}],'
+      '"relationChanges":[{"from":"沈砚","to":"苏晚","label":"师姐","action":"add"}]}';
 
   // ---------- ENH-23：文风提取 / 设定补全 / 剧情推演 / 作品问答 ----------
 
@@ -1077,6 +1199,12 @@ class ContextBuilder {
         .take(24)
         .map((c) => '- ${c.name}${c.identity.isEmpty ? '' : '（${c.identity}）'}')
         .join('\n');
+    // ENH-53：推演面向整部作品，注入全部已建档关系边（去重后限 12 条），
+    // 让新走向沿用既有阵营与亲疏，而不是临时编造人物关系。
+    final relationText = formatRelations(
+      await characters.listRelations(workId),
+      allCharacters,
+    );
     final settingsText = await _settingsText(workId);
     // ENH-39：推演必须知道角色当下状态与未回收伏笔，否则容易写出
     // 已解决线索或已死亡角色继续行动的方案。
@@ -1100,6 +1228,7 @@ class ContextBuilder {
     );
     var outlineBlock = outlineText;
     var characterBlock = charactersText;
+    var relationBlock = relationText;
     var settingsBlock = settingsText;
     var storyStateBlock = storyStateText;
     var truncated = false;
@@ -1110,6 +1239,7 @@ class ContextBuilder {
         estimateTokens(styleText) +
         estimateTokens(outlineBlock) +
         estimateTokens(characterBlock) +
+        estimateTokens(relationBlock) +
         estimateTokens(settingsBlock) +
         estimateTokens(storyStateBlock) +
         estimateTokens(samples);
@@ -1119,6 +1249,10 @@ class ContextBuilder {
     }
     if (total() > budget && settingsBlock.isNotEmpty) {
       settingsBlock = '';
+      truncated = true;
+    }
+    if (total() > budget && relationBlock.isNotEmpty) {
+      relationBlock = '';
       truncated = true;
     }
     if (total() > budget && characterBlock.length > 800) {
@@ -1138,6 +1272,7 @@ class ContextBuilder {
       if (styleText.isNotEmpty) styleText,
       if (outlineBlock.isNotEmpty) '【已有章纲】\n$outlineBlock',
       if (characterBlock.isNotEmpty) '【主要角色】\n$characterBlock',
+      if (relationBlock.isNotEmpty) '【人物关系】\n$relationBlock',
       if (settingsBlock.isNotEmpty) '【设定集】\n$settingsBlock',
       if (storyStateBlock.isNotEmpty) '【故事状态卡】\n$storyStateBlock',
       if (samples.isNotEmpty) '【最近正文节选】\n$samples',
@@ -1153,6 +1288,8 @@ class ContextBuilder {
           ContextSection(label: '已有章纲', content: outlineBlock),
         if (characterBlock.isNotEmpty)
           ContextSection(label: '主要角色', content: characterBlock),
+        if (relationBlock.isNotEmpty)
+          ContextSection(label: '人物关系', content: relationBlock),
         if (settingsBlock.isNotEmpty)
           ContextSection(label: '设定集', content: settingsBlock),
         if (storyStateBlock.isNotEmpty)
@@ -1188,6 +1325,12 @@ class ContextBuilder {
         .take(20)
         .map(formatCharacter)
         .join('\n');
+    // ENH-53：问答面向整部作品，携带结构化关系边帮助回答亲疏 / 阵营问题。
+    final relationText = formatRelations(
+      await characters.listRelations(workId),
+      allCharacters,
+      maxLines: 20,
+    );
     final settingsText = await _settingsText(workId);
     final storyStateText = await _storyStateText(workId, chapterList);
     // RAG-lite（ENH-32）：按问题检索正文片段，模型无需先调用工具即可看到证据。
@@ -1233,6 +1376,7 @@ class ContextBuilder {
       if (outlineText.isNotEmpty) '【章纲摘要】\n$outlineText',
       if (charactersText.isNotEmpty) '【角色卡】\n$charactersText',
       if (storyStateText.isNotEmpty) '【故事状态卡】\n$storyStateText',
+      if (relationText.isNotEmpty) '【人物关系】\n$relationText',
       if (relatedText.isNotEmpty) relatedText,
       if (settingsText.isNotEmpty) '【设定集】\n$settingsText',
       if (catalogText.isNotEmpty) '【章节目录（id|标题|字数）】\n$catalogText',
@@ -1390,6 +1534,9 @@ class ContextBuilder {
     required String chapterOutline,
     required String previousSummary,
     required List<Character> matchedCharacters,
+    // ENH-55：一跳关系邻居的角色卡（非本章出场，因人物关系纳入），排在匹配卡之后。
+    List<Character> neighborCharacters = const <Character>[],
+    String relationText = '',
     required String settingsText,
     String storyStateText = '',
     String relatedText = '',
@@ -1403,6 +1550,8 @@ class ContextBuilder {
     String styleText = '',
     // ENH-27：本地协作偏好 / 近期采纳片段，非空时追加到 system 并展示。
     String preferenceText = '',
+    // ENH-51：本章写作目标（核心目标 / 关键节拍 / 避免事项），非空时进入用户消息。
+    String chapterIntentText = '',
   }) {
     final baseSystem = systemOverride ?? _systemPrompt(workTitle);
     final styleBlock = styleText.trim();
@@ -1414,10 +1563,21 @@ class ContextBuilder {
     final system = extras.isEmpty ? baseSystem : '$baseSystem\n\n$extras';
 
     var volumeText = volumeOutline;
-    var charactersText = matchedCharacters.map(formatCharacter).join('\n');
+    // ENH-55：邻居卡带「因人物关系纳入」标记，与匹配卡区分来源。
+    final matchedCardText = matchedCharacters.map(formatCharacter).join('\n');
+    final neighborCardText = neighborCharacters
+        .map((c) => '${formatCharacter(c)}（因人物关系纳入）')
+        .join('\n');
+    var charactersText = <String>[
+      matchedCardText,
+      neighborCardText,
+    ].where((s) => s.isNotEmpty).join('\n');
+    final hasNeighbors = neighborCharacters.isNotEmpty;
+    var relationBlock = relationText.trim();
     var settingsBlock = settingsText;
     var storyStateBlock = storyStateText.trim();
     var relatedBlock = relatedText.trim();
+    final intentBlock = chapterIntentText.trim();
     var summaryText = previousSummary;
     var tailText = tail;
     final outlineText = chapterOutline;
@@ -1433,7 +1593,9 @@ class ContextBuilder {
         estimateTokens(settingsBlock) +
         estimateTokens(storyStateBlock) +
         estimateTokens(relatedBlock) +
+        estimateTokens(intentBlock) +
         estimateTokens(charactersText) +
+        estimateTokens(relationBlock) +
         estimateTokens(payload);
 
     // 超预算时从优先级最低项开始丢弃（ARCHITECTURE 5.3 / PRD 6.2）。
@@ -1445,12 +1607,21 @@ class ContextBuilder {
       settingsBlock = '';
       truncated = true;
     }
+    if (total() > budget && relationBlock.isNotEmpty) {
+      relationBlock = '';
+      truncated = true;
+    }
     if (total() > budget && storyStateBlock.isNotEmpty) {
       storyStateBlock = '';
       truncated = true;
     }
     if (total() > budget && relatedBlock.isNotEmpty) {
       relatedBlock = '';
+      truncated = true;
+    }
+    // ENH-55：邻居卡优先级最低，超预算时先于匹配卡整体丢弃。
+    if (hasNeighbors && total() > budget) {
+      charactersText = matchedCardText;
       truncated = true;
     }
     if (total() > budget && matchedCharacters.length > minCharacters) {
@@ -1474,7 +1645,9 @@ class ContextBuilder {
           estimateTokens(settingsBlock) +
           estimateTokens(storyStateBlock) +
           estimateTokens(relatedBlock) +
-          estimateTokens(charactersText);
+          estimateTokens(intentBlock) +
+          estimateTokens(charactersText) +
+          estimateTokens(relationBlock);
       final room = budget - others;
       if (room <= 0) {
         // 其余内容已占满预算，尾部完全放不下：整段丢弃并提示截断。
@@ -1499,10 +1672,14 @@ class ContextBuilder {
           content: charactersText,
           truncated: matchedCharacters.length > minCharacters && truncated,
         ),
+      if (relationBlock.isNotEmpty)
+        ContextSection(label: '人物关系', content: relationBlock),
       if (settingsBlock.isNotEmpty)
         ContextSection(label: '设定集', content: settingsBlock),
       if (storyStateBlock.isNotEmpty)
         ContextSection(label: '故事状态卡', content: storyStateBlock),
+      if (intentBlock.isNotEmpty)
+        ContextSection(label: '本章写作目标', content: intentBlock),
       if (outlineText.isNotEmpty)
         ContextSection(label: '本章章纲', content: outlineText),
       if (tailText.isNotEmpty)
@@ -1999,8 +2176,85 @@ String formatCharacter(Character c) {
     if (aliases.isNotEmpty) '别名：${aliases.join('、')}',
     if (tags.isNotEmpty) '性格：${tags.join('、')}',
     if (c.appearance.isNotEmpty) '外貌：${c.appearance}',
+    if (c.voice.isNotEmpty) '口吻：${c.voice}',
     if (c.relations.isNotEmpty) '人际关系：${c.relations}',
     if (c.arc.isNotEmpty) '弧光：${c.arc}',
   ];
   return '- ${c.name}${parts.isEmpty ? '' : '（${parts.join('；')}）'}';
+}
+
+/// 人物关系格式化（ENH-53）：把 CHARACTER_RELATION 的结构化关系边渲染为
+/// `- A → B：称谓`。传入 [focusIds] 时只保留至少一端在此集合中的边，
+/// 两端都命中的关系排在前面；同一组关系只输出一次，最多 [maxLines] 条。
+/// [focusIds] 为空集合时返回空串（当前章没有可关联的角色），
+/// 传 null 表示不按角色过滤（推演 / 问答 / 一致性检查使用）。
+String formatRelations(
+  List<CharacterRelation> relations,
+  List<Character> characters, {
+  Set<int>? focusIds,
+  int maxLines = 12,
+}) {
+  if (relations.isEmpty || characters.isEmpty || maxLines <= 0) return '';
+  final names = <int, String>{
+    for (final character in characters)
+      if (character.name.trim().isNotEmpty) character.id: character.name.trim(),
+  };
+  final focus = focusIds?.where(names.containsKey).toSet();
+  final both = <String>[];
+  final single = <String>[];
+  final seen = <String>{};
+  for (final relation in relations) {
+    final from = names[relation.fromCharacterId];
+    final to = names[relation.toCharacterId];
+    if (from == null || to == null || from == to) continue;
+    final fromFocus = focus?.contains(relation.fromCharacterId) ?? false;
+    final toFocus = focus?.contains(relation.toCharacterId) ?? false;
+    if (focus != null && !fromFocus && !toFocus) continue;
+    final label = relation.label.trim();
+    final line = '- $from → $to：${label.isEmpty ? '关系未注明' : label}';
+    if (!seen.add(line)) continue;
+    (fromFocus && toFocus ? both : single).add(line);
+  }
+  return <String>[...both, ...single].take(maxLines).join('\n');
+}
+
+/// 一跳关系邻居（ENH-55）：与 [focusIds] 中角色有直接关系边、但自身不在焦点
+/// 集合内的角色，按与焦点的边数降序、id 升序排序，最多 [max] 张。
+/// 续写 / 改写把这些邻居的角色卡一并注入——关系段（ENH-53）只告诉模型
+/// 「谁与谁有关系」，邻居卡再补上口吻与性格，让未点名人物也有据可依。
+List<Character> _relationNeighbors(
+  List<CharacterRelation> relations,
+  List<Character> characters, {
+  required Set<int> focusIds,
+  int max = 2,
+}) {
+  if (relations.isEmpty || focusIds.isEmpty || max <= 0) {
+    return const <Character>[];
+  }
+  final byId = <int, Character>{
+    for (final character in characters)
+      if (character.name.trim().isNotEmpty) character.id: character,
+  };
+  final counts = <int, int>{};
+  for (final relation in relations) {
+    final from = relation.fromCharacterId;
+    final to = relation.toCharacterId;
+    if (from == to) continue;
+    final int neighbor;
+    if (focusIds.contains(from) && !focusIds.contains(to)) {
+      neighbor = to;
+    } else if (focusIds.contains(to) && !focusIds.contains(from)) {
+      neighbor = from;
+    } else {
+      continue;
+    }
+    if (!byId.containsKey(neighbor) || focusIds.contains(neighbor)) continue;
+    counts[neighbor] = (counts[neighbor] ?? 0) + 1;
+  }
+  final ids = counts.keys.toList()
+    ..sort((a, b) {
+      final byCount = counts[b]!.compareTo(counts[a]!);
+      return byCount != 0 ? byCount : a.compareTo(b);
+    });
+  return <Character>[for (final id in ids.take(max)) byId[id]!];
 }

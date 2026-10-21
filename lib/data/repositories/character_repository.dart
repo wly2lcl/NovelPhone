@@ -29,6 +29,7 @@ class CharacterRepository {
     String appearance = '',
     String relations = '',
     String arc = '',
+    String voice = '',
   }) {
     return _dao.insert(
       CharactersCompanion.insert(
@@ -40,6 +41,7 @@ class CharacterRepository {
         appearance: Value(appearance),
         relations: Value(relations),
         arc: Value(arc),
+        voice: Value(voice),
       ),
     );
   }
@@ -53,6 +55,7 @@ class CharacterRepository {
     required String appearance,
     required String relations,
     required String arc,
+    String voice = '',
   }) {
     return _dao.updateCharacter(
       id,
@@ -64,6 +67,7 @@ class CharacterRepository {
         appearance: Value(appearance),
         relations: Value(relations),
         arc: Value(arc),
+        voice: Value(voice),
       ),
     );
   }

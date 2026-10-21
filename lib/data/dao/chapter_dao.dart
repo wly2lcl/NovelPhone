@@ -92,6 +92,7 @@ class ChapterDao {
               updatedAt: row.read(_db.chapters.updatedAt)!,
               summary: row.read(_db.chapters.summary)!,
               summaryUpdatedAt: row.read(_db.chapters.summaryUpdatedAt),
+              intent: '',
             ),
           )
           .toList(),

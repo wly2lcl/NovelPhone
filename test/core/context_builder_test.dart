@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:novelphone/core/ai/chapter_intent.dart';
 import 'package:novelphone/core/ai/context_builder.dart';
 import 'package:novelphone/core/ai/continuity_suppression.dart';
 import 'package:novelphone/core/ai/structured_response.dart';
@@ -283,6 +284,287 @@ void main() {
     expect(charactersSection.content, contains('沈砚'));
   });
 
+  test('本章写作目标注入续写与改写上下文（ENH-51）', () async {
+    final workId = await seedWork();
+    final third = await chapters.createChapter(workId: workId, title: '第三章');
+    await chapters.saveChapter(
+      chapterId: third,
+      title: '第三章',
+      content: '沈砚握紧了刀。',
+      cursorOffset: 0,
+      scrollOffset: 0,
+    );
+    await chapters.saveChapterIntent(
+      third,
+      const ChapterIntent(
+        goal: '让沈砚决定离开雾港',
+        beats: <String>['发现船票', '苏晚拦住他'],
+        avoid: <String>['不要写回忆'],
+      ).encode(),
+    );
+
+    final context = await builder.buildContinue(
+      workId: workId,
+      chapterId: third,
+      contextWindow: 32000,
+    );
+
+    final section = context.sections.firstWhere((s) => s.label == '本章写作目标');
+    expect(section.content, contains('核心目标：让沈砚决定离开雾港'));
+    expect(section.content, contains('1. 发现船票'));
+    expect(section.content, contains('- 不要写回忆'));
+    expect(context.messages.single.content, contains('【本章写作目标】'));
+    expect(context.messages.single.content, contains('核心目标：让沈砚决定离开雾港'));
+
+    final rewrite = await builder.buildRewrite(
+      workId: workId,
+      chapterId: third,
+      selectedText: '沈砚握紧了刀。',
+      intent: 'polish',
+      contextWindow: 32000,
+    );
+
+    expect(rewrite.messages.single.content, contains('【本章写作目标】'));
+    expect(rewrite.messages.single.content, contains('核心目标：让沈砚决定离开雾港'));
+    // 选中原文仍然固定在消息末尾，目标段不干扰改写边界。
+    expect(rewrite.messages.single.content, endsWith('【待改写原文】\n沈砚握紧了刀。'));
+  });
+
+  test('角色口吻随角色卡进入上下文（ENH-52）', () async {
+    final workId = await seedWork();
+    final third = await chapters.createChapter(workId: workId, title: '第三章');
+    await chapters.saveChapter(
+      chapterId: third,
+      title: '第三章',
+      content: '沈砚低声说：走。',
+      cursorOffset: 0,
+      scrollOffset: 0,
+    );
+    await characters.createCharacter(
+      workId: workId,
+      name: '沈砚',
+      identity: '游侠',
+      voice: '话极少，常用短句，不解释。',
+    );
+
+    final context = await builder.buildContinue(
+      workId: workId,
+      chapterId: third,
+      contextWindow: 32000,
+    );
+
+    final charactersSection = context.sections.firstWhere(
+      (s) => s.label == '相关角色卡',
+    );
+    expect(charactersSection.content, contains('口吻：话极少，常用短句，不解释。'));
+    expect(context.messages.single.content, contains('口吻：话极少，常用短句，不解释。'));
+  });
+
+  test('人物关系只保留与焦点角色相关的边并优先两端命中（ENH-53）', () {
+    Character character(int id, String name) => Character(
+      id: id,
+      workId: 1,
+      name: name,
+      identity: '',
+      personalityTags: '',
+      aliases: '',
+      appearance: '',
+      relations: '',
+      arc: '',
+      voice: '',
+    );
+    final people = <Character>[
+      character(1, '沈砚'),
+      character(2, '苏晚'),
+      character(3, '顾寒'),
+    ];
+    CharacterRelation relation(int from, int to, String label) =>
+        CharacterRelation(
+          id: from * 10 + to,
+          workId: 1,
+          fromCharacterId: from,
+          toCharacterId: to,
+          label: label,
+        );
+    final relations = <CharacterRelation>[
+      relation(1, 2, '师姐'),
+      relation(3, 1, '宿敌'),
+      relation(3, 2, '旧识'),
+      relation(1, 3, '同门'),
+      relation(2, 2, '自己'),
+      relation(1, 2, '师姐'),
+      relation(2, 1, ''),
+    ];
+
+    // 只命中一端的关系保留，两端都命中的排在最前。
+    final focused = formatRelations(relations, people, focusIds: <int>{1, 2});
+    expect(focused.split('\n').first, '- 沈砚 → 苏晚：师姐');
+    expect(focused, contains('- 沈砚 → 顾寒：同门'));
+    expect(focused, contains('- 顾寒 → 苏晚：旧识'));
+    // 同一组关系只输出一次，自环忽略，空称谓给出占位。
+    expect(RegExp('沈砚 → 苏晚：师姐').allMatches(focused), hasLength(1));
+    expect(focused, isNot(contains('苏晚 → 苏晚')));
+    expect(focused, contains('- 苏晚 → 沈砚：关系未注明'));
+
+    // 只关注沈砚时不再带出「顾寒 → 苏晚」。
+    final onlyOne = formatRelations(relations, people, focusIds: <int>{1});
+    expect(onlyOne, contains('沈砚 → 苏晚：师姐'));
+    expect(onlyOne, contains('顾寒 → 沈砚：宿敌'));
+    expect(onlyOne, isNot(contains('顾寒 → 苏晚')));
+    // 空焦点（本章无匹配角色）不注入整张关系网；null 才表示不过滤。
+    expect(formatRelations(relations, people, focusIds: <int>{}), isEmpty);
+    expect(
+      formatRelations(relations, people, maxLines: 2).split('\n'),
+      hasLength(2),
+    );
+  });
+
+  test('人物关系注入续写 / 推演 / 问答 / 一致性检查（ENH-53）', () async {
+    final workId = await seedWork();
+    final shen = await characters.createCharacter(workId: workId, name: '沈砚');
+    final su = await characters.createCharacter(workId: workId, name: '苏晚');
+    final gu = await characters.createCharacter(workId: workId, name: '顾寒');
+    await characters.createRelation(
+      workId: workId,
+      fromCharacterId: shen,
+      toCharacterId: su,
+      label: '师姐',
+    );
+    await characters.createRelation(
+      workId: workId,
+      fromCharacterId: shen,
+      toCharacterId: gu,
+      label: '宿敌',
+    );
+    await characters.createRelation(
+      workId: workId,
+      fromCharacterId: su,
+      toCharacterId: gu,
+      label: '旧识',
+    );
+    final third = await chapters.createChapter(workId: workId, title: '第三章');
+    await chapters.saveChapter(
+      chapterId: third,
+      title: '第三章',
+      content: '沈砚握紧了刀。',
+      cursorOffset: 0,
+      scrollOffset: 0,
+    );
+    final chapterList = await chapters.listChapters(workId);
+
+    final context = await builder.buildContinue(
+      workId: workId,
+      chapterId: third,
+      contextWindow: 32000,
+    );
+    final section = context.sections.firstWhere((s) => s.label == '人物关系');
+    expect(section.content, contains('- 沈砚 → 苏晚：师姐'));
+    expect(section.content, contains('- 沈砚 → 顾寒：宿敌'));
+    // 沈砚是唯一匹配角色：不相关的「苏晚 → 顾寒」不进入上下文。
+    expect(section.content, isNot(contains('苏晚 → 顾寒')));
+    expect(context.messages.single.content, contains('【人物关系】'));
+
+    final plot = await builder.buildPlotPlan(
+      workId: workId,
+      chapterList: chapterList,
+      contextWindow: 32000,
+    );
+    expect(plot.messages.single.content, contains('【人物关系】'));
+    expect(plot.messages.single.content, contains('- 苏晚 → 顾寒：旧识'));
+
+    final chat = await builder.buildChat(
+      workId: workId,
+      chapterList: chapterList,
+      history: const <ChatContextTurn>[],
+      message: '沈砚和顾寒是什么关系？',
+      contextWindow: 32000,
+    );
+    expect(chat.system, contains('【人物关系】'));
+    expect(chat.system, contains('- 沈砚 → 顾寒：宿敌'));
+
+    final check = await builder.buildContinuityCheck(
+      workId: workId,
+      chapterId: third,
+      contextWindow: 32000,
+    );
+    final checkSection = check.sections.firstWhere((s) => s.label == '人物关系');
+    expect(checkSection.content, contains('- 沈砚 → 苏晚：师姐'));
+    expect(check.messages.single.content, contains('【人物关系】'));
+    expect(check.messages.single.content, contains('人物关系·角色A-角色B'));
+  });
+
+  test('一跳关系邻居的角色卡注入续写 / 改写（ENH-55）', () async {
+    final workId = await seedWork();
+    final shen = await characters.createCharacter(workId: workId, name: '沈砚');
+    final su = await characters.createCharacter(workId: workId, name: '苏晚');
+    final gu = await characters.createCharacter(workId: workId, name: '顾寒');
+    final lin = await characters.createCharacter(workId: workId, name: '林越');
+    // 沈砚是本章唯一被点名的角色：苏晚 / 顾寒 / 林越都是一跳邻居，其中
+    // 顾寒与沈砚有两条边（双向各一条），按边数应排在最前。
+    await characters.createRelation(
+      workId: workId,
+      fromCharacterId: shen,
+      toCharacterId: su,
+      label: '师姐',
+    );
+    await characters.createRelation(
+      workId: workId,
+      fromCharacterId: gu,
+      toCharacterId: shen,
+      label: '宿敌',
+    );
+    await characters.createRelation(
+      workId: workId,
+      fromCharacterId: shen,
+      toCharacterId: gu,
+      label: '宿敌',
+    );
+    await characters.createRelation(
+      workId: workId,
+      fromCharacterId: lin,
+      toCharacterId: shen,
+      label: '同门',
+    );
+    final third = await chapters.createChapter(workId: workId, title: '第三章');
+    await chapters.saveChapter(
+      chapterId: third,
+      title: '第三章',
+      content: '沈砚握紧了刀。',
+      cursorOffset: 0,
+      scrollOffset: 0,
+    );
+
+    final context = await builder.buildContinue(
+      workId: workId,
+      chapterId: third,
+      contextWindow: 32000,
+    );
+    final cards = context.sections.firstWhere((s) => s.label == '相关角色卡');
+    // 邻居卡带「因人物关系纳入」标记；上限 2 张 → 顾寒（2 条边）+ 苏晚，
+    // 林越被挤出。
+    expect(cards.content, contains('- 顾寒（因人物关系纳入）'));
+    expect(cards.content, contains('- 苏晚（因人物关系纳入）'));
+    expect(cards.content, isNot(contains('- 林越')));
+    // 匹配卡在前、邻居卡在后，且不带标记。
+    expect(
+      cards.content.indexOf('- 沈砚'),
+      lessThan(cards.content.indexOf('- 顾寒')),
+    );
+    expect(context.messages.single.content, contains('【相关角色卡】'));
+
+    // 改写按选中原文匹配，邻居卡同样注入。
+    final rewrite = await builder.buildRewrite(
+      workId: workId,
+      chapterId: third,
+      selectedText: '沈砚握紧了刀。',
+      intent: '润色',
+      contextWindow: 32000,
+    );
+    final rewriteCards = rewrite.sections.firstWhere((s) => s.label == '相关角色卡');
+    expect(rewriteCards.content, contains('- 苏晚（因人物关系纳入）'));
+    expect(rewrite.messages.single.content, contains('因人物关系纳入'));
+  });
+
   test('改写超预算时选中原文不被截断（ENH-04）', () async {
     final workId = await seedWork();
     final third = await chapters.createChapter(workId: workId, title: '第三章');
@@ -328,6 +610,7 @@ void main() {
         appearance: '',
         relations: '',
         arc: '',
+        voice: '',
       ),
       Character(
         id: 2,
@@ -339,6 +622,7 @@ void main() {
         appearance: '',
         relations: '',
         arc: '',
+        voice: '',
       ),
     ], '沈砚说。沈砚走了。苏晚点头。');
     expect(matched.map((c) => c.name).toList(), <String>['沈砚', '苏晚']);
@@ -355,6 +639,7 @@ void main() {
       appearance: '',
       relations: '',
       arc: '',
+      voice: '话少，爱用反问。',
     );
 
     expect(matchCharacters(<Character>[character], '沈公子推门而入。'), hasLength(1));
@@ -363,6 +648,7 @@ void main() {
     final text = formatCharacter(character);
     expect(text, contains('别名：沈公子、小砚'));
     expect(text, contains('性格：寡言、执拗'));
+    expect(text, contains('口吻：话少，爱用反问。'));
     expect(characterAliasGroups(<Character>[character]).single, <String>[
       '沈砚',
       '沈公子',
@@ -764,7 +1050,7 @@ void main() {
     expect(incMaterial.content, isNot(contains('第一章摘要：沈砚离乡。')));
   });
 
-  test('buildInspireContext 补前文摘要与本章章纲（ENH-07 O7）', () async {
+  test('buildInspireContext 补摘要 / 章纲 / 目标 / 关系 / 状态卡（ENH-54）', () async {
     final workId = await seedWork();
     final third = await chapters.createChapter(workId: workId, title: '第三章');
     await outline.saveChapterSummary(
@@ -772,13 +1058,47 @@ void main() {
       chapterId: third,
       summary: '沈砚与苏晚对峙。',
     );
+    await chapters.saveChapterIntent(
+      third,
+      const ChapterIntent(
+        goal: '让沈砚当众暴露身份',
+        beats: <String>['苏晚出言试探'],
+        avoid: <String>['旁白总结'],
+      ).encode(),
+    );
+    final shen = await characters.createCharacter(workId: workId, name: '沈砚');
+    final su = await characters.createCharacter(workId: workId, name: '苏晚');
+    await characters.createRelation(
+      workId: workId,
+      fromCharacterId: shen,
+      toCharacterId: su,
+      label: '师姐',
+    );
+    final states = StoryStateRepository(db);
+    await states.createEntry(
+      workId: workId,
+      kind: StoryStateKind.character,
+      title: '沈砚',
+      detail: '左臂受伤',
+    );
+    final localBuilder = ContextBuilder(
+      works: works,
+      chapters: chapters,
+      characters: characters,
+      outline: outline,
+      settings: settings,
+      storyStates: states,
+    );
 
     // 未指定章节：不补任何上下文，保持旧行为。
-    final none = await builder.buildInspireContext(workId: workId);
+    final none = await localBuilder.buildInspireContext(workId: workId);
     expect(none.previousSummary, isEmpty);
     expect(none.chapterOutline, isEmpty);
+    expect(none.chapterIntent, isEmpty);
+    expect(none.relationText, isEmpty);
+    expect(none.storyStateText, isEmpty);
 
-    final ctx = await builder.buildInspireContext(
+    final ctx = await localBuilder.buildInspireContext(
       workId: workId,
       chapterId: third,
     );
@@ -787,6 +1107,11 @@ void main() {
     expect(ctx.previousSummary, contains('《第二章》'));
     // 本章章纲来自大纲条目的摘要。
     expect(ctx.chapterOutline, contains('沈砚与苏晚对峙。'));
+    // 本章写作目标、人物关系与故事状态卡让点子不脱离当前剧情。
+    expect(ctx.chapterIntent, contains('核心目标：让沈砚当众暴露身份'));
+    expect(ctx.chapterIntent, contains('苏晚出言试探'));
+    expect(ctx.relationText, contains('- 沈砚 → 苏晚：师姐'));
+    expect(ctx.storyStateText, contains('沈砚：左臂受伤'));
   });
 
   // ---------- ENH-22：设定一致性检查上下文 ----------
@@ -1043,6 +1368,50 @@ void main() {
     expect(context.messages.single.content, contains('相对【已有状态卡】'));
     expect(context.system, contains('"states"'));
     expect(context.system, contains('status 填 closed'));
+    expect(context.truncated, isFalse);
+  });
+
+  test('buildStoryStateExtraction 注入已有关系并要求 relationChanges（ENH-56）', () async {
+    final workId = await seedWork();
+    final shen = await characters.createCharacter(
+      workId: workId,
+      name: '沈砚',
+      identity: '巡逻捕快',
+    );
+    final su = await characters.createCharacter(
+      workId: workId,
+      name: '苏晚',
+      identity: '药铺掌柜',
+    );
+    await characters.createRelation(
+      workId: workId,
+      fromCharacterId: shen,
+      toCharacterId: su,
+      label: '师姐',
+    );
+    final localBuilder = ContextBuilder(
+      works: works,
+      chapters: chapters,
+      characters: characters,
+      outline: outline,
+      settings: settings,
+      storyStates: StoryStateRepository(db),
+    );
+
+    final context = await localBuilder.buildStoryStateExtraction(
+      workId: workId,
+      chapterId: (await chapters.listChapters(workId)).first.id,
+      contextWindow: 32000,
+    );
+
+    expect(context.sections.map((s) => s.label), <String>['已有关系', '本章正文']);
+    final relations = context.sections.first.content;
+    expect(relations, contains('- 沈砚 → 苏晚：师姐'));
+    expect(context.messages.single.content, contains('【已有关系】'));
+    expect(context.messages.single.content, contains('相对【已有状态卡】与【已有关系】'));
+    expect(context.system, contains('relationChanges'));
+    expect(context.system, contains('"action"'));
+    expect(context.estimatedTokens, greaterThan(0));
     expect(context.truncated, isFalse);
   });
 

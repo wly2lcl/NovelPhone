@@ -14,6 +14,7 @@ Chapter _chapter(int id, String title, String content) => Chapter(
   scrollOffset: 0,
   updatedAt: DateTime(2026, 10, 19),
   summary: '',
+  intent: '',
 );
 
 /// RAG-lite 本地检索（ENH-32）。

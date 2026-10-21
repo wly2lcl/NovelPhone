@@ -254,6 +254,58 @@ class AppLocalizationsZh extends AppLocalizations {
   String get editorToolEditSummary => '查看/编辑本章摘要';
 
   @override
+  String get editorToolChapterIntent => '本章写作目标';
+
+  @override
+  String get chapterIntentTitle => '本章写作目标';
+
+  @override
+  String get chapterIntentHint =>
+      '告诉 AI 这一章要完成什么：核心目标、关键节拍与需要避免的内容。仅保存在本机，续写与改写时自动注入。';
+
+  @override
+  String get chapterIntentGoalLabel => '核心目标（一句话）';
+
+  @override
+  String get chapterIntentGoalHint => '如：沈砚在雨夜发现密信，并与掌柜正面交锋';
+
+  @override
+  String get chapterIntentBeatsLabel => '关键节拍（每行一条，最多 8 条）';
+
+  @override
+  String get chapterIntentBeatsHint => '按发生顺序填写，如：沈砚潜入后院 → 撞见掌柜烧信';
+
+  @override
+  String get chapterIntentAvoidLabel => '避免内容（每行一条，最多 5 条）';
+
+  @override
+  String get chapterIntentAvoidHint => '如：不要让沈砚主动暴露身份';
+
+  @override
+  String get chapterIntentFillOutline => '从章纲带入';
+
+  @override
+  String get chapterIntentFillForeshadows => '带入未回收伏笔';
+
+  @override
+  String get chapterIntentClear => '清空';
+
+  @override
+  String get chapterIntentSaved => '写作目标已保存';
+
+  @override
+  String get chapterIntentOutlineEmpty => '本章还没有章纲梗概';
+
+  @override
+  String get chapterIntentNoForeshadows => '没有未回收的伏笔';
+
+  @override
+  String get chapterIntentLimitBeats => '关键节拍最多 8 条';
+
+  @override
+  String get chapterIntentLimitAvoid => '避免内容最多 5 条';
+
+  @override
   String get editorExitFocusMode => '退出专注模式';
 
   @override
@@ -2487,6 +2539,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get storyStateExtractUnchanged => '与现有卡片一致';
 
   @override
+  String get storyStateExtractRelationSection => '人物关系变化';
+
+  @override
+  String get storyStateExtractRelationRemove => '解除';
+
+  @override
+  String get storyStateExtractRelationUnresolvable => '未找到对应角色';
+
+  @override
+  String storyStateExtractRelationsApplied(
+    int added,
+    int updated,
+    int removed,
+  ) {
+    return '关系图：新增 $added 条、更新 $updated 条、解除 $removed 条';
+  }
+
+  @override
   String storyStateExtractApply(int count) {
     return '应用选中项（$count）';
   }
@@ -2774,6 +2844,15 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get charactersAppearanceLabel => '外貌特征';
+
+  @override
+  String get charactersVoiceLabel => '说话风格 / 口吻（最多 300 字）';
+
+  @override
+  String get charactersVoiceHint => '语气、句长、口头禅，或一句示例台词';
+
+  @override
+  String get charactersVoiceShort => '口吻';
 
   @override
   String get charactersRelationsLabel => '人际关系';

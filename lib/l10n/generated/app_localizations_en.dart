@@ -280,6 +280,62 @@ class AppLocalizationsEn extends AppLocalizations {
   String get editorToolEditSummary => 'View/edit chapter summary';
 
   @override
+  String get editorToolChapterIntent => 'Chapter goals';
+
+  @override
+  String get chapterIntentTitle => 'Chapter goals';
+
+  @override
+  String get chapterIntentHint =>
+      'Tell the AI what this chapter should accomplish: core goal, key beats and what to avoid. Stored locally and injected into continuation and rewrite.';
+
+  @override
+  String get chapterIntentGoalLabel => 'Core goal (one sentence)';
+
+  @override
+  String get chapterIntentGoalHint =>
+      'e.g. Shen Yan finds the letter on a rainy night and confronts the shopkeeper';
+
+  @override
+  String get chapterIntentBeatsLabel => 'Key beats (one per line, up to 8)';
+
+  @override
+  String get chapterIntentBeatsHint =>
+      'In order, e.g. Shen Yan slips into the backyard → catches the shopkeeper burning a letter';
+
+  @override
+  String get chapterIntentAvoidLabel => 'Avoid (one per line, up to 5)';
+
+  @override
+  String get chapterIntentAvoidHint =>
+      'e.g. Do not let Shen Yan reveal his identity';
+
+  @override
+  String get chapterIntentFillOutline => 'Use outline';
+
+  @override
+  String get chapterIntentFillForeshadows => 'Add open foreshadows';
+
+  @override
+  String get chapterIntentClear => 'Clear';
+
+  @override
+  String get chapterIntentSaved => 'Chapter goals saved';
+
+  @override
+  String get chapterIntentOutlineEmpty =>
+      'No outline summary for this chapter yet';
+
+  @override
+  String get chapterIntentNoForeshadows => 'No open foreshadows';
+
+  @override
+  String get chapterIntentLimitBeats => 'Up to 8 key beats';
+
+  @override
+  String get chapterIntentLimitAvoid => 'Up to 5 avoid items';
+
+  @override
   String get editorExitFocusMode => 'Exit focus mode';
 
   @override
@@ -2801,6 +2857,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get storyStateExtractUnchanged => 'Matches the existing card';
 
   @override
+  String get storyStateExtractRelationSection => 'Relationship changes';
+
+  @override
+  String get storyStateExtractRelationRemove => 'Removed';
+
+  @override
+  String get storyStateExtractRelationUnresolvable => 'Character not found';
+
+  @override
+  String storyStateExtractRelationsApplied(
+    int added,
+    int updated,
+    int removed,
+  ) {
+    return 'Relationship graph: $added added, $updated updated, $removed removed';
+  }
+
+  @override
   String storyStateExtractApply(int count) {
     return 'Apply selected ($count)';
   }
@@ -3144,6 +3218,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get charactersAppearanceLabel => 'Appearance';
+
+  @override
+  String get charactersVoiceLabel =>
+      'Voice / speech style (up to 300 characters)';
+
+  @override
+  String get charactersVoiceHint =>
+      'Tone, sentence length, verbal tics, or an example line';
+
+  @override
+  String get charactersVoiceShort => 'Voice';
 
   @override
   String get charactersRelationsLabel => 'Relationships';

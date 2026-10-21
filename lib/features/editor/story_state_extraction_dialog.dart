@@ -6,6 +6,7 @@ import '../../core/ai/structured_response.dart';
 import '../../data/data_providers.dart';
 import '../../data/db.dart';
 import '../../l10n/l10n.dart';
+import '../../models/character_tags.dart';
 import '../../models/story_state_kind.dart';
 import '../ai/ai_providers.dart';
 import '../ai/ai_service.dart';
@@ -26,6 +27,9 @@ Future<bool> showStoryStateExtractionDialog(
 }
 
 enum _ApplyMode { create, update, unchanged }
+
+/// 关系变化的应用判定（ENH-56）。
+enum _RelationMode { create, update, remove, unchanged, unresolvable }
 
 /// 状态提取结果预览对话框。
 class StoryStateExtractionDialog extends ConsumerStatefulWidget {
@@ -51,6 +55,11 @@ class _StoryStateExtractionDialogState
   List<StoryStateSuggestion> _suggestions = const <StoryStateSuggestion>[];
   Map<String, StoryState> _existingByKey = const <String, StoryState>{};
   final Set<int> _selected = <int>{};
+  List<RelationChangeSuggestion> _relationChanges =
+      const <RelationChangeSuggestion>[];
+  final Set<int> _selectedRelations = <int>{};
+  List<CharacterRelation> _existingRelations = const <CharacterRelation>[];
+  Map<String, Character> _resolvedNames = const <String, Character>{};
 
   @override
   void initState() {
@@ -64,6 +73,8 @@ class _StoryStateExtractionDialogState
       _error = null;
       _suggestions = const <StoryStateSuggestion>[];
       _selected.clear();
+      _relationChanges = const <RelationChangeSuggestion>[];
+      _selectedRelations.clear();
     });
     try {
       final existing = await ref
@@ -81,13 +92,31 @@ class _StoryStateExtractionDialogState
           '${entry.kind}|${entry.title.trim().toLowerCase()}': entry,
       };
       final suggestions = result.extraction.suggestions;
+      final changes = result.extraction.relationChanges;
+      final relations = changes.isEmpty
+          ? const <CharacterRelation>[]
+          : await ref
+                .read(characterRepositoryProvider)
+                .listRelations(widget.workId);
+      final resolvedNames = await _resolveNames(changes);
+      if (!mounted) return;
       setState(() {
         _existingByKey = byKey;
         _suggestions = suggestions;
+        _relationChanges = changes;
+        _existingRelations = relations;
+        _resolvedNames = resolvedNames;
         _loading = false;
         for (var i = 0; i < suggestions.length; i++) {
           if (_modeOf(suggestions[i]) != _ApplyMode.unchanged) {
             _selected.add(i);
+          }
+        }
+        for (var i = 0; i < changes.length; i++) {
+          final mode = _relationModeOf(changes[i]);
+          if (mode != _RelationMode.unchanged &&
+              mode != _RelationMode.unresolvable) {
+            _selectedRelations.add(i);
           }
         }
       });
@@ -123,8 +152,102 @@ class _StoryStateExtractionDialogState
         : _ApplyMode.unchanged;
   }
 
+  /// 把模型给的 from / to 名字解析成角色（名称或别名，忽略大小写）。
+  Future<Map<String, Character>> _resolveNames(
+    Iterable<RelationChangeSuggestion> changes,
+  ) async {
+    final repository = ref.read(characterRepositoryProvider);
+    final characters = await repository.listCharacters(widget.workId);
+    final byName = <String, Character>{
+      for (final character in characters)
+        character.name.trim().toLowerCase(): character,
+      for (final character in characters)
+        for (final alias in decodeTags(character.aliases))
+          if (alias.trim().isNotEmpty) alias.trim().toLowerCase(): character,
+    };
+    final resolved = <String, Character>{};
+    for (final change in changes) {
+      for (final name in <String>[change.from, change.to]) {
+        final match = byName[name.trim().toLowerCase()];
+        if (match != null) resolved[name] = match;
+      }
+    }
+    return resolved;
+  }
+
+  /// 判定一条关系变化落到关系图上的动作。
+  _RelationMode _relationModeOf(RelationChangeSuggestion change) {
+    final resolved = _resolvedNames;
+    final from = resolved[change.from];
+    final to = resolved[change.to];
+    if (from == null || to == null || from.id == to.id) {
+      return _RelationMode.unresolvable;
+    }
+    final edge = _findEdge(from.id, to.id);
+    return switch (change.action) {
+      'remove' => edge == null ? _RelationMode.unchanged : _RelationMode.remove,
+      'update' =>
+        edge == null
+            ? _RelationMode.create
+            : (edge.label.trim() == change.label.trim()
+                  ? _RelationMode.unchanged
+                  : _RelationMode.update),
+      _ =>
+        edge == null
+            ? _RelationMode.create
+            : (edge.label.trim() == change.label.trim()
+                  ? _RelationMode.unchanged
+                  : _RelationMode.update),
+    };
+  }
+
+  /// 找已有人边（关系为有向，但对照时双向都算同一条）。
+  CharacterRelation? _findEdge(int a, int b) {
+    for (final relation in _existingRelations) {
+      final from = relation.fromCharacterId;
+      final to = relation.toCharacterId;
+      if ((from == a && to == b) || (from == b && to == a)) return relation;
+    }
+    return null;
+  }
+
+  Future<void> _applyRelations() async {
+    final repository = ref.read(characterRepositoryProvider);
+    for (final index in _selectedRelations.toList()..sort()) {
+      if (index >= _relationChanges.length) continue;
+      final change = _relationChanges[index];
+      final from = _resolvedNames[change.from];
+      final to = _resolvedNames[change.to];
+      if (from == null || to == null) continue;
+      final edge = _findEdge(from.id, to.id);
+      switch (_relationModeOf(change)) {
+        case _RelationMode.create:
+          await repository.createRelation(
+            workId: widget.workId,
+            fromCharacterId: from.id,
+            toCharacterId: to.id,
+            label: change.label.trim(),
+          );
+        case _RelationMode.update:
+          if (edge == null) break;
+          // 保持原方向，仅更新称谓。
+          await repository.updateRelation(
+            id: edge.id,
+            fromCharacterId: edge.fromCharacterId,
+            toCharacterId: edge.toCharacterId,
+            label: change.label.trim(),
+          );
+        case _RelationMode.remove:
+          if (edge == null) break;
+          await repository.deleteRelation(edge.id);
+        case _RelationMode.unchanged || _RelationMode.unresolvable:
+          break;
+      }
+    }
+  }
+
   Future<void> _apply() async {
-    if (_selected.isEmpty) return;
+    if (_selected.isEmpty && _selectedRelations.isEmpty) return;
     setState(() => _applying = true);
     final repository = ref.read(storyStateRepositoryProvider);
     var created = 0;
@@ -164,8 +287,33 @@ class _StoryStateExtractionDialogState
     }
     if (!mounted) return;
     setState(() => _applying = false);
+    // ENH-56：勾选的关系变化一并应用。
+    var relationsAdded = 0;
+    var relationsUpdated = 0;
+    var relationsRemoved = 0;
+    if (_selectedRelations.isNotEmpty) {
+      for (final index in _selectedRelations) {
+        if (index >= _relationChanges.length) continue;
+        switch (_relationModeOf(_relationChanges[index])) {
+          case _RelationMode.create:
+            relationsAdded++;
+          case _RelationMode.update:
+            relationsUpdated++;
+          case _RelationMode.remove:
+            relationsRemoved++;
+          case _RelationMode.unchanged || _RelationMode.unresolvable:
+            break;
+        }
+      }
+      await _applyRelations();
+    }
+    if (!mounted) return;
     final messenger = ScaffoldMessenger.of(context);
-    final message = context.l10n.storyStateExtractApplied(created, updated);
+    var message = context.l10n.storyStateExtractApplied(created, updated);
+    if (relationsAdded + relationsUpdated + relationsRemoved > 0) {
+      message =
+          '$message\n${context.l10n.storyStateExtractRelationsApplied(relationsAdded, relationsUpdated, relationsRemoved)}';
+    }
     Navigator.of(context).pop(true);
     messenger.showSnackBar(SnackBar(content: Text(message)));
   }
@@ -205,7 +353,7 @@ class _StoryStateExtractionDialogState
                   ),
                 ],
               )
-            : _suggestions.isEmpty
+            : _suggestions.isEmpty && _relationChanges.isEmpty
             ? Text(
                 l10n.storyStateExtractEmpty,
                 style: TextStyle(color: context.paper.inkSoft),
@@ -237,6 +385,33 @@ class _StoryStateExtractionDialogState
                           });
                         },
                       ),
+                    if (_relationChanges.isNotEmpty) ...<Widget>[
+                      const SizedBox(height: 12),
+                      Text(
+                        l10n.storyStateExtractRelationSection,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: context.paper.inkSoft,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      for (var i = 0; i < _relationChanges.length; i++)
+                        _RelationTile(
+                          change: _relationChanges[i],
+                          mode: _relationModeOf(_relationChanges[i]),
+                          selected: _selectedRelations.contains(i),
+                          onChanged: (value) {
+                            setState(() {
+                              if (value) {
+                                _selectedRelations.add(i);
+                              } else {
+                                _selectedRelations.remove(i);
+                              }
+                            });
+                          },
+                        ),
+                    ],
                   ],
                 ),
               ),
@@ -246,10 +421,19 @@ class _StoryStateExtractionDialogState
           onPressed: _applying ? null : () => Navigator.of(context).pop(false),
           child: Text(l10n.commonClose),
         ),
-        if (!_loading && _error == null && _suggestions.isNotEmpty)
+        if (!_loading &&
+            _error == null &&
+            (_suggestions.isNotEmpty || _relationChanges.isNotEmpty))
           FilledButton(
-            onPressed: _selected.isEmpty || _applying ? null : _apply,
-            child: Text(l10n.storyStateExtractApply(_selected.length)),
+            onPressed:
+                (_selected.isEmpty && _selectedRelations.isEmpty) || _applying
+                ? null
+                : _apply,
+            child: Text(
+              l10n.storyStateExtractApply(
+                _selected.length + _selectedRelations.length,
+              ),
+            ),
           ),
       ],
     );
@@ -315,5 +499,64 @@ class _SuggestionTile extends StatelessWidget {
       StoryStateKind.foreshadow => l10n.storyStateTabForeshadow,
       StoryStateKind.timeline => l10n.storyStateTabTimeline,
     };
+  }
+}
+
+/// 人物关系变化勾选项（ENH-56）。
+class _RelationTile extends StatelessWidget {
+  const _RelationTile({
+    required this.change,
+    required this.mode,
+    required this.selected,
+    required this.onChanged,
+  });
+
+  final RelationChangeSuggestion change;
+  final _RelationMode mode;
+  final bool selected;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final disabled =
+        mode == _RelationMode.unchanged || mode == _RelationMode.unresolvable;
+    final modeText = switch (mode) {
+      _RelationMode.create => l10n.storyStateExtractNew,
+      _RelationMode.update => l10n.storyStateExtractUpdate,
+      _RelationMode.remove => l10n.storyStateExtractRelationRemove,
+      _RelationMode.unchanged => l10n.storyStateExtractUnchanged,
+      _RelationMode.unresolvable => l10n.storyStateExtractRelationUnresolvable,
+    };
+    final label = change.label.trim();
+    final subtitle = label.isEmpty
+        ? null
+        : Text('${change.from.trim()} → ${change.to.trim()}：$label');
+    return CheckboxListTile(
+      contentPadding: EdgeInsets.zero,
+      value: selected,
+      onChanged: disabled ? null : (value) => onChanged(value ?? false),
+      title: Row(
+        children: <Widget>[
+          Expanded(
+            child: Text(
+              '[${l10n.storyStateExtractRelationSection}] '
+              '${change.from.trim()} → ${change.to.trim()}',
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            modeText,
+            style: TextStyle(
+              fontSize: 12,
+              color: disabled
+                  ? context.paper.inkSoft
+                  : Theme.of(context).colorScheme.primary,
+            ),
+          ),
+        ],
+      ),
+      subtitle: subtitle,
+    );
   }
 }

@@ -275,6 +275,14 @@ class ChapterRepository {
     );
   }
 
+  /// 仅保存本章写作目标（ENH-51）：不触碰正文、字数、统计与作品汇总。
+  Future<void> saveChapterIntent(int chapterId, String intent) {
+    return _chapters.updateChapter(
+      chapterId,
+      ChaptersCompanion(intent: Value(intent)),
+    );
+  }
+
   /// 仅保存会话恢复位置（光标 / 滚动），不触碰正文与字数。
   Future<void> saveCursorPosition({
     required int chapterId,

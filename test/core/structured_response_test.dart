@@ -156,6 +156,39 @@ void main() {
       expect(empty.isEmpty, isTrue);
       expect(parseStoryStateExtractionResponse('[]').parseFailed, isFalse);
     });
+
+    test('解析 relationChanges 并归一化动作、按两端去重（ENH-56）', () {
+      final extraction = parseStoryStateExtractionResponse(
+        '{"states":[],"relationChanges":['
+        '{"from":"沈砚","to":"顾寒","label":"宿敌","action":"新增"},'
+        '{"from":"顾寒","to":"沈砚","label":"宿敌","action":"add"},'
+        '{"from":"沈砚","to":"苏晚","label":"未婚妻","action":"update"},'
+        '{"from":"沈砚","to":"莫老","label":"","action":"决裂"},'
+        '{"from":"无名氏","to":"沈砚","label":"同门"},'
+        '{"from":"沈砚","to":"沈砚","label":"自环"}]}',
+      );
+      expect(extraction.parseFailed, isFalse);
+      expect(extraction.suggestions, isEmpty);
+      expect(extraction.relationChanges, hasLength(4));
+      // 无向配对去重：同一对人物以最后一条为准。
+      expect(extraction.relationChanges[0].from, '顾寒');
+      expect(extraction.relationChanges[0].to, '沈砚');
+      expect(extraction.relationChanges[0].action, 'add');
+      expect(extraction.relationChanges[1].action, 'update');
+      expect(extraction.relationChanges[2].action, 'remove');
+      expect(extraction.relationChanges[2].label, isEmpty);
+      // 名字缺失的一端保留原样，由 UI 判定是否可解析。
+      expect(extraction.relationChanges[3].from, '无名氏');
+    });
+
+    test('无 relationChanges 键时关系列表为空且不算失败（ENH-56）', () {
+      final plain = parseStoryStateExtractionResponse(
+        '{"states":[{"kind":"character","title":"沈砚"}]}',
+      );
+      expect(plain.parseFailed, isFalse);
+      expect(plain.relationChanges, isEmpty);
+      expect(plain.isEmpty, isFalse);
+    });
   });
 
   group('parsePlotPlanResponse', () {

@@ -524,6 +524,108 @@ abstract class AppLocalizations {
   /// **'查看/编辑本章摘要'**
   String get editorToolEditSummary;
 
+  /// No description provided for @editorToolChapterIntent.
+  ///
+  /// In zh, this message translates to:
+  /// **'本章写作目标'**
+  String get editorToolChapterIntent;
+
+  /// No description provided for @chapterIntentTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'本章写作目标'**
+  String get chapterIntentTitle;
+
+  /// No description provided for @chapterIntentHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'告诉 AI 这一章要完成什么：核心目标、关键节拍与需要避免的内容。仅保存在本机，续写与改写时自动注入。'**
+  String get chapterIntentHint;
+
+  /// No description provided for @chapterIntentGoalLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'核心目标（一句话）'**
+  String get chapterIntentGoalLabel;
+
+  /// No description provided for @chapterIntentGoalHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'如：沈砚在雨夜发现密信，并与掌柜正面交锋'**
+  String get chapterIntentGoalHint;
+
+  /// No description provided for @chapterIntentBeatsLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'关键节拍（每行一条，最多 8 条）'**
+  String get chapterIntentBeatsLabel;
+
+  /// No description provided for @chapterIntentBeatsHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'按发生顺序填写，如：沈砚潜入后院 → 撞见掌柜烧信'**
+  String get chapterIntentBeatsHint;
+
+  /// No description provided for @chapterIntentAvoidLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'避免内容（每行一条，最多 5 条）'**
+  String get chapterIntentAvoidLabel;
+
+  /// No description provided for @chapterIntentAvoidHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'如：不要让沈砚主动暴露身份'**
+  String get chapterIntentAvoidHint;
+
+  /// No description provided for @chapterIntentFillOutline.
+  ///
+  /// In zh, this message translates to:
+  /// **'从章纲带入'**
+  String get chapterIntentFillOutline;
+
+  /// No description provided for @chapterIntentFillForeshadows.
+  ///
+  /// In zh, this message translates to:
+  /// **'带入未回收伏笔'**
+  String get chapterIntentFillForeshadows;
+
+  /// No description provided for @chapterIntentClear.
+  ///
+  /// In zh, this message translates to:
+  /// **'清空'**
+  String get chapterIntentClear;
+
+  /// No description provided for @chapterIntentSaved.
+  ///
+  /// In zh, this message translates to:
+  /// **'写作目标已保存'**
+  String get chapterIntentSaved;
+
+  /// No description provided for @chapterIntentOutlineEmpty.
+  ///
+  /// In zh, this message translates to:
+  /// **'本章还没有章纲梗概'**
+  String get chapterIntentOutlineEmpty;
+
+  /// No description provided for @chapterIntentNoForeshadows.
+  ///
+  /// In zh, this message translates to:
+  /// **'没有未回收的伏笔'**
+  String get chapterIntentNoForeshadows;
+
+  /// No description provided for @chapterIntentLimitBeats.
+  ///
+  /// In zh, this message translates to:
+  /// **'关键节拍最多 8 条'**
+  String get chapterIntentLimitBeats;
+
+  /// No description provided for @chapterIntentLimitAvoid.
+  ///
+  /// In zh, this message translates to:
+  /// **'避免内容最多 5 条'**
+  String get chapterIntentLimitAvoid;
+
   /// No description provided for @editorExitFocusMode.
   ///
   /// In zh, this message translates to:
@@ -4531,6 +4633,30 @@ abstract class AppLocalizations {
   /// **'与现有卡片一致'**
   String get storyStateExtractUnchanged;
 
+  /// No description provided for @storyStateExtractRelationSection.
+  ///
+  /// In zh, this message translates to:
+  /// **'人物关系变化'**
+  String get storyStateExtractRelationSection;
+
+  /// No description provided for @storyStateExtractRelationRemove.
+  ///
+  /// In zh, this message translates to:
+  /// **'解除'**
+  String get storyStateExtractRelationRemove;
+
+  /// No description provided for @storyStateExtractRelationUnresolvable.
+  ///
+  /// In zh, this message translates to:
+  /// **'未找到对应角色'**
+  String get storyStateExtractRelationUnresolvable;
+
+  /// No description provided for @storyStateExtractRelationsApplied.
+  ///
+  /// In zh, this message translates to:
+  /// **'关系图：新增 {added} 条、更新 {updated} 条、解除 {removed} 条'**
+  String storyStateExtractRelationsApplied(int added, int updated, int removed);
+
   /// No description provided for @storyStateExtractApply.
   ///
   /// In zh, this message translates to:
@@ -5058,6 +5184,24 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'外貌特征'**
   String get charactersAppearanceLabel;
+
+  /// No description provided for @charactersVoiceLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'说话风格 / 口吻（最多 300 字）'**
+  String get charactersVoiceLabel;
+
+  /// No description provided for @charactersVoiceHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'语气、句长、口头禅，或一句示例台词'**
+  String get charactersVoiceHint;
+
+  /// No description provided for @charactersVoiceShort.
+  ///
+  /// In zh, this message translates to:
+  /// **'口吻'**
+  String get charactersVoiceShort;
 
   /// No description provided for @charactersRelationsLabel.
   ///

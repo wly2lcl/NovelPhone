@@ -1181,6 +1181,16 @@ class $ChaptersTable extends Chapters with TableInfo<$ChaptersTable, Chapter> {
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _intentMeta = const VerificationMeta('intent');
+  @override
+  late final GeneratedColumn<String> intent = GeneratedColumn<String>(
+    'intent',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1196,6 +1206,7 @@ class $ChaptersTable extends Chapters with TableInfo<$ChaptersTable, Chapter> {
     summary,
     summaryUpdatedAt,
     deletedAt,
+    intent,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1301,6 +1312,12 @@ class $ChaptersTable extends Chapters with TableInfo<$ChaptersTable, Chapter> {
         deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
       );
     }
+    if (data.containsKey('intent')) {
+      context.handle(
+        _intentMeta,
+        intent.isAcceptableOrUnknown(data['intent']!, _intentMeta),
+      );
+    }
     return context;
   }
 
@@ -1362,6 +1379,10 @@ class $ChaptersTable extends Chapters with TableInfo<$ChaptersTable, Chapter> {
         DriftSqlType.dateTime,
         data['${effectivePrefix}deleted_at'],
       ),
+      intent: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}intent'],
+      )!,
     );
   }
 
@@ -1392,6 +1413,10 @@ class Chapter extends DataClass implements Insertable<Chapter> {
 
   /// 回收站标记（ENH-22）：非空表示已移入回收站，30 天后彻底删除。
   final DateTime? deletedAt;
+
+  /// 本章写作目标（ENH-51）：JSON（核心目标 / 关键节拍 / 避免事项），
+  /// 仅本地保存，续写与改写时注入上下文。
+  final String intent;
   const Chapter({
     required this.id,
     required this.volumeId,
@@ -1406,6 +1431,7 @@ class Chapter extends DataClass implements Insertable<Chapter> {
     required this.summary,
     this.summaryUpdatedAt,
     this.deletedAt,
+    required this.intent,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1427,6 +1453,7 @@ class Chapter extends DataClass implements Insertable<Chapter> {
     if (!nullToAbsent || deletedAt != null) {
       map['deleted_at'] = Variable<DateTime>(deletedAt);
     }
+    map['intent'] = Variable<String>(intent);
     return map;
   }
 
@@ -1449,6 +1476,7 @@ class Chapter extends DataClass implements Insertable<Chapter> {
       deletedAt: deletedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(deletedAt),
+      intent: Value(intent),
     );
   }
 
@@ -1473,6 +1501,7 @@ class Chapter extends DataClass implements Insertable<Chapter> {
         json['summaryUpdatedAt'],
       ),
       deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+      intent: serializer.fromJson<String>(json['intent']),
     );
   }
   @override
@@ -1492,6 +1521,7 @@ class Chapter extends DataClass implements Insertable<Chapter> {
       'summary': serializer.toJson<String>(summary),
       'summaryUpdatedAt': serializer.toJson<DateTime?>(summaryUpdatedAt),
       'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+      'intent': serializer.toJson<String>(intent),
     };
   }
 
@@ -1509,6 +1539,7 @@ class Chapter extends DataClass implements Insertable<Chapter> {
     String? summary,
     Value<DateTime?> summaryUpdatedAt = const Value.absent(),
     Value<DateTime?> deletedAt = const Value.absent(),
+    String? intent,
   }) => Chapter(
     id: id ?? this.id,
     volumeId: volumeId ?? this.volumeId,
@@ -1525,6 +1556,7 @@ class Chapter extends DataClass implements Insertable<Chapter> {
         ? summaryUpdatedAt.value
         : this.summaryUpdatedAt,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    intent: intent ?? this.intent,
   );
   Chapter copyWithCompanion(ChaptersCompanion data) {
     return Chapter(
@@ -1547,6 +1579,7 @@ class Chapter extends DataClass implements Insertable<Chapter> {
           ? data.summaryUpdatedAt.value
           : this.summaryUpdatedAt,
       deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      intent: data.intent.present ? data.intent.value : this.intent,
     );
   }
 
@@ -1565,7 +1598,8 @@ class Chapter extends DataClass implements Insertable<Chapter> {
           ..write('updatedAt: $updatedAt, ')
           ..write('summary: $summary, ')
           ..write('summaryUpdatedAt: $summaryUpdatedAt, ')
-          ..write('deletedAt: $deletedAt')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('intent: $intent')
           ..write(')'))
         .toString();
   }
@@ -1585,6 +1619,7 @@ class Chapter extends DataClass implements Insertable<Chapter> {
     summary,
     summaryUpdatedAt,
     deletedAt,
+    intent,
   );
   @override
   bool operator ==(Object other) =>
@@ -1602,7 +1637,8 @@ class Chapter extends DataClass implements Insertable<Chapter> {
           other.updatedAt == this.updatedAt &&
           other.summary == this.summary &&
           other.summaryUpdatedAt == this.summaryUpdatedAt &&
-          other.deletedAt == this.deletedAt);
+          other.deletedAt == this.deletedAt &&
+          other.intent == this.intent);
 }
 
 class ChaptersCompanion extends UpdateCompanion<Chapter> {
@@ -1619,6 +1655,7 @@ class ChaptersCompanion extends UpdateCompanion<Chapter> {
   final Value<String> summary;
   final Value<DateTime?> summaryUpdatedAt;
   final Value<DateTime?> deletedAt;
+  final Value<String> intent;
   const ChaptersCompanion({
     this.id = const Value.absent(),
     this.volumeId = const Value.absent(),
@@ -1633,6 +1670,7 @@ class ChaptersCompanion extends UpdateCompanion<Chapter> {
     this.summary = const Value.absent(),
     this.summaryUpdatedAt = const Value.absent(),
     this.deletedAt = const Value.absent(),
+    this.intent = const Value.absent(),
   });
   ChaptersCompanion.insert({
     this.id = const Value.absent(),
@@ -1648,6 +1686,7 @@ class ChaptersCompanion extends UpdateCompanion<Chapter> {
     this.summary = const Value.absent(),
     this.summaryUpdatedAt = const Value.absent(),
     this.deletedAt = const Value.absent(),
+    this.intent = const Value.absent(),
   }) : volumeId = Value(volumeId),
        title = Value(title),
        sortOrder = Value(sortOrder),
@@ -1666,6 +1705,7 @@ class ChaptersCompanion extends UpdateCompanion<Chapter> {
     Expression<String>? summary,
     Expression<DateTime>? summaryUpdatedAt,
     Expression<DateTime>? deletedAt,
+    Expression<String>? intent,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -1681,6 +1721,7 @@ class ChaptersCompanion extends UpdateCompanion<Chapter> {
       if (summary != null) 'summary': summary,
       if (summaryUpdatedAt != null) 'summary_updated_at': summaryUpdatedAt,
       if (deletedAt != null) 'deleted_at': deletedAt,
+      if (intent != null) 'intent': intent,
     });
   }
 
@@ -1698,6 +1739,7 @@ class ChaptersCompanion extends UpdateCompanion<Chapter> {
     Value<String>? summary,
     Value<DateTime?>? summaryUpdatedAt,
     Value<DateTime?>? deletedAt,
+    Value<String>? intent,
   }) {
     return ChaptersCompanion(
       id: id ?? this.id,
@@ -1713,6 +1755,7 @@ class ChaptersCompanion extends UpdateCompanion<Chapter> {
       summary: summary ?? this.summary,
       summaryUpdatedAt: summaryUpdatedAt ?? this.summaryUpdatedAt,
       deletedAt: deletedAt ?? this.deletedAt,
+      intent: intent ?? this.intent,
     );
   }
 
@@ -1758,6 +1801,9 @@ class ChaptersCompanion extends UpdateCompanion<Chapter> {
     if (deletedAt.present) {
       map['deleted_at'] = Variable<DateTime>(deletedAt.value);
     }
+    if (intent.present) {
+      map['intent'] = Variable<String>(intent.value);
+    }
     return map;
   }
 
@@ -1776,7 +1822,8 @@ class ChaptersCompanion extends UpdateCompanion<Chapter> {
           ..write('updatedAt: $updatedAt, ')
           ..write('summary: $summary, ')
           ..write('summaryUpdatedAt: $summaryUpdatedAt, ')
-          ..write('deletedAt: $deletedAt')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('intent: $intent')
           ..write(')'))
         .toString();
   }
@@ -2336,6 +2383,16 @@ class $CharactersTable extends Characters
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
+  static const VerificationMeta _voiceMeta = const VerificationMeta('voice');
+  @override
+  late final GeneratedColumn<String> voice = GeneratedColumn<String>(
+    'voice',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -2347,6 +2404,7 @@ class $CharactersTable extends Characters
     appearance,
     relations,
     arc,
+    voice,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2418,6 +2476,12 @@ class $CharactersTable extends Characters
         arc.isAcceptableOrUnknown(data['arc']!, _arcMeta),
       );
     }
+    if (data.containsKey('voice')) {
+      context.handle(
+        _voiceMeta,
+        voice.isAcceptableOrUnknown(data['voice']!, _voiceMeta),
+      );
+    }
     return context;
   }
 
@@ -2463,6 +2527,10 @@ class $CharactersTable extends Characters
         DriftSqlType.string,
         data['${effectivePrefix}arc'],
       )!,
+      voice: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}voice'],
+      )!,
     );
   }
 
@@ -2485,6 +2553,10 @@ class Character extends DataClass implements Insertable<Character> {
   final String appearance;
   final String relations;
   final String arc;
+
+  /// 说话风格 / 口吻（ENH-52）：语气、句长、口头禅或示例台词，
+  /// 随角色卡进入 AI 上下文，帮助模型写出一致的对白。
+  final String voice;
   const Character({
     required this.id,
     required this.workId,
@@ -2495,6 +2567,7 @@ class Character extends DataClass implements Insertable<Character> {
     required this.appearance,
     required this.relations,
     required this.arc,
+    required this.voice,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2508,6 +2581,7 @@ class Character extends DataClass implements Insertable<Character> {
     map['appearance'] = Variable<String>(appearance);
     map['relations'] = Variable<String>(relations);
     map['arc'] = Variable<String>(arc);
+    map['voice'] = Variable<String>(voice);
     return map;
   }
 
@@ -2522,6 +2596,7 @@ class Character extends DataClass implements Insertable<Character> {
       appearance: Value(appearance),
       relations: Value(relations),
       arc: Value(arc),
+      voice: Value(voice),
     );
   }
 
@@ -2540,6 +2615,7 @@ class Character extends DataClass implements Insertable<Character> {
       appearance: serializer.fromJson<String>(json['appearance']),
       relations: serializer.fromJson<String>(json['relations']),
       arc: serializer.fromJson<String>(json['arc']),
+      voice: serializer.fromJson<String>(json['voice']),
     );
   }
   @override
@@ -2555,6 +2631,7 @@ class Character extends DataClass implements Insertable<Character> {
       'appearance': serializer.toJson<String>(appearance),
       'relations': serializer.toJson<String>(relations),
       'arc': serializer.toJson<String>(arc),
+      'voice': serializer.toJson<String>(voice),
     };
   }
 
@@ -2568,6 +2645,7 @@ class Character extends DataClass implements Insertable<Character> {
     String? appearance,
     String? relations,
     String? arc,
+    String? voice,
   }) => Character(
     id: id ?? this.id,
     workId: workId ?? this.workId,
@@ -2578,6 +2656,7 @@ class Character extends DataClass implements Insertable<Character> {
     appearance: appearance ?? this.appearance,
     relations: relations ?? this.relations,
     arc: arc ?? this.arc,
+    voice: voice ?? this.voice,
   );
   Character copyWithCompanion(CharactersCompanion data) {
     return Character(
@@ -2594,6 +2673,7 @@ class Character extends DataClass implements Insertable<Character> {
           : this.appearance,
       relations: data.relations.present ? data.relations.value : this.relations,
       arc: data.arc.present ? data.arc.value : this.arc,
+      voice: data.voice.present ? data.voice.value : this.voice,
     );
   }
 
@@ -2608,7 +2688,8 @@ class Character extends DataClass implements Insertable<Character> {
           ..write('aliases: $aliases, ')
           ..write('appearance: $appearance, ')
           ..write('relations: $relations, ')
-          ..write('arc: $arc')
+          ..write('arc: $arc, ')
+          ..write('voice: $voice')
           ..write(')'))
         .toString();
   }
@@ -2624,6 +2705,7 @@ class Character extends DataClass implements Insertable<Character> {
     appearance,
     relations,
     arc,
+    voice,
   );
   @override
   bool operator ==(Object other) =>
@@ -2637,7 +2719,8 @@ class Character extends DataClass implements Insertable<Character> {
           other.aliases == this.aliases &&
           other.appearance == this.appearance &&
           other.relations == this.relations &&
-          other.arc == this.arc);
+          other.arc == this.arc &&
+          other.voice == this.voice);
 }
 
 class CharactersCompanion extends UpdateCompanion<Character> {
@@ -2650,6 +2733,7 @@ class CharactersCompanion extends UpdateCompanion<Character> {
   final Value<String> appearance;
   final Value<String> relations;
   final Value<String> arc;
+  final Value<String> voice;
   const CharactersCompanion({
     this.id = const Value.absent(),
     this.workId = const Value.absent(),
@@ -2660,6 +2744,7 @@ class CharactersCompanion extends UpdateCompanion<Character> {
     this.appearance = const Value.absent(),
     this.relations = const Value.absent(),
     this.arc = const Value.absent(),
+    this.voice = const Value.absent(),
   });
   CharactersCompanion.insert({
     this.id = const Value.absent(),
@@ -2671,6 +2756,7 @@ class CharactersCompanion extends UpdateCompanion<Character> {
     this.appearance = const Value.absent(),
     this.relations = const Value.absent(),
     this.arc = const Value.absent(),
+    this.voice = const Value.absent(),
   }) : workId = Value(workId),
        name = Value(name);
   static Insertable<Character> custom({
@@ -2683,6 +2769,7 @@ class CharactersCompanion extends UpdateCompanion<Character> {
     Expression<String>? appearance,
     Expression<String>? relations,
     Expression<String>? arc,
+    Expression<String>? voice,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -2694,6 +2781,7 @@ class CharactersCompanion extends UpdateCompanion<Character> {
       if (appearance != null) 'appearance': appearance,
       if (relations != null) 'relations': relations,
       if (arc != null) 'arc': arc,
+      if (voice != null) 'voice': voice,
     });
   }
 
@@ -2707,6 +2795,7 @@ class CharactersCompanion extends UpdateCompanion<Character> {
     Value<String>? appearance,
     Value<String>? relations,
     Value<String>? arc,
+    Value<String>? voice,
   }) {
     return CharactersCompanion(
       id: id ?? this.id,
@@ -2718,6 +2807,7 @@ class CharactersCompanion extends UpdateCompanion<Character> {
       appearance: appearance ?? this.appearance,
       relations: relations ?? this.relations,
       arc: arc ?? this.arc,
+      voice: voice ?? this.voice,
     );
   }
 
@@ -2751,6 +2841,9 @@ class CharactersCompanion extends UpdateCompanion<Character> {
     if (arc.present) {
       map['arc'] = Variable<String>(arc.value);
     }
+    if (voice.present) {
+      map['voice'] = Variable<String>(voice.value);
+    }
     return map;
   }
 
@@ -2765,7 +2858,8 @@ class CharactersCompanion extends UpdateCompanion<Character> {
           ..write('aliases: $aliases, ')
           ..write('appearance: $appearance, ')
           ..write('relations: $relations, ')
-          ..write('arc: $arc')
+          ..write('arc: $arc, ')
+          ..write('voice: $voice')
           ..write(')'))
         .toString();
   }
@@ -8383,6 +8477,7 @@ typedef $$ChaptersTableCreateCompanionBuilder =
       Value<String> summary,
       Value<DateTime?> summaryUpdatedAt,
       Value<DateTime?> deletedAt,
+      Value<String> intent,
     });
 typedef $$ChaptersTableUpdateCompanionBuilder =
     ChaptersCompanion Function({
@@ -8399,6 +8494,7 @@ typedef $$ChaptersTableUpdateCompanionBuilder =
       Value<String> summary,
       Value<DateTime?> summaryUpdatedAt,
       Value<DateTime?> deletedAt,
+      Value<String> intent,
     });
 
 final class $$ChaptersTableReferences
@@ -8564,6 +8660,11 @@ class $$ChaptersTableFilterComposer
 
   ColumnFilters<DateTime> get deletedAt => $composableBuilder(
     column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get intent => $composableBuilder(
+    column: $table.intent,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -8760,6 +8861,11 @@ class $$ChaptersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get intent => $composableBuilder(
+    column: $table.intent,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$VolumesTableOrderingComposer get volumeId {
     final $$VolumesTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -8834,6 +8940,9 @@ class $$ChaptersTableAnnotationComposer
 
   GeneratedColumn<DateTime> get deletedAt =>
       $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get intent =>
+      $composableBuilder(column: $table.intent, builder: (column) => column);
 
   $$VolumesTableAnnotationComposer get volumeId {
     final $$VolumesTableAnnotationComposer composer = $composerBuilder(
@@ -9006,6 +9115,7 @@ class $$ChaptersTableTableManager
                 Value<String> summary = const Value.absent(),
                 Value<DateTime?> summaryUpdatedAt = const Value.absent(),
                 Value<DateTime?> deletedAt = const Value.absent(),
+                Value<String> intent = const Value.absent(),
               }) => ChaptersCompanion(
                 id: id,
                 volumeId: volumeId,
@@ -9020,6 +9130,7 @@ class $$ChaptersTableTableManager
                 summary: summary,
                 summaryUpdatedAt: summaryUpdatedAt,
                 deletedAt: deletedAt,
+                intent: intent,
               ),
           createCompanionCallback:
               ({
@@ -9036,6 +9147,7 @@ class $$ChaptersTableTableManager
                 Value<String> summary = const Value.absent(),
                 Value<DateTime?> summaryUpdatedAt = const Value.absent(),
                 Value<DateTime?> deletedAt = const Value.absent(),
+                Value<String> intent = const Value.absent(),
               }) => ChaptersCompanion.insert(
                 id: id,
                 volumeId: volumeId,
@@ -9050,6 +9162,7 @@ class $$ChaptersTableTableManager
                 summary: summary,
                 summaryUpdatedAt: summaryUpdatedAt,
                 deletedAt: deletedAt,
+                intent: intent,
               ),
           withReferenceMapper: (p0) => p0
               .map(
@@ -9590,6 +9703,7 @@ typedef $$CharactersTableCreateCompanionBuilder =
       Value<String> appearance,
       Value<String> relations,
       Value<String> arc,
+      Value<String> voice,
     });
 typedef $$CharactersTableUpdateCompanionBuilder =
     CharactersCompanion Function({
@@ -9602,6 +9716,7 @@ typedef $$CharactersTableUpdateCompanionBuilder =
       Value<String> appearance,
       Value<String> relations,
       Value<String> arc,
+      Value<String> voice,
     });
 
 final class $$CharactersTableReferences
@@ -9708,6 +9823,11 @@ class $$CharactersTableFilterComposer
 
   ColumnFilters<String> get arc => $composableBuilder(
     column: $table.arc,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get voice => $composableBuilder(
+    column: $table.voice,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -9834,6 +9954,11 @@ class $$CharactersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get voice => $composableBuilder(
+    column: $table.voice,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$WorksTableOrderingComposer get workId {
     final $$WorksTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -9894,6 +10019,9 @@ class $$CharactersTableAnnotationComposer
 
   GeneratedColumn<String> get arc =>
       $composableBuilder(column: $table.arc, builder: (column) => column);
+
+  GeneratedColumn<String> get voice =>
+      $composableBuilder(column: $table.voice, builder: (column) => column);
 
   $$WorksTableAnnotationComposer get workId {
     final $$WorksTableAnnotationComposer composer = $composerBuilder(
@@ -10012,6 +10140,7 @@ class $$CharactersTableTableManager
                 Value<String> appearance = const Value.absent(),
                 Value<String> relations = const Value.absent(),
                 Value<String> arc = const Value.absent(),
+                Value<String> voice = const Value.absent(),
               }) => CharactersCompanion(
                 id: id,
                 workId: workId,
@@ -10022,6 +10151,7 @@ class $$CharactersTableTableManager
                 appearance: appearance,
                 relations: relations,
                 arc: arc,
+                voice: voice,
               ),
           createCompanionCallback:
               ({
@@ -10034,6 +10164,7 @@ class $$CharactersTableTableManager
                 Value<String> appearance = const Value.absent(),
                 Value<String> relations = const Value.absent(),
                 Value<String> arc = const Value.absent(),
+                Value<String> voice = const Value.absent(),
               }) => CharactersCompanion.insert(
                 id: id,
                 workId: workId,
@@ -10044,6 +10175,7 @@ class $$CharactersTableTableManager
                 appearance: appearance,
                 relations: relations,
                 arc: arc,
+                voice: voice,
               ),
           withReferenceMapper: (p0) => p0
               .map(

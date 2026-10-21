@@ -234,15 +234,66 @@ class StoryStateSuggestion {
 class StoryStateExtraction {
   const StoryStateExtraction({
     this.suggestions = const <StoryStateSuggestion>[],
+    this.relationChanges = const <RelationChangeSuggestion>[],
     this.parseFailed = false,
   });
 
   final List<StoryStateSuggestion> suggestions;
 
+  /// 本章识别出的人物关系变化（ENH-56），作者勾选后写入关系图。
+  final List<RelationChangeSuggestion> relationChanges;
+
   /// 模型输出不是可解析的 JSON。
   final bool parseFailed;
 
-  bool get isEmpty => suggestions.isEmpty;
+  bool get isEmpty => suggestions.isEmpty && relationChanges.isEmpty;
+}
+
+/// 一条 AI 识别的人物关系变化（ENH-56）。
+class RelationChangeSuggestion {
+  const RelationChangeSuggestion({
+    required this.from,
+    required this.to,
+    this.label = '',
+    this.action = 'add',
+  });
+
+  /// 两端角色名（应与角色卡名称或别名一致）。
+  final String from;
+  final String to;
+
+  /// 关系称谓，如「师姐」「宿敌」。
+  final String label;
+
+  /// 归一化后的动作：add（新增）/ update（修改称谓）/ remove（解除）。
+  final String action;
+
+  /// 与既有关系对照的键：无向配对 + 称谓（关系图为有向边，但变化识别按两端人物判断）。
+  String get key {
+    final a = from.trim().toLowerCase();
+    final b = to.trim().toLowerCase();
+    return a.compareTo(b) <= 0 ? '$a|$b' : '$b|$a';
+  }
+}
+
+/// 归一化关系变化动作词。
+String _relationChangeAction(String raw) {
+  final value = raw.toLowerCase();
+  if (value.contains('remove') ||
+      value.contains('delete') ||
+      value.contains('解除') ||
+      value.contains('删除') ||
+      value.contains('决裂')) {
+    return 'remove';
+  }
+  if (value.contains('update') ||
+      value.contains('change') ||
+      value.contains('修改') ||
+      value.contains('更新') ||
+      value.contains('转变')) {
+    return 'update';
+  }
+  return 'add';
 }
 
 /// 解析本章状态变化 JSON（ENH-35）。
@@ -258,12 +309,69 @@ StoryStateExtraction parseStoryStateExtractionResponse(String raw) {
     if (node is Map) items.add((node, hint));
   }
 
+  // ENH-56：关系变化单独收集（relationChanges / relations / 关系变化 / 关系）。
+  final relationChanges = <String, RelationChangeSuggestion>{};
+  void collectRelationChanges(Map<dynamic, dynamic> map) {
+    for (final key in const <String>[
+      'relationChanges',
+      'relations',
+      '关系变化',
+      '关系',
+    ]) {
+      final value = map[key];
+      if (value is! List) continue;
+      for (final item in value) {
+        if (item is! Map) continue;
+        final from = readJsonString(item, const [
+          'from',
+          'source',
+          'fromName',
+          '角色A',
+          '甲',
+          '起点',
+        ]);
+        final to = readJsonString(item, const [
+          'to',
+          'target',
+          'toName',
+          '角色B',
+          '乙',
+          '终点',
+        ]);
+        if (from.isEmpty || to.isEmpty || from == to) continue;
+        final change = RelationChangeSuggestion(
+          from: from,
+          to: to,
+          label: readJsonText(item, const [
+            'label',
+            'relation',
+            '称谓',
+            '关系',
+            '描述',
+          ]),
+          action: _relationChangeAction(
+            readJsonString(item, const [
+              'action',
+              'relationAction',
+              '变化类型',
+              '操作',
+              '变化',
+            ]),
+          ),
+        );
+        relationChanges[change.key] = change;
+      }
+      if (relationChanges.isNotEmpty) break;
+    }
+  }
+
   if (decoded is List) {
     for (final item in decoded) {
       collect(item, null);
     }
   } else {
     final map = decoded as Map;
+    collectRelationChanges(map);
     var wrapped = false;
     for (final key in const <String>[
       'states',
@@ -341,6 +449,7 @@ StoryStateExtraction parseStoryStateExtractionResponse(String raw) {
   }
   return StoryStateExtraction(
     suggestions: suggestions.values.toList(growable: false),
+    relationChanges: relationChanges.values.take(10).toList(growable: false),
   );
 }
 

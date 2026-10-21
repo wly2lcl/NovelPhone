@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:novelphone/core/ai/chapter_intent.dart';
 import 'package:novelphone/core/ai/collaboration_rules.dart';
 import 'package:novelphone/core/ai/context_builder.dart';
 import 'package:novelphone/core/ai/structured_response.dart';
@@ -13,10 +14,12 @@ import 'package:novelphone/data/repositories/character_repository.dart';
 import 'package:novelphone/data/repositories/outline_repository.dart';
 import 'package:novelphone/data/repositories/setting_repository.dart';
 import 'package:novelphone/data/repositories/settings_repository.dart';
+import 'package:novelphone/data/repositories/story_state_repository.dart';
 import 'package:novelphone/data/repositories/token_stats_repository.dart';
 import 'package:novelphone/data/repositories/work_repository.dart';
 import 'package:novelphone/data/secure_key_store.dart';
 import 'package:novelphone/features/ai/ai_service.dart';
+import 'package:novelphone/models/story_state_kind.dart';
 
 /// ENH-27：分段采纳 / 多轮修改 / 本地偏好闭环的存储、上下文与请求装配。
 void main() {
@@ -503,5 +506,74 @@ void main() {
     expect(system, contains('【协作守则】'));
     expect(system, contains('点子只给三个'));
     expect(system, contains('「不由自主」'));
+  });
+
+  test('桥段点子上下文补全目标 / 关系 / 状态卡（ENH-54）', () async {
+    await chapters.saveChapterIntent(
+      chapterId,
+      const ChapterIntent(
+        goal: '本章让沈砚暴露身份',
+        beats: <String>['苏晚出言试探'],
+      ).encode(),
+    );
+    await outline.saveChapterSummary(
+      workId: workId,
+      chapterId: chapterId,
+      summary: '沈砚夜访旧宅。',
+    );
+    final shen = await characters.createCharacter(workId: workId, name: '沈砚');
+    final su = await characters.createCharacter(workId: workId, name: '苏晚');
+    await characters.createRelation(
+      workId: workId,
+      fromCharacterId: shen,
+      toCharacterId: su,
+      label: '师姐',
+    );
+    final states = StoryStateRepository(db);
+    await states.createEntry(
+      workId: workId,
+      kind: StoryStateKind.character,
+      title: '沈砚',
+      detail: '左臂受伤',
+    );
+    await configure(AiTask.inspire);
+    String? requestBody;
+    final client = MockClient((request) async {
+      requestBody = request.body;
+      return sseResponse('三个点子。');
+    });
+    final service = AiService(
+      settings: config,
+      works: works,
+      chapters: chapters,
+      characters: characters,
+      outline: outline,
+      stats: stats,
+      settingRepository: settings,
+      storyStateRepository: states,
+      httpClient: client,
+    );
+
+    final events = await service
+        .inspire(
+          workId: workId,
+          mode: InspireMode.ideas,
+          anchorChapterId: chapterId,
+        )
+        .toList();
+    final built = events.whereType<AiContextBuilt>().single.context;
+    final labels = built.sections.map((section) => section.label).toList();
+    expect(labels, containsAll(<String>['本章写作目标', '本章章纲', '人物关系', '故事状态卡']));
+
+    final decoded = jsonDecode(requestBody!) as Map<String, dynamic>;
+    final messages = decoded['messages'] as List<dynamic>;
+    final prompt =
+        ((messages.last as Map<String, dynamic>)['content'] as String);
+    expect(prompt, contains('【本章写作目标】'));
+    expect(prompt, contains('核心目标：本章让沈砚暴露身份'));
+    expect(prompt, contains('【人物关系】'));
+    expect(prompt, contains('- 沈砚 → 苏晚：师姐'));
+    expect(prompt, contains('【故事状态卡】'));
+    expect(prompt, contains('沈砚：左臂受伤'));
   });
 }

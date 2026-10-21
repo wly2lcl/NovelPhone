@@ -12,7 +12,7 @@
 //   /openai-style        返回文风档案 JSON（验证 ENH-23 文风提取）
 //   /openai-extract      返回角色 / 设定抽取 JSON（验证 ENH-23 设定补全）
 //   /openai-plan         返回剧情走向与分章建议 JSON（验证 ENH-23 剧情推演）
-//   /openai-states       返回本章状态变化 JSON（验证 ENH-35 状态卡提取）
+//   /openai-states       返回本章状态变化 + 人物关系变化 JSON（验证 ENH-35 / ENH-56）
 //   /openai-continuity   检查请求是否携带故事状态卡并回显（验证 ENH-34）；
 //                        返回结构化「未发现冲突」（验证 ENH-38）
 //   /openai-continuity-issues  返回两条带原文、来源与建议的结构化冲突
@@ -23,8 +23,9 @@
 //                        `[[ch:<id>]]` 的问答文本（验证 ENH-43 引用 chip 与存入灵感箱）
 //   /openai-collab-cliche  返回含常见 AI 套话的续写文本
 //                        （验证 ENH-44 「太像 AI」放弃后套话发现）
-//   /openai-pref-echo     回显请求 system 中是否带有协作守则 / 套话黑名单
-//                        （验证 ENH-44 / ENH-46 偏好注入）
+//   /openai-pref-echo     回显请求中是否带有协作守则 / 套话黑名单 / 本章写作目标 /
+//                        角色口吻 / 人物关系 / 故事状态卡
+//                        （验证 ENH-44 / ENH-46 / ENH-51~54 注入）
 //   /openai-enh27        多段落续写；带修订要求的请求返回不同草稿
 //                        （验证 ENH-27 分段采纳与结果内继续修改）
 //   /openai-enh29-revise-fail  首次多段落续写正常，后续修订请求始终 500
@@ -140,10 +141,7 @@ class FakeLlmServer {
       case 'openai-plan':
         return _openaiPlan(request);
       case 'openai-states':
-        return _openaiStream(
-          request.response,
-          pieces: <String>[_storyStatesJson],
-        );
+        return _openaiStates(request);
       case 'openai-continuity':
         return _openaiContinuity(request);
       case 'openai-continuity-issues':
@@ -293,20 +291,37 @@ class FakeLlmServer {
     return _openaiStream(request.response, pieces: <String>[_plotPlanJson]);
   }
 
-  /// ENH-44 / ENH-46 验收：回显 system 中是否带协作守则与套话黑名单。
+  /// ENH-44 / ENH-46 / ENH-51 / ENH-52 / ENH-53 / ENH-54 / ENH-55 验收：回显
+  /// 协作守则、套话黑名单、本章写作目标、角色口吻、人物关系、故事状态卡与
+  /// 关系邻接角色卡是否进入请求。
   Future<void> _openaiPrefEcho(HttpRequest request) async {
     final raw = await utf8.decoder.bind(request).join();
     final hasRules = raw.contains('【协作守则】');
     final hasBanned = raw.contains('AI 套话');
+    final hasGoal = raw.contains('【本章写作目标】');
+    final hasVoice = raw.contains('口吻：');
+    final hasRelations = raw.contains('【人物关系】');
+    final hasStates = raw.contains('【故事状态卡】');
+    final hasNeighbors = raw.contains('因人物关系纳入');
     stdout.writeln(
       '[fake-llm] openai-pref-echo：守则=${hasRules ? '有' : '无'} '
-      '黑名单=${hasBanned ? '有' : '无'}',
+      '黑名单=${hasBanned ? '有' : '无'} '
+      '目标=${hasGoal ? '有' : '无'} '
+      '口吻=${hasVoice ? '有' : '无'} '
+      '关系=${hasRelations ? '有' : '无'} '
+      '状态=${hasStates ? '有' : '无'} '
+      '邻卡=${hasNeighbors ? '有' : '无'}',
     );
     return _openaiStream(
       request.response,
       pieces: <String>[
         '协作守则：${hasRules ? '已注入' : '未注入'}；',
-        '套话黑名单：${hasBanned ? '已注入' : '未注入'}。',
+        '套话黑名单：${hasBanned ? '已注入' : '未注入'}；',
+        '本章写作目标：${hasGoal ? '已注入' : '未注入'}；',
+        '角色口吻：${hasVoice ? '已注入' : '未注入'}；',
+        '人物关系：${hasRelations ? '已注入' : '未注入'}；',
+        '故事状态卡：${hasStates ? '已注入' : '未注入'}；',
+        '关系邻接角色卡：${hasNeighbors ? '已注入' : '未注入'}。',
       ],
     );
   }
@@ -606,7 +621,22 @@ class FakeLlmServer {
       '{"kind":"character","title":"沈砚","detail":"左臂中箭，仍握紧铜印","status":"open"},'
       '{"kind":"foreshadow","title":"铜印来历","detail":"铜印上的纹样与灭门案有关","status":"open"},'
       '{"kind":"foreshadow","title":"密信去向","status":"closed"},'
-      '{"kind":"timeline","title":"雨夜入城","detail":"子时从西门进城，遇见守夜人"}]}';
+      '{"kind":"timeline","title":"雨夜入城","detail":"子时从西门进城，遇见守夜人"}],'
+      '"relationChanges":['
+      '{"from":"Shen","to":"Su","label":"estranged sister","action":"update"},'
+      '{"from":"Ling","to":"Shen","label":"informant","action":"add"}]}';
+
+  /// ENH-56 验收：状态提取请求记录「已有关系」注入，返回含 relationChanges 的 JSON。
+  Future<void> _openaiStates(HttpRequest request) async {
+    final raw = await utf8.decoder.bind(request).join();
+    final hasExistingRelations = raw.contains('【已有关系】');
+    final taskMentionsRelations = raw.contains('与【已有关系】');
+    stdout.writeln(
+      '[fake-llm] openai-states：已有关系=${hasExistingRelations ? '有' : '无'} '
+      '任务提及=${taskMentionsRelations ? '有' : '无'}',
+    );
+    return _openaiStream(request.response, pieces: <String>[_storyStatesJson]);
+  }
 
   static const String _continuityIssuesJson =
       '{"summary":"发现 2 处与角色卡、故事状态冲突的地方",'

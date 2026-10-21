@@ -66,6 +66,10 @@ class Chapters extends Table {
 
   /// 回收站标记（ENH-22）：非空表示已移入回收站，30 天后彻底删除。
   DateTimeColumn get deletedAt => dateTime().nullable()();
+
+  /// 本章写作目标（ENH-51）：JSON（核心目标 / 关键节拍 / 避免事项），
+  /// 仅本地保存，续写与改写时注入上下文。
+  TextColumn get intent => text().withDefault(const Constant(''))();
 }
 
 /// 章节快照（B-05）：手动创建的版本历史，仅存标题与正文全文，随章节级联删除。
@@ -100,6 +104,10 @@ class Characters extends Table {
   TextColumn get appearance => text().withDefault(const Constant(''))();
   TextColumn get relations => text().withDefault(const Constant(''))();
   TextColumn get arc => text().withDefault(const Constant(''))();
+
+  /// 说话风格 / 口吻（ENH-52）：语气、句长、口头禅或示例台词，
+  /// 随角色卡进入 AI 上下文，帮助模型写出一致的对白。
+  TextColumn get voice => text().withDefault(const Constant(''))();
 }
 
 /// 章纲。按卷组织、每章一条梗概；删除章节时 chapterId 置空而非级联删除。
@@ -277,7 +285,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 15;
+  int get schemaVersion => 16;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -353,6 +361,11 @@ class AppDatabase extends _$AppDatabase {
       // v15（ENH-40）：角色卡追加别名 / 称谓列。
       if (from < 15) {
         await m.addColumn(characters, characters.aliases);
+      }
+      // v16（ENH-51 / ENH-52）：章节追加写作目标；角色卡追加口吻。
+      if (from < 16) {
+        await m.addColumn(chapters, chapters.intent);
+        await m.addColumn(characters, characters.voice);
       }
     },
     beforeOpen: (details) async {

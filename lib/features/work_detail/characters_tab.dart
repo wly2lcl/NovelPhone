@@ -149,6 +149,8 @@ class _CharacterCard extends StatelessWidget {
                 spacing: 6,
                 runSpacing: 6,
                 children: <Widget>[
+                  if (character.voice.trim().isNotEmpty)
+                    _TagChip(text: context.l10n.charactersVoiceShort),
                   for (final tag in tags.take(3)) _TagChip(text: tag),
                   if (tags.length > 3) _TagChip(text: '+${tags.length - 3}'),
                 ],
@@ -200,6 +202,7 @@ class _CharacterFormSheetState extends ConsumerState<_CharacterFormSheet> {
   late final TextEditingController _aliases;
   late final TextEditingController _tags;
   late final TextEditingController _appearance;
+  late final TextEditingController _voice;
   late final TextEditingController _relations;
   late final TextEditingController _arc;
   String? _nameError;
@@ -221,6 +224,7 @@ class _CharacterFormSheetState extends ConsumerState<_CharacterFormSheet> {
       text: c == null ? '' : decodeTags(c.personalityTags).join(' '),
     );
     _appearance = TextEditingController(text: c?.appearance ?? '');
+    _voice = TextEditingController(text: c?.voice ?? '');
     _relations = TextEditingController(text: c?.relations ?? '');
     _arc = TextEditingController(text: c?.arc ?? '');
   }
@@ -232,6 +236,7 @@ class _CharacterFormSheetState extends ConsumerState<_CharacterFormSheet> {
     _aliases.dispose();
     _tags.dispose();
     _appearance.dispose();
+    _voice.dispose();
     _relations.dispose();
     _arc.dispose();
     super.dispose();
@@ -282,6 +287,18 @@ class _CharacterFormSheetState extends ConsumerState<_CharacterFormSheet> {
                 decoration: InputDecoration(
                   labelText: context.l10n.charactersTagsLabel,
                   errorText: _tagError,
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _voice,
+                maxLength: 300,
+                minLines: 2,
+                maxLines: 4,
+                decoration: InputDecoration(
+                  labelText: context.l10n.charactersVoiceLabel,
+                  hintText: context.l10n.charactersVoiceHint,
+                  alignLabelWithHint: true,
                 ),
               ),
               const SizedBox(height: 12),
@@ -361,6 +378,7 @@ class _CharacterFormSheetState extends ConsumerState<_CharacterFormSheet> {
     final encodedAliases = encodeTags(parseTagInput(_aliases.text, max: 8));
     final identity = _identity.text.trim();
     final appearance = _appearance.text.trim();
+    final voice = _voice.text.trim();
     final relations = _relations.text.trim();
     final arc = _arc.text.trim();
     try {
@@ -372,6 +390,7 @@ class _CharacterFormSheetState extends ConsumerState<_CharacterFormSheet> {
           personalityTags: encodedTags,
           aliases: encodedAliases,
           appearance: appearance,
+          voice: voice,
           relations: relations,
           arc: arc,
         );
@@ -383,6 +402,7 @@ class _CharacterFormSheetState extends ConsumerState<_CharacterFormSheet> {
           personalityTags: encodedTags,
           aliases: encodedAliases,
           appearance: appearance,
+          voice: voice,
           relations: relations,
           arc: arc,
         );

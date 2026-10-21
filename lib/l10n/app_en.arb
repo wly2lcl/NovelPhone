@@ -71,6 +71,23 @@
   "editorToolContinuity": "Check setting consistency",
   "editorToolStoryState": "Extract state changes",
   "editorToolEditSummary": "View/edit chapter summary",
+  "editorToolChapterIntent": "Chapter goals",
+  "chapterIntentTitle": "Chapter goals",
+  "chapterIntentHint": "Tell the AI what this chapter should accomplish: core goal, key beats and what to avoid. Stored locally and injected into continuation and rewrite.",
+  "chapterIntentGoalLabel": "Core goal (one sentence)",
+  "chapterIntentGoalHint": "e.g. Shen Yan finds the letter on a rainy night and confronts the shopkeeper",
+  "chapterIntentBeatsLabel": "Key beats (one per line, up to 8)",
+  "chapterIntentBeatsHint": "In order, e.g. Shen Yan slips into the backyard → catches the shopkeeper burning a letter",
+  "chapterIntentAvoidLabel": "Avoid (one per line, up to 5)",
+  "chapterIntentAvoidHint": "e.g. Do not let Shen Yan reveal his identity",
+  "chapterIntentFillOutline": "Use outline",
+  "chapterIntentFillForeshadows": "Add open foreshadows",
+  "chapterIntentClear": "Clear",
+  "chapterIntentSaved": "Chapter goals saved",
+  "chapterIntentOutlineEmpty": "No outline summary for this chapter yet",
+  "chapterIntentNoForeshadows": "No open foreshadows",
+  "chapterIntentLimitBeats": "Up to 8 key beats",
+  "chapterIntentLimitAvoid": "Up to 5 avoid items",
   "editorExitFocusMode": "Exit focus mode",
   "editorFocusMode": "Focus mode",
   "editorBodyHint": "Write your text here…",
@@ -845,6 +862,23 @@
   "storyStateExtractNew": "New",
   "storyStateExtractUpdate": "Update",
   "storyStateExtractUnchanged": "Matches the existing card",
+  "storyStateExtractRelationSection": "Relationship changes",
+  "storyStateExtractRelationRemove": "Removed",
+  "storyStateExtractRelationUnresolvable": "Character not found",
+  "storyStateExtractRelationsApplied": "Relationship graph: {added} added, {updated} updated, {removed} removed",
+  "@storyStateExtractRelationsApplied": {
+    "placeholders": {
+      "added": {
+        "type": "int"
+      },
+      "updated": {
+        "type": "int"
+      },
+      "removed": {
+        "type": "int"
+      }
+    }
+  },
   "storyStateExtractApply": "Apply selected ({count})",
   "@storyStateExtractApply": {
     "placeholders": {
@@ -984,6 +1018,9 @@
   "charactersAliasesLabel": "Aliases / titles (up to 8, separated by spaces or commas)",
   "charactersTagsLabel": "Personality tags (up to 10, separated by spaces or commas)",
   "charactersAppearanceLabel": "Appearance",
+  "charactersVoiceLabel": "Voice / speech style (up to 300 characters)",
+  "charactersVoiceHint": "Tone, sentence length, verbal tics, or an example line",
+  "charactersVoiceShort": "Voice",
   "charactersRelationsLabel": "Relationships",
   "charactersArcLabel": "Character arc",
   "charactersNameError": "Name must be 1-20 characters",
